@@ -1,9 +1,9 @@
 # bQuery.js
 
-[![Repo](https://img.shields.io/badge/github-josunlp%2Fbquery-24292f?logo=github)](https://github.com/josunlp/bquery)
-[![Stars](https://img.shields.io/github/stars/josunlp/bquery?style=flat&logo=github)](https://github.com/josunlp/bquery/stargazers)
-[![Issues](https://img.shields.io/github/issues/josunlp/bquery?style=flat&logo=github)](https://github.com/josunlp/bquery/issues)
-[![License](https://img.shields.io/github/license/josunlp/bquery?style=flat)](https://github.com/josunlp/bquery/blob/main/LICENSE.md)
+[![Repo](https://img.shields.io/badge/github-bquery%2Fbquery-24292f?logo=github)](https://github.com/bquery/bquery)
+[![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bquery/bquery/stargazers)
+[![Issues](https://img.shields.io/github/issues/bquery/bquery?style=flat&logo=github)](https://github.com/bquery/bquery/issues)
+[![License](https://img.shields.io/github/license/bquery/bquery?style=flat)](https://github.com/bquery/bquery/blob/main/LICENSE.md)
 [![npm](https://img.shields.io/npm/v/bquery)](https://www.npmjs.com/package/bquery)
 [![Bundle Size](https://img.shields.io/bundlephobia/minzip/bquery)](https://bundlephobia.com/package/bquery)
 
