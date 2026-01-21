@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "..",
+    "paths": {
+      "bquery": ["../src/index.ts"],
+      "bquery/*": ["../src/*"]
+    }
+  },
+  "include": ["./**/*", "../src/**/*"],
+  "exclude": []
+}

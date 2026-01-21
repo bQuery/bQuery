@@ -1,0 +1,116 @@
+{
+  "name": "bquery",
+  "version": "1.0.0",
+  "description": "The jQuery for the Modern Web Platform - Zero build, TypeScript-first library with reactivity, components, and motion",
+  "type": "module",
+  "main": "./dist/full.umd.js",
+  "module": "./dist/index.es.mjs",
+  "types": "./dist/index.d.ts",
+  "unpkg": "./dist/full.umd.js",
+  "jsdelivr": "./dist/full.umd.js",
+  "exports": {
+    ".": {
+      "import": "./dist/index.es.mjs",
+      "require": "./dist/full.umd.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./full": {
+      "import": "./dist/full.es.mjs",
+      "require": "./dist/full.umd.js",
+      "types": "./dist/full.d.ts"
+    },
+    "./core": {
+      "import": "./dist/core.es.mjs",
+      "types": "./dist/core/index.d.ts"
+    },
+    "./reactive": {
+      "import": "./dist/reactive.es.mjs",
+      "types": "./dist/reactive/index.d.ts"
+    },
+    "./component": {
+      "import": "./dist/component.es.mjs",
+      "types": "./dist/component/index.d.ts"
+    },
+    "./motion": {
+      "import": "./dist/motion.es.mjs",
+      "types": "./dist/motion/index.d.ts"
+    },
+    "./security": {
+      "import": "./dist/security.es.mjs",
+      "types": "./dist/security/index.d.ts"
+    },
+    "./platform": {
+      "import": "./dist/platform.es.mjs",
+      "types": "./dist/platform/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "vitepress dev docs",
+    "build:docs": "vitepress build docs",
+    "preview": "vitepress preview docs",
+    "playground": "vite dev playground",
+    "build": "bun run build:lib && bun run build:umd && bun run build:types",
+    "build:lib": "vite build",
+    "build:umd": "vite build --config vite.umd.config.ts",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "lint": "eslint . --fix",
+    "lint:types": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "docs:api": "typedoc",
+    "clean": "rimraf dist",
+    "prepublishOnly": "bun run clean && bun run build && bun test"
+  },
+  "keywords": [
+    "dom",
+    "manipulation",
+    "jquery",
+    "modern",
+    "typescript",
+    "signals",
+    "reactive",
+    "components",
+    "web-components",
+    "animation",
+    "motion",
+    "zero-build",
+    "cdn"
+  ],
+  "author": "bQuery Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bquery/bquery.git"
+  },
+  "homepage": "https://bquery.dev",
+  "bugs": {
+    "url": "https://github.com/bquery/bquery/issues"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "bun-types": "^1.1.26",
+    "eslint": "^9.8.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.9.0",
+    "happy-dom": "^20.3.4",
+    "prettier": "^3.3.3",
+    "rimraf": "^5.0.5",
+    "typedoc": "^0.25.13",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.3",
+    "vitepress": "^1.3.1"
+  }
+}

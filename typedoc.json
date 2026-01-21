@@ -1,0 +1,37 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/index.ts",
+    "src/full.ts",
+    "src/core/index.ts",
+    "src/reactive/index.ts",
+    "src/component/index.ts",
+    "src/motion/index.ts",
+    "src/security/index.ts",
+    "src/platform/index.ts"
+  ],
+  "out": "docs/api",
+  "name": "bQuery.js API Documentation",
+  "readme": "README.md",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "plugin": [],
+  "theme": "default",
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "visibilityFilters": {
+    "protected": false,
+    "private": false,
+    "inherited": true,
+    "@internal": false
+  },
+  "searchInComments": true,
+  "cleanOutputDir": true
+}

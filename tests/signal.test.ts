@@ -1,0 +1,184 @@
+import { describe, expect, it } from 'bun:test';
+import { batch, computed, effect, signal } from '../src/reactive/signal';
+
+describe('signal', () => {
+  it('stores and retrieves values', () => {
+    const count = signal(0);
+    expect(count.value).toBe(0);
+
+    count.value = 5;
+    expect(count.value).toBe(5);
+  });
+
+  it('uses Object.is for equality', () => {
+    const obj = signal({ a: 1 });
+    const original = obj.value;
+
+    // Same reference should not trigger update
+    obj.value = original;
+    expect(obj.value).toBe(original);
+  });
+
+  it('peek returns value without tracking', () => {
+    const count = signal(0);
+    expect(count.peek()).toBe(0);
+  });
+
+  it('update transforms value', () => {
+    const count = signal(5);
+    count.update((n) => n * 2);
+    expect(count.value).toBe(10);
+  });
+});
+
+describe('computed', () => {
+  it('computes derived values', () => {
+    const count = signal(1);
+    const doubled = computed(() => count.value * 2);
+
+    expect(doubled.value).toBe(2);
+  });
+
+  it('updates when dependencies change', () => {
+    const count = signal(1);
+    const doubled = computed(() => count.value * 2);
+
+    expect(doubled.value).toBe(2);
+    count.value = 3;
+    expect(doubled.value).toBe(6);
+  });
+
+  it('caches value until dependencies change', () => {
+    let computeCount = 0;
+    const count = signal(1);
+    const doubled = computed(() => {
+      computeCount++;
+      return count.value * 2;
+    });
+
+    // First access computes
+    expect(doubled.value).toBe(2);
+    expect(computeCount).toBe(1);
+
+    // Second access uses cache
+    expect(doubled.value).toBe(2);
+    expect(computeCount).toBe(1);
+
+    // Change triggers recompute
+    count.value = 2;
+    expect(doubled.value).toBe(4);
+    expect(computeCount).toBe(2);
+  });
+
+  it('computes from multiple signals', () => {
+    const price = signal(10);
+    const quantity = signal(2);
+    const total = computed(() => price.value * quantity.value);
+
+    expect(total.value).toBe(20);
+    price.value = 15;
+    expect(total.value).toBe(30);
+    quantity.value = 3;
+    expect(total.value).toBe(45);
+  });
+});
+
+describe('effect', () => {
+  it('runs immediately', () => {
+    let ran = false;
+    effect(() => {
+      ran = true;
+    });
+    expect(ran).toBe(true);
+  });
+
+  it('re-runs when dependencies change', () => {
+    const count = signal(0);
+    let latest = 0;
+
+    effect(() => {
+      latest = count.value;
+    });
+
+    expect(latest).toBe(0);
+    count.value = 5;
+    expect(latest).toBe(5);
+  });
+
+  it('returns cleanup function', () => {
+    const count = signal(0);
+    let runCount = 0;
+
+    const cleanup = effect(() => {
+      expect(count.value).toBe(count.value); // track dependency
+      runCount++;
+    });
+
+    expect(runCount).toBe(1);
+
+    cleanup();
+    count.value = 1;
+    // After cleanup, effect should not run
+    expect(runCount).toBe(1);
+  });
+
+  it('supports cleanup in effect function', () => {
+    const count = signal(0);
+    let cleanupRan = false;
+
+    effect(() => {
+      expect(count.value).toBe(count.value); // track
+      return () => {
+        cleanupRan = true;
+      };
+    });
+
+    expect(cleanupRan).toBe(false);
+    count.value = 1;
+    expect(cleanupRan).toBe(true);
+  });
+});
+
+describe('batch', () => {
+  it('batches multiple updates', () => {
+    const count = signal(0);
+    let runs = 0;
+
+    effect(() => {
+      expect(count.value).toBe(count.value);
+      runs++;
+    });
+
+    expect(runs).toBe(1);
+
+    batch(() => {
+      count.value = 1;
+      count.value = 2;
+      count.value = 3;
+    });
+
+    // Effect runs once at start, once after batch
+    expect(runs).toBe(2);
+  });
+
+  it('supports nested batches', () => {
+    const count = signal(0);
+    let runs = 0;
+
+    effect(() => {
+      expect(count.value).toBe(count.value);
+      runs++;
+    });
+
+    batch(() => {
+      count.value = 1;
+      batch(() => {
+        count.value = 2;
+      });
+      count.value = 3;
+    });
+
+    // Only runs after outermost batch completes
+    expect(runs).toBe(2);
+  });
+});
