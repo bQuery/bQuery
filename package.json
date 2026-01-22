@@ -1,5 +1,5 @@
 {
-  "name": "bquery",
+  "name": "@bquery/bquery",
   "version": "1.0.0",
   "description": "The jQuery for the Modern Web Platform - Zero build, TypeScript-first library with reactivity, components, and motion",
   "type": "module",
