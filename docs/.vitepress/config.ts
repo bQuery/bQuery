@@ -17,6 +17,7 @@ export default defineConfig({
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
             { text: 'Core API', link: '/guide/api-core' },
+            { text: 'Agents', link: '/guide/agents' },
             { text: 'Reactive', link: '/guide/reactive' },
             { text: 'Components', link: '/guide/components' },
             { text: 'Motion', link: '/guide/motion' },
