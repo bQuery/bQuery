@@ -26,13 +26,13 @@ bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM 
 
 ```bash
 # npm
-npm install bquery
+npm install @bquery/bquery
 
 # bun
-bun add bquery
+bun add @bquery/bquery
 
 # pnpm
-pnpm add bquery
+pnpm add @bquery/bquery
 ```
 
 ### Via CDN (Zero-build)
@@ -41,7 +41,7 @@ pnpm add bquery
 
 ```html
 <script type="module">
-  import { $, signal } from 'https://unpkg.com/bquery@1/dist/full.es.mjs';
+  import { $, signal } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
 
   const count = signal(0);
   $('#counter').text(`Count: ${count.value}`);
@@ -51,7 +51,7 @@ pnpm add bquery
 #### UMD (global variable)
 
 ```html
-<script src="https://unpkg.com/bquery@1/dist/full.umd.js"></script>
+<script src="https://unpkg.com/@bquery/bquery@1/dist/full.umd.js"></script>
 <script>
   const { $, signal } = bQuery;
   const count = signal(0);
@@ -61,7 +61,7 @@ pnpm add bquery
 #### IIFE (self-executing)
 
 ```html
-<script src="https://unpkg.com/bquery@1/dist/full.iife.js"></script>
+<script src="https://unpkg.com/@bquery/bquery@1/dist/full.iife.js"></script>
 <script>
   const { $, $$ } = bQuery;
   $$('.items').addClass('loaded');
@@ -72,17 +72,17 @@ pnpm add bquery
 
 ```ts
 // Full bundle (all modules)
-import { $, signal, component } from 'bquery';
+import { $, signal, component } from '@bquery/bquery';
 
 // Core only
-import { $, $$ } from 'bquery/core';
+import { $, $$ } from '@bquery/bquery/core';
 
 // À la carte (individual modules)
-import { signal, computed, effect } from 'bquery/reactive';
-import { component, html } from 'bquery/component';
-import { transition, spring } from 'bquery/motion';
-import { sanitize } from 'bquery/security';
-import { storage, cache } from 'bquery/platform';
+import { signal, computed, effect } from '@bquery/bquery/reactive';
+import { component, html } from '@bquery/bquery/component';
+import { transition, spring } from '@bquery/bquery/motion';
+import { sanitize } from '@bquery/bquery/security';
+import { storage, cache } from '@bquery/bquery/platform';
 ```
 
 ## Modules at a glance
@@ -101,7 +101,7 @@ import { storage, cache } from 'bquery/platform';
 ### Core – DOM & events
 
 ```ts
-import { $, $$ } from 'bquery/core';
+import { $, $$ } from '@bquery/bquery/core';
 
 // jQuery-style selectors
 $('#save').on('click', (event) => {
@@ -118,7 +118,7 @@ $$('.items').addClass('highlight');
 ### Reactive – signals
 
 ```ts
-import { signal, computed, effect, batch } from 'bquery/reactive';
+import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
 
 const count = signal(0);
 const doubled = computed(() => count.value * 2);
@@ -137,7 +137,7 @@ batch(() => {
 ### Components – Web Components
 
 ```ts
-import { component, html } from 'bquery/component';
+import { component, html } from '@bquery/bquery/component';
 
 component('user-card', {
   props: {
@@ -152,7 +152,7 @@ component('user-card', {
 ### Motion – animations
 
 ```ts
-import { transition, spring } from 'bquery/motion';
+import { transition, spring } from '@bquery/bquery/motion';
 
 // View transitions (with fallback)
 await transition(() => {
@@ -170,7 +170,7 @@ await x.to(100);
 ### Security – sanitizing
 
 ```ts
-import { sanitize, escapeHtml } from 'bquery/security';
+import { sanitize, escapeHtml } from '@bquery/bquery/security';
 
 // Sanitize HTML (removes dangerous elements)
 const safeHtml = sanitize(userInput);
@@ -182,7 +182,7 @@ const escaped = escapeHtml('<script>alert(1)</script>');
 ### Platform – storage & APIs
 
 ```ts
-import { storage, notifications } from 'bquery/platform';
+import { storage, notifications } from '@bquery/bquery/platform';
 
 // Unified storage API
 const local = storage.local();
