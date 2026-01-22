@@ -2,12 +2,9 @@
 node_modules/
 bower_components/
 
-# Build outputs
-dist/
+# Build outputs (only publish dist/)
 build/
 out/
-*.min.js
-*.min.css
 
 # IDE and editor files
 .idea/
@@ -54,6 +51,22 @@ temp/
 .npm/
 */.vitepress/cache/
 
-# Docs and playground sources
+# Source-only / dev-only assets
 docs/
 playground/
+tests/
+.github/
+assets/
+scripts/
+
+# Tooling configs
+eslint.config.js
+tsconfig*.json
+vite.config.*
+vite.umd.config.*
+typedoc.json
+bunfig.toml
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lockb
