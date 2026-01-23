@@ -493,7 +493,12 @@ component('demo-events', {
       const logEvent = (type: string, detail: string) => {
         const item = document.createElement('div');
         item.className = 'log-item';
-        item.innerHTML = `<span class="event-type">${type}</span> ${detail}`;
+        const typeBadge = document.createElement('span');
+        typeBadge.className = 'event-type';
+        typeBadge.textContent = type;
+
+        item.appendChild(typeBadge);
+        item.appendChild(document.createTextNode(` ${detail}`));
         $log.prepend(item);
 
         // Keep only last 5 entries
@@ -605,7 +610,7 @@ component('demo-collection', {
         // Re-append in shuffled order and clear classes
         $$(items)
           .removeClass('selected', 'even')
-          .each((el: Element) => grid.appendChild(el));
+          .each((el) => grid.appendChild(el.raw));
       });
 
       // Reset - demonstrates removeClass() on collection
