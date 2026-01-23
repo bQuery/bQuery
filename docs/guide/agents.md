@@ -1,20 +1,20 @@
 # Agents
 
-Diese Seite beschreibt, wie du bQuery für Agenten-Frontends nutzt — z. B. Chat‑UIs, Tools‑Panels, Vorschau‑Ansichten oder Kontroll‑Dashboards. bQuery ist dabei die UI‑Schicht; die Agentenlogik läuft typischerweise im Backend oder in einem Worker.
+This page describes how to use bQuery for agent frontends — for example chat UIs, tools panels, preview views, or control dashboards. bQuery is the UI layer; the agent logic typically runs in a backend or in a worker.
 
-## Ziele
+## Goals
 
-- **Schnelle UI‑Iteration** ohne Build‑Pflicht
-- **Sichere DOM‑Writes** durch Standard‑Sanitization
-- **Reaktive Zustände** für Streaming‑Antworten
-- **Modulare Architektur** (nur importieren, was du brauchst)
+- **Fast UI iteration** without a required build step
+- **Safe DOM writes** via default sanitization
+- **Reactive state** for streaming responses
+- **Modular architecture** (only import what you need)
 
-## Architektur‑Empfehlung
+## Architecture recommendation
 
-**Frontend (bQuery):** Darstellung, Interaktion, State‑Binding, Animationen.
-**Backend/Worker:** Agentenlogik, Tool‑Aufrufe, Modellzugriff, Secrets.
+**Frontend (bQuery):** rendering, interaction, state binding, animations.
+**Backend/Worker:** agent logic, tool calls, model access, secrets.
 
-> **Wichtig:** API‑Keys gehören niemals ins Browser‑Frontend. Stelle Agentenendpunkte über ein Backend bereit.
+> **Important:** API keys never belong in the browser frontend. Expose agent endpoints via a backend.
 
 ## Installation
 
@@ -33,7 +33,7 @@ Diese Seite beschreibt, wie du bQuery für Agenten-Frontends nutzt — z. B. Cha
 import { $, signal, effect } from '@bquery/bquery';
 ```
 
-## Beispiel: Agenten‑Chat UI (Minimal)
+## Example: agent chat UI (minimal)
 
 ```ts
 import { $, $$ } from '@bquery/bquery/core';
@@ -61,7 +61,7 @@ $('#send').on('click', async () => {
     appendMessage('Agent: …');
   });
 
-  // Backend‑Call (Agentenlogik serverseitig)
+  // Backend call (agent logic server-side)
   const res = await fetch('/api/agent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -70,12 +70,12 @@ $('#send').on('click', async () => {
 
   const { reply } = await res.json();
 
-  // letztes "Agent: …" ersetzen
+  // replace the last "Agent: …"
   messages.value = messages.value.slice(0, -1).concat(`Agent: ${reply}`);
 });
 ```
 
-### Streaming‑Antworten (Token‑Updates)
+### Streaming responses (token updates)
 
 ```ts
 import { signal, effect } from 'bquery/reactive';
@@ -93,20 +93,20 @@ function onToken(token: string) {
 }
 ```
 
-## Patterns für Agent‑UIs
+## Patterns for agent UIs
 
-### 1) Status & Tool‑Aktivität
+### 1) Status & tool activity
 
-- Zeige `idle / thinking / working / done`.
-- Logge Tool‑Aufrufe im UI, nicht im DOM‑Console‑Spam.
+- Show `idle / thinking / working / done`.
+- Log tool calls in the UI, not as noisy console output.
 
-### 2) Reaktiver Zustand pro Panel
+### 2) Reactive state per panel
 
 - **Chat**: `messages: signal<Message[]>`
 - **Tools**: `toolRuns: signal<ToolRun[]>`
-- **Kontext**: `context: signal<Record<string, unknown>>`
+- **Context**: `context: signal<Record<string, unknown>>`
 
-### 3) Komponenten für wiederverwendbare UI‑Teile
+### 3) Components for reusable UI parts
 
 ```ts
 import { component, html } from 'bquery/component';
@@ -119,28 +119,28 @@ component('tool-pill', {
 });
 ```
 
-## Sicherheit
+## Security
 
-- **Sanitization** ist Standard — nutze `sanitize()` bei dynamischen HTML‑Strings.
-- **Trusted Types** aktivieren, wenn CSP vorhanden ist.
-- **Keine Secrets im Client**: Agentenendpunkte proxy‑en.
+- **Sanitization** is the default — use `sanitize()` for dynamic HTML strings.
+- Enable **Trusted Types** when CSP is present.
+- **No secrets in the client**: proxy agent endpoints through a backend.
 
-## Performance‑Hinweise
+## Performance notes
 
-- Nutze `batch()` für mehrere State‑Updates.
-- Vermeide riesige `innerHTML`‑Updates bei langen Chats (ggf. Virtualisierung).
-- Arbeite mit kleinen, gezielten DOM‑Updates für Streaming.
+- Use `batch()` for multiple state updates.
+- Avoid huge `innerHTML` updates for long chats (consider virtualization).
+- Prefer small, targeted DOM updates for streaming.
 
-## Fehlerbehandlung
+## Error handling
 
-- Netzwerkfehler sichtbar machen (Toast/Inline‑Status).
-- Zeitüberschreitungen sinnvoll behandeln (Retry/Cancel).
-- Tool‑Fehler klar markieren, aber keine sensiblen Details ausgeben.
+- Make network errors visible (toast/inline status).
+- Handle timeouts sensibly (retry/cancel).
+- Mark tool errors clearly, but do not expose sensitive details.
 
 ## FAQ
 
-**Kann bQuery im Backend laufen?**
-Nein. bQuery ist eine DOM‑Bibliothek für den Browser. Für Agentenlogik nutze einen Server oder Worker.
+**Can bQuery run in the backend?**
+No. bQuery is a DOM library for the browser. Use a server or worker for agent logic.
 
-**Kann ich bQuery mit Frameworks kombinieren?**
-Ja, z. B. als Light‑DOM‑Layer in bestehenden Apps. Achte auf klare Verantwortlichkeiten.
+**Can I combine bQuery with frameworks?**
+Yes — for example as a light DOM layer inside existing apps. Keep responsibilities clearly separated.
