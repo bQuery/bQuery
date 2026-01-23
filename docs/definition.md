@@ -37,25 +37,26 @@ bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offer
 
 ```text
 bQuery.js
-├── @core       (selectors, DOM ops, events, utils)
-├── @reactive   (signals, computed, effects, binding)
-├── @component  (define, template, lifecycle, shadow DOM)
-├── @motion     (view transitions, FLIP, springs)
-└── @security   (sanitizer, CSP compatibility, Trusted Types)
+├── core/       (selectors, DOM ops, events, utils)
+├── reactive/   (signals, computed, effects, batching)
+├── component/  (custom elements, props, lifecycle, shadow DOM)
+├── motion/     (view transitions, FLIP, springs)
+├── security/   (sanitizer, CSP compatibility, Trusted Types)
+└── platform/   (storage, cache, notifications, buckets)
 ```
 
 ### 2.2 Import Strategies
 
 ```ts
 // Full bundle (CDN, zero build)
-import { $, signal, component } from 'https://unpkg.com/bQuery@1/full.js';
+import { $, signal, component } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
 
 // Core only
-import { $ } from 'bquery/core';
+import { $ } from '@bquery/bquery/core';
 
 // À la carte
-import { $, $$ } from 'bquery/core';
-import { signal, computed } from 'bquery/reactive';
+import { $, $$ } from '@bquery/bquery/core';
+import { signal, computed } from '@bquery/bquery/reactive';
 ```
 
 ### 2.3 OOP Core Contracts
@@ -136,7 +137,7 @@ $('#save').on('click', (event) => {
 #### 3.1.4 Utilities
 
 ```ts
-import { utils } from 'bquery/core';
+import { utils } from '@bquery/bquery/core';
 
 const id = utils.uid();
 const config = utils.merge({ a: 1 }, { b: 2 });
@@ -159,7 +160,7 @@ export function uid(): string;
 ### 3.2 Reactive Module (`@reactive`)
 
 ```ts
-import { signal, computed, effect, batch } from 'bquery/reactive';
+import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
 
 const count = signal(0);
 const doubled = computed(() => count.value * 2);
@@ -185,7 +186,7 @@ batch(() => {
 ### 3.3 Component Module (`@component`)
 
 ```ts
-import { component, html } from 'bquery/component';
+import { component, html } from '@bquery/bquery/component';
 
 component('user-card', {
   props: {
@@ -208,7 +209,7 @@ component('user-card', {
 ### 3.4 Motion Module (`@motion`)
 
 ```ts
-import { transition } from 'bquery/motion';
+import { transition } from '@bquery/bquery/motion';
 
 await transition(() => {
   $('#content').text('Updated');
@@ -220,7 +221,7 @@ await transition(() => {
 ### 3.5 Security Module (`@security`)
 
 ```ts
-import { sanitize } from 'bquery/security';
+import { sanitize } from '@bquery/bquery/security';
 
 const safeHtml = sanitize(userInput);
 ```
@@ -234,7 +235,7 @@ Unified endpoints for web platform storage and system APIs. The goal is a consis
 #### 3.6.1 Storage Adapters
 
 ```ts
-import { storage } from 'bquery/platform';
+import { storage } from '@bquery/bquery/platform';
 
 // localStorage
 const local = storage.local();
@@ -266,7 +267,7 @@ type StorageAdapter = {
 #### 3.6.2 Storage Buckets
 
 ```ts
-import { buckets } from 'bquery/platform';
+import { buckets } from '@bquery/bquery/platform';
 
 const bucket = await buckets.open('assets');
 await bucket.put('avatar', new Blob(['...']));
@@ -277,7 +278,7 @@ await bucket.remove('avatar');
 #### 3.6.3 Notifications
 
 ```ts
-import { notifications } from 'bquery/platform';
+import { notifications } from '@bquery/bquery/platform';
 
 const permission = await notifications.requestPermission();
 if (permission === 'granted') {
@@ -290,7 +291,7 @@ if (permission === 'granted') {
 #### 3.6.4 Cache Storage
 
 ```ts
-import { cache } from 'bquery/platform';
+import { cache } from '@bquery/bquery/platform';
 
 const assets = await cache.open('bquery-assets');
 await assets.add('/styles.css');

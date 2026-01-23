@@ -213,10 +213,12 @@ if (permission === 'granted') {
 
 - **Getting Started**: [docs/guide/getting-started.md](docs/guide/getting-started.md)
 - **Core API**: [docs/guide/api-core.md](docs/guide/api-core.md)
+- **Agents**: [docs/guide/agents.md](docs/guide/agents.md)
 - **Components**: [docs/guide/components.md](docs/guide/components.md)
 - **Reactivity**: [docs/guide/reactive.md](docs/guide/reactive.md)
 - **Motion**: [docs/guide/motion.md](docs/guide/motion.md)
 - **Security**: [docs/guide/security.md](docs/guide/security.md)
+- **Platform**: [docs/guide/platform.md](docs/guide/platform.md)
 
 ## Local Development
 

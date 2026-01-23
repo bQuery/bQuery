@@ -18,7 +18,7 @@ The quickest way to use bQuery is directly in the browser without any build step
     <button id="counter">Count: 0</button>
 
     <script type="module">
-      import { $, signal, effect } from 'https://unpkg.com/bQuery@1/full.js';
+      import { $, signal, effect } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
 
       const count = signal(0);
 
@@ -40,19 +40,19 @@ Install with your favorite package manager:
 
 ```bash
 # npm
-npm install bquery
+npm install @bquery/bquery
 
 # bun
-bun add bquery
+bun add @bquery/bquery
 
 # pnpm
-pnpm add bquery
+pnpm add @bquery/bquery
 ```
 
 ### Vite + TypeScript
 
 ```ts
-import { $, signal, effect } from 'bquery';
+import { $, signal, effect } from '@bquery/bquery';
 
 const count = signal(0);
 
@@ -67,25 +67,25 @@ bQuery is modular by design. You can import everything from the main entry point
 
 ```ts
 // Full import
-import { $, signal, component, transition, sanitize, storage } from 'bquery';
+import { $, signal, component, transition, sanitize, storage } from '@bquery/bquery';
 
 // Core only (selectors, DOM, events)
-import { $, $$, utils } from 'bquery/core';
+import { $, $$, utils } from '@bquery/bquery/core';
 
 // Reactive only (signals, computed, effects)
-import { signal, computed, effect, batch } from 'bquery/reactive';
+import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
 
 // Components only (Web Components)
-import { component, html } from 'bquery/component';
+import { component, html } from '@bquery/bquery/component';
 
 // Motion only (transitions, animations)
-import { transition, spring, flip } from 'bquery/motion';
+import { transition, spring, flip } from '@bquery/bquery/motion';
 
 // Security only (sanitization)
-import { sanitize, escapeHtml } from 'bquery/security';
+import { sanitize, escapeHtml } from '@bquery/bquery/security';
 
 // Platform only (storage, cache, notifications)
-import { storage, cache, notifications, buckets } from 'bquery/platform';
+import { storage, cache, notifications, buckets } from '@bquery/bquery/platform';
 ```
 
 ## Quick Examples
@@ -93,7 +93,7 @@ import { storage, cache, notifications, buckets } from 'bquery/platform';
 ### DOM Manipulation
 
 ```ts
-import { $ } from 'bquery/core';
+import { $ } from '@bquery/bquery/core';
 
 // Select and chain operations
 $('#myElement')
@@ -110,7 +110,7 @@ $('#button').on('click', () => {
 ### Reactive State
 
 ```ts
-import { signal, computed, effect } from 'bquery/reactive';
+import { signal, computed, effect } from '@bquery/bquery/reactive';
 
 // Create reactive state
 const firstName = signal('John');
@@ -131,7 +131,7 @@ firstName.value = 'Jane'; // Title updates automatically
 ### Web Components
 
 ```ts
-import { component, html } from 'bquery/component';
+import { component, html } from '@bquery/bquery/component';
 
 component('greeting-card', {
   props: {
@@ -190,7 +190,9 @@ bun run build
 ## Next Steps
 
 - [Core API](./api-core.md) - Learn about selectors and DOM manipulation
+- [Agents](./agents.md) - Build agent UIs with bQuery
 - [Reactive](./reactive.md) - Understand signals and reactivity
 - [Components](./components.md) - Build Web Components
 - [Motion](./motion.md) - Add animations and transitions
 - [Security](./security.md) - Sanitization and CSP
+- [Platform](./platform.md) - Storage, cache, notifications, buckets

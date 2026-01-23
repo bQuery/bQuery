@@ -5,7 +5,7 @@
  * and build-step frameworks with modern features.
  *
  * @module bquery
- * @see https://github.com/your-org/bquery
+ * @see https://github.com/bquery/bquery
  */
 
 // Core module: selectors, DOM ops, events, utils

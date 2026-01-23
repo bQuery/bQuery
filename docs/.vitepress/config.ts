@@ -4,6 +4,7 @@ export default defineConfig({
   lang: 'en-US',
   title: 'bQuery.js',
   description: 'The jQuery for the modern Web Platform.',
+  base: process.env.VITEPRESS_BASE ?? '/',
   lastUpdated: true,
   themeConfig: {
     nav: [
@@ -22,12 +23,13 @@ export default defineConfig({
             { text: 'Components', link: '/guide/components' },
             { text: 'Motion', link: '/guide/motion' },
             { text: 'Security', link: '/guide/security' },
+            { text: 'Platform', link: '/guide/platform' },
           ],
         },
       ],
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/your-org/bquery' },
+      { icon: 'github', link: 'https://github.com/bQuery/bQuery' },
     ],
   },
 });

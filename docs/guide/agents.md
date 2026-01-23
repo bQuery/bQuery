@@ -22,7 +22,7 @@ Diese Seite beschreibt, wie du bQuery für Agenten-Frontends nutzt — z. B. Cha
 
 ```html
 <script type="module">
-  import { $, signal, effect } from 'https://unpkg.com/bquery@1/dist/full.es.mjs';
+  import { $, signal, effect } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
   // UI‑Code
 </script>
 ```
@@ -30,15 +30,15 @@ Diese Seite beschreibt, wie du bQuery für Agenten-Frontends nutzt — z. B. Cha
 ### Package Manager
 
 ```ts
-import { $, signal, effect } from 'bquery';
+import { $, signal, effect } from '@bquery/bquery';
 ```
 
 ## Beispiel: Agenten‑Chat UI (Minimal)
 
 ```ts
-import { $, $$ } from 'bquery/core';
-import { signal, effect, batch } from 'bquery/reactive';
-import { sanitize } from 'bquery/security';
+import { $, $$ } from '@bquery/bquery/core';
+import { signal, effect, batch } from '@bquery/bquery/reactive';
+import { sanitize } from '@bquery/bquery/security';
 
 const messages = signal<string[]>([]);
 const input = $('#prompt');
@@ -53,7 +53,7 @@ effect(() => {
 });
 
 $('#send').on('click', async () => {
-  const prompt = input.value<string>()?.trim();
+  const prompt = (input.val() as string | undefined)?.trim();
   if (!prompt) return;
 
   batch(() => {
