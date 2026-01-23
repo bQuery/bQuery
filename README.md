@@ -1,4 +1,10 @@
-# bQuery.js
+<p align="center">
+  <img src="assets/bquerry-logo.svg" alt="bQuery.js Logo" width="120" />
+</p>
+
+<h1 align="center">bQuery.js</h1>
+
+<p align="center">
 
 [![Repo](https://img.shields.io/badge/github-bquery%2Fbquery-24292f?logo=github)](https://github.com/bquery/bquery)
 [![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bquery/bquery/stargazers)
