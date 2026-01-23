@@ -31,8 +31,6 @@ jobs:
           bun-version: "1.3.6"
       - run: bun install --frozen-lockfile
       - run: bun run build:docs
-        env:
-          VITEPRESS_BASE: /bquery/
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs/.vitepress/dist
