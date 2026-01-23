@@ -275,7 +275,7 @@ const DEFAULT_ALLOWED_ATTRIBUTES = new Set([
 /**
  * Dangerous attribute prefixes to always remove.
  */
-const DANGEROUS_ATTR_PREFIXES = ['on', 'formaction', 'xlink:', 'xmlns'];
+const DANGEROUS_ATTR_PREFIXES = ['on', 'formaction', 'xlink:', 'xmlns:'];
 
 /**
  * Dangerous URL protocols to block.
