@@ -6,6 +6,16 @@ export default defineConfig({
   description: 'The jQuery for the modern Web Platform.',
   base: process.env.VITEPRESS_BASE ?? '/',
   lastUpdated: true,
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          // Use lowercase hashes to avoid case-sensitivity issues on some servers
+          hashCharacters: 'hex',
+        },
+      },
+    },
+  },
   themeConfig: {
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
