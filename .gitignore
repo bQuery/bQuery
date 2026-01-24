@@ -57,3 +57,4 @@ temp/
 .cache/
 .npm/
 */.vitepress/cache/
+package-lock.json
