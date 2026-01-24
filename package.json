@@ -1,6 +1,6 @@
 {
   "name": "@bquery/bquery",
-  "version": "1.1.2",
+  "version": "1.2.0",
   "description": "The jQuery for the Modern Web Platform - Zero build, TypeScript-first library with reactivity, components, and motion",
   "type": "module",
   "main": "./dist/full.umd.js",
