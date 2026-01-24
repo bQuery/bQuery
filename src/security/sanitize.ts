@@ -359,9 +359,19 @@ const isSafeUrl = (value: string): boolean => {
  */
 const isExternalUrl = (url: string): boolean => {
   try {
+    // Protocol-relative URLs (//example.com) are always external
+    if (url.startsWith('//')) {
+      return true;
+    }
+    
     // Relative URLs are not external
-    if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//')) {
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
       return false;
+    }
+    
+    // In non-browser environments (e.g., Node.js), treat all absolute URLs as external
+    if (typeof window === 'undefined' || !window.location) {
+      return true;
     }
     
     const urlObj = new URL(url, window.location.href);

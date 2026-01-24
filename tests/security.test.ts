@@ -256,4 +256,17 @@ describe('security/enhanced protections', () => {
     expect(result).toContain('noreferrer');
     expect(result).toContain('prev');
   });
+
+  it('treats protocol-relative URLs as external', () => {
+    const result = sanitizeHtml('<a href="//external.com/page">Link</a>');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('handles hash and query string URLs as internal', () => {
+    const result = sanitizeHtml('<a href="#section">Link</a>');
+    expect(result).not.toContain('rel=');
+    
+    const result2 = sanitizeHtml('<a href="?query=value">Link</a>');
+    expect(result2).not.toContain('rel=');
+  });
 });
