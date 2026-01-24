@@ -72,7 +72,7 @@ $('#send').on('click', async () => {
 
     if (!res.ok) {
       // Try to read error details, but fall back to status text
-      let errorMessage = `Request failed with status ${res.status}`;
+      let errorMessage = `Request failed with status ${res.status} ${res.statusText || ''}`.trim();
       try {
         const errorBody = await res.text();
         if (errorBody) {
@@ -85,7 +85,10 @@ $('#send').on('click', async () => {
     }
 
     const data = await res.json();
-    const reply = (data as { reply?: string }).reply ?? '';
+    let reply = '';
+    if (data && typeof data === 'object' && typeof (data as any).reply === 'string') {
+      reply = (data as any).reply;
+    }
 
     // replace the last "Agent: …"
     messages.value = messages.value.slice(0, -1).concat(`Agent: ${reply}`);
