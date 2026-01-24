@@ -2,7 +2,7 @@
  * View module tests
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, spyOn, type Mock } from 'bun:test';
 import { computed, signal } from '../src/reactive/index';
 import { createTemplate, mount, type View } from '../src/view/index';
 
@@ -565,6 +565,230 @@ describe('View', () => {
       view = mount(container, { message: 'Custom prefix' }, { prefix: 'x' });
 
       expect(container.querySelector('p')?.textContent).toBe('Custom prefix');
+    });
+  });
+
+  describe('error handling', () => {
+    let consoleErrorSpy: Mock<typeof console.error>;
+    let consoleWarnSpy: Mock<typeof console.warn>;
+
+    beforeEach(() => {
+      consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
+      consoleWarnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      consoleErrorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
+    });
+
+    describe('invalid expressions', () => {
+      it('should log error for undefined variable in bq-text', () => {
+        container.innerHTML = '<p bq-text="undefinedVar"></p>';
+
+        view = mount(container, {});
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('Error evaluating');
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('undefinedVar');
+      });
+
+      it('should log error for syntax error in expression', () => {
+        container.innerHTML = '<p bq-text="invalid{{syntax"></p>';
+
+        view = mount(container, {});
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('Error evaluating');
+      });
+
+      it('should gracefully handle invalid expression and continue rendering', () => {
+        container.innerHTML = `
+          <p bq-text="invalidExpr"></p>
+          <span bq-text="validExpr"></span>
+        `;
+
+        view = mount(container, { validExpr: 'Works!' });
+
+        // First element with invalid expression renders empty (undefined coerced to '')
+        expect(container.querySelector('p')?.textContent).toBe('');
+        // Second element should still render correctly
+        expect(container.querySelector('span')?.textContent).toBe('Works!');
+      });
+
+      it('should log error for invalid bq-class object expression', () => {
+        container.innerHTML = '<div bq-class="{ active: nonExistent }"></div>';
+
+        view = mount(container, {});
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      });
+
+      it('should log error for invalid bq-style expression', () => {
+        container.innerHTML = '<div bq-style="{ color: missingColor }"></div>';
+
+        view = mount(container, {});
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      });
+
+      it('should log error for invalid bq-bind expression', () => {
+        container.innerHTML = '<a bq-bind:href="undefinedUrl">Link</a>';
+
+        view = mount(container, {});
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('undefinedUrl');
+      });
+    });
+
+    describe('bq-model errors', () => {
+      it('should warn when bq-model is bound to a non-signal value', () => {
+        container.innerHTML = '<input bq-model="plainValue" />';
+
+        view = mount(container, { plainValue: 'not a signal' });
+
+        expect(consoleWarnSpy).toHaveBeenCalled();
+        expect(consoleWarnSpy.mock.calls[0][0]).toContain('bq-model requires a signal');
+        expect(consoleWarnSpy.mock.calls[0][0]).toContain('plainValue');
+      });
+
+      it('should warn when bq-model is bound to undefined', () => {
+        container.innerHTML = '<input bq-model="missingSignal" />';
+
+        view = mount(container, {});
+
+        expect(consoleWarnSpy).toHaveBeenCalled();
+        expect(consoleWarnSpy.mock.calls[0][0]).toContain('bq-model requires a signal');
+      });
+
+      it('should warn when bq-model is bound to a computed (read-only)', () => {
+        container.innerHTML = '<input bq-model="readOnlyValue" />';
+        const count = signal(0);
+        const readOnlyValue = computed(() => count.value * 2);
+
+        view = mount(container, { readOnlyValue });
+
+        expect(consoleWarnSpy).toHaveBeenCalled();
+        expect(consoleWarnSpy.mock.calls[0][0]).toContain('bq-model requires a signal');
+      });
+    });
+
+    describe('bq-for errors', () => {
+      it('should log error for malformed bq-for expression without "in"', () => {
+        container.innerHTML = '<ul><li bq-for="item items" bq-text="item"></li></ul>';
+
+        view = mount(container, { items: signal(['a', 'b']) });
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('Invalid bq-for expression');
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('item items');
+      });
+
+      it('should log error for empty bq-for expression', () => {
+        container.innerHTML = '<ul><li bq-for="" bq-text="item"></li></ul>';
+
+        view = mount(container, { items: signal(['a']) });
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('Invalid bq-for expression');
+      });
+
+      it('should log error for bq-for with only variable name', () => {
+        container.innerHTML = '<ul><li bq-for="item" bq-text="item"></li></ul>';
+
+        view = mount(container, { items: signal(['a']) });
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(consoleErrorSpy.mock.calls[0][0]).toContain('Invalid bq-for expression');
+      });
+
+      it('should not render list items when bq-for expression is invalid', () => {
+        container.innerHTML = '<ul><li bq-for="invalid syntax here" bq-text="item"></li></ul>';
+
+        view = mount(container, { items: signal(['a', 'b', 'c']) });
+
+        // Invalid syntax causes early return after logging error
+        expect(consoleErrorSpy).toHaveBeenCalled();
+        expect(
+          consoleErrorSpy.mock.calls.some(
+            (call: unknown[]) =>
+              typeof call[0] === 'string' && call[0].includes('Invalid bq-for expression')
+          )
+        ).toBe(true);
+      });
+
+      it('should handle non-array values in bq-for gracefully', () => {
+        container.innerHTML = '<ul><li bq-for="item in notAnArray" bq-text="item"></li></ul>';
+
+        // Should not throw when mounting with undefined/non-array
+        expect(() => {
+          view = mount(container, { notAnArray: undefined });
+        }).not.toThrow();
+
+        // No items should be rendered for undefined
+        expect(container.querySelectorAll('li').length).toBe(0);
+      });
+    });
+
+    describe('bq-if errors', () => {
+      it('should handle undefined condition gracefully', () => {
+        container.innerHTML = '<div bq-if="undefinedCondition">Content</div>';
+
+        view = mount(container, {});
+
+        // Undefined is falsy, so element should be removed
+        expect(container.querySelector('div')).toBeNull();
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      });
+    });
+
+    describe('bq-on errors', () => {
+      it('should log error for undefined event handler', () => {
+        container.innerHTML = '<button bq-on:click="undefinedHandler">Click</button>';
+
+        view = mount(container, {});
+
+        const button = container.querySelector('button')!;
+        button.click();
+
+        expect(consoleErrorSpy).toHaveBeenCalled();
+      });
+
+      it('should handle non-function event handler gracefully', () => {
+        container.innerHTML = '<button bq-on:click="notAFunction">Click</button>';
+
+        view = mount(container, { notAFunction: 'string value' });
+
+        const button = container.querySelector('button')!;
+
+        // Should not throw when clicking
+        expect(() => button.click()).not.toThrow();
+      });
+    });
+
+    describe('bq-ref behavior', () => {
+      it('should silently ignore non-signal ref targets', () => {
+        container.innerHTML = '<input bq-ref="plainRef" />';
+
+        // bq-ref with non-signal value is silently ignored (no error, just no-op)
+        expect(() => {
+          view = mount(container, { plainRef: null });
+        }).not.toThrow();
+
+        // No error should be logged - this is expected behavior
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
+      });
+
+      it('should work with object having value property', () => {
+        container.innerHTML = '<input bq-ref="refObj" />';
+        const refObj = { value: null as Element | null };
+
+        view = mount(container, { refObj });
+
+        expect(refObj.value).not.toBeNull();
+        expect(refObj.value?.tagName).toBe('INPUT');
+      });
     });
   });
 });

@@ -68,6 +68,10 @@ Query strings are automatically parsed:
 ```ts
 // URL: /search?q=hello&page=2
 console.log(currentRoute.value.query); // { q: 'hello', page: '2' }
+
+// Repeated keys become arrays
+// URL: /search?tag=js&tag=ts
+console.log(currentRoute.value.query); // { tag: ['js', 'ts'] }
 ```
 
 ## Navigation Guards
