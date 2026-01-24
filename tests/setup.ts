@@ -53,3 +53,32 @@ if (typeof globalThis.crypto === 'undefined') {
     },
   } as Crypto;
 }
+
+// Register history API for router tests
+(globalThis as unknown as { history: History }).history = window.history as unknown as History;
+
+// Register location for router tests
+(globalThis as unknown as { location: Location }).location = window.location as unknown as Location;
+
+// Register PopStateEvent for router tests
+(globalThis as unknown as { PopStateEvent: typeof PopStateEvent }).PopStateEvent =
+  window.PopStateEvent as unknown as typeof PopStateEvent;
+
+// Register MouseEvent for link tests
+(globalThis as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent =
+  window.MouseEvent as unknown as typeof MouseEvent;
+
+// Mock localStorage for store persistence tests
+if (typeof globalThis.localStorage === 'undefined') {
+  const storage = new Map<string, string>();
+  (globalThis as unknown as { localStorage: Storage }).localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key),
+    clear: () => storage.clear(),
+    get length() {
+      return storage.size;
+    },
+    key: (index: number) => [...storage.keys()][index] ?? null,
+  } as Storage;
+}

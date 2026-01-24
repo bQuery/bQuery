@@ -90,18 +90,24 @@ import { component, html } from '@bquery/bquery/component';
 import { transition, spring } from '@bquery/bquery/motion';
 import { sanitize } from '@bquery/bquery/security';
 import { storage, cache } from '@bquery/bquery/platform';
+import { createRouter, navigate } from '@bquery/bquery/router';
+import { createStore } from '@bquery/bquery/store';
+import { mount } from '@bquery/bquery/view';
 ```
 
 ## Modules at a glance
 
 | Module        | Description                                    | Size (gzip) |
 | ------------- | ---------------------------------------------- | ----------- |
-| **Core**      | Selectors, DOM manipulation, events, utilities | ~6 KB       |
-| **Reactive**  | `signal`, `computed`, `effect`, `batch`        | ~1 KB       |
-| **Component** | Lightweight Web Components with props          | ~1.3 KB     |
+| **Core**      | Selectors, DOM manipulation, events, utilities | ~7.7 KB     |
+| **Reactive**  | `signal`, `computed`, `effect`, `batch`        | ~1.2 KB     |
+| **Component** | Lightweight Web Components with props          | ~1.5 KB     |
 | **Motion**    | View transitions, FLIP animations, springs     | ~1.2 KB     |
-| **Security**  | HTML sanitizing, Trusted Types, CSP            | ~1.6 KB     |
-| **Platform**  | Storage, cache, notifications, buckets         | ~1.7 KB     |
+| **Security**  | HTML sanitizing, Trusted Types, CSP            | ~2.2 KB     |
+| **Platform**  | Storage, cache, notifications, buckets         | ~1.6 KB     |
+| **Router**    | SPA routing, navigation guards, history API    | ~2 KB       |
+| **Store**     | Signal-based state management, persistence     | ~1.5 KB     |
+| **View**      | Declarative DOM bindings, directives           | ~2.6 KB     |
 
 ## Quick examples
 
@@ -253,6 +259,98 @@ if (permission === 'granted') {
 }
 ```
 
+### Router – SPA navigation
+
+```ts
+import { createRouter, navigate, currentRoute } from '@bquery/bquery/router';
+
+// Create router with routes
+const router = createRouter({
+  routes: [
+    { path: '/', name: 'home', component: HomePage },
+    { path: '/user/:id', name: 'user', component: UserPage },
+    { path: '*', component: NotFound },
+  ],
+});
+
+// Navigation guards
+router.beforeEach(async (to, from) => {
+  if (to.path === '/admin' && !isAuthenticated()) {
+    await navigate('/login'); // Redirect
+    return false; // Cancel original navigation
+  }
+});
+
+// Navigate programmatically
+await navigate('/user/42');
+await navigate('/search?q=bquery'); // Query params in path
+await navigate('/login', { replace: true }); // Replace history entry
+
+// Reactive current route
+effect(() => {
+  console.log('Current path:', currentRoute.value.path);
+});
+```
+
+### Store – state management
+
+```ts
+import { createStore, createPersistedStore } from '@bquery/bquery/store';
+
+// Define a store
+const useCounter = createStore({
+  id: 'counter',
+  state: () => ({ count: 0, name: 'Counter' }),
+  getters: {
+    doubled: (state) => state.count * 2,
+  },
+  actions: {
+    increment() {
+      this.count++;
+    },
+    async fetchCount() {
+      this.count = await api.getCount();
+    },
+  },
+});
+
+// Use the store
+const counter = useCounter;
+counter.increment();
+console.log(counter.doubled); // Reactive getter
+
+// Persisted store (localStorage)
+const useSettings = createPersistedStore({
+  id: 'settings',
+  state: () => ({ theme: 'dark', language: 'en' }),
+});
+```
+
+### View – declarative bindings
+
+```ts
+import { mount, createTemplate } from '@bquery/bquery/view';
+import { signal } from '@bquery/bquery/reactive';
+
+// Mount reactive bindings to DOM
+const count = signal(0);
+const items = signal(['Apple', 'Banana', 'Cherry']);
+
+const app = mount('#app', {
+  count,
+  items,
+  increment: () => count.value++,
+});
+
+// In HTML:
+// <p bq-text="count"></p>
+// <button bq-on:click="increment">+1</button>
+// <ul><li bq-for="item in items" bq-text="item"></li></ul>
+// <input bq-model="count" type="number" />
+// <div bq-if="count > 5">Count is high!</div>
+// <div bq-class="{ active: count > 0 }"></div>
+```
+
 ## Browser Support
 
 | Browser | Version | Support |
@@ -274,6 +372,9 @@ if (permission === 'granted') {
 - **Motion**: [docs/guide/motion.md](docs/guide/motion.md)
 - **Security**: [docs/guide/security.md](docs/guide/security.md)
 - **Platform**: [docs/guide/platform.md](docs/guide/platform.md)
+- **Router**: [docs/guide/router.md](docs/guide/router.md)
+- **Store**: [docs/guide/store.md](docs/guide/store.md)
+- **View**: [docs/guide/view.md](docs/guide/view.md)
 
 ## Local Development
 
@@ -307,7 +408,10 @@ bQuery.js
 │   ├── component/  # Web Components helper
 │   ├── motion/     # View transitions, FLIP, springs
 │   ├── security/   # Sanitizer, CSP, Trusted Types
-│   └── platform/   # Storage, cache, notifications
+│   ├── platform/   # Storage, cache, notifications
+│   ├── router/     # SPA routing, navigation guards
+│   ├── store/      # State management, persistence
+│   └── view/       # Declarative DOM bindings
 ├── docs/           # VitePress documentation
 ├── playground/     # Vite demo app
 ├── tests/          # bun:test suites

@@ -104,3 +104,47 @@ export type {
   NotificationOptions,
   StorageAdapter,
 } from './platform/index';
+
+// ============================================================================
+// Router Module: SPA routing, navigation guards, lazy loading
+// ============================================================================
+export {
+  back,
+  createRouter,
+  currentRoute,
+  forward,
+  interceptLinks,
+  isActive,
+  isActiveSignal,
+  link,
+  navigate,
+  resolve,
+} from './router/index';
+export type {
+  NavigationGuard,
+  Route,
+  RouteDefinition,
+  Router,
+  RouterOptions,
+} from './router/index';
+
+// ============================================================================
+// Store Module: Signal-based state management
+// ============================================================================
+export {
+  createPersistedStore,
+  createStore,
+  destroyStore,
+  getStore,
+  listStores,
+  mapActions,
+  mapState,
+  registerPlugin,
+} from './store/index';
+export type { StateFactory, Store, StoreDefinition, StorePlugin } from './store/index';
+
+// ============================================================================
+// View Module: Declarative DOM bindings without compiler
+// ============================================================================
+export { createTemplate, mount } from './view/index';
+export type { BindingContext, MountOptions, View } from './view/index';
