@@ -55,6 +55,35 @@ sanitize('<a href="java\u200Bscript:alert(1)">click</a>');
 // Result: <a>click</a>
 ```
 
+### Automatic Link Security
+
+bQuery automatically adds `rel="noopener noreferrer"` to links that:
+
+1. Have `target="_blank"` attribute (open in new window/tab)
+2. Point to external domains (different origin)
+
+This protects against:
+- **Tabnabbing attacks**: prevents the opened page from accessing `window.opener`
+- **Referrer leakage**: prevents sensitive information in the URL from being sent
+
+```ts
+// Links with target="_blank" get security attributes
+sanitize('<a href="/page" target="_blank">Link</a>');
+// Result: <a href="/page" target="_blank" rel="noopener noreferrer">Link</a>
+
+// External links get security attributes automatically
+sanitize('<a href="https://external.com">Link</a>');
+// Result: <a href="https://external.com" rel="noopener noreferrer">Link</a>
+
+// Existing rel values are preserved
+sanitize('<a href="https://external.com" rel="author">Link</a>');
+// Result: <a href="https://external.com" rel="author noopener noreferrer">Link</a>
+
+// Internal links without target="_blank" are unchanged
+sanitize('<a href="/internal">Link</a>');
+// Result: <a href="/internal">Link</a>
+```
+
 ### Options
 
 - `allowTags?: string[]`

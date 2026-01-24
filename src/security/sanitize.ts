@@ -261,11 +261,13 @@ const DEFAULT_ALLOWED_ATTRIBUTES = new Set([
   'lang',
   'loading',
   'name',
+  'rel',
   'role',
   'src',
   'srcset',
   'style',
   'tabindex',
+  'target',
   'title',
   'type',
   'width',
@@ -352,6 +354,50 @@ const isSafeUrl = (value: string): boolean => {
 };
 
 /**
+ * Check if a URL is external (different origin).
+ * @internal
+ */
+const isExternalUrl = (url: string): boolean => {
+  try {
+    // Normalize URL by trimming whitespace
+    const trimmedUrl = url.trim();
+    
+    // Protocol-relative URLs (//example.com) are always external
+    if (trimmedUrl.startsWith('//')) {
+      return true;
+    }
+    
+    // Normalize URL for case-insensitive protocol checks
+    const lowerUrl = trimmedUrl.toLowerCase();
+    
+    // Check for non-http(s) protocols which are considered external/special
+    // (mailto:, tel:, ftp:, etc.)
+    const hasProtocol = /^[a-z][a-z0-9+.-]*:/i.test(trimmedUrl);
+    if (hasProtocol && !lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
+      // These are special protocols, not traditional "external" links
+      // but we treat them as external for security consistency
+      return true;
+    }
+    
+    // Relative URLs are not external
+    if (!lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
+      return false;
+    }
+    
+    // In non-browser environments (e.g., Node.js), treat all absolute URLs as external
+    if (typeof window === 'undefined' || !window.location) {
+      return true;
+    }
+    
+    const urlObj = new URL(trimmedUrl, window.location.href);
+    return urlObj.origin !== window.location.origin;
+  } catch {
+    // If URL parsing fails, treat as potentially external for safety
+    return true;
+  }
+};
+
+/**
  * Core sanitization logic (without Trusted Types wrapper).
  * @internal
  */
@@ -432,6 +478,28 @@ const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): string =
     // Remove disallowed attributes
     for (const attrName of attrsToRemove) {
       el.removeAttribute(attrName);
+    }
+
+    // Add rel="noopener noreferrer" to external links for security
+    if (tagName === 'a') {
+      const href = el.getAttribute('href');
+      const target = el.getAttribute('target');
+      const hasTargetBlank = target?.toLowerCase() === '_blank';
+      const isExternal = href && isExternalUrl(href);
+
+      // Add security attributes to links opening in new window or external links
+      if (hasTargetBlank || isExternal) {
+        const existingRel = el.getAttribute('rel');
+        const relValues = new Set(
+          existingRel ? existingRel.split(/\s+/).filter(Boolean) : []
+        );
+        
+        // Add noopener and noreferrer
+        relValues.add('noopener');
+        relValues.add('noreferrer');
+        
+        el.setAttribute('rel', Array.from(relValues).join(' '));
+      }
     }
   }
 

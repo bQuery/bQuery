@@ -227,6 +227,9 @@ const safe = sanitize('<form id="cookie">...</form>'); // id stripped
 // Unicode bypass protection in URLs
 const urlSafe = sanitize('<a href="java\u200Bscript:alert(1)">click</a>');
 
+// Automatic link security (adds rel="noopener noreferrer" to external/target="_blank" links)
+const secureLink = sanitize('<a href="https://external.com" target="_blank">Link</a>');
+
 // Escape for text display
 const escaped = escapeHtml('<script>alert(1)</script>');
 ```

@@ -226,4 +226,106 @@ describe('security/enhanced protections', () => {
     const result = sanitizeHtml('<a href="java\u200Bscript:alert(1)">Link</a>');
     expect(result).not.toContain('javascript:');
   });
+
+  it('adds rel="noopener noreferrer" to links with target="_blank"', () => {
+    const result = sanitizeHtml('<a href="/page" target="_blank">Link</a>');
+    expect(result).toContain('target="_blank"');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('adds rel="noopener noreferrer" to external links', () => {
+    const result = sanitizeHtml('<a href="https://external.com">Link</a>');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('preserves existing rel values when adding security attributes', () => {
+    const result = sanitizeHtml('<a href="https://external.com" rel="author">Link</a>');
+    expect(result).toContain('noopener');
+    expect(result).toContain('noreferrer');
+    expect(result).toContain('author');
+  });
+
+  it('does not add rel to internal links without target="_blank"', () => {
+    const result = sanitizeHtml('<a href="/internal">Link</a>');
+    expect(result).not.toContain('rel=');
+  });
+
+  it('handles links with target="_blank" and existing rel', () => {
+    const result = sanitizeHtml('<a href="/page" target="_blank" rel="prev">Link</a>');
+    expect(result).toContain('noopener');
+    expect(result).toContain('noreferrer');
+    expect(result).toContain('prev');
+  });
+
+  it('treats protocol-relative URLs as external', () => {
+    const result = sanitizeHtml('<a href="//external.com/page">Link</a>');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('handles hash and query string URLs as internal', () => {
+    const result = sanitizeHtml('<a href="#section">Link</a>');
+    expect(result).not.toContain('rel=');
+    
+    const result2 = sanitizeHtml('<a href="?query=value">Link</a>');
+    expect(result2).not.toContain('rel=');
+  });
+
+  it('treats mailto and tel links as external for security', () => {
+    const mailto = sanitizeHtml('<a href="mailto:test@example.com">Email</a>');
+    expect(mailto).toContain('rel="noopener noreferrer"');
+    
+    const tel = sanitizeHtml('<a href="tel:+1234567890">Call</a>');
+    expect(tel).toContain('rel="noopener noreferrer"');
+  });
+
+  it('handles rel attribute with leading/trailing whitespace', () => {
+    const result = sanitizeHtml('<a href="https://external.com" rel="  author  ">Link</a>');
+    expect(result).toContain('noopener');
+    expect(result).toContain('noreferrer');
+    expect(result).toContain('author');
+  });
+
+  it('handles URLs with uppercase protocols', () => {
+    const result1 = sanitizeHtml('<a href="HTTP://external.com">Link</a>');
+    expect(result1).toContain('rel="noopener noreferrer"');
+    
+    const result2 = sanitizeHtml('<a href="HTTPS://external.com">Link</a>');
+    expect(result2).toContain('rel="noopener noreferrer"');
+    
+    const result3 = sanitizeHtml('<a href="MAILTO:test@example.com">Email</a>');
+    expect(result3).toContain('rel="noopener noreferrer"');
+  });
+
+  it('handles URLs with leading/trailing whitespace', () => {
+    const result = sanitizeHtml('<a href="  https://external.com  ">Link</a>');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('handles case-insensitive target="_blank"', () => {
+    const result1 = sanitizeHtml('<a href="/page" target="_BLANK">Link</a>');
+    expect(result1).toContain('rel="noopener noreferrer"');
+    
+    const result2 = sanitizeHtml('<a href="/page" target="_Blank">Link</a>');
+    expect(result2).toContain('rel="noopener noreferrer"');
+    
+    const result3 = sanitizeHtml('<a href="/page" target="_blank">Link</a>');
+    expect(result3).toContain('rel="noopener noreferrer"');
+  });
+
+  it('treats absolute URLs as external in SSR/Node.js environments', () => {
+    // Save the original window object
+    const originalWindow = globalThis.window;
+    
+    try {
+      // Simulate SSR environment by temporarily removing window
+      // @ts-expect-error - Intentionally setting to undefined for testing
+      globalThis.window = undefined;
+      
+      const result = sanitizeHtml('<a href="https://external.com">Link</a>');
+      expect(result).toContain('rel="noopener noreferrer"');
+    } finally {
+      // Restore the original window object
+      globalThis.window = originalWindow;
+    }
+  });
 });
