@@ -423,7 +423,8 @@ const handleFor = (prefix: string, sanitize: boolean): DirectiveHandler => {
     if (!parent) return;
 
     // Parse expression: "item in items" or "(item, index) in items"
-    const match = expression.match(/^\(?(\w+)(?:\s*,\s*(\w+))?\)?\s+in\s+(.+)$/);
+    // Use \S.* instead of .+ to prevent ReDoS by requiring non-whitespace start
+    const match = expression.match(/^\(?(\w+)(?:\s*,\s*(\w+))?\)?\s+in\s+(\S.*)$/);
     if (!match) {
       console.error(`bQuery view: Invalid bq-for expression "${expression}"`);
       return;
