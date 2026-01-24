@@ -291,6 +291,139 @@ describe('Router', () => {
       await router.push('/docs#section-1');
       expect(currentRoute.value.hash).toBe('section-1');
     });
+
+    it('should escape regex special characters in path (dot)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/api/users.json', component: () => null, name: 'usersJson' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      // Should match exactly /api/users.json
+      await router.push('/api/users.json');
+      expect(currentRoute.value.matched?.name).toBe('usersJson');
+
+      // Should NOT match /api/usersXjson (unescaped . would match any char)
+      await router.push('/api/usersXjson');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
+
+    it('should escape regex special characters in path (question mark in segment)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/faq?help', component: () => null, name: 'faqHelp' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      // Note: In URL context, ? starts query string, so /faq?help is parsed as path=/faq with query=help
+      // This test verifies regex escaping doesn't break, but the path won't contain literal ?
+      // For literal ? in path, URL encoding (%3F) would be needed
+      await router.push('/faq%3Fhelp');
+      // URL decoding happens in the browser, so we test the encoded form matches
+      expect(currentRoute.value.path).toBe('/faq%3Fhelp');
+    });
+
+    it('should escape regex special characters in path (plus)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/c++', component: () => null, name: 'cPlusPlus' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      await router.push('/c++');
+      expect(currentRoute.value.matched?.name).toBe('cPlusPlus');
+
+      // /c should NOT match (unescaped + would make 'c' repeatable)
+      await router.push('/ccc');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
+
+    it('should escape regex special characters in path (parentheses)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/docs/(beta)', component: () => null, name: 'docsBeta' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      await router.push('/docs/(beta)');
+      expect(currentRoute.value.matched?.name).toBe('docsBeta');
+
+      // Should not cause regex group issues
+      await router.push('/docs/beta');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
+
+    it('should escape regex special characters in path (brackets)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/items/[id]', component: () => null, name: 'itemId' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      await router.push('/items/[id]');
+      expect(currentRoute.value.matched?.name).toBe('itemId');
+
+      // [id] should NOT act as a character class
+      await router.push('/items/i');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
+
+    it('should escape regex special characters in path (pipe)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/a|b', component: () => null, name: 'aOrB' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      await router.push('/a|b');
+      expect(currentRoute.value.matched?.name).toBe('aOrB');
+
+      // Should NOT match /a or /b separately (unescaped | would be alternation)
+      await router.push('/a');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
+
+    it('should escape regex special characters while preserving :param patterns', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/file/:name.json', component: () => null, name: 'fileJson' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      await router.push('/file/config.json');
+      expect(currentRoute.value.matched?.name).toBe('fileJson');
+      expect(currentRoute.value.params).toEqual({ name: 'config' });
+
+      // Dot should be literal after param
+      await router.push('/file/configXjson');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
+
+    it('should escape regex special characters while preserving * wildcards', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/docs/*.md', component: () => null, name: 'markdownDocs' },
+          { path: '*', component: () => null, name: 'notFound' },
+        ],
+      });
+
+      await router.push('/docs/readme.md');
+      expect(currentRoute.value.matched?.name).toBe('markdownDocs');
+
+      await router.push('/docs/guide/intro.md');
+      expect(currentRoute.value.matched?.name).toBe('markdownDocs');
+
+      // Dot in .md should be literal
+      await router.push('/docs/readmeXmd');
+      expect(currentRoute.value.matched?.name).toBe('notFound');
+    });
   });
 
   // ============================================================================

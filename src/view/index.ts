@@ -162,23 +162,99 @@ const evaluateRaw = <T = unknown>(expression: string, context: BindingContext): 
 
 /**
  * Parses object expression like "{ active: isActive, disabled: !enabled }".
+ * Handles nested structures like function calls, arrays, and template literals.
  * @internal
  */
 const parseObjectExpression = (expression: string): Record<string, string> => {
   const result: Record<string, string> = {};
 
-  // Remove braces and split by comma
+  // Remove outer braces and trim
   const inner = expression
     .trim()
     .replace(/^\{|\}$/g, '')
     .trim();
   if (!inner) return result;
 
-  // Split by comma, handling nested expressions
-  const parts = inner.split(',').map((p) => p.trim());
+  // Split by comma at depth 0, respecting strings and nesting
+  const parts: string[] = [];
+  let current = '';
+  let depth = 0;
+  let inString: string | null = null;
 
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    const prevChar = i > 0 ? inner[i - 1] : '';
+
+    // Handle string literals (including escape sequences)
+    if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
+      if (inString === null) {
+        inString = char;
+      } else if (inString === char) {
+        inString = null;
+      }
+      current += char;
+      continue;
+    }
+
+    // Skip if inside string
+    if (inString !== null) {
+      current += char;
+      continue;
+    }
+
+    // Track nesting depth for parentheses, brackets, and braces
+    if (char === '(' || char === '[' || char === '{') {
+      depth++;
+      current += char;
+    } else if (char === ')' || char === ']' || char === '}') {
+      depth--;
+      current += char;
+    } else if (char === ',' && depth === 0) {
+      // Top-level comma - split point
+      parts.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  // Add the last part
+  if (current.trim()) {
+    parts.push(current.trim());
+  }
+
+  // Parse each part to extract key and value
   for (const part of parts) {
-    const colonIndex = part.indexOf(':');
+    // Find the first colon at depth 0 (to handle ternary operators in values)
+    let colonIndex = -1;
+    let partDepth = 0;
+    let partInString: string | null = null;
+
+    for (let i = 0; i < part.length; i++) {
+      const char = part[i];
+      const prevChar = i > 0 ? part[i - 1] : '';
+
+      if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
+        if (partInString === null) {
+          partInString = char;
+        } else if (partInString === char) {
+          partInString = null;
+        }
+        continue;
+      }
+
+      if (partInString !== null) continue;
+
+      if (char === '(' || char === '[' || char === '{') {
+        partDepth++;
+      } else if (char === ')' || char === ']' || char === '}') {
+        partDepth--;
+      } else if (char === ':' && partDepth === 0) {
+        colonIndex = i;
+        break;
+      }
+    }
+
     if (colonIndex > -1) {
       const key = part
         .slice(0, colonIndex)

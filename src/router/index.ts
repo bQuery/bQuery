@@ -157,26 +157,43 @@ export const currentRoute: ReadonlySignal<Route> = computed(() => routeSignal.va
 
 /**
  * Converts a route path pattern to a RegExp for matching.
+ * Uses placeholder approach to preserve :param and * patterns during escaping.
  * @internal
  */
 const pathToRegex = (path: string): RegExp => {
-  // Handle wildcard
+  // Handle wildcard-only route
   if (path === '*') {
     return /^.*$/;
   }
 
-  // Replace :param with capture groups BEFORE escaping special chars
-  // This ensures the colon is properly processed
-  let pattern = path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, '(?<$1>[^/]+)');
+  // Unique placeholders using null chars (won't appear in normal paths)
+  const PARAM_MARKER = '\u0000P\u0000';
+  const WILDCARD_MARKER = '\u0000W\u0000';
 
-  // Escape backslashes first (they're the escape character in regex)
-  pattern = pattern.replace(/\\/g, '\\\\');
+  // Store param names for restoration
+  const paramNames: string[] = [];
 
-  // Escape forward slashes (the main special char in paths)
+  // Step 1: Extract :param patterns before escaping
+  let pattern = path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_, name) => {
+    paramNames.push(name);
+    return PARAM_MARKER;
+  });
+
+  // Step 2: Extract * wildcards before escaping
+  pattern = pattern.replace(/\*/g, WILDCARD_MARKER);
+
+  // Step 3: Escape ALL regex metacharacters: \ ^ $ . * + ? ( ) [ ] { } |
+  pattern = pattern.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+
+  // Step 4: Escape forward slashes (common in paths)
   pattern = pattern.replace(/\//g, '\\/');
 
-  // Handle inline wildcards (e.g., /docs/*)
-  pattern = pattern.replace(/\*/g, '.*');
+  // Step 5: Restore param capture groups
+  let paramIdx = 0;
+  pattern = pattern.replace(/\u0000P\u0000/g, () => `(?<${paramNames[paramIdx++]}>[^/]+)`);
+
+  // Step 6: Restore wildcards as .*
+  pattern = pattern.replace(/\u0000W\u0000/g, '.*');
 
   return new RegExp(`^${pattern}$`);
 };
