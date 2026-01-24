@@ -226,4 +226,34 @@ describe('security/enhanced protections', () => {
     const result = sanitizeHtml('<a href="java\u200Bscript:alert(1)">Link</a>');
     expect(result).not.toContain('javascript:');
   });
+
+  it('adds rel="noopener noreferrer" to links with target="_blank"', () => {
+    const result = sanitizeHtml('<a href="/page" target="_blank">Link</a>');
+    expect(result).toContain('target="_blank"');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('adds rel="noopener noreferrer" to external links', () => {
+    const result = sanitizeHtml('<a href="https://external.com">Link</a>');
+    expect(result).toContain('rel="noopener noreferrer"');
+  });
+
+  it('preserves existing rel values when adding security attributes', () => {
+    const result = sanitizeHtml('<a href="https://external.com" rel="author">Link</a>');
+    expect(result).toContain('noopener');
+    expect(result).toContain('noreferrer');
+    expect(result).toContain('author');
+  });
+
+  it('does not add rel to internal links without target="_blank"', () => {
+    const result = sanitizeHtml('<a href="/internal">Link</a>');
+    expect(result).not.toContain('rel=');
+  });
+
+  it('handles links with target="_blank" and existing rel', () => {
+    const result = sanitizeHtml('<a href="/page" target="_blank" rel="prev">Link</a>');
+    expect(result).toContain('noopener');
+    expect(result).toContain('noreferrer');
+    expect(result).toContain('prev');
+  });
 });
