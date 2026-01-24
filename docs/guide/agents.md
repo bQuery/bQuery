@@ -53,7 +53,8 @@ effect(() => {
 });
 
 $('#send').on('click', async () => {
-  const prompt = (input.val() as string | undefined)?.trim();
+  const raw = input.val();
+  const prompt = typeof raw === 'string' ? raw.trim() : undefined;
   if (!prompt) return;
 
   batch(() => {
@@ -62,23 +63,46 @@ $('#send').on('click', async () => {
   });
 
   // Backend call (agent logic server-side)
-  const res = await fetch('/api/agent', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt }),
-  });
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt }),
+    });
 
-  const { reply } = await res.json();
+    if (!res.ok) {
+      // Try to read error details, but fall back to status text
+      let errorMessage = `Request failed with status ${res.status}`;
+      try {
+        const errorBody = await res.text();
+        if (errorBody) {
+          errorMessage += `: ${errorBody}`;
+        }
+      } catch {
+        // ignore secondary errors from reading the body
+      }
+      throw new Error(errorMessage);
+    }
 
-  // replace the last "Agent: …"
-  messages.value = messages.value.slice(0, -1).concat(`Agent: ${reply}`);
+    const data = await res.json();
+    const reply = (data as { reply?: string }).reply ?? '';
+
+    // replace the last "Agent: …"
+    messages.value = messages.value.slice(0, -1).concat(`Agent: ${reply}`);
+  } catch (err) {
+    console.error('Agent request failed:', err);
+    // replace the last "Agent: …" with an error message
+    messages.value = messages.value
+      .slice(0, -1)
+      .concat('Agent: (error getting response, please try again)');
+  }
 });
 ```
 
 ### Streaming responses (token updates)
 
 ```ts
-import { signal, effect } from 'bquery/reactive';
+import { signal, effect } from '@bquery/bquery/reactive';
 
 const reply = signal('');
 
@@ -109,7 +133,7 @@ function onToken(token: string) {
 ### 3) Components for reusable UI parts
 
 ```ts
-import { component, html } from 'bquery/component';
+import { component, html } from '@bquery/bquery/component';
 
 component('tool-pill', {
   props: { name: { type: String, required: true } },
