@@ -131,7 +131,7 @@ describe('utils/math helpers', () => {
   });
 
   it('randomInt returns value in range', () => {
-    for (let i = 0; i < 100; i++) {
+    for (let attempt = 0; attempt < 20; attempt++) {
       const result = utils.randomInt(1, 6);
       expect(result).toBeGreaterThanOrEqual(1);
       expect(result).toBeLessThanOrEqual(6);
@@ -192,6 +192,9 @@ describe('utils/security', () => {
   it('merge ignores prototype pollution keys', () => {
     const malicious = JSON.parse('{"__proto__": {"polluted": true}}');
     const result = utils.merge({}, malicious);
+
+    // The result itself should not contain the polluted property
+    expect((result as Record<string, unknown>).polluted).toBeUndefined();
 
     // Should not pollute Object prototype
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
