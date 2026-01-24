@@ -42,6 +42,18 @@
     "./platform": {
       "import": "./dist/platform.es.mjs",
       "types": "./dist/platform/index.d.ts"
+    },
+    "./router": {
+      "import": "./dist/router.es.mjs",
+      "types": "./dist/router/index.d.ts"
+    },
+    "./store": {
+      "import": "./dist/store.es.mjs",
+      "types": "./dist/store/index.d.ts"
+    },
+    "./view": {
+      "import": "./dist/view.es.mjs",
+      "types": "./dist/view/index.d.ts"
     }
   },
   "files": [

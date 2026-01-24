@@ -23,6 +23,9 @@ const entries = {
   motion: resolve(__dirname, 'src/motion/index.ts'),
   security: resolve(__dirname, 'src/security/index.ts'),
   platform: resolve(__dirname, 'src/platform/index.ts'),
+  router: resolve(__dirname, 'src/router/index.ts'),
+  store: resolve(__dirname, 'src/store/index.ts'),
+  view: resolve(__dirname, 'src/view/index.ts'),
 };
 
 /**
@@ -65,6 +68,9 @@ export default defineConfig({
       'bquery/motion': resolve(__dirname, 'src/motion/index.ts'),
       'bquery/security': resolve(__dirname, 'src/security/index.ts'),
       'bquery/platform': resolve(__dirname, 'src/platform/index.ts'),
+      'bquery/router': resolve(__dirname, 'src/router/index.ts'),
+      'bquery/store': resolve(__dirname, 'src/store/index.ts'),
+      'bquery/view': resolve(__dirname, 'src/view/index.ts'),
     },
   },
 });
