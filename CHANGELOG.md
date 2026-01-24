@@ -4,6 +4,65 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to Semantic Versioning.
 
+## Releases
+
+- [Changelog](#changelog)
+  - [Releases](#releases)
+  - [\[1.2.0\] - 2026-01-24](#120---2026-01-24)
+    - [Added](#added)
+  - [\[1.1.2\] - 2026-01-24](#112---2026-01-24)
+    - [Fixed](#fixed)
+    - [Security](#security)
+  - [\[1.1.1\] - 2026-01-24](#111---2026-01-24)
+    - [Fixed](#fixed-1)
+  - [\[1.1.0\] - 2026-01-23](#110---2026-01-23)
+    - [Added](#added-1)
+    - [Changed](#changed)
+    - [Security](#security-1)
+  - [\[1.0.2\] - 2026-01-23](#102---2026-01-23)
+    - [Fixed](#fixed-2)
+  - [\[1.0.1\] - 2026-01-23](#101---2026-01-23)
+    - [Fixed](#fixed-3)
+  - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
+    - [Added](#added-2)
+
+## [1.2.0] - 2026-01-24
+
+### Added
+
+- **Router**: New SPA client-side routing module with History API support.
+  - `createRouter()` factory with routes, base path, and hash mode options.
+  - `navigate()`, `back()`, `forward()` navigation functions.
+  - `beforeEach` / `afterEach` navigation guards.
+  - Route params (`:id`), query string parsing, and wildcard (`*`) routes.
+  - `currentRoute` reactive signal for tracking current route state.
+  - `link()` and `interceptLinks()` helpers for declarative navigation.
+  - `resolve()` for named route URL generation.
+  - `isActive()` and `isActiveSignal()` for active link styling.
+- **Store**: New Pinia/Vuex-style state management module built on signals.
+  - `createStore({ id, state, getters, actions })` for defining stores.
+  - Reactive getters via `computed()` and state via `signal()`.
+  - Actions with automatic `this` context binding.
+  - `$reset()`, `$patch()`, `$subscribe()`, `$state` store utilities.
+  - `createPersistedStore()` for localStorage persistence.
+  - `registerPlugin()` for extending store functionality.
+  - `mapState()` and `mapActions()` composition helpers.
+  - `getStore()`, `listStores()`, `destroyStore()` for store registry.
+  - Devtools integration via `window.__BQUERY_DEVTOOLS__`.
+- **View**: New declarative DOM binding module (Vue/Alpine-style directives).
+  - `bq-text` and `bq-html` for content binding.
+  - `bq-if` and `bq-show` for conditional rendering.
+  - `bq-class` and `bq-style` for class/style binding.
+  - `bq-model` for two-way input binding.
+  - `bq-bind:attr` for attribute binding.
+  - `bq-on:event` for event binding.
+  - `bq-for` for list rendering with `(item, index) in items` syntax.
+  - `bq-ref` for element references.
+  - `mount()` function to bind context to DOM.
+  - `createTemplate()` for reusable template factories.
+  - Custom directive prefix support.
+  - Automatic HTML sanitization for security.
+
 ## [1.1.2] - 2026-01-24
 
 ### Fixed

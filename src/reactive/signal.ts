@@ -205,6 +205,20 @@ export class Computed<T> {
     }
     return this.cachedValue;
   }
+
+  /**
+   * Reads the current computed value without tracking.
+   * Useful when you need the value but don't want to create a dependency.
+   *
+   * @returns The current cached value (recomputes if dirty)
+   */
+  peek(): T {
+    if (this.dirty) {
+      this.dirty = false;
+      this.cachedValue = track(this.markDirty, this.compute);
+    }
+    return this.cachedValue;
+  }
 }
 
 /**

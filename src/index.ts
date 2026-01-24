@@ -25,3 +25,12 @@ export * from './security/index';
 
 // Platform module: storage, buckets, notifications, cache
 export * from './platform/index';
+
+// Router module: SPA routing, navigation guards
+export * from './router/index';
+
+// Store module: state management with signals
+export * from './store/index';
+
+// View module: declarative DOM bindings
+export * from './view/index';

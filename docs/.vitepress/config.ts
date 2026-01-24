@@ -5,6 +5,9 @@ export default defineConfig({
   title: 'bQuery.js',
   description: 'The jQuery for the modern Web Platform.',
   base: process.env.VITEPRESS_BASE ?? '/',
+  head: [
+    ['link', { rel: 'icon', href: '/assets/bquerry-logo.svg' }],
+  ],
   lastUpdated: true,
   vite: {
     build: {
@@ -17,6 +20,7 @@ export default defineConfig({
     },
   },
   themeConfig: {
+    logo: '/assets/bquerry-logo.svg',
     nav: [
       { text: 'Guide', link: '/guide/getting-started' },
       { text: 'API', link: '/guide/api-core' },
@@ -34,6 +38,9 @@ export default defineConfig({
             { text: 'Motion', link: '/guide/motion' },
             { text: 'Security', link: '/guide/security' },
             { text: 'Platform', link: '/guide/platform' },
+            { text: 'Router', link: '/guide/router' },
+            { text: 'Store', link: '/guide/store' },
+            { text: 'View', link: '/guide/view' },
           ],
         },
       ],

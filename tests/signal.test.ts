@@ -81,6 +81,53 @@ describe('computed', () => {
     quantity.value = 3;
     expect(total.value).toBe(45);
   });
+
+  it('peek returns value without tracking', () => {
+    const count = signal(1);
+    const doubled = computed(() => count.value * 2);
+    let runs = 0;
+
+    // Access via peek inside an effect should NOT create a dependency
+    effect(() => {
+      doubled.peek();
+      runs++;
+    });
+
+    expect(runs).toBe(1);
+    expect(doubled.peek()).toBe(2);
+
+    // Changing the dependency should NOT trigger the effect
+    // because peek() was used instead of .value
+    count.value = 5;
+    expect(runs).toBe(1);
+
+    // The computed should still update correctly
+    expect(doubled.peek()).toBe(10);
+  });
+
+  it('peek recomputes if dirty', () => {
+    let computeCount = 0;
+    const count = signal(1);
+    const doubled = computed(() => {
+      computeCount++;
+      return count.value * 2;
+    });
+
+    // First peek triggers computation
+    expect(doubled.peek()).toBe(2);
+    expect(computeCount).toBe(1);
+
+    // Second peek uses cache
+    expect(doubled.peek()).toBe(2);
+    expect(computeCount).toBe(1);
+
+    // Mark as dirty by changing dependency
+    count.value = 3;
+
+    // peek should recompute
+    expect(doubled.peek()).toBe(6);
+    expect(computeCount).toBe(2);
+  });
 });
 
 describe('effect', () => {
