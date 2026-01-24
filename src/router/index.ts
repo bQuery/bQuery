@@ -169,6 +169,9 @@ const pathToRegex = (path: string): RegExp => {
   // This ensures the colon is properly processed
   let pattern = path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, '(?<$1>[^/]+)');
 
+  // Escape backslashes first (they're the escape character in regex)
+  pattern = pattern.replace(/\\/g, '\\\\');
+
   // Escape forward slashes (the main special char in paths)
   pattern = pattern.replace(/\//g, '\\/');
 
