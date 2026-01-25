@@ -516,10 +516,12 @@ describe('View', () => {
           warnCalls.push(args);
         };
 
-        view = mount(container, { items });
-
-        // Restore console.warn
-        console.warn = originalWarn;
+        try {
+          view = mount(container, { items });
+        } finally {
+          // Restore console.warn even if test fails
+          console.warn = originalWarn;
+        }
 
         // Should have logged a warning about duplicate key
         expect(warnCalls.length).toBeGreaterThan(0);
@@ -527,8 +529,9 @@ describe('View', () => {
           String(call[0]).includes('Duplicate key')
         );
         expect(duplicateKeyWarning).toBeDefined();
-        expect(String(duplicateKeyWarning![0])).toContain('"A"');
-        expect(String(duplicateKeyWarning![0])).toContain('incorrect DOM reconciliation');
+        const warningMessage = String(duplicateKeyWarning![0]);
+        expect(warningMessage).toContain('"A"');
+        expect(warningMessage).toContain('incorrect DOM reconciliation');
       });
     });
   });
