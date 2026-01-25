@@ -244,14 +244,8 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
   const firstPass = template.innerHTML;
 
   // Re-parse through a fresh template element for mXSS detection.
-  // Using a helper function to create and populate the verification template
-  // avoids triggering static analysis warnings about direct innerHTML transfer.
-  const createVerificationTemplate = (html: string): HTMLTemplateElement => {
-    const t = document.createElement('template');
-    t.innerHTML = html;
-    return t;
-  };
-  const verifyTemplate = createVerificationTemplate(firstPass);
+  const verifyTemplate = document.createElement('template');
+  verifyTemplate.innerHTML = firstPass;
   const secondPass = verifyTemplate.innerHTML;
 
   // Verify stability: if content mutates between parses, it indicates mXSS attempt
