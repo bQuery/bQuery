@@ -212,11 +212,14 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  *     button { padding: 0.5rem 1rem; }
  *   `,
  *   connected() {
- *     console.log('Counter mounted');
+ *     // Set up event listener for button clicks
+ *     this.shadowRoot?.querySelector('button')?.addEventListener('click', () => {
+ *       this.setState('count', (this.getState('count') as number) + 1);
+ *     });
  *   },
- *   render({ props, state, emit }) {
+ *   render({ props, state }) {
  *     return html`
- *       <button onclick="this.getRootNode().host.increment()">
+ *       <button>
  *         Count: ${state.count}
  *       </button>
  *     `;
