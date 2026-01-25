@@ -174,7 +174,7 @@ batch(() => {
 ### Components – Web Components
 
 ```ts
-import { component, html } from '@bquery/bquery/component';
+import { component, defineComponent, html } from '@bquery/bquery/component';
 
 component('user-card', {
   props: {
@@ -199,6 +199,13 @@ component('user-card', {
     return html`<div>Hello ${props.username}</div>`;
   },
 });
+
+// Optional: create the class without auto-registration
+const UserCard = defineComponent('user-card', {
+  props: { username: { type: String, required: true } },
+  render: ({ props }) => html`<div>Hello ${props.username}</div>`,
+});
+customElements.define('user-card', UserCard);
 ```
 
 ### Motion – animations

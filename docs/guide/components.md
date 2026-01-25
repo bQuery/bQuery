@@ -1,6 +1,7 @@
 # Components
 
 Components are lightweight Web Components with typed props, optional state, and a render function.
+Internally, the component module is now split into focused submodules (types, props coercion, render helpers), with no breaking API changes.
 
 ```ts
 import { component, html, safeHtml } from '@bquery/bquery/component';
@@ -130,6 +131,23 @@ component('my-element', {
 
 - `html` – template literal helper for building HTML strings
 - `safeHtml` – escapes interpolated values for safety
+
+## Manual element class creation
+
+If you need access to the element class (e.g., to register manually or extend behavior), use `defineComponent`:
+
+```ts
+import { defineComponent } from '@bquery/bquery/component';
+
+const UserCard = defineComponent('user-card', {
+  props: {
+    username: { type: String, required: true },
+  },
+  render: ({ props }) => html`<div>${props.username}</div>`,
+});
+
+customElements.define('user-card', UserCard);
+```
 
 ## Emitting events
 
