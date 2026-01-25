@@ -311,7 +311,24 @@ export class BQueryCollection {
     return this;
   }
 
-  /** Remove the parent element of each element, keeping the elements in place. */
+  /**
+   * Remove the parent element of each element, keeping the elements in place.
+   *
+   * **Important**: This method unwraps ALL children of each parent element,
+   * not just the elements in the collection. If you call `unwrap()` on a
+   * collection containing only some children of a parent, all siblings will
+   * also be unwrapped. This behavior is consistent with jQuery's `.unwrap()`.
+   *
+   * @returns The collection for chaining
+   *
+   * @example
+   * ```ts
+   * // HTML: <div><section><span>A</span><span>B</span></section></div>
+   * const spans = $$('span');
+   * spans.unwrap(); // Removes <section>, both spans move to <div>
+   * // Result: <div><span>A</span><span>B</span></div>
+   * ```
+   */
   unwrap(): this {
     // Collect unique parent elements to avoid removing the same parent multiple times.
     const parents = new Set<Element>();

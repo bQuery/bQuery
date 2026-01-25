@@ -257,6 +257,10 @@ export class BQueryElement {
    * Removes the parent element, keeping this element in its place.
    * Essentially the opposite of wrap().
    *
+   * **Important**: This method only moves the current element out of its parent
+   * before removing the parent. Any sibling elements will be removed along with
+   * the parent. For unwrapping multiple siblings, use a collection: `$$(siblings).unwrap()`.
+   *
    * @returns The instance for method chaining
    *
    * @example
