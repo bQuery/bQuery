@@ -144,7 +144,7 @@ export const RESERVED_IDS = new Set([
   'confirm',
   'prompt',
   'eval',
-  'Function',
+  'function',
   // Document properties
   'cookie',
   'domain',
@@ -157,13 +157,13 @@ export const RESERVED_IDS = new Set([
   'scripts',
   // DOM traversal properties
   'children',
-  'parentNode',
-  'firstChild',
-  'lastChild',
+  'parentnode',
+  'firstchild',
+  'lastchild',
   // Content manipulation
-  'innerHTML',
-  'outerHTML',
-  'textContent',
+  'innerhtml',
+  'outerhtml',
+  'textcontent',
 ]);
 
 /**
