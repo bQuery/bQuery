@@ -136,15 +136,23 @@ const isExternalUrl = (url: string): boolean => {
  */
 const parseHtmlSafely = (html: string): DocumentFragment => {
   const parser = new DOMParser();
-  // Parse as HTML document - content is inert (scripts won't execute)
-  const doc = parser.parseFromString(`<template>${html}</template>`, 'text/html');
-  const templateEl = doc.querySelector('template');
-  // Return the template's content as a DocumentFragment
-  // If parsing fails, return an empty fragment
-  if (!templateEl) {
-    return document.createDocumentFragment();
+  // Parse the untrusted HTML as a full HTML document (inert; scripts won't execute)
+  const doc = parser.parseFromString(html, 'text/html');
+
+  // Create a fragment and move all children from the document body into it.
+  // This avoids interpolating untrusted HTML into an outer wrapper string.
+  const fragment = document.createDocumentFragment();
+  const body = doc.body;
+
+  if (!body) {
+    return fragment;
   }
-  return templateEl.content;
+
+  while (body.firstChild) {
+    fragment.appendChild(body.firstChild);
+  }
+
+  return fragment;
 };
 
 /**
