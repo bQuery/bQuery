@@ -12,6 +12,7 @@ export {
   effect,
   isComputed,
   isSignal,
+  linkedSignal,
   persistedSignal,
   readonly,
   signal,
@@ -19,4 +20,4 @@ export {
   watch,
 } from './signal';
 
-export type { CleanupFn, Observer, ReadonlySignal } from './signal';
+export type { CleanupFn, LinkedSignal, Observer, ReadonlySignal } from './signal';

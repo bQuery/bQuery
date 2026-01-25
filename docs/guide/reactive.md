@@ -93,6 +93,29 @@ const theme = persistedSignal('theme', 'light');
 theme.value = 'dark';
 ```
 
+## Linked signals
+
+`linkedSignal` creates a writable computed value by providing a getter and a setter.
+
+```ts
+import { linkedSignal, signal } from '@bquery/bquery/reactive';
+
+const first = signal('Ada');
+const last = signal('Lovelace');
+
+const fullName = linkedSignal(
+  () => `${first.value} ${last.value}`,
+  (next) => {
+    const [nextFirst, nextLast] = next.split(' ');
+    first.value = nextFirst ?? '';
+    last.value = nextLast ?? '';
+  }
+);
+
+console.log(fullName.value); // "Ada Lovelace"
+fullName.value = 'Grace Hopper';
+```
+
 ## Watch
 
 Watch observes a signal and calls a callback with old and new values:

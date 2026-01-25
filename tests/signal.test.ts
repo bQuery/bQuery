@@ -307,6 +307,44 @@ describe('readonly', () => {
   });
 });
 
+describe('linkedSignal', () => {
+  it('derives value from linked signals', async () => {
+    const { linkedSignal, signal } = await import('../src/reactive/signal');
+    const first = signal('Ada');
+    const last = signal('Lovelace');
+    const fullName = linkedSignal(
+      () => `${first.value} ${last.value}`,
+      (next) => {
+        const [nextFirst, nextLast] = next.split(' ');
+        first.value = nextFirst ?? '';
+        last.value = nextLast ?? '';
+      }
+    );
+
+    expect(fullName.value).toBe('Ada Lovelace');
+    first.value = 'Grace';
+    expect(fullName.value).toBe('Grace Lovelace');
+  });
+
+  it('writes through to source signals', async () => {
+    const { linkedSignal, signal } = await import('../src/reactive/signal');
+    const first = signal('Ada');
+    const last = signal('Lovelace');
+    const fullName = linkedSignal(
+      () => `${first.value} ${last.value}`,
+      (next) => {
+        const [nextFirst, nextLast] = next.split(' ');
+        first.value = nextFirst ?? '';
+        last.value = nextLast ?? '';
+      }
+    );
+
+    fullName.value = 'Grace Hopper';
+    expect(first.value).toBe('Grace');
+    expect(last.value).toBe('Hopper');
+  });
+});
+
 describe('untrack', () => {
   it('prevents dependency tracking', async () => {
     const { untrack, signal, effect } = await import('../src/reactive/signal');

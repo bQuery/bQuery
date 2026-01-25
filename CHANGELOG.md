@@ -36,12 +36,14 @@ and this project adheres to Semantic Versioning.
   - New presets: `easingPresets`, `keyframePresets`, plus individual easing exports.
   - Improved reduced-motion support via `prefersReducedMotion()`.
 - **Component**: `defineComponent()` factory for manual class creation and custom registration.
+- **Reactive**: `linkedSignal()` helper for writable computed values that bridge getters and setters.
 
 ### Changed (Unreleased)
 
 - **Security**: Internals modularized (sanitize core, Trusted Types, CSP helpers, constants/types) with no API changes.
 - **Router**: Internals modularized into focused submodules with no public API changes.
 - **Component**: Internals modularized into focused submodules with no public API changes.
+- **Reactive**: Internals modularized into focused submodules with no public API changes.
 
 ### Fixed (Unreleased)
 

@@ -147,7 +147,15 @@ $$('.items').addClass('highlight');
 ### Reactive – signals
 
 ```ts
-import { signal, computed, effect, batch, watch, readonly } from '@bquery/bquery/reactive';
+import {
+  signal,
+  computed,
+  effect,
+  batch,
+  watch,
+  readonly,
+  linkedSignal,
+} from '@bquery/bquery/reactive';
 
 const count = signal(0);
 const doubled = computed(() => count.value * 2);
@@ -169,6 +177,20 @@ batch(() => {
   count.value++;
   count.value++;
 });
+
+// Writable computed (linked signal)
+const first = signal('Ada');
+const last = signal('Lovelace');
+const fullName = linkedSignal(
+  () => `${first.value} ${last.value}`,
+  (next) => {
+    const [nextFirst, nextLast] = next.split(' ');
+    first.value = nextFirst ?? '';
+    last.value = nextLast ?? '';
+  }
+);
+
+fullName.value = 'Grace Hopper';
 ```
 
 ### Components – Web Components
