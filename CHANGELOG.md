@@ -55,6 +55,8 @@ and this project adheres to Semantic Versioning.
 ### Fixed (Unreleased)
 
 - **Security**: `security/sanitize` now re-exports `generateNonce()` and `isTrustedTypesSupported()` for legacy deep imports.
+- **Component**: Sanitize component render markup before writing to the Shadow DOM (security-by-default consistency).
+- **Docs**: Corrected the event section heading in the Core API guide for `BQueryElement`.
 
 ## [1.2.0] - 2026-01-24
 
