@@ -31,5 +31,12 @@ export const defineStore = <
   id: string,
   definition: Omit<StoreDefinition<S, G, A>, 'id'>
 ): (() => Store<S, G, A>) => {
-  return () => createStore({ id, ...definition });
+  let cachedStore: Store<S, G, A> | null = null;
+  
+  return () => {
+    if (!cachedStore) {
+      cachedStore = createStore({ id, ...definition });
+    }
+    return cachedStore;
+  };
 };

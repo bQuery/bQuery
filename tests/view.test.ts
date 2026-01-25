@@ -499,6 +499,40 @@ describe('View', () => {
         expect(container.querySelectorAll('li').length).toBe(1);
         expect(container.querySelector('li')?.textContent).toBe('Three');
       });
+
+      it('should warn when duplicate keys are detected', () => {
+        container.innerHTML =
+          '<ul><li bq-for="item in items" :key="item.type" bq-text="item.name"></li></ul>';
+        const items = signal([
+          { id: 1, type: 'A', name: 'First' },
+          { id: 2, type: 'B', name: 'Second' },
+          { id: 3, type: 'A', name: 'Third' }, // Duplicate key 'A'
+        ]);
+
+        // Spy on console.warn
+        const originalWarn = console.warn;
+        const warnCalls: unknown[][] = [];
+        console.warn = (...args: unknown[]) => {
+          warnCalls.push(args);
+        };
+
+        try {
+          view = mount(container, { items });
+        } finally {
+          // Restore console.warn even if test fails
+          console.warn = originalWarn;
+        }
+
+        // Should have logged a warning about duplicate key
+        expect(warnCalls.length).toBeGreaterThan(0);
+        const duplicateKeyWarning = warnCalls.find((call) =>
+          String(call[0]).includes('Duplicate key')
+        );
+        expect(duplicateKeyWarning).toBeDefined();
+        const warningMessage = String(duplicateKeyWarning![0]);
+        expect(warningMessage).toContain('"A"');
+        expect(warningMessage).toContain('incorrect DOM reconciliation');
+      });
     });
   });
 
@@ -788,6 +822,23 @@ describe('View', () => {
 
         expect(refObj.value).not.toBeNull();
         expect(refObj.value?.tagName).toBe('INPUT');
+      });
+
+      it('should cleanup object refs on destroy to prevent memory leaks', () => {
+        container.innerHTML = '<input bq-ref="refObj" />';
+        const refObj = { value: null as Element | null };
+
+        view = mount(container, { refObj });
+
+        // Ref should be set after mount
+        expect(refObj.value).not.toBeNull();
+        expect(refObj.value?.tagName).toBe('INPUT');
+
+        // Destroy the view
+        view.destroy();
+
+        // Ref should be cleared to prevent memory leaks
+        expect(refObj.value).toBeNull();
       });
     });
   });

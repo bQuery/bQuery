@@ -629,6 +629,39 @@ describe('core/BQueryElement - new methods', () => {
     grandparent.remove();
   });
 
+  it('unwrap handles multiple siblings sharing same parent correctly', () => {
+    const grandparent = document.createElement('div');
+    const wrapper = document.createElement('section');
+    const child1 = document.createElement('span');
+    const child2 = document.createElement('span');
+    const child3 = document.createElement('span');
+    child1.textContent = 'Child 1';
+    child2.textContent = 'Child 2';
+    child3.textContent = 'Child 3';
+    wrapper.appendChild(child1);
+    wrapper.appendChild(child2);
+    wrapper.appendChild(child3);
+    grandparent.appendChild(wrapper);
+    document.body.appendChild(grandparent);
+
+    // Create collection with multiple siblings
+    const collection = new BQueryCollection([child1, child2, child3]);
+    collection.unwrap();
+
+    // All children should be moved to grandparent
+    expect(grandparent.contains(child1)).toBe(true);
+    expect(grandparent.contains(child2)).toBe(true);
+    expect(grandparent.contains(child3)).toBe(true);
+    // Wrapper should be removed (only once, not multiple times)
+    expect(grandparent.contains(wrapper)).toBe(false);
+    // Children should maintain their order
+    expect(grandparent.children[0]).toBe(child1);
+    expect(grandparent.children[1]).toBe(child2);
+    expect(grandparent.children[2]).toBe(child3);
+
+    grandparent.remove();
+  });
+
   it('replaceWith replaces element', () => {
     const container = document.createElement('div');
     const original = document.createElement('span');

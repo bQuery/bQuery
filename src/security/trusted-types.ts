@@ -16,7 +16,10 @@ let cachedPolicy: TrustedTypePolicy | null = null;
  * @returns True if Trusted Types are supported
  */
 export const isTrustedTypesSupported = (): boolean => {
-  return typeof (window as TrustedTypesWindow).trustedTypes !== 'undefined';
+  return (
+    typeof window !== 'undefined' &&
+    typeof (window as TrustedTypesWindow).trustedTypes !== 'undefined'
+  );
 };
 
 /**
@@ -25,6 +28,8 @@ export const isTrustedTypesSupported = (): boolean => {
  */
 export const getTrustedTypesPolicy = (): TrustedTypePolicy | null => {
   if (cachedPolicy) return cachedPolicy;
+
+  if (typeof window === 'undefined') return null;
 
   const win = window as TrustedTypesWindow;
   if (!win.trustedTypes) return null;

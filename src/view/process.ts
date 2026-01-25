@@ -31,7 +31,7 @@ export const processElement = (
   for (const attr of attributes) {
     const { name, value } = attr;
 
-    if (!name.startsWith(prefix)) continue;
+    if (!name.startsWith(`${prefix}-`)) continue;
 
     const directive = name.slice(prefix.length + 1); // Remove prefix and dash
 

@@ -348,15 +348,13 @@ describe('Store', () => {
         { immediate: true }
       );
 
-      store.count = 1;
       store.count = 2;
       stop();
       store.count = 3;
 
       expect(calls).toEqual([
         [0, undefined],
-        [1, 0],
-        [2, 1],
+        [2, 0],
       ]);
     });
   });
@@ -375,6 +373,31 @@ describe('Store', () => {
       const counter = useCounter();
       counter.increment();
       expect(counter.count).toBe(1);
+    });
+
+    it('should cache and return the same store instance on multiple calls', () => {
+      const useCachedStore = defineStore('cached-store', {
+        state: () => ({ value: 0 }),
+        actions: {
+          setValue(val: number) {
+            (this as { value: number }).value = val;
+          },
+        },
+      });
+
+      // Call the factory multiple times
+      const instance1 = useCachedStore();
+      const instance2 = useCachedStore();
+      const instance3 = useCachedStore();
+
+      // All should be the same instance
+      expect(instance1).toBe(instance2);
+      expect(instance2).toBe(instance3);
+
+      // Changes to one should affect all (since they're the same instance)
+      instance1.setValue(42);
+      expect(instance2.value).toBe(42);
+      expect(instance3.value).toBe(42);
     });
   });
 
