@@ -313,12 +313,24 @@ export class BQueryCollection {
 
   /** Remove the parent element of each element, keeping the elements in place. */
   unwrap(): this {
-    applyAll(this.elements, (el) => {
-      const parent = el.parentElement;
-      if (parent && parent.parentNode) {
-        parent.parentNode.insertBefore(el, parent);
-        parent.remove();
+    // Collect unique parent elements to avoid removing the same parent multiple times.
+    const parents = new Set<Element>();
+    for (const el of this.elements) {
+      if (el.parentElement) {
+        parents.add(el.parentElement);
       }
+    }
+
+    // Unwrap each parent once: move all children out, then remove the wrapper.
+    parents.forEach((parent) => {
+      const grandParent = parent.parentNode;
+      if (!grandParent) return;
+
+      while (parent.firstChild) {
+        grandParent.insertBefore(parent.firstChild, parent);
+      }
+
+      parent.remove();
     });
     return this;
   }

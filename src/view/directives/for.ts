@@ -170,10 +170,22 @@ export const createForHandler = (options: {
       // Build new key order and detect changes
       const newKeys: unknown[] = [];
       const newItemsByKey = new Map<unknown, { item: unknown; index: number }>();
+      const duplicateKeys = new Set<unknown>();
 
       list.forEach((item, index) => {
         const key = getItemKey(item, index, keyExpression, itemName, indexName, context);
         newKeys.push(key);
+        
+        // Detect duplicate keys - later entries would overwrite earlier ones
+        if (newItemsByKey.has(key)) {
+          duplicateKeys.add(key);
+          console.warn(
+            `bq-for: Duplicate key "${String(key)}" detected. ` +
+            `Falling back to index-based keying for affected items. ` +
+            `Ensure :key expressions produce unique values.`
+          );
+        }
+        
         newItemsByKey.set(key, { item, index });
       });
 

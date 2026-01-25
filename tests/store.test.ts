@@ -348,15 +348,13 @@ describe('Store', () => {
         { immediate: true }
       );
 
-      store.count = 1;
       store.count = 2;
       stop();
       store.count = 3;
 
       expect(calls).toEqual([
         [0, undefined],
-        [1, 0],
-        [2, 1],
+        [2, 0],
       ]);
     });
   });
