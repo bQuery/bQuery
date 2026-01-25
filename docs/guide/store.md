@@ -382,13 +382,13 @@ effect(() => {
 
 ### mapGetters
 
-Map computed getters for destructuring:
+Map computed getters for convenient access:
 
 ```ts
 import { mapGetters } from '@bquery/bquery/store';
 
-const { doubled } = mapGetters(counterStore, ['doubled']);
-console.log(doubled); // Reactive getter value
+const getters = mapGetters(counterStore, ['doubled']);
+console.log(getters.doubled); // Access via properties to preserve reactivity
 ```
 
 ### mapActions

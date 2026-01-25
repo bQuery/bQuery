@@ -53,6 +53,8 @@ export const link = (path: string, options: { replace?: boolean } = {}): ((e: Ev
  */
 export const interceptLinks = (container: Element = document.body): (() => void) => {
   const handler = (e: Event) => {
+    // Guard against non-Element targets (Text nodes, etc.)
+    if (!(e.target instanceof Element)) return;
     const target = e.target as HTMLElement;
     const anchor = target.closest('a');
 

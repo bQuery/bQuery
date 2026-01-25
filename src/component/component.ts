@@ -169,9 +169,14 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
           emit,
         });
 
-        const styles = definition.styles ? `<style>${definition.styles}</style>` : '';
         const sanitizedMarkup = sanitizeHtml(markup);
-        this.shadowRoot.innerHTML = `${styles}${sanitizedMarkup}`;
+        this.shadowRoot.innerHTML = sanitizedMarkup;
+
+        if (definition.styles) {
+          const styleElement = document.createElement('style');
+          styleElement.textContent = definition.styles;
+          this.shadowRoot.prepend(styleElement);
+        }
 
         if (triggerUpdated) {
           definition.updated?.call(this);

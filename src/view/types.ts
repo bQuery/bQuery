@@ -26,7 +26,7 @@ export type View = {
   el: Element;
   /** The binding context */
   context: BindingContext;
-  /** Update the context and re-render */
+  /** Update the context object. Note: this only mutates the context; reactive re-rendering happens automatically when signals/computed values change. */
   update: (newContext: Partial<BindingContext>) => void;
   /** Destroy the view and cleanup effects */
   destroy: () => void;

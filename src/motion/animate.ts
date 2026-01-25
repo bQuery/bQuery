@@ -11,6 +11,14 @@ import type { AnimateOptions } from './types';
 const isStyleValue = (value: unknown): value is string | number =>
   typeof value === 'string' || typeof value === 'number';
 
+/**
+ * Convert camelCase property names to kebab-case for CSS.
+ * @internal
+ */
+const toKebabCase = (str: string): string => {
+  return str.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+};
+
 /** @internal */
 export const applyFinalKeyframeStyles = (
   element: Element,
@@ -25,7 +33,9 @@ export const applyFinalKeyframeStyles = (
     for (const [prop, value] of Object.entries(last)) {
       if (prop === 'offset' || prop === 'easing' || prop === 'composite') continue;
       if (isStyleValue(value)) {
-        style.setProperty(prop, String(value));
+        // Convert camelCase to kebab-case for CSS properties
+        const cssProp = prop.startsWith('--') ? prop : toKebabCase(prop);
+        style.setProperty(cssProp, String(value));
       }
     }
     return;
@@ -35,7 +45,9 @@ export const applyFinalKeyframeStyles = (
     if (prop === 'offset' || prop === 'easing' || prop === 'composite') continue;
     const finalValue = Array.isArray(value) ? value[value.length - 1] : value;
     if (isStyleValue(finalValue)) {
-      style.setProperty(prop, String(finalValue));
+      // Convert camelCase to kebab-case for CSS properties
+      const cssProp = prop.startsWith('--') ? prop : toKebabCase(prop);
+      style.setProperty(cssProp, String(finalValue));
     }
   }
 };
