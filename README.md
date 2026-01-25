@@ -133,6 +133,9 @@ $('#box').addClass('active').css({ opacity: '0.8' }).attr('data-state', 'ready')
 $('#content').wrap('<div class="wrapper"></div>');
 $('#wrapper').unwrap(); // Remove parent wrapper
 
+// Attribute helpers
+$('#dialog').toggleAttr('open');
+
 // Smooth scrolling
 $('#section').scrollTo({ behavior: 'smooth' });
 
@@ -142,6 +145,7 @@ const queryString = $('form').serializeString(); // Returns URL-encoded string
 
 // Collections
 $$('.items').addClass('highlight');
+$$('.items').append('<li class="item">New</li>');
 ```
 
 ### Reactive – signals

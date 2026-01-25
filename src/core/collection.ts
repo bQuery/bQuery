@@ -1,6 +1,11 @@
-import { sanitizeHtml } from '../security/sanitize';
+import {
+  createElementFromHtml,
+  insertContent,
+  sanitizeContent,
+  type InsertableContent,
+} from './dom';
 import { BQueryElement } from './element';
-import { applyAll } from './shared';
+import { applyAll, toElementList } from './shared';
 
 /** Handler signature for delegated events */
 type DelegatedHandler = (event: Event, target: Element) => void;
@@ -181,6 +186,20 @@ export class BQueryCollection {
     return this;
   }
 
+  /** Toggle an attribute on all elements. */
+  toggleAttr(name: string, force?: boolean): this {
+    applyAll(this.elements, (el) => {
+      const hasAttr = el.hasAttribute(name);
+      const shouldAdd = force ?? !hasAttr;
+      if (shouldAdd) {
+        el.setAttribute(name, '');
+      } else {
+        el.removeAttribute(name);
+      }
+    });
+    return this;
+  }
+
   /**
    * Sets text content on all elements or gets from first.
    *
@@ -207,7 +226,7 @@ export class BQueryCollection {
     if (value === undefined) {
       return this.first()?.innerHTML ?? '';
     }
-    const sanitized = sanitizeHtml(value);
+    const sanitized = sanitizeContent(value);
     applyAll(this.elements, (el) => {
       el.innerHTML = sanitized;
     });
@@ -225,6 +244,30 @@ export class BQueryCollection {
     applyAll(this.elements, (el) => {
       el.innerHTML = value;
     });
+    return this;
+  }
+
+  /** Append content to all elements. */
+  append(content: InsertableContent): this {
+    this.insertAll(content, 'beforeend');
+    return this;
+  }
+
+  /** Prepend content to all elements. */
+  prepend(content: InsertableContent): this {
+    this.insertAll(content, 'afterbegin');
+    return this;
+  }
+
+  /** Insert content before all elements. */
+  before(content: InsertableContent): this {
+    this.insertAll(content, 'beforebegin');
+    return this;
+  }
+
+  /** Insert content after all elements. */
+  after(content: InsertableContent): this {
+    this.insertAll(content, 'afterend');
     return this;
   }
 
@@ -251,6 +294,49 @@ export class BQueryCollection {
       }
     });
     return this;
+  }
+
+  /** Wrap each element with a wrapper element or tag. */
+  wrap(wrapper: string | Element): this {
+    this.elements.forEach((el, index) => {
+      const wrapperEl =
+        typeof wrapper === 'string'
+          ? document.createElement(wrapper)
+          : index === 0
+            ? wrapper
+            : (wrapper.cloneNode(true) as Element);
+      el.parentNode?.insertBefore(wrapperEl, el);
+      wrapperEl.appendChild(el);
+    });
+    return this;
+  }
+
+  /** Remove the parent element of each element, keeping the elements in place. */
+  unwrap(): this {
+    applyAll(this.elements, (el) => {
+      const parent = el.parentElement;
+      if (parent && parent.parentNode) {
+        parent.parentNode.insertBefore(el, parent);
+        parent.remove();
+      }
+    });
+    return this;
+  }
+
+  /** Replace each element with provided content. */
+  replaceWith(content: string | Element): BQueryCollection {
+    const replacements: Element[] = [];
+    this.elements.forEach((el, index) => {
+      const replacement =
+        typeof content === 'string'
+          ? createElementFromHtml(content)
+          : index === 0
+            ? content
+            : (content.cloneNode(true) as Element);
+      el.replaceWith(replacement);
+      replacements.push(replacement);
+    });
+    return new BQueryCollection(replacements);
   }
 
   /**
@@ -450,5 +536,20 @@ export class BQueryCollection {
       el.innerHTML = '';
     });
     return this;
+  }
+
+  /** @internal */
+  private insertAll(content: InsertableContent, position: InsertPosition): void {
+    if (typeof content === 'string') {
+      applyAll(this.elements, (el) => insertContent(el, content, position));
+      return;
+    }
+
+    const elements = toElementList(content);
+    this.elements.forEach((el, index) => {
+      const nodes =
+        index === 0 ? elements : elements.map((node) => node.cloneNode(true) as Element);
+      insertContent(el, nodes, position);
+    });
   }
 }

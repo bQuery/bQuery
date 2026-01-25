@@ -88,6 +88,30 @@ describe('core/BQueryElement', () => {
     expect(wrapped.attr('data-test')).toBe('value');
   });
 
+  it('removeAttr removes attributes', () => {
+    const div = document.createElement('div');
+    const wrapped = new BQueryElement(div);
+
+    wrapped.attr('data-test', 'value');
+    wrapped.removeAttr('data-test');
+
+    expect(div.hasAttribute('data-test')).toBe(false);
+  });
+
+  it('toggleAttr toggles attributes', () => {
+    const div = document.createElement('div');
+    const wrapped = new BQueryElement(div);
+
+    wrapped.toggleAttr('data-flag');
+    expect(div.hasAttribute('data-flag')).toBe(true);
+
+    wrapped.toggleAttr('data-flag');
+    expect(div.hasAttribute('data-flag')).toBe(false);
+
+    wrapped.toggleAttr('data-flag', true);
+    expect(div.hasAttribute('data-flag')).toBe(true);
+  });
+
   it('text sets and gets text content', () => {
     const div = document.createElement('div');
     const wrapped = new BQueryElement(div);
@@ -227,6 +251,17 @@ describe('core/BQueryCollection', () => {
     expect(collection.attr('data-test')).toBe('one');
   });
 
+  it('toggleAttr toggles attributes on all elements', () => {
+    const div1 = document.createElement('div');
+    const div2 = document.createElement('div');
+    const collection = new BQueryCollection([div1, div2]);
+
+    collection.toggleAttr('data-flag');
+
+    expect(div1.hasAttribute('data-flag')).toBe(true);
+    expect(div2.hasAttribute('data-flag')).toBe(true);
+  });
+
   it('html returns the first element HTML', () => {
     const div1 = document.createElement('div');
     const div2 = document.createElement('div');
@@ -362,6 +397,58 @@ describe('core/BQueryCollection', () => {
 
     collection.empty();
     expect(div.innerHTML).toBe('');
+  });
+
+  it('append inserts content into all elements', () => {
+    const div1 = document.createElement('div');
+    const div2 = document.createElement('div');
+    const collection = new BQueryCollection([div1, div2]);
+    const badge = document.createElement('span');
+    badge.className = 'badge';
+
+    collection.append(badge);
+
+    const badge1 = div1.querySelector('.badge');
+    const badge2 = div2.querySelector('.badge');
+    expect(badge1).toBeDefined();
+    expect(badge2).toBeDefined();
+    expect(badge1).not.toBe(badge2);
+  });
+
+  it('replaceWith replaces all elements', () => {
+    const div1 = document.createElement('div');
+    const div2 = document.createElement('div');
+    const parent = document.createElement('section');
+    parent.appendChild(div1);
+    parent.appendChild(div2);
+    document.body.appendChild(parent);
+
+    const collection = new BQueryCollection([div1, div2]);
+    const replaced = collection.replaceWith('<p class="replacement"></p>');
+
+    expect(parent.querySelectorAll('.replacement').length).toBe(2);
+    expect(replaced.length).toBe(2);
+
+    parent.remove();
+  });
+
+  it('wrap and unwrap work on collections', () => {
+    const parent = document.createElement('div');
+    const span1 = document.createElement('span');
+    const span2 = document.createElement('span');
+    parent.appendChild(span1);
+    parent.appendChild(span2);
+    document.body.appendChild(parent);
+
+    const collection = new BQueryCollection([span1, span2]);
+    collection.wrap('section');
+
+    expect(parent.querySelectorAll('section').length).toBe(2);
+
+    collection.unwrap();
+    expect(parent.querySelectorAll('section').length).toBe(0);
+
+    parent.remove();
   });
 });
 

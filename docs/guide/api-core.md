@@ -42,6 +42,8 @@ All mutating methods are chainable and return `this`.
 - `toggleClass(className, force?)`
 - `hasClass(className)`
 - `attr(name, value?)`
+- `removeAttr(name)`
+- `toggleAttr(name, force?)`
 - `prop(name, value?)`
 - `data(name, value?)`
 
@@ -161,9 +163,17 @@ All mutating methods are chainable and apply to every element. Getter methods re
 - `toggleClass(className, force?)`
 - `attr(name, value?)`
 - `removeAttr(name)`
+- `toggleAttr(name, force?)`
 - `text(value?)`
 - `html(value?)` – sanitized by default
 - `htmlUnsafe(value)`
+- `append(content)`
+- `prepend(content)`
+- `before(content)`
+- `after(content)`
+- `wrap(wrapper)`
+- `unwrap()`
+- `replaceWith(content)`
 - `css(property, value?)`
 - `show(display?)`
 - `hide()`
