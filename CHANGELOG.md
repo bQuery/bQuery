@@ -8,28 +8,31 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [\[Unreleased\]](#unreleased)
-  - [\[1.2.0\] - 2026-01-24](#120---2026-01-24)
-    - [Added](#added)
-  - [\[1.1.2\] - 2026-01-24](#112---2026-01-24)
-    - [Fixed](#fixed)
-    - [Security](#security)
-  - [\[1.1.1\] - 2026-01-24](#111---2026-01-24)
-    - [Fixed](#fixed-1)
-  - [\[1.1.0\] - 2026-01-23](#110---2026-01-23)
-    - [Added](#added-1)
-    - [Changed](#changed)
-    - [Security](#security-1)
-  - [\[1.0.2\] - 2026-01-23](#102---2026-01-23)
-    - [Fixed](#fixed-2)
-  - [\[1.0.1\] - 2026-01-23](#101---2026-01-23)
-    - [Fixed](#fixed-3)
-  - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
-    - [Added](#added-2)
+  - [(1.3.0)](#130)
+    - [Added (1.3.0)](#added-130)
+    - [Changed (1.3.0)](#changed-130)
+    - [Fixed (1.3.0)](#fixed-130)
+  - [(1.2.0) - 2026-01-24](#120---2026-01-24)
+    - [Added (1.2.0)](#added-120)
+  - [(1.1.2) - 2026-01-24](#112---2026-01-24)
+    - [Fixed (1.1.2)](#fixed-112)
+    - [Security (1.1.2)](#security-112)
+  - [(1.1.1) - 2026-01-24](#111---2026-01-24)
+    - [Fixed (1.1.1)](#fixed-111)
+  - [(1.1.0) - 2026-01-23](#110---2026-01-23)
+    - [Added (1.1.0)](#added-110)
+    - [Changed (1.1.0)](#changed-110)
+    - [Security (1.1.0)](#security-110)
+  - [(1.0.2) - 2026-01-23](#102---2026-01-23)
+    - [Fixed (1.0.2)](#fixed-102)
+  - [(1.0.1) - 2026-01-23](#101---2026-01-23)
+    - [Fixed (1.0.1)](#fixed-101)
+  - [(1.0.0) - 2026-01-21](#100---2026-01-21)
+    - [Added (1.0.0)](#added-100)
 
-## [Unreleased]
+## (1.3.0)
 
-### Added (Unreleased)
+### Added (1.3.0)
 
 - **Core**: Added attribute helpers `removeAttr()` and `toggleAttr()`, plus collection DOM helpers `append()`, `prepend()`, `before()`, `after()`, `wrap()`, `unwrap()`, and `replaceWith()`.
 - **Core**: Expanded utilities with new array, function, number, and string helpers (e.g. `ensureArray()`, `unique()`, `chunk()`, `compact()`, `flatten()`, `once()`, `noop()`, `inRange()`, `toNumber()`, `truncate()`, `slugify()`, `escapeRegExp()`, `hasOwn()`, `isDate()`, `isPromise()`, `isObject()`).
@@ -41,7 +44,7 @@ and this project adheres to Semantic Versioning.
 - **Reactive**: `linkedSignal()` helper for writable computed values that bridge getters and setters.
 - **Store**: New helpers `defineStore()`, `mapGetters()`, and `watchStore()` for ergonomic factories, getter mapping, and targeted subscriptions.
 
-### Changed (Unreleased)
+### Changed (1.3.0)
 
 - **Core**: Internal DOM helpers extracted into focused utilities to improve core modularity (no breaking API changes).
 - **Core**: Utilities modularized into focused helper modules and re-exported as named exports from `@bquery/bquery/core` (the `utils` namespace remains for compatibility).
@@ -52,15 +55,15 @@ and this project adheres to Semantic Versioning.
 - **Store**: Internals modularized into focused submodules (types, registry, plugins, helpers) with no public API breaks.
 - **View**: Internals modularized into focused submodules with no public API changes.
 
-### Fixed (Unreleased)
+### Fixed (1.3.0)
 
 - **Security**: `security/sanitize` now re-exports `generateNonce()` and `isTrustedTypesSupported()` for legacy deep imports.
 - **Component**: Sanitize component render markup before writing to the Shadow DOM (security-by-default consistency).
 - **Docs**: Corrected the event section heading in the Core API guide for `BQueryElement`.
 
-## [1.2.0] - 2026-01-24
+## (1.2.0) - 2026-01-24
 
-### Added
+### Added (1.2.0)
 
 - **Router**: New SPA client-side routing module with History API support.
   - `createRouter()` factory with routes, base path, and hash mode options.
@@ -95,25 +98,25 @@ and this project adheres to Semantic Versioning.
   - Custom directive prefix support.
   - Automatic HTML sanitization for security.
 
-## [1.1.2] - 2026-01-24
+## (1.1.2) - 2026-01-24
 
-### Fixed
+### Fixed (1.1.2)
 
 - **Docs**: Fixed import paths and added error handling in agents documentation.
 
-### Security
+### Security (1.1.2)
 
 - Added `rel="noopener noreferrer"` to external links for improved security.
 
-## [1.1.1] - 2026-01-24
+## (1.1.1) - 2026-01-24
 
-### Fixed
+### Fixed (1.1.1)
 
 - Fixed a possibly dangrous html handling in the playground examples.
 
-## [1.1.0] - 2026-01-23
+## (1.1.0) - 2026-01-23
 
-### Added
+### Added (1.1.0)
 
 - **Core**: `delegate(event, selector, handler)` method for event delegation on dynamically added elements.
 - **Core**: `wrap(wrapper)` method to wrap elements with a new parent container.
@@ -136,37 +139,37 @@ and this project adheres to Semantic Versioning.
 - **Security**: DOM clobbering protection with reserved ID/name filtering.
 - **Security**: Zero-width Unicode character stripping in URL normalization.
 
-### Changed
+### Changed (1.1.0)
 
 - **Reactive**: Optimized observer stack operations from O(n) array copy to O(1) push/pop (~40% performance improvement).
 - **Security**: Added `file:` protocol to blocked URL schemes.
 - **Security**: Extended dangerous attribute prefixes with `xlink:` and `xmlns:`.
 
-### Security
+### Security (1.1.0)
 
 - Fixed prototype pollution vulnerability in `utils.merge()` by filtering `__proto__`, `constructor`, and `prototype` keys.
 - Enhanced HTML sanitizer to block additional XSS vectors through SVG, MathML, and template elements.
 - Added protection against DOM clobbering attacks by preventing reserved IDs like `document`, `cookie`, `location`.
 - Improved URL sanitization to prevent Unicode bypass attacks using zero-width characters.
 
-## [1.0.2] - 2026-01-23
+## (1.0.2) - 2026-01-23
 
-### Fixed
+### Fixed (1.0.2)
 
 - Fixed brodken documentation links in README.md.
 
-## [1.0.1] - 2026-01-23
+## (1.0.1) - 2026-01-23
 
-### Fixed
+### Fixed (1.0.1)
 
 - Corrected the package name in `package.json` to `@bquery/bquery` for proper npm publishing.
 - Updated the author field in `package.json` to reflect the main maintainer.
 - Revised the homepage URL in `package.json` to point to the official bQuery website.
 - Added publish configuration in `package.json` to ensure public accessibility on npm registry.
 
-## [1.0.0] - 2026-01-21
+## (1.0.0) - 2026-01-21
 
-### Added
+### Added (1.0.0)
 
 - Core API with selectors (`$`, `$$`), `BQueryElement`/`BQueryCollection`, DOM operations, events, and utilities.
 - Reactive module with `signal`, `computed`, `effect`, `batch`, plus `Signal`/`Computed` types.
