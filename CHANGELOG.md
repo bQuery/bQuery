@@ -37,6 +37,7 @@ and this project adheres to Semantic Versioning.
   - Improved reduced-motion support via `prefersReducedMotion()`.
 - **Component**: `defineComponent()` factory for manual class creation and custom registration.
 - **Reactive**: `linkedSignal()` helper for writable computed values that bridge getters and setters.
+- **Store**: New helpers `defineStore()`, `mapGetters()`, and `watchStore()` for ergonomic factories, getter mapping, and targeted subscriptions.
 
 ### Changed (Unreleased)
 
@@ -44,6 +45,7 @@ and this project adheres to Semantic Versioning.
 - **Router**: Internals modularized into focused submodules with no public API changes.
 - **Component**: Internals modularized into focused submodules with no public API changes.
 - **Reactive**: Internals modularized into focused submodules with no public API changes.
+- **Store**: Internals modularized into focused submodules (types, registry, plugins, helpers) with no public API breaks.
 
 ### Fixed (Unreleased)
 

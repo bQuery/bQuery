@@ -41,6 +41,26 @@ console.log(counterStore.count); // 1
 console.log(counterStore.doubled); // 2
 ```
 
+## Store Factory (defineStore)
+
+Create a reusable store factory (Pinia-style) that lazily instantiates the store:
+
+```ts
+import { defineStore } from '@bquery/bquery/store';
+
+const useCounter = defineStore('counter', {
+  state: () => ({ count: 0 }),
+  actions: {
+    increment() {
+      this.count++;
+    },
+  },
+});
+
+const counter = useCounter();
+counter.increment();
+```
+
 ## Reactive Updates
 
 Store state is fully reactive:
@@ -360,6 +380,17 @@ effect(() => {
 });
 ```
 
+### mapGetters
+
+Map computed getters for destructuring:
+
+```ts
+import { mapGetters } from '@bquery/bquery/store';
+
+const { doubled } = mapGetters(counterStore, ['doubled']);
+console.log(doubled); // Reactive getter value
+```
+
 ### mapActions
 
 Map actions for easier usage:
@@ -371,6 +402,26 @@ const { increment, decrement } = mapActions(counterStore, ['increment', 'decreme
 
 // Use directly
 increment();
+```
+
+## watchStore
+
+Watch a selected slice of store state with optional deep comparison:
+
+```ts
+import { watchStore } from '@bquery/bquery/store';
+
+const stop = watchStore(
+  counterStore,
+  (state) => state.count,
+  (value, previous) => {
+    console.log('Count changed:', value, previous);
+  },
+  { immediate: true }
+);
+
+// Later
+stop();
 ```
 
 ## Devtools Integration
@@ -413,6 +464,17 @@ type Store<S, G, A> = S &
     $reset: () => void;
     $subscribe: (callback: (state: S) => void) => () => void;
     $patch: (partial: Partial<S> | ((state: S) => void)) => void;
+    $patchDeep: (partial: Partial<S> | ((state: S) => void)) => void;
     $state: S;
   };
+
+const useStore = defineStore(id, definition);
+
+const stop = watchStore(store, selector, callback, {
+  immediate?: boolean;
+  deep?: boolean;
+  equals?: (a, b) => boolean;
+});
+
+const mapped = mapGetters(store, ['getterKey']);
 ```

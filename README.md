@@ -363,6 +363,32 @@ const useSettings = createPersistedStore({
   id: 'settings',
   state: () => ({ theme: 'dark', language: 'en' }),
 });
+
+// Factory-style store definition
+import { defineStore, mapGetters, watchStore } from '@bquery/bquery/store';
+
+const useCounter = defineStore('counter', {
+  state: () => ({ count: 0 }),
+  getters: {
+    doubled: (state) => state.count * 2,
+  },
+  actions: {
+    increment() {
+      this.count++;
+    },
+  },
+});
+
+const counter = useCounter();
+const { doubled } = mapGetters(counter, ['doubled']);
+
+watchStore(
+  counter,
+  (state) => state.count,
+  (value) => {
+    console.log('Count changed:', value, doubled);
+  }
+);
 ```
 
 ### View – declarative bindings

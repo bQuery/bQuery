@@ -7,11 +7,14 @@ import { effect } from '../src/reactive/index';
 import {
   createPersistedStore,
   createStore,
+  defineStore,
   destroyStore,
   getStore,
   listStores,
   mapActions,
+  mapGetters,
   mapState,
+  watchStore,
 } from '../src/store/index';
 
 describe('Store', () => {
@@ -292,6 +295,24 @@ describe('Store', () => {
     });
   });
 
+  describe('mapGetters', () => {
+    it('should map getter properties', () => {
+      const store = createStore({
+        id: 'getter-map',
+        state: () => ({ count: 2 }),
+        getters: {
+          doubled: (state) => (state.count as number) * 2,
+        },
+      });
+
+      const mapped = mapGetters(store, ['doubled']);
+      expect(mapped.doubled).toBe(4);
+
+      store.count = 3;
+      expect(mapped.doubled).toBe(6);
+    });
+  });
+
   describe('mapActions', () => {
     it('should map actions', () => {
       const store = createStore({
@@ -307,6 +328,53 @@ describe('Store', () => {
       const { increment } = mapActions(store, ['increment']);
       increment();
       expect(store.count).toBe(1);
+    });
+  });
+
+  describe('watchStore', () => {
+    it('should watch selected state changes', () => {
+      const store = createStore({
+        id: 'watcher',
+        state: () => ({ count: 0 }),
+      });
+
+      const calls: Array<[number, number | undefined]> = [];
+      const stop = watchStore(
+        store,
+        (state) => state.count as number,
+        (value, previous) => {
+          calls.push([value, previous]);
+        },
+        { immediate: true }
+      );
+
+      store.count = 1;
+      store.count = 2;
+      stop();
+      store.count = 3;
+
+      expect(calls).toEqual([
+        [0, undefined],
+        [1, 0],
+        [2, 1],
+      ]);
+    });
+  });
+
+  describe('defineStore', () => {
+    it('should create a store factory', () => {
+      const useCounter = defineStore('factory-counter', {
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+          },
+        },
+      });
+
+      const counter = useCounter();
+      counter.increment();
+      expect(counter.count).toBe(1);
     });
   });
 
