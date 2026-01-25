@@ -36,6 +36,10 @@ and this project adheres to Semantic Versioning.
   - New presets: `easingPresets`, `keyframePresets`, plus individual easing exports.
   - Improved reduced-motion support via `prefersReducedMotion()`.
 
+### Changed (Unreleased)
+
+- **Security**: Internals modularized (sanitize core, Trusted Types, CSP helpers, constants/types) with no API changes.
+
 ## [1.2.0] - 2026-01-24
 
 ### Added

@@ -4,15 +4,7 @@
  * @module bquery/security
  */
 
-export {
-  createTrustedHtml,
-  escapeHtml,
-  generateNonce,
-  getTrustedTypesPolicy,
-  hasCSPDirective,
-  isTrustedTypesSupported,
-  sanitizeHtml as sanitize,
-  sanitizeHtml,
-  stripTags,
-} from './sanitize';
-export type { SanitizeOptions } from './sanitize';
+export { generateNonce, hasCSPDirective } from './csp';
+export { escapeHtml, sanitizeHtml as sanitize, sanitizeHtml, stripTags } from './sanitize';
+export { createTrustedHtml, getTrustedTypesPolicy, isTrustedTypesSupported } from './trusted-types';
+export type { SanitizeOptions } from './types';

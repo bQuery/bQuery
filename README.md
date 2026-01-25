@@ -227,6 +227,8 @@ await x.to(100);
 
 ### Security – sanitizing
 
+Internally modularized (sanitize core, Trusted Types, CSP helpers) — the public API remains unchanged.
+
 ```ts
 import { sanitize, escapeHtml } from '@bquery/bquery/security';
 
