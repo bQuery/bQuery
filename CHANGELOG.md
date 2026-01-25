@@ -8,23 +8,33 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [[1.2.0] - 2026-01-24](#120---2026-01-24)
+  - [\[Unreleased\]](#unreleased)
+  - [\[1.2.0\] - 2026-01-24](#120---2026-01-24)
     - [Added](#added)
-  - [[1.1.2] - 2026-01-24](#112---2026-01-24)
+  - [\[1.1.2\] - 2026-01-24](#112---2026-01-24)
     - [Fixed](#fixed)
     - [Security](#security)
-  - [[1.1.1] - 2026-01-24](#111---2026-01-24)
+  - [\[1.1.1\] - 2026-01-24](#111---2026-01-24)
     - [Fixed](#fixed-1)
-  - [[1.1.0] - 2026-01-23](#110---2026-01-23)
+  - [\[1.1.0\] - 2026-01-23](#110---2026-01-23)
     - [Added](#added-1)
     - [Changed](#changed)
     - [Security](#security-1)
-  - [[1.0.2] - 2026-01-23](#102---2026-01-23)
+  - [\[1.0.2\] - 2026-01-23](#102---2026-01-23)
     - [Fixed](#fixed-2)
-  - [[1.0.1] - 2026-01-23](#101---2026-01-23)
+  - [\[1.0.1\] - 2026-01-23](#101---2026-01-23)
     - [Fixed](#fixed-3)
-  - [[1.0.0] - 2026-01-21](#100---2026-01-21)
+  - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added](#added-2)
+
+## [Unreleased]
+
+### Added (Unreleased)
+
+- **Motion**: Modularized motion utilities with new single-purpose helpers and presets.
+  - New helpers: `animate`, `sequence`, `timeline`, `scrollAnimate`, `stagger`, `flipElements`.
+  - New presets: `easingPresets`, `keyframePresets`, plus individual easing exports.
+  - Improved reduced-motion support via `prefersReducedMotion()`.
 
 ## [1.2.0] - 2026-01-24
 

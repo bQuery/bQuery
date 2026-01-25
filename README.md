@@ -97,17 +97,17 @@ import { mount } from '@bquery/bquery/view';
 
 ## Modules at a glance
 
-| Module        | Description                                    | Size (gzip) |
-| ------------- | ---------------------------------------------- | ----------- |
-| **Core**      | Selectors, DOM manipulation, events, utilities | ~7.7 KB     |
-| **Reactive**  | `signal`, `computed`, `effect`, `batch`        | ~1.2 KB     |
-| **Component** | Lightweight Web Components with props          | ~1.5 KB     |
-| **Motion**    | View transitions, FLIP animations, springs     | ~1.2 KB     |
-| **Security**  | HTML sanitizing, Trusted Types, CSP            | ~2.2 KB     |
-| **Platform**  | Storage, cache, notifications, buckets         | ~1.6 KB     |
-| **Router**    | SPA routing, navigation guards, history API    | ~2 KB       |
-| **Store**     | Signal-based state management, persistence     | ~1.5 KB     |
-| **View**      | Declarative DOM bindings, directives           | ~2.6 KB     |
+| Module        | Description                                        | Size (gzip) |
+| ------------- | -------------------------------------------------- | ----------- |
+| **Core**      | Selectors, DOM manipulation, events, utilities     | ~7.7 KB     |
+| **Reactive**  | `signal`, `computed`, `effect`, `batch`            | ~1.2 KB     |
+| **Component** | Lightweight Web Components with props              | ~1.5 KB     |
+| **Motion**    | View transitions, FLIP, timelines, scroll, springs | ~1.2 KB     |
+| **Security**  | HTML sanitizing, Trusted Types, CSP                | ~2.2 KB     |
+| **Platform**  | Storage, cache, notifications, buckets             | ~1.6 KB     |
+| **Router**    | SPA routing, navigation guards, history API        | ~2 KB       |
+| **Store**     | Signal-based state management, persistence         | ~1.5 KB     |
+| **View**      | Declarative DOM bindings, directives               | ~2.6 KB     |
 
 ## Quick examples
 
@@ -204,11 +204,17 @@ component('user-card', {
 ### Motion – animations
 
 ```ts
-import { transition, spring } from '@bquery/bquery/motion';
+import { animate, keyframePresets, spring, transition } from '@bquery/bquery/motion';
 
 // View transitions (with fallback)
 await transition(() => {
   $('#content').text('Updated');
+});
+
+// Web Animations helper
+await animate(card, {
+  keyframes: keyframePresets.pop(),
+  options: { duration: 240, easing: 'ease-out' },
 });
 
 // Spring physics

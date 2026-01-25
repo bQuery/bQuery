@@ -68,12 +68,49 @@ export type { ComponentDefinition, PropDefinition } from './component/index';
 // ============================================================================
 // Motion Module: View transitions, FLIP animations, springs
 // ============================================================================
-export { capturePosition, flip, flipList, spring, springPresets, transition } from './motion/index';
+export {
+  animate,
+  capturePosition,
+  easeInCubic,
+  easeInOutCubic,
+  easeInOutQuad,
+  easeInQuad,
+  easeOutBack,
+  easeOutCubic,
+  easeOutExpo,
+  easeOutQuad,
+  easingPresets,
+  flip,
+  flipElements,
+  flipList,
+  keyframePresets,
+  linear,
+  prefersReducedMotion,
+  scrollAnimate,
+  sequence,
+  spring,
+  springPresets,
+  stagger,
+  timeline,
+  transition,
+} from './motion/index';
 export type {
+  AnimateOptions,
+  EasingFunction,
   ElementBounds,
+  FlipGroupOptions,
   FlipOptions,
+  ScrollAnimateCleanup,
+  ScrollAnimateOptions,
+  SequenceOptions,
+  SequenceStep,
   Spring,
   SpringConfig,
+  StaggerFunction,
+  StaggerOptions,
+  TimelineConfig,
+  TimelineControls,
+  TimelineStep,
   TransitionOptions,
 } from './motion/index';
 
