@@ -54,7 +54,14 @@ export const link = (path: string, options: { replace?: boolean } = {}): ((e: Ev
  * cleanup();
  * ```
  */
-export const interceptLinks = (container: Element = document.body): (() => void) => {
+export const interceptLinks = (container?: Element): (() => void) => {
+  // Provide safe default in DOM environments only
+  const targetContainer = container ?? (typeof document !== 'undefined' ? document.body : null);
+  if (!targetContainer) {
+    // No container available (SSR or invalid input)
+    return () => undefined;
+  }
+
   const handler = (e: Event) => {
     // Guard against non-Element targets and non-DOM environments
     if (typeof Element === 'undefined' || !(e.target instanceof Element)) return;
@@ -73,9 +80,19 @@ export const interceptLinks = (container: Element = document.body): (() => void)
     if (anchor.origin !== window.location.origin) return; // External link
 
     // Get active router config to handle base paths correctly
+    // If no router is active, proceed with no base/hash (will be handled by navigate)
     const router = getActiveRouter();
-    const base = router?.base ?? '';
-    const useHash = router?.hash ?? false;
+    if (!router) {
+      // No active router - let navigate handle the error
+      e.preventDefault();
+      void navigate(anchor.pathname + anchor.search + anchor.hash).catch((err) => {
+        console.error('Navigation failed:', err);
+      });
+      return;
+    }
+
+    const base = router.base;
+    const useHash = router.hash;
 
     // Detect hash-routing mode: links written as href="#/page"
     // In this case, anchor.hash contains the route path
@@ -100,6 +117,6 @@ export const interceptLinks = (container: Element = document.body): (() => void)
     });
   };
 
-  container.addEventListener('click', handler);
-  return () => container.removeEventListener('click', handler);
+  targetContainer.addEventListener('click', handler);
+  return () => targetContainer.removeEventListener('click', handler);
 };
