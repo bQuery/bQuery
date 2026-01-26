@@ -8,11 +8,11 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [(1.3.0)](#130)
+  - [[1.3.0] - 2026-01-26](#130---2026-01-26)
     - [Added (1.3.0)](#added-130)
     - [Changed (1.3.0)](#changed-130)
     - [Fixed (1.3.0)](#fixed-130)
-  - [(1.2.0) - 2026-01-24](#120---2026-01-24)
+  - [[1.2.0] - 2026-01-24](#120---2026-01-24)
     - [Added (1.2.0)](#added-120)
   - [(1.1.2) - 2026-01-24](#112---2026-01-24)
     - [Fixed (1.1.2)](#fixed-112)
@@ -30,7 +30,7 @@ and this project adheres to Semantic Versioning.
   - [(1.0.0) - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
-## (1.3.0)
+## [1.3.0] - 2026-01-26
 
 ### Added (1.3.0)
 

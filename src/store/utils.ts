@@ -133,7 +133,8 @@ export const detectNestedMutations = <S extends Record<string, unknown>>(
 export const isDev = (() => {
   try {
     const globalProcess = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process;
-    return typeof globalProcess !== 'undefined' && globalProcess.env?.NODE_ENV !== 'production';
+    // Default to dev mode unless explicitly set to production
+    return !(typeof globalProcess !== 'undefined' && globalProcess.env?.NODE_ENV === 'production');
   } catch {
     return true;
   }

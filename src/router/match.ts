@@ -13,6 +13,7 @@ import type { Route, RouteDefinition } from './types';
 /**
  * Converts a route path pattern to a RegExp for matching.
  * Uses placeholder approach to preserve :param and * patterns during escaping.
+ * Returns positional capture groups for maximum compatibility.
  * @internal
  */
 const pathToRegex = (path: string): RegExp => {
@@ -25,12 +26,8 @@ const pathToRegex = (path: string): RegExp => {
   const PARAM_MARKER = '\u0000P\u0000';
   const WILDCARD_MARKER = '\u0000W\u0000';
 
-  // Store param names for restoration
-  const paramNames: string[] = [];
-
   // Step 1: Extract :param patterns before escaping
-  let pattern = path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, (_, name) => {
-    paramNames.push(name);
+  let pattern = path.replace(/:([a-zA-Z_][a-zA-Z0-9_]*)/g, () => {
     return PARAM_MARKER;
   });
 
@@ -40,9 +37,8 @@ const pathToRegex = (path: string): RegExp => {
   // Step 3: Escape ALL regex metacharacters: \ ^ $ . * + ? ( ) [ ] { } |
   pattern = pattern.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 
-  // Step 4: Restore param capture groups
-  let paramIdx = 0;
-  pattern = pattern.replace(/\u0000P\u0000/g, () => `(?<${paramNames[paramIdx++]}>[^/]+)`);
+  // Step 4: Restore param capture groups (positional, not named)
+  pattern = pattern.replace(/\u0000P\u0000/g, () => `([^/]+)`);
 
   // Step 5: Restore wildcards as .*
   pattern = pattern.replace(/\u0000W\u0000/g, '.*');
@@ -61,6 +57,7 @@ const extractParamNames = (path: string): string[] => {
 
 /**
  * Matches a path against route definitions and extracts params.
+ * Uses positional captures for maximum compatibility.
  * @internal
  */
 export const matchRoute = (
@@ -75,15 +72,10 @@ export const matchRoute = (
       const paramNames = extractParamNames(route.path);
       const params: Record<string, string> = {};
 
-      // Extract named groups if available
-      if (match.groups) {
-        Object.assign(params, match.groups);
-      } else {
-        // Fallback for browsers without named groups
-        paramNames.forEach((name, index) => {
-          params[name] = match[index + 1] || '';
-        });
-      }
+      // Map positional captures to param names
+      paramNames.forEach((name, index) => {
+        params[name] = match[index + 1] || '';
+      });
 
       return { matched: route, params };
     }
