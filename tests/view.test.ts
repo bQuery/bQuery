@@ -666,7 +666,7 @@ describe('View', () => {
       const BadTemplate = createTemplate('<li bq-for="item in items" bq-text="item"></li>');
 
       expect(() => BadTemplate({ items })).toThrow(
-        'Template root element cannot have bq-for directive'
+        /Template root element cannot have bq-for directive/
       );
     });
   });
