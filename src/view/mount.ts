@@ -165,8 +165,8 @@ export const createTemplate = (
       throw new Error('bQuery view: Template must contain a single root element.');
     }
     
-    // Validate that there is exactly one root element
-    if (container.childElementCount !== 1) {
+    // Validate that there is exactly one root element (we already know there's at least one)
+    if (container.childElementCount > 1) {
       throw new Error(
         `bQuery view: Template must contain exactly one root element, found ${container.childElementCount}.`
       );
