@@ -835,6 +835,8 @@ describe('Router', () => {
       // Verify the URL in window.location was restored correctly
       // (The guard should have used replaceState to restore full URL)
       expect(window.location.pathname).toBe('/other');
+      expect(window.location.search).toBe('');
+      expect(window.location.hash).toBe('');
     });
   });
 

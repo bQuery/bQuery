@@ -212,9 +212,12 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  *     button { padding: 0.5rem 1rem; }
  *   `,
  *   connected() {
- *     // Set up event listener for button clicks
- *     this.shadowRoot?.querySelector('button')?.addEventListener('click', () => {
- *       this.setState('count', (this.getState('count') as number) + 1);
+ *     // Use event delegation on shadow root so handler survives re-renders
+ *     this.shadowRoot?.addEventListener('click', (event) => {
+ *       const target = event.target as HTMLElement | null;
+ *       if (target?.matches('button')) {
+ *         this.setState('count', (this.getState('count') as number) + 1);
+ *       }
  *     });
  *   },
  *   render({ props, state }) {
