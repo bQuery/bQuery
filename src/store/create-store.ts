@@ -2,7 +2,14 @@
  * Store creation logic.
  */
 
-import { batch, computed, signal, type ReadonlySignal, type Signal } from '../reactive/index';
+import {
+  batch,
+  computed,
+  signal,
+  untrack,
+  type ReadonlySignal,
+  type Signal,
+} from '../reactive/index';
 import { notifyDevtoolsStateChange, registerDevtoolsStore } from './devtools';
 import { applyPlugins } from './plugins';
 import { getStore, hasStore, registerStore } from './registry';
@@ -56,9 +63,15 @@ export const createStore = <
    * trigger reactive updates. This differs from frameworks like Pinia that
    * use deep reactivity. To update nested state, replace the entire object.
    *
+   * Uses `untrack()` to prevent accidental dependency tracking when called
+   * from within reactive contexts (e.g., `effect()` or `computed()`).
+   *
    * @internal
    */
-  const getCurrentState = (): S => ({ ...stateProxy });
+  const getCurrentState = (): S =>
+    untrack(() => {
+      return { ...stateProxy };
+    });
 
   /**
    * Notifies subscribers of state changes.

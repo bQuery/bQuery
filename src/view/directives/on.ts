@@ -1,4 +1,4 @@
-import { evaluate, evaluateRaw } from '../evaluate';
+import { evaluateRaw } from '../evaluate';
 import type { DirectiveHandler } from '../types';
 
 /**
@@ -24,8 +24,9 @@ export const handleOn = (eventName: string): DirectiveHandler => {
         }
       }
 
-      // Otherwise evaluate as expression (e.g., "handleClick($event)" or "count++")
-      evaluate(expression, eventContext);
+      // Otherwise evaluate as expression using evaluateRaw to allow signal mutations
+      // (e.g., "count.value++" or "handleClick($event)")
+      evaluateRaw(expression, eventContext);
     };
 
     el.addEventListener(eventName, handler);

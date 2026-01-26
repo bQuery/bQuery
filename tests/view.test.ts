@@ -288,6 +288,49 @@ describe('View', () => {
 
       expect(eventType).toBe('click');
     });
+
+    it('should support signal mutations in event expressions', () => {
+      container.innerHTML = `
+        <div>
+          <span bq-text="count"></span>
+          <button id="increment" bq-on:click="count.value++">Increment</button>
+          <button id="decrement" bq-on:click="count.value--">Decrement</button>
+          <button id="add-five" bq-on:click="count.value += 5">Add 5</button>
+        </div>
+      `;
+      const count = signal(0);
+
+      view = mount(container, { count });
+
+      const span = container.querySelector('span')!;
+      const incrementBtn = container.querySelector('#increment')! as HTMLButtonElement;
+      const decrementBtn = container.querySelector('#decrement')! as HTMLButtonElement;
+      const addFiveBtn = container.querySelector('#add-five')! as HTMLButtonElement;
+
+      // Initial value
+      expect(span.textContent).toBe('0');
+      expect(count.value).toBe(0);
+
+      // Test increment
+      incrementBtn.click();
+      expect(count.value).toBe(1);
+      expect(span.textContent).toBe('1');
+
+      // Test increment again
+      incrementBtn.click();
+      expect(count.value).toBe(2);
+      expect(span.textContent).toBe('2');
+
+      // Test decrement
+      decrementBtn.click();
+      expect(count.value).toBe(1);
+      expect(span.textContent).toBe('1');
+
+      // Test compound assignment
+      addFiveBtn.click();
+      expect(count.value).toBe(6);
+      expect(span.textContent).toBe('6');
+    });
   });
 
   describe('bq-for', () => {

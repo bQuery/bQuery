@@ -1136,6 +1136,42 @@ describe('Router', () => {
       await new Promise((r) => setTimeout(r, 0));
       expect(currentRoute.value.path).toBe('/'); // Should not navigate after cleanup
     });
+
+    it('should handle hash-routing links with href="#/route"', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/some-route', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        hash: true,
+      });
+
+      // Test hash-routing link with path only
+      container.innerHTML = '<a href="#/some-route">Hash Link</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/some-route');
+
+      // Test hash-routing link with query parameters
+      container.innerHTML = '<a href="#/page?foo=bar">Hash Link with Query</a>';
+      const anchor2 = container.querySelector('a')!;
+      
+      const event2 = new MouseEvent('click', { bubbles: true, cancelable: true });
+      anchor2.dispatchEvent(event2);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/page');
+      expect(currentRoute.value.query).toEqual({ foo: 'bar' });
+
+      cleanup();
+    });
   });
 
   // ============================================================================

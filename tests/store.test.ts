@@ -228,6 +228,40 @@ describe('Store', () => {
 
       expect(states).toEqual([1]);
     });
+
+    it('should not create reactive dependencies when $state is accessed inside effect', () => {
+      const store = createStore({
+        id: 'counter',
+        state: () => ({ count: 0 }),
+      });
+
+      let effectRunCount = 0;
+      const stateSnapshots: Array<{ count: number }> = [];
+
+      // Access $state inside an effect - this calls getCurrentState()
+      // Without untrack(), this would register the effect as dependent on all store signals
+      effect(() => {
+        effectRunCount++;
+        
+        // Reading $state calls getCurrentState() which is wrapped in untrack()
+        // This should NOT create a dependency on store signals
+        const snapshot = store.$state;
+        stateSnapshots.push(snapshot);
+      });
+
+      // Effect should run once on creation
+      expect(effectRunCount).toBe(1);
+      expect(stateSnapshots).toHaveLength(1);
+      expect(stateSnapshots[0]).toEqual({ count: 0 });
+
+      // Mutate store state
+      store.count = 5;
+
+      // Effect should NOT re-run due to store changes (no reactive dependency created)
+      // because getCurrentState() is wrapped in untrack()
+      expect(effectRunCount).toBe(1);
+      expect(stateSnapshots).toHaveLength(1); // No new snapshots captured
+    });
   });
 
   describe('$state', () => {
