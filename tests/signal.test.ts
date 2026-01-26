@@ -473,10 +473,10 @@ describe('persistedSignal', () => {
     const originalLocalStorage = globalThis.localStorage;
     const mockStorage = {
       getItem: () => {
-        throw new DOMException('QuotaExceededError', 'QuotaExceededError');
+        throw new DOMException('SecurityError', 'SecurityError');
       },
       setItem: () => {
-        throw new DOMException('QuotaExceededError', 'QuotaExceededError');
+        throw new DOMException('SecurityError', 'SecurityError');
       },
       removeItem: () => {},
       clear: () => {},
