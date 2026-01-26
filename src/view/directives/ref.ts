@@ -14,11 +14,11 @@ export const handleRef: DirectiveHandler = (el, expression, context, cleanups) =
     cleanups.push(() => {
       (rawValue as Signal<Element | null>).value = null;
     });
-  } else if (typeof context[expression] === 'object' && context[expression] !== null) {
-    // Object with .value property
-    (context[expression] as { value: Element | null }).value = el;
+  } else if (typeof rawValue === 'object' && rawValue !== null && 'value' in rawValue) {
+    // Object with .value property (e.g., { value: null })
+    (rawValue as { value: Element | null }).value = el;
     cleanups.push(() => {
-      (context[expression] as { value: Element | null }).value = null;
+      (rawValue as { value: Element | null }).value = null;
     });
   }
 };

@@ -801,6 +801,43 @@ describe('Router', () => {
       expect(order).toEqual([1, 2]);
       expect(currentRoute.value.path).toBe('/');
     });
+
+    it('should restore full URL including query and hash when guard cancels popstate navigation', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/page', component: () => null },
+          { path: '/other', component: () => null },
+        ],
+      });
+
+      // Navigate to /page?foo=bar#section
+      await router.push('/page?foo=bar#section');
+      expect(currentRoute.value.path).toBe('/page');
+      expect(currentRoute.value.query.foo).toBe('bar');
+      expect(currentRoute.value.hash).toBe('section');
+
+      // Navigate to /other
+      await router.push('/other');
+      expect(currentRoute.value.path).toBe('/other');
+
+      // Add a guard that blocks navigation
+      router.beforeEach(() => false);
+
+      // Try to navigate back with back() - should be blocked by guard
+      back();
+      await new Promise((r) => setTimeout(r, 0));
+
+      // Should still be on /other
+      expect(currentRoute.value.path).toBe('/other');
+      expect(currentRoute.value.query).toEqual({});
+      expect(currentRoute.value.hash).toBe('');
+
+      // Verify the URL in window.location was restored correctly
+      // (The guard should have used replaceState to restore full URL)
+      expect(window.location.pathname).toBe('/other');
+      expect(window.location.search).toBe('');
+      expect(window.location.hash).toBe('');
+    });
   });
 
   // ============================================================================

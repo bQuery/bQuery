@@ -212,11 +212,27 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  *     button { padding: 0.5rem 1rem; }
  *   `,
  *   connected() {
- *     console.log('Counter mounted');
+ *     // Use event delegation on shadow root so handler survives re-renders
+ *     const handleClick = (event: Event) => {
+ *       const target = event.target as HTMLElement | null;
+ *       if (target?.matches('button')) {
+ *         this.setState('count', (this.getState('count') as number) + 1);
+ *       }
+ *     };
+ *     this.shadowRoot?.addEventListener('click', handleClick);
+ *     // Store handler for cleanup
+ *     (this as any)._handleClick = handleClick;
  *   },
- *   render({ props, state, emit }) {
+ *   disconnected() {
+ *     // Clean up event listener to prevent memory leaks
+ *     const handleClick = (this as any)._handleClick;
+ *     if (handleClick) {
+ *       this.shadowRoot?.removeEventListener('click', handleClick);
+ *     }
+ *   },
+ *   render({ props, state }) {
  *     return html`
- *       <button onclick="this.getRootNode().host.increment()">
+ *       <button>
  *         Count: ${state.count}
  *       </button>
  *     `;

@@ -139,9 +139,18 @@ export const createRouter = (options: RouterOptions): Router => {
     for (const guard of beforeGuards) {
       const result = await guard(to, from);
       if (result === false) {
-        // Restore previous state
-        const restorePath = useHash ? `#${from.path}` : `${base}${from.path}`;
-        history.pushState({}, '', restorePath);
+        // Restore previous state with full URL (including query/hash)
+        const queryString = new URLSearchParams(
+          Object.entries(from.query).flatMap(([key, value]) =>
+            Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
+          )
+        ).toString();
+        const search = queryString ? `?${queryString}` : '';
+        const hash = from.hash ? `#${from.hash}` : '';
+        const restorePath = useHash
+          ? `#${from.path}${search}${hash}`
+          : `${base}${from.path}${search}${hash}`;
+        history.replaceState({}, '', restorePath);
         return;
       }
     }
