@@ -199,9 +199,10 @@ export const timeline = (
 
     seek(time: number): void {
       if (reducedMotionApplied) return;
-      animations.forEach(({ animation, start }) => {
-        const localTime = Math.max(0, time - start);
-        animation.currentTime = localTime;
+      animations.forEach(({ animation }) => {
+        // currentTime is measured from the beginning of the animation including delay,
+        // so we set it directly to the requested timeline time
+        animation.currentTime = time;
       });
     },
 

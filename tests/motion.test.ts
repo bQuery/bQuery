@@ -240,6 +240,50 @@ describe('motion/timeline', () => {
     expect(animation.commitStyles).toHaveBeenCalled();
     expect(animation.cancel).toHaveBeenCalled();
   });
+
+  it('seeks to correct time including delay', () => {
+    const el1 = document.createElement('div');
+    const el2 = document.createElement('div');
+    
+    // Create animations with writable currentTime
+    const animation1 = {
+      ...createMockAnimation(),
+      currentTime: 0,
+    };
+    const animation2 = {
+      ...createMockAnimation(),
+      currentTime: 0,
+    };
+    
+    let animateCallCount = 0;
+    const mockAnimate = mock(() => {
+      animateCallCount += 1;
+      return animateCallCount === 1 ? animation1 : animation2;
+    });
+    
+    (el1 as HTMLElement).animate = mockAnimate as unknown as Element['animate'];
+    (el2 as HTMLElement).animate = mockAnimate as unknown as Element['animate'];
+
+    const tl = timeline([
+      { target: el1, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 100 }, at: 0 },
+      { target: el2, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 100 }, at: 50 },
+    ]);
+
+    // Start playing to build animations
+    tl.play();
+    
+    // Pause animations so we can seek
+    tl.pause();
+
+    // Seek to 75ms - both animations should be at 75ms (WAAPI currentTime includes delay)
+    tl.seek(75);
+
+    expect(animation1.currentTime).toBe(75);
+    expect(animation2.currentTime).toBe(75);
+    
+    // Clean up
+    tl.stop();
+  });
 });
 
 describe('motion/spring', () => {

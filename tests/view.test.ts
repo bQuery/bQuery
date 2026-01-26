@@ -123,6 +123,23 @@ describe('View', () => {
       visible.value = true;
       expect(div.style.display).not.toBe('none');
     });
+
+    it('should handle elements starting with display: none', () => {
+      container.innerHTML = '<div bq-show="visible" style="display: none">Content</div>';
+      const visible = signal(false);
+
+      view = mount(container, { visible });
+
+      const div = container.querySelector('div') as HTMLElement;
+      expect(div.style.display).toBe('none');
+
+      visible.value = true;
+      // Should become visible (not stay 'none')
+      expect(div.style.display).not.toBe('none');
+
+      visible.value = false;
+      expect(div.style.display).toBe('none');
+    });
   });
 
   describe('bq-class', () => {

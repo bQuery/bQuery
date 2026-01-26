@@ -8,7 +8,13 @@ import type { DirectiveHandler } from '../types';
  */
 export const handleShow: DirectiveHandler = (el, expression, context, cleanups) => {
   const htmlEl = el as HTMLElement;
-  const originalDisplay = htmlEl.style.display;
+  // Capture the computed display value to properly restore visibility.
+  // If inline display is 'none' or empty, we need to use the computed value.
+  let originalDisplay = htmlEl.style.display;
+  if (!originalDisplay || originalDisplay === 'none') {
+    const computed = window.getComputedStyle(htmlEl).display;
+    originalDisplay = computed !== 'none' ? computed : '';
+  }
 
   const cleanup = effect(() => {
     const condition = evaluate<boolean>(expression, context);
