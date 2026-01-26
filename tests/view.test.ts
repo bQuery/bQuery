@@ -660,6 +660,15 @@ describe('View', () => {
 
       counter.destroy();
     });
+
+    it('should reject templates with bq-for on root element', () => {
+      const items = signal([1, 2, 3]);
+      const BadTemplate = createTemplate('<li bq-for="item in items" bq-text="item"></li>');
+
+      expect(() => BadTemplate({ items })).toThrow(
+        /Template root element cannot have bq-for directive/
+      );
+    });
   });
 
   describe('destroy', () => {

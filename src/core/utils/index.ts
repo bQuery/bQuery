@@ -17,7 +17,7 @@ import { chunk, compact, ensureArray, flatten, unique } from './array';
 import { debounce, noop, once, throttle } from './function';
 import { isEmpty, parseJson, sleep, uid } from './misc';
 import { clamp, inRange, randomInt, toNumber } from './number';
-import { clone, hasOwn, isPlainObject, isPrototypePollutionKey, merge, omit, pick } from './object';
+import { clone, hasOwn, isPlainObject, merge, omit, pick } from './object';
 import { capitalize, escapeRegExp, slugify, toCamelCase, toKebabCase, truncate } from './string';
 import {
   isArray,
@@ -35,6 +35,10 @@ import {
 /**
  * Utility object containing common helper functions.
  * All utilities are designed to be tree-shakeable and have zero dependencies.
+ * 
+ * Note: `isPrototypePollutionKey` is intentionally excluded from this namespace
+ * as it is an internal security helper. It remains available as a named export
+ * for internal framework use.
  */
 export const utils = {
   clone,
@@ -42,7 +46,6 @@ export const utils = {
   pick,
   omit,
   hasOwn,
-  isPrototypePollutionKey,
   debounce,
   throttle,
   once,

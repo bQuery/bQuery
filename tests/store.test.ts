@@ -147,6 +147,27 @@ describe('Store', () => {
       await store.fetchData();
       expect(store.data).toBe('loaded');
     });
+
+    it('should allow non-state property assignments in actions without throwing', () => {
+      const store = createStore({
+        id: 'assignment-test',
+        state: () => ({ count: 0 }),
+        actions: {
+          complexOperation() {
+            // This should not throw TypeError in strict mode
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            (this as any).tempVar = 'temporary';
+            (this as { count: number }).count += 1;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            return (this as any).tempVar;
+          },
+        },
+      });
+
+      // Should not throw
+      expect(() => store.complexOperation()).not.toThrow();
+      expect(store.count).toBe(1);
+    });
   });
 
   describe('$reset', () => {

@@ -165,6 +165,16 @@ export const createTemplate = (
       throw new Error('bQuery view: Template must contain a single root element.');
     }
 
+    const prefix = options.prefix || 'bq';
+    // Reject templates with bq-for on the root element
+    // bq-for replaces the element with a placeholder comment, which would leave View.el detached
+    if (el.hasAttribute(`${prefix}-for`)) {
+      throw new Error(
+        `bQuery view: Template root element cannot have ${prefix}-for directive. ` +
+          `Wrap the ${prefix}-for element in a container instead.`
+      );
+    }
+
     return mount(el, context, options);
   };
 };

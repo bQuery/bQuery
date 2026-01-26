@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { utils } from '../src/core/utils';
+import { isPrototypePollutionKey, utils } from '../src/core/utils';
 
 describe('utils/merge', () => {
   it('merges objects deeply', () => {
@@ -183,10 +183,11 @@ describe('utils/clone', () => {
 
 describe('utils/security', () => {
   it('isPrototypePollutionKey identifies dangerous keys', () => {
-    expect(utils.isPrototypePollutionKey('__proto__')).toBe(true);
-    expect(utils.isPrototypePollutionKey('constructor')).toBe(true);
-    expect(utils.isPrototypePollutionKey('prototype')).toBe(true);
-    expect(utils.isPrototypePollutionKey('normalKey')).toBe(false);
+    // Note: isPrototypePollutionKey is now a named export only, not in utils namespace
+    expect(isPrototypePollutionKey('__proto__')).toBe(true);
+    expect(isPrototypePollutionKey('constructor')).toBe(true);
+    expect(isPrototypePollutionKey('prototype')).toBe(true);
+    expect(isPrototypePollutionKey('normalKey')).toBe(false);
   });
 
   it('merge ignores prototype pollution keys', () => {

@@ -75,9 +75,19 @@ export const createStore = <
 
   /**
    * Notifies subscribers of state changes.
+   * Short-circuits if there are no subscribers and devtools aren't active
+   * to avoid unnecessary snapshot overhead.
    * @internal
    */
   const notifySubscribers = (): void => {
+    // Early return if no subscribers and no devtools hook
+    const hasDevtools =
+      typeof window !== 'undefined' &&
+      typeof window.__BQUERY_DEVTOOLS__?.onStateChange === 'function';
+    if (subscribers.length === 0 && !hasDevtools) {
+      return;
+    }
+
     const currentState = getCurrentState();
     for (const callback of subscribers) {
       callback(currentState);
@@ -176,13 +186,15 @@ export const createStore = <
           }
           return (target as Record<string, unknown>)[prop as string];
         },
-        set: (_target, prop, value) => {
+        set: (target, prop, value) => {
           if (typeof prop === 'string' && stateSignals.has(prop as keyof S)) {
             stateSignals.get(prop as keyof S)!.value = value;
             notifySubscribers();
             return true;
           }
-          return false;
+          // Allow non-state property assignments (e.g., temporary variables in actions)
+          // by delegating to the target object rather than returning false
+          return Reflect.set(target, prop, value);
         },
       });
 
