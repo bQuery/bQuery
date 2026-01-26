@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { component, html } from '../src/component/index';
+import { component, defineComponent, html } from '../src/component/index';
 
 describe('component/html', () => {
   it('creates HTML from template literal', () => {
@@ -594,6 +594,170 @@ describe('component/component', () => {
     expect(parsedObjectCalls.length).toBeGreaterThanOrEqual(1);
     // Ensure no raw JSON strings were passed
     expect(receivedValues).not.toContain('{"enabled":true}');
+
+    el.remove();
+  });
+});
+
+describe('component/defineComponent', () => {
+  it('returns an HTMLElement subclass', () => {
+    const tagName = `test-define-class-${Date.now()}`;
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      render: () => html`<div>Test</div>`,
+    });
+
+    expect(ElementClass).toBeDefined();
+    expect(typeof ElementClass).toBe('function');
+    expect(ElementClass.prototype instanceof HTMLElement).toBe(true);
+  });
+
+  it('returned class can be registered with custom tag name', () => {
+    const originalTagName = `test-define-original-${Date.now()}`;
+    const customTagName = `test-define-custom-${Date.now()}`;
+    
+    const ElementClass = defineComponent(originalTagName, {
+      props: {},
+      render: () => html`<div>Test</div>`,
+    });
+
+    // Register with a different tag name
+    customElements.define(customTagName, ElementClass);
+    
+    expect(customElements.get(customTagName)).toBe(ElementClass);
+    
+    const el = document.createElement(customTagName);
+    document.body.appendChild(el);
+    
+    expect(el.shadowRoot).toBeDefined();
+    expect(el.shadowRoot?.innerHTML).toContain('Test');
+    
+    el.remove();
+  });
+
+  it('returned class has correct observedAttributes', () => {
+    const tagName = `test-define-observed-${Date.now()}`;
+    const ElementClass = defineComponent(tagName, {
+      props: {
+        name: { type: String, required: true },
+        count: { type: Number, default: 0 },
+        active: { type: Boolean, default: false },
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const observedAttrs = (ElementClass as typeof HTMLElement & { observedAttributes: string[] }).observedAttributes;
+    expect(observedAttrs).toBeDefined();
+    expect(observedAttrs).toContain('name');
+    expect(observedAttrs).toContain('count');
+    expect(observedAttrs).toContain('active');
+  });
+
+  it('instances have shadow DOM', () => {
+    const tagName = `test-define-shadow-${Date.now()}`;
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      render: () => html`<div>Shadow Content</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeDefined();
+    expect(el.shadowRoot?.mode).toBe('open');
+    expect(el.shadowRoot?.innerHTML).toContain('Shadow Content');
+
+    el.remove();
+  });
+
+  it('attributeChangedCallback triggers re-render', () => {
+    const tagName = `test-define-attr-change-${Date.now()}`;
+    let renderCount = 0;
+    
+    const ElementClass = defineComponent<{ count: number }>(tagName, {
+      props: {
+        count: { type: Number, default: 0 },
+      },
+      render: ({ props }) => {
+        renderCount++;
+        return html`<div>Count: ${props.count}</div>`;
+      },
+    });
+
+    customElements.define(tagName, ElementClass);
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(el.shadowRoot?.innerHTML).toContain('Count: 0');
+
+    // Trigger attribute change
+    el.setAttribute('count', '42');
+
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.innerHTML).toContain('Count: 42');
+
+    el.remove();
+  });
+
+  it('instances sanitize rendered markup for security', () => {
+    const tagName = `test-define-sanitize-${Date.now()}`;
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      render: () => html`<div><script>alert('xss')</script>Safe text</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    const shadowHTML = el.shadowRoot?.innerHTML ?? '';
+    // Script tags should be stripped by sanitizeHtml
+    expect(shadowHTML).not.toContain('<script>');
+    expect(shadowHTML).not.toContain('alert');
+    expect(shadowHTML).toContain('Safe text');
+
+    el.remove();
+  });
+
+  it('instances apply styles correctly', () => {
+    const tagName = `test-define-styles-${Date.now()}`;
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      styles: '.test { color: red; }',
+      render: () => html`<div class="test">Styled</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    const styleTag = el.shadowRoot?.querySelector('style');
+    expect(styleTag).toBeDefined();
+    expect(styleTag?.textContent).toContain('color: red');
+
+    el.remove();
+  });
+
+  it('can be used to test component in isolation', () => {
+    // This pattern is useful for testing without polluting global registry
+    const ElementClass = defineComponent('test-isolated', {
+      props: {
+        value: { type: String, default: 'default' },
+      },
+      render: ({ props }) => html`<span>${props.value}</span>`,
+    });
+
+    // Use a unique tag for testing
+    const testTag = `test-isolated-${Date.now()}`;
+    customElements.define(testTag, ElementClass);
+
+    const el = document.createElement(testTag);
+    el.setAttribute('value', 'custom');
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.innerHTML).toContain('custom');
 
     el.remove();
   });
