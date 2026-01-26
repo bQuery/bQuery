@@ -229,38 +229,38 @@ describe('Store', () => {
       expect(states).toEqual([1]);
     });
 
-    it('should not create reactive dependencies when subscription is inside effect', () => {
+    it('should not create reactive dependencies when $state is accessed inside effect', () => {
       const store = createStore({
         id: 'counter',
         state: () => ({ count: 0 }),
       });
 
       let effectRunCount = 0;
-      const subscriptionStates: number[] = [];
+      const stateSnapshots: Array<{ count: number }> = [];
 
-      // Create subscription inside an effect
+      // Access $state inside an effect - this calls getCurrentState()
+      // Without untrack(), this would register the effect as dependent on all store signals
       effect(() => {
         effectRunCount++;
         
-        // Subscribe to store inside effect - this should NOT create a dependency
-        // on all store signals due to untrack() wrapping getCurrentState()
-        store.$subscribe((state) => {
-          subscriptionStates.push(state.count as number);
-        });
+        // Reading $state calls getCurrentState() which is wrapped in untrack()
+        // This should NOT create a dependency on store signals
+        const snapshot = store.$state;
+        stateSnapshots.push(snapshot);
       });
 
       // Effect should run once on creation
       expect(effectRunCount).toBe(1);
+      expect(stateSnapshots).toHaveLength(1);
+      expect(stateSnapshots[0]).toEqual({ count: 0 });
 
       // Mutate store state
-      store.count = 1;
-      store.count = 2;
-
-      // Subscription should receive updates
-      expect(subscriptionStates).toEqual([1, 2]);
+      store.count = 5;
 
       // Effect should NOT re-run due to store changes (no reactive dependency created)
+      // because getCurrentState() is wrapped in untrack()
       expect(effectRunCount).toBe(1);
+      expect(stateSnapshots).toHaveLength(1); // No new snapshots captured
     });
   });
 
