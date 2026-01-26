@@ -169,6 +169,23 @@ describe('View', () => {
       textColor.value = 'blue';
       expect(div.style.color).toBe('blue');
     });
+
+    it('should remove stale styles when style object changes', () => {
+      container.innerHTML = '<div bq-style="styleObj"></div>';
+      const styleObj = signal({ color: 'red', fontSize: '16px' });
+
+      view = mount(container, { styleObj });
+
+      const div = container.querySelector('div') as HTMLElement;
+      expect(div.style.color).toBe('red');
+      expect(div.style.fontSize).toBe('16px');
+
+      // Change to style object without fontSize
+      styleObj.value = { color: 'blue' };
+      expect(div.style.color).toBe('blue');
+      // fontSize should be removed
+      expect(div.style.fontSize).toBe('');
+    });
   });
 
   describe('bq-model', () => {

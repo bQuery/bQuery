@@ -61,7 +61,7 @@ and this project adheres to Semantic Versioning.
 - **Component**: Sanitize component render markup before writing to the Shadow DOM (security-by-default consistency).
 - **Docs**: Corrected the event section heading in the Core API guide for `BQueryElement`.
 
-## (1.2.0) - 2026-01-24
+## [1.2.0] - 2026-01-24
 
 ### Added (1.2.0)
 
