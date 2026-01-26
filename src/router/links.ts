@@ -66,7 +66,7 @@ export const interceptLinks = (container?: Element): (() => void) => {
     // Only intercept standard left-clicks without modifier keys
     if (!(e instanceof MouseEvent)) return;
     if (e.defaultPrevented) return; // Already handled
-    if (e.button !== 0) return; // Not left-click (middle/right-click should open in new tab/context menu)
+    if (e.button !== 0) return; // Not left-click (middle-click opens new tab, right-click shows context menu)
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; // Modifier keys (Ctrl/Cmd-click = new tab)
     
     // Guard against non-Element targets and non-DOM environments
