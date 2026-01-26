@@ -824,6 +824,22 @@ describe('View', () => {
         expect(refObj.value?.tagName).toBe('INPUT');
       });
 
+      it('should support nested object property access like refs.inputEl', () => {
+        container.innerHTML = '<input bq-ref="refs.inputEl" />';
+        const refs = {
+          inputEl: { value: null as Element | null },
+        };
+
+        view = mount(container, { refs });
+
+        expect(refs.inputEl.value).not.toBeNull();
+        expect(refs.inputEl.value?.tagName).toBe('INPUT');
+
+        // Verify cleanup works for nested refs
+        view.destroy();
+        expect(refs.inputEl.value).toBeNull();
+      });
+
       it('should cleanup object refs on destroy to prevent memory leaks', () => {
         container.innerHTML = '<input bq-ref="refObj" />';
         const refObj = { value: null as Element | null };
