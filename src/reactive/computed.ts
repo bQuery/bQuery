@@ -2,7 +2,7 @@
  * Computed reactive values.
  */
 
-import { getCurrentObserver, scheduleObserver, track } from './internals';
+import { getCurrentObserver, scheduleObserver, track, clearDependencies, registerDependency, type ReactiveSource } from './internals';
 
 /**
  * A computed value that derives from other reactive sources.
@@ -12,13 +12,15 @@ import { getCurrentObserver, scheduleObserver, track } from './internals';
  *
  * @template T - The type of the computed value
  */
-export class Computed<T> {
+export class Computed<T> implements ReactiveSource {
   private cachedValue!: T;
   private dirty = true;
   private subscribers = new Set<() => void>();
   private readonly markDirty = () => {
     this.dirty = true;
-    for (const subscriber of this.subscribers) {
+    // Create snapshot to avoid issues with subscribers modifying the set during iteration
+    const subscribersSnapshot = Array.from(this.subscribers);
+    for (const subscriber of subscribersSnapshot) {
       scheduleObserver(subscriber);
     }
   };
@@ -36,9 +38,12 @@ export class Computed<T> {
     const current = getCurrentObserver();
     if (current) {
       this.subscribers.add(current);
+      registerDependency(current, this);
     }
     if (this.dirty) {
       this.dirty = false;
+      // Clear old dependencies before recomputing
+      clearDependencies(this.markDirty);
       this.cachedValue = track(this.markDirty, this.compute);
     }
     return this.cachedValue;
@@ -53,9 +58,19 @@ export class Computed<T> {
   peek(): T {
     if (this.dirty) {
       this.dirty = false;
+      // Clear old dependencies before recomputing
+      clearDependencies(this.markDirty);
       this.cachedValue = track(this.markDirty, this.compute);
     }
     return this.cachedValue;
+  }
+
+  /**
+   * Removes an observer from this computed's subscriber set.
+   * @internal
+   */
+  unsubscribe(observer: () => void): void {
+    this.subscribers.delete(observer);
   }
 }
 

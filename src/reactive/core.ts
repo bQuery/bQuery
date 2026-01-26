@@ -2,7 +2,7 @@
  * Core reactive signals.
  */
 
-import { getCurrentObserver, isTrackingEnabled, scheduleObserver } from './internals';
+import { getCurrentObserver, isTrackingEnabled, scheduleObserver, registerDependency } from './internals';
 
 /**
  * A reactive value container that notifies subscribers on change.
@@ -31,6 +31,7 @@ export class Signal<T> {
       const current = getCurrentObserver();
       if (current) {
         this.subscribers.add(current);
+        registerDependency(current, this);
       }
     }
     return this._value;
@@ -43,7 +44,9 @@ export class Signal<T> {
   set value(next: T) {
     if (Object.is(this._value, next)) return;
     this._value = next;
-    for (const subscriber of this.subscribers) {
+    // Create snapshot to avoid issues with subscribers modifying the set during iteration
+    const subscribersSnapshot = Array.from(this.subscribers);
+    for (const subscriber of subscribersSnapshot) {
       scheduleObserver(subscriber);
     }
   }
@@ -66,6 +69,14 @@ export class Signal<T> {
    */
   update(updater: (current: T) => T): void {
     this.value = updater(this._value);
+  }
+
+  /**
+   * Removes an observer from this signal's subscriber set.
+   * @internal
+   */
+  unsubscribe(observer: () => void): void {
+    this.subscribers.delete(observer);
   }
 }
 

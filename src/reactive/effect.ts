@@ -2,7 +2,7 @@
  * Reactive effects.
  */
 
-import { CleanupFn, Observer, track } from './internals';
+import { CleanupFn, Observer, track, clearDependencies } from './internals';
 
 /**
  * Creates a side effect that automatically re-runs when dependencies change.
@@ -24,6 +24,9 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
       cleanupFn();
     }
 
+    // Clear old dependencies before running to avoid stale subscriptions
+    clearDependencies(observer);
+
     cleanupFn = track(observer, fn);
   };
 
@@ -34,5 +37,7 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     if (cleanupFn) {
       cleanupFn();
     }
+    // Clean up all dependencies when effect is disposed
+    clearDependencies(observer);
   };
 };

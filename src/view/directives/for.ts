@@ -1,4 +1,4 @@
-import { effect, type CleanupFn } from '../../reactive/index';
+import { effect, signal, type CleanupFn, type Signal } from '../../reactive/index';
 import { evaluate } from '../evaluate';
 import type { BindingContext, DirectiveHandler } from '../types';
 
@@ -26,6 +26,8 @@ type RenderedItem = {
   cleanups: CleanupFn[];
   item: unknown;
   index: number;
+  itemSignal: Signal<unknown>; // Reactive item value for item-dependent bindings
+  indexSignal: Signal<number> | null; // Reactive index for index-dependent bindings
 };
 
 /**
@@ -111,12 +113,16 @@ export const createForHandler = (options: {
       const clone = template.cloneNode(true) as Element;
       const itemCleanups: CleanupFn[] = [];
 
+      // Create reactive signals for item and index
+      const itemSig = signal(item);
+      const indexSig = indexName ? signal(index) : null;
+
       const childContext: BindingContext = {
         ...context,
-        [itemName]: item,
+        [itemName]: itemSig,
       };
-      if (indexName) {
-        childContext[indexName] = index;
+      if (indexName && indexSig) {
+        childContext[indexName] = indexSig;
       }
 
       // Process bindings on the clone
@@ -129,6 +135,8 @@ export const createForHandler = (options: {
         cleanups: itemCleanups,
         item,
         index,
+        itemSignal: itemSig,
+        indexSignal: indexSig,
       };
     };
 
@@ -143,14 +151,22 @@ export const createForHandler = (options: {
     };
 
     /**
-     * Updates an existing item's index context if needed.
-     * Note: For deep reactivity, items should use signals internally.
+     * Updates an existing item's data and index when reused.
+     * Updates the reactive signals so bindings re-render.
      */
-    const updateItemIndex = (rendered: RenderedItem, newIndex: number): void => {
-      if (rendered.index !== newIndex && indexName) {
-        // Index changed - we need to re-process bindings for index-dependent expressions
-        // For now, we mark the index as updated (future: could use signals for index)
+    const updateItem = (rendered: RenderedItem, newItem: unknown, newIndex: number): void => {
+      // Update item if it changed
+      if (!Object.is(rendered.item, newItem)) {
+        rendered.item = newItem;
+        rendered.itemSignal.value = newItem;
+      }
+      
+      // Update index if it changed
+      if (rendered.index !== newIndex) {
         rendered.index = newIndex;
+        if (rendered.indexSignal) {
+          rendered.indexSignal.value = newIndex;
+        }
       }
     };
 
@@ -218,7 +234,7 @@ export const createForHandler = (options: {
 
         if (rendered) {
           // Reuse existing element
-          updateItemIndex(rendered, index);
+          updateItem(rendered, item, index);
           newRenderedMap.set(key, rendered);
 
           // Check if element needs to be moved

@@ -14,14 +14,28 @@ import { effect } from './effect';
  * @returns A Signal that syncs with localStorage (falls back to in-memory if unavailable)
  */
 export const persistedSignal = <T>(key: string, initialValue: T): Signal<T> => {
-  // Check if localStorage is available
-  const hasLocalStorage = typeof localStorage !== 'undefined';
+  // Check if localStorage is available and accessible
+  let hasLocalStorage = false;
+  let storage: Storage | null = null;
+  
+  try {
+    // In Safari private mode, accessing localStorage can throw SecurityError
+    storage = globalThis.localStorage;
+    if (storage) {
+      // Test actual access to ensure it's not just present but usable
+      storage.getItem('__bquery_test__');
+      hasLocalStorage = true;
+    }
+  } catch {
+    // localStorage unavailable or access denied (Safari private mode, sandboxed iframes, etc.)
+    hasLocalStorage = false;
+  }
   
   let stored: T = initialValue;
 
-  if (hasLocalStorage) {
+  if (hasLocalStorage && storage) {
     try {
-      const raw = localStorage.getItem(key);
+      const raw = storage.getItem(key);
       if (raw !== null) {
         stored = JSON.parse(raw) as T;
       }
@@ -33,10 +47,10 @@ export const persistedSignal = <T>(key: string, initialValue: T): Signal<T> => {
   const sig = signal(stored);
 
   // Only set up persistence effect if localStorage is available
-  if (hasLocalStorage) {
+  if (hasLocalStorage && storage) {
     effect(() => {
       try {
-        localStorage.setItem(key, JSON.stringify(sig.value));
+        storage!.setItem(key, JSON.stringify(sig.value));
       } catch {
         // Ignore storage errors (quota exceeded, sandboxed iframes, etc.)
       }
