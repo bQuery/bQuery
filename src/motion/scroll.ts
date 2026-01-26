@@ -8,7 +8,7 @@ import { animate } from './animate';
 import type { ScrollAnimateCleanup, ScrollAnimateOptions } from './types';
 
 const resolveElements = (elements: Element | Iterable<Element> | ArrayLike<Element>): Element[] => {
-  if (elements instanceof Element) return [elements];
+  if (typeof Element !== 'undefined' && elements instanceof Element) return [elements];
   return Array.from(elements as Iterable<Element>);
 };
 

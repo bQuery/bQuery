@@ -195,6 +195,8 @@ export const createRouter = (options: RouterOptions): Router => {
 
     currentRoute,
     routes: flatRoutes,
+    base,
+    hash: useHash,
 
     destroy: () => {
       window.removeEventListener('popstate', handlePopState);

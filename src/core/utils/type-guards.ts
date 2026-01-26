@@ -11,7 +11,7 @@
  * @returns True if the value is an Element
  */
 export function isElement(value: unknown): value is Element {
-  return value instanceof Element;
+  return typeof Element !== 'undefined' && value instanceof Element;
 }
 
 /**

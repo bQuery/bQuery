@@ -84,6 +84,10 @@ export type Router = {
   currentRoute: ReadonlySignal<Route>;
   /** All route definitions */
   routes: RouteDefinition[];
+  /** Base path for all routes */
+  base: string;
+  /** Whether hash-based routing is enabled */
+  hash: boolean;
   /** Destroy the router and cleanup listeners */
   destroy: () => void;
 };
