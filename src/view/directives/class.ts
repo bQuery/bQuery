@@ -23,8 +23,8 @@ export const handleClass: DirectiveHandler = (el, expression, context, cleanups)
         // Track class regardless of condition - toggle handles add/remove
         newClasses.add(className);
       }
-    } else if (expression.includes('[')) {
-      // Array syntax: [class1, class2]
+    } else if (/^\s*\[/.test(expression)) {
+      // Array literal syntax: [class1, class2]
       const classes = evaluate<string[]>(expression, context);
       if (Array.isArray(classes)) {
         for (const cls of classes) {

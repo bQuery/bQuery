@@ -67,6 +67,15 @@ export const mount = (
     throw new Error(`bQuery view: Element "${selector}" not found.`);
   }
 
+  // Reject if root element has bq-for directive
+  // bq-for replaces the element with a placeholder comment, which would leave View.el detached
+  if (el.hasAttribute(`${prefix}-for`)) {
+    throw new Error(
+      `bQuery view: Cannot mount on element with ${prefix}-for directive. ` +
+        `Wrap the ${prefix}-for element in a container instead.`
+    );
+  }
+
   const cleanups: CleanupFn[] = [];
 
   const handlers: DirectiveHandlers = {

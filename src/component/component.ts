@@ -29,6 +29,8 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     private props = {} as TProps;
     /** Tracks missing required props for validation during connectedCallback */
     private missingRequiredProps = new Set<string>();
+    /** Tracks whether the component has completed its initial mount */
+    private hasMounted = false;
 
     constructor() {
       super();
@@ -56,6 +58,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
         definition.beforeMount?.call(this);
         definition.connected?.call(this);
         this.render();
+        this.hasMounted = true;
       } catch (error) {
         this.handleError(error as Error);
       }
@@ -82,7 +85,11 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     ): void {
       try {
         this.syncProps();
-        this.render(true);
+        // Only re-render if the component has completed its initial mount
+        // This prevents pre-mount renders when attributes are set during element upgrade
+        if (this.hasMounted) {
+          this.render(true);
+        }
       } catch (error) {
         this.handleError(error as Error);
       }

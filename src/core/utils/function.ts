@@ -90,8 +90,8 @@ export function once<TArgs extends unknown[], TResult>(
   let result: TResult;
   return (...args: TArgs) => {
     if (!hasRun) {
-      hasRun = true;
       result = fn(...args);
+      hasRun = true;
     }
     return result;
   };
