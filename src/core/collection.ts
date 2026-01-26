@@ -570,7 +570,11 @@ export class BQueryCollection {
   /** @internal */
   private insertAll(content: InsertableContent, position: InsertPosition): void {
     if (typeof content === 'string') {
-      applyAll(this.elements, (el) => insertContent(el, content, position));
+      // Sanitize once and reuse for all elements
+      const sanitized = sanitizeContent(content);
+      applyAll(this.elements, (el) => {
+        el.insertAdjacentHTML(position, sanitized);
+      });
       return;
     }
 

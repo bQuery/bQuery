@@ -29,7 +29,9 @@ import { navigate } from './navigation';
 export const link = (path: string, options: { replace?: boolean } = {}): ((e: Event) => void) => {
   return (e: Event) => {
     e.preventDefault();
-    navigate(path, options);
+    void navigate(path, options).catch((err) => {
+      console.error('Navigation failed:', err);
+    });
   };
 };
 
@@ -59,6 +61,12 @@ export const interceptLinks = (container: Element = document.body): (() => void)
     const anchor = target.closest('a');
 
     if (!anchor) return;
+    
+    // Cross-realm compatible anchor check: use owner document's constructor if available
+    const anchorWindow = anchor.ownerDocument.defaultView;
+    const AnchorConstructor = anchorWindow?.HTMLAnchorElement ?? HTMLAnchorElement;
+    if (!(anchor instanceof AnchorConstructor)) return;
+    
     if (anchor.target) return; // Has target attribute
     if (anchor.hasAttribute('download')) return;
     if (anchor.origin !== window.location.origin) return; // External link
@@ -76,7 +84,9 @@ export const interceptLinks = (container: Element = document.body): (() => void)
     }
 
     e.preventDefault();
-    navigate(path);
+    void navigate(path).catch((err) => {
+      console.error('Navigation failed:', err);
+    });
   };
 
   container.addEventListener('click', handler);

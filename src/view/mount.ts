@@ -94,8 +94,16 @@ export const mount = (
     nodeContext: BindingContext,
     nodeCleanups: CleanupFn[]
   ) => {
+    // Check if element has bq-for before processing
+    // bq-for replaces the element and handles its children internally
+    const hasFor = node.hasAttribute(`${prefix}-for`);
+    
     processElement(node, nodeContext, prefix, nodeCleanups, handlers);
-    processChildren(node, nodeContext, prefix, nodeCleanups, handlers);
+    
+    // Skip processChildren if bq-for was on this element - it handles children itself
+    if (!hasFor) {
+      processChildren(node, nodeContext, prefix, nodeCleanups, handlers);
+    }
   };
 
   // Process the root element and its children

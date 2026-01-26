@@ -27,6 +27,8 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     private readonly state = { ...(definition.state ?? {}) };
     /** Typed props object populated from attributes */
     private props = {} as TProps;
+    /** Tracks missing required props for validation during connectedCallback */
+    private missingRequiredProps = new Set<string>();
 
     constructor() {
       super();
@@ -46,6 +48,11 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      */
     connectedCallback(): void {
       try {
+        // Validate required props before mounting
+        if (this.missingRequiredProps.size > 0) {
+          const missing = Array.from(this.missingRequiredProps).join(', ');
+          throw new Error(`bQuery component: missing required props: ${missing}`);
+        }
         definition.beforeMount?.call(this);
         definition.connected?.call(this);
         this.render();
@@ -126,10 +133,17 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
 
         if (attrValue == null) {
           if (config.required && config.default === undefined) {
-            throw new Error(`bQuery component: missing required prop "${key}"`);
+            // Mark as missing instead of throwing - validate during connectedCallback
+            this.missingRequiredProps.add(key);
+            value = undefined;
+          } else {
+            value = config.default ?? undefined;
           }
-          value = config.default ?? undefined;
         } else {
+          // Attribute is present, remove from missing set if it was there
+          if (this.missingRequiredProps.has(key)) {
+            this.missingRequiredProps.delete(key);
+          }
           value = coercePropValue(attrValue, config);
         }
 

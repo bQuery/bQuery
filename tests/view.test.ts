@@ -594,6 +594,34 @@ describe('View', () => {
         expect(warningMessage).toContain('incorrect DOM reconciliation');
       });
     });
+
+    it('should handle bq-for on root element without processing children twice', () => {
+      // Create a fresh element to serve as the mount root with bq-for
+      const rootElement = document.createElement('div');
+      rootElement.setAttribute('bq-for', 'item in items');
+      rootElement.innerHTML = '<span bq-text="item"></span>';
+      container.appendChild(rootElement);
+
+      const items = signal(['A', 'B', 'C']);
+
+      view = mount(rootElement, { items });
+
+      // Should render 3 root-level divs, each containing a span
+      const renderedDivs = container.querySelectorAll('div');
+      expect(renderedDivs.length).toBe(3);
+
+      // Each div should have the correct text content in its span
+      expect(renderedDivs[0].querySelector('span')?.textContent).toBe('A');
+      expect(renderedDivs[1].querySelector('span')?.textContent).toBe('B');
+      expect(renderedDivs[2].querySelector('span')?.textContent).toBe('C');
+
+      // Update the list
+      items.value = ['X', 'Y'];
+      const updatedDivs = container.querySelectorAll('div');
+      expect(updatedDivs.length).toBe(2);
+      expect(updatedDivs[0].querySelector('span')?.textContent).toBe('X');
+      expect(updatedDivs[1].querySelector('span')?.textContent).toBe('Y');
+    });
   });
 
   describe('bq-ref', () => {

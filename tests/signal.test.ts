@@ -394,3 +394,78 @@ describe('isSignal / isComputed', () => {
     expect(isComputed({})).toBe(false);
   });
 });
+
+describe('persistedSignal', () => {
+  it('persists to localStorage when available', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-persisted-signal';
+    
+    // Clean up any existing value
+    localStorage.removeItem(key);
+    
+    const count = persistedSignal(key, 0);
+    expect(count.value).toBe(0);
+    
+    // Update should persist
+    count.value = 42;
+    expect(localStorage.getItem(key)).toBe('42');
+    
+    // Clean up
+    localStorage.removeItem(key);
+  });
+
+  it('loads initial value from localStorage if exists', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-persisted-initial';
+    
+    // Pre-populate storage
+    localStorage.setItem(key, JSON.stringify(123));
+    
+    const count = persistedSignal(key, 0);
+    expect(count.value).toBe(123);
+    
+    // Clean up
+    localStorage.removeItem(key);
+  });
+
+  it('falls back to in-memory signal when localStorage is unavailable', async () => {
+    // Temporarily hide localStorage to simulate SSR/unavailable environment
+    const originalLocalStorage = globalThis.localStorage;
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get: () => undefined,
+    });
+
+    const { persistedSignal } = await import('../src/reactive/persisted');
+    const count = persistedSignal('test-fallback', 10);
+    
+    // Should still work as a normal signal
+    expect(count.value).toBe(10);
+    
+    // Should be updatable
+    count.value = 20;
+    expect(count.value).toBe(20);
+    
+    // Restore localStorage
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: originalLocalStorage,
+    });
+  });
+
+  it('handles JSON parse errors gracefully', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-parse-error';
+    
+    // Set invalid JSON
+    localStorage.setItem(key, 'invalid-json-{[}');
+    
+    // Should fall back to initial value
+    const count = persistedSignal(key, 42);
+    expect(count.value).toBe(42);
+    
+    // Clean up
+    localStorage.removeItem(key);
+  });
+});
+
