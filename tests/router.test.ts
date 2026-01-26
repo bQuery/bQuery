@@ -1231,6 +1231,187 @@ describe('Router', () => {
 
       cleanup();
     });
+
+    it('should not intercept middle-click (button === 1)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      // Middle-click (button 1) should not be intercepted
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 1 });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
+
+    it('should not intercept right-click (button === 2)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      // Right-click (button 2) should not be intercepted
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 2 });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
+
+    it('should not intercept Ctrl+click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      // Ctrl+click should not be intercepted (opens in new tab)
+      const event = new MouseEvent('click', { 
+        bubbles: true, 
+        cancelable: true, 
+        ctrlKey: true 
+      });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
+
+    it('should not intercept Cmd+click (metaKey)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      // Cmd+click (metaKey) should not be intercepted (opens in new tab on Mac)
+      const event = new MouseEvent('click', { 
+        bubbles: true, 
+        cancelable: true, 
+        metaKey: true 
+      });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
+
+    it('should not intercept Shift+click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      // Shift+click should not be intercepted (opens in new window)
+      const event = new MouseEvent('click', { 
+        bubbles: true, 
+        cancelable: true, 
+        shiftKey: true 
+      });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
+
+    it('should not intercept Alt+click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      const cleanup = interceptLinks(container);
+
+      // Alt+click should not be intercepted
+      const event = new MouseEvent('click', { 
+        bubbles: true, 
+        cancelable: true, 
+        altKey: true 
+      });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
+
+    it('should skip already prevented events', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+      });
+
+      container.innerHTML = '<a href="/page">Page</a>';
+      const anchor = container.querySelector('a')!;
+
+      // Add another listener that prevents default first
+      anchor.addEventListener('click', (e) => {
+        e.preventDefault();
+      }, { capture: true });
+
+      const cleanup = interceptLinks(container);
+
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      anchor.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 0));
+      expect(currentRoute.value.path).toBe('/'); // Should not navigate
+
+      cleanup();
+    });
   });
 
   // ============================================================================
