@@ -1279,4 +1279,200 @@ describe('Router', () => {
       expect(router.routes[1].path).toBe('/app/parent/child');
     });
   });
+
+  // ============================================================================
+  // Hash Routing Tests
+  // ============================================================================
+
+  describe('hash routing mode', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+    });
+
+    it('should handle basic hash routing navigation', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+        hash: true,
+      });
+
+      // Initial route should be /
+      expect(currentRoute.value.path).toBe('/');
+
+      // Navigate to /page
+      await router.push('/page');
+      expect(currentRoute.value.path).toBe('/page');
+
+      // Verify the URL was updated with hash
+      const stack = mockHistory.getStack();
+      expect(stack[stack.length - 1].url).toBe('#/page');
+
+      // Navigate to /about
+      await router.push('/about');
+      expect(currentRoute.value.path).toBe('/about');
+      expect(stack[stack.length - 1].url).toBe('#/about');
+    });
+
+    it('should handle hash routing with query parameters', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        hash: true,
+      });
+
+      // Navigate to /page with query parameters
+      await router.push('/page?foo=bar&baz=qux');
+
+      // Verify route matching works correctly (pathname should be /page)
+      expect(currentRoute.value.path).toBe('/page');
+      expect(currentRoute.value.query).toEqual({ foo: 'bar', baz: 'qux' });
+
+      // Verify the URL includes the hash with query
+      const stack = mockHistory.getStack();
+      expect(stack[stack.length - 1].url).toBe('#/page?foo=bar&baz=qux');
+    });
+
+    it('should handle hash routing with hash fragments', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        hash: true,
+      });
+
+      // Navigate to /page with a hash fragment
+      await router.push('/page#section');
+
+      // Verify route matching works correctly (pathname should be /page)
+      expect(currentRoute.value.path).toBe('/page');
+      expect(currentRoute.value.hash).toBe('section');
+
+      // Verify the URL includes both hashes
+      const stack = mockHistory.getStack();
+      expect(stack[stack.length - 1].url).toBe('#/page#section');
+    });
+
+    it('should handle hash routing with both query parameters and hash fragments', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+          { path: '/user/:id', component: () => null },
+        ],
+        hash: true,
+      });
+
+      // Navigate to /page with both query and hash
+      await router.push('/page?foo=bar&baz=qux#section');
+
+      // Verify route matching works correctly
+      expect(currentRoute.value.path).toBe('/page');
+      expect(currentRoute.value.query).toEqual({ foo: 'bar', baz: 'qux' });
+      expect(currentRoute.value.hash).toBe('section');
+
+      // Verify the URL is correct
+      const stack = mockHistory.getStack();
+      expect(stack[stack.length - 1].url).toBe('#/page?foo=bar&baz=qux#section');
+
+      // Also test with a parameterized route
+      await router.push('/user/123?tab=profile#bio');
+      expect(currentRoute.value.path).toBe('/user/123');
+      expect(currentRoute.value.params).toEqual({ id: '123' });
+      expect(currentRoute.value.query).toEqual({ tab: 'profile' });
+      expect(currentRoute.value.hash).toBe('bio');
+    });
+
+    it('should handle hash routing with route parameters and query strings', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/user/:id', component: () => null },
+          { path: '/product/:category/:id', component: () => null },
+        ],
+        hash: true,
+      });
+
+      // Single parameter with query
+      await router.push('/user/42?tab=posts&page=2');
+      expect(currentRoute.value.path).toBe('/user/42');
+      expect(currentRoute.value.params).toEqual({ id: '42' });
+      expect(currentRoute.value.query).toEqual({ tab: 'posts', page: '2' });
+
+      // Multiple parameters with query and hash
+      await router.push('/product/electronics/456?color=blue&size=large#specs');
+      expect(currentRoute.value.path).toBe('/product/electronics/456');
+      expect(currentRoute.value.params).toEqual({ category: 'electronics', id: '456' });
+      expect(currentRoute.value.query).toEqual({ color: 'blue', size: 'large' });
+      expect(currentRoute.value.hash).toBe('specs');
+    });
+
+    it('should properly handle navigation guards in hash mode with query params', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+          { path: '/admin', component: () => null },
+        ],
+        hash: true,
+      });
+
+      let guardCalled = false;
+      let guardToRoute = null;
+
+      router.beforeEach((to) => {
+        guardCalled = true;
+        guardToRoute = to;
+        return true;
+      });
+
+      // Navigate with query parameters
+      await router.push('/page?foo=bar#section');
+
+      // Verify guard was called with properly parsed route
+      expect(guardCalled).toBe(true);
+      expect(guardToRoute).not.toBeNull();
+      expect(guardToRoute.path).toBe('/page');
+      expect(guardToRoute.query).toEqual({ foo: 'bar' });
+      expect(guardToRoute.hash).toBe('section');
+    });
+
+    it('should handle replace mode in hash routing', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page1', component: () => null },
+          { path: '/page2', component: () => null },
+        ],
+        hash: true,
+      });
+
+      await router.push('/page1?test=1');
+      const stackLengthAfterPush = mockHistory.getStack().length;
+
+      await router.replace('/page2?test=2#section');
+      const stackLengthAfterReplace = mockHistory.getStack().length;
+
+      // Replace should not add a new history entry
+      expect(stackLengthAfterReplace).toBe(stackLengthAfterPush);
+
+      // But should update the route correctly
+      expect(currentRoute.value.path).toBe('/page2');
+      expect(currentRoute.value.query).toEqual({ test: '2' });
+      expect(currentRoute.value.hash).toBe('section');
+    });
+  });
 });
