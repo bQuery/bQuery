@@ -164,6 +164,14 @@ export const createTemplate = (
     if (!el) {
       throw new Error('bQuery view: Template must contain a single root element.');
     }
+    
+    // We know at least one element exists (firstElementChild is not null above)
+    // Reject if there are multiple root elements
+    if (container.childElementCount > 1) {
+      throw new Error(
+        `bQuery view: Template must contain exactly one root element, found ${container.childElementCount}.`
+      );
+    }
 
     const prefix = options.prefix || 'bq';
     // Reject templates with bq-for on the root element

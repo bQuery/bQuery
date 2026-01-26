@@ -686,6 +686,23 @@ describe('View', () => {
         /Template root element cannot have bq-for directive/
       );
     });
+
+    it('should reject templates with multiple root elements', () => {
+      const MultiRootTemplate = createTemplate('<div>A</div><div>B</div>');
+
+      expect(() => MultiRootTemplate({})).toThrow(
+        /Template must contain exactly one root element, found 2/
+      );
+    });
+
+    it('should accept templates with single root element and whitespace', () => {
+      const ValidTemplate = createTemplate('  <div>Content</div>  ');
+      const view = ValidTemplate({});
+      
+      expect(view.el.textContent).toBe('Content');
+      
+      view.destroy();
+    });
   });
 
   describe('destroy', () => {
