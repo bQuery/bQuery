@@ -77,13 +77,14 @@ export const interceptLinks = (container?: Element): (() => void) => {
     
     if (anchor.target) return; // Has target attribute
     if (anchor.hasAttribute('download')) return;
-    if (anchor.origin !== window.location.origin) return; // External link
+    if (typeof window === 'undefined' || anchor.origin !== window.location.origin) return; // External link or non-window environment
 
-    // Get active router config to handle base paths correctly
-    // If no router is active, proceed with no base/hash (will be handled by navigate)
+    // Get active router config to handle base paths correctly.
+    // If no router is active, proceed with no base/hash; navigate() will throw a
+    // "No router initialized" error, which is caught and logged below.
     const router = getActiveRouter();
     if (!router) {
-      // No active router - let navigate handle the error
+      // No active router - trigger navigate(), allowing its error to be logged here
       e.preventDefault();
       void navigate(anchor.pathname + anchor.search + anchor.hash).catch((err) => {
         console.error('Navigation failed:', err);
@@ -105,7 +106,7 @@ export const interceptLinks = (container?: Element): (() => void) => {
       // History mode: use pathname + search + hash
       // Strip base from pathname to avoid duplication (router.push() re-adds it)
       let pathname = anchor.pathname;
-      if (base && pathname.startsWith(base)) {
+      if (base && base !== '/' && pathname.startsWith(base)) {
         pathname = pathname.slice(base.length) || '/';
       }
       path = pathname + anchor.search + anchor.hash;
