@@ -63,7 +63,17 @@ export const interceptLinks = (container: Element = document.body): (() => void)
     if (anchor.hasAttribute('download')) return;
     if (anchor.origin !== window.location.origin) return; // External link
 
-    const path = anchor.pathname + anchor.search + anchor.hash;
+    // Detect hash-routing mode: links written as href="#/page"
+    // In this case, anchor.hash contains the route path
+    let path: string;
+    if (anchor.hash && anchor.hash.startsWith('#/')) {
+      // Hash-routing mode: extract path from the hash
+      // e.g., href="#/page?foo=bar" → path = "/page?foo=bar"
+      path = anchor.hash.slice(1); // Remove leading #
+    } else {
+      // History mode or regular anchor: use pathname + search + hash
+      path = anchor.pathname + anchor.search + anchor.hash;
+    }
 
     e.preventDefault();
     navigate(path);
