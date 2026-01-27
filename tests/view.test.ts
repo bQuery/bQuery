@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, spyOn, type Mock } from 'bun:test';
 import { computed, signal } from '../src/reactive/index';
-import { createTemplate, mount, type View } from '../src/view/index';
+import { clearExpressionCache, createTemplate, mount, type View } from '../src/view/index';
 
 describe('View', () => {
   let container: HTMLElement;
@@ -1021,6 +1021,33 @@ describe('View', () => {
         // Ref should be cleared to prevent memory leaks
         expect(refObj.value).toBeNull();
       });
+    });
+  });
+
+  describe('clearExpressionCache', () => {
+    it('should clear cached expressions without errors', () => {
+      container.innerHTML = '<span bq-text="message"></span>';
+      const message = signal('Hello');
+
+      // Mount a view to populate the cache
+      view = mount(container, { message });
+      expect(container.querySelector('span')?.textContent).toBe('Hello');
+
+      // Clear the cache - should not throw
+      expect(() => clearExpressionCache()).not.toThrow();
+
+      // Should still work after clearing cache (recompiles expressions)
+      message.value = 'World';
+      expect(container.querySelector('span')?.textContent).toBe('World');
+    });
+
+    it('should allow calling clearExpressionCache multiple times', () => {
+      // Should not throw even when called multiple times
+      expect(() => {
+        clearExpressionCache();
+        clearExpressionCache();
+        clearExpressionCache();
+      }).not.toThrow();
     });
   });
 });

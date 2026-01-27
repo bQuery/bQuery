@@ -85,6 +85,10 @@ export const spring = (initialValue: number, config: SpringConfig = {}): Spring 
         cancelAnimationFrame(animationFrame);
       }
 
+      // Resolve any pending promise from a previous to() call
+      // This ensures all returned promises eventually settle
+      resolvePromise?.();
+
       return new Promise((resolve) => {
         resolvePromise = resolve;
         animationFrame = requestAnimationFrame(step);

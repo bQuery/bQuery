@@ -102,6 +102,7 @@
  * ```
  */
 
+export { clearExpressionCache } from './evaluate';
 export { createTemplate, mount } from './mount';
 export type { BindingContext, MountOptions, View } from './types';
 

@@ -1,11 +1,80 @@
 import { isComputed, isSignal, type Signal } from '../reactive/index';
 import type { BindingContext } from './types';
 
-/** Cache for compiled evaluate functions, keyed by expression string */
-const evaluateCache = new Map<string, (ctx: BindingContext) => unknown>();
+/** Maximum number of cached expression functions before LRU eviction */
+const MAX_CACHE_SIZE = 500;
 
-/** Cache for compiled evaluateRaw functions, keyed by expression string */
-const evaluateRawCache = new Map<string, (ctx: BindingContext) => unknown>();
+/** Compiled function type for expression evaluation */
+type CompiledFn = (ctx: BindingContext) => unknown;
+
+/**
+ * Simple LRU cache for compiled expression functions.
+ * Uses Map's insertion order to track recency - accessed items are re-inserted.
+ * @internal
+ */
+class LRUCache {
+  private cache = new Map<string, CompiledFn>();
+  private maxSize: number;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+  }
+
+  get(key: string): CompiledFn | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      // Move to end (most recently used) by re-inserting
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: string, value: CompiledFn): void {
+    // Delete first if exists to update insertion order
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      // Evict oldest (first) entry
+      const oldest = this.cache.keys().next().value;
+      if (oldest !== undefined) {
+        this.cache.delete(oldest);
+      }
+    }
+    this.cache.set(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+
+  get size(): number {
+    return this.cache.size;
+  }
+}
+
+/** LRU cache for compiled evaluate functions, keyed by expression string */
+const evaluateCache = new LRUCache(MAX_CACHE_SIZE);
+
+/** LRU cache for compiled evaluateRaw functions, keyed by expression string */
+const evaluateRawCache = new LRUCache(MAX_CACHE_SIZE);
+
+/**
+ * Clears all cached compiled expression functions.
+ * Call this when unmounting views or to free memory after heavy template usage.
+ *
+ * @example
+ * ```ts
+ * import { clearExpressionCache } from 'bquery/view';
+ *
+ * // After destroying a view or when cleaning up
+ * clearExpressionCache();
+ * ```
+ */
+export const clearExpressionCache = (): void => {
+  evaluateCache.clear();
+  evaluateRawCache.clear();
+};
 
 /**
  * Creates a proxy that lazily unwraps signals/computed only when accessed.
