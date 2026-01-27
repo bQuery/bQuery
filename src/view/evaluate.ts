@@ -4,8 +4,8 @@ import type { BindingContext } from './types';
 /** Cache for compiled evaluate functions, keyed by expression string */
 const evaluateCache = new Map<string, (ctx: BindingContext) => unknown>();
 
-/** Cache for compiled evaluateRaw functions, keyed by "expression|key1,key2,..." */
-const evaluateRawCache = new Map<string, (...args: unknown[]) => unknown>();
+/** Cache for compiled evaluateRaw functions, keyed by expression string */
+const evaluateRawCache = new Map<string, (ctx: BindingContext) => unknown>();
 
 /**
  * Creates a proxy that lazily unwraps signals/computed only when accessed.
@@ -72,18 +72,17 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
  */
 export const evaluateRaw = <T = unknown>(expression: string, context: BindingContext): T => {
   try {
-    // Sort keys for consistent cache key regardless of property insertion order
-    const keys = Object.keys(context).sort();
-    const values = keys.map((key) => context[key]);
-
-    // Cache key includes expression and sorted keys (order matters for function params)
-    const cacheKey = `${expression}|${keys.join(',')}`;
-    let fn = evaluateRawCache.get(cacheKey);
+    // Use cached function or compile and cache a new one
+    let fn = evaluateRawCache.get(expression);
     if (!fn) {
-      fn = new Function(...keys, `return (${expression})`) as (...args: unknown[]) => unknown;
-      evaluateRawCache.set(cacheKey, fn);
+      // Use `with` to enable direct property access from context scope.
+      // Unlike `evaluate`, we don't use a lazy proxy - values are accessed directly.
+      fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
+        ctx: BindingContext
+      ) => unknown;
+      evaluateRawCache.set(expression, fn);
     }
-    return fn(...values) as T;
+    return fn(context) as T;
   } catch (error) {
     console.error(`bQuery view: Error evaluating "${expression}"`, error);
     return undefined as T;
