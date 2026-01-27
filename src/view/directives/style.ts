@@ -13,7 +13,7 @@ export const handleStyle: DirectiveHandler = (el, expression, context, cleanups)
   const cleanup = effect(() => {
     const newStyles = new Set<string>();
 
-    if (expression.startsWith('{')) {
+    if (expression.trimStart().startsWith('{')) {
       const styleMap = parseObjectExpression(expression);
       for (const [prop, valueExpr] of Object.entries(styleMap)) {
         const value = evaluate<string>(valueExpr, context);
