@@ -87,7 +87,7 @@ export function once<TArgs extends unknown[], TResult>(
   fn: (...args: TArgs) => TResult
 ): (...args: TArgs) => TResult {
   let hasRun = false;
-  let result: TResult;
+  let result!: TResult;
   return (...args: TArgs) => {
     if (!hasRun) {
       result = fn(...args);

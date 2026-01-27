@@ -3,6 +3,7 @@
  */
 
 import { createStore } from './create-store';
+import { getStore, hasStore } from './registry';
 import type { Store, StoreDefinition } from './types';
 
 /**
@@ -35,8 +36,13 @@ export const defineStore = <
   id: string,
   definition: Omit<StoreDefinition<S, G, A>, 'id'>
 ): (() => Store<S, G, A>) => {
-  // Delegate caching to createStore/registry - no local cache needed.
-  // createStore() returns existing instance if already registered,
-  // or creates a new one if destroyed/not yet created.
-  return () => createStore({ id, ...definition });
+  // Check registry first to avoid noisy warnings from createStore()
+  // when the factory is called multiple times (intended usage pattern).
+  // createStore() only called when store doesn't exist or was destroyed.
+  return () => {
+    if (hasStore(id)) {
+      return getStore(id) as Store<S, G, A>;
+    }
+    return createStore({ id, ...definition });
+  };
 };

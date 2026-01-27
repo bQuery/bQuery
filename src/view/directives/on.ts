@@ -11,17 +11,19 @@ export const handleOn = (eventName: string): DirectiveHandler => {
       // Add $event to context for expression evaluation
       const eventContext = { ...context, $event: event, $el: el };
 
-      // Check if expression is just a function reference (no parentheses)
-      // In that case, we should call it directly
-      const isPlainFunctionRef = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(expression.trim());
+      // Check if expression contains a function call (has parentheses)
+      // If not, it might be a function reference like "handleClick", "handlers.onClick", or "this.onClick"
+      const containsCall = expression.includes('(');
 
-      if (isPlainFunctionRef) {
-        // Get the function and call it with the event
-        const fn = evaluateRaw<unknown>(expression, eventContext);
-        if (typeof fn === 'function') {
-          fn(event);
+      if (!containsCall) {
+        // Evaluate the expression - if it returns a function, invoke it with $event
+        const result = evaluateRaw<unknown>(expression, eventContext);
+        if (typeof result === 'function') {
+          result(event);
           return;
         }
+        // If not a function, the expression was already evaluated (e.g., "count.value++")
+        return;
       }
 
       // Otherwise evaluate as expression using evaluateRaw to allow signal mutations
