@@ -14,7 +14,7 @@ export const handleClass: DirectiveHandler = (el, expression, context, cleanups)
   const cleanup = effect(() => {
     const newClasses: Set<string> = new Set();
 
-    if (expression.startsWith('{')) {
+    if (expression.trimStart().startsWith('{')) {
       // Object syntax: { active: isActive, disabled: !enabled }
       const classMap = parseObjectExpression(expression);
       for (const [className, conditionExpr] of Object.entries(classMap)) {
@@ -56,7 +56,7 @@ export const handleClass: DirectiveHandler = (el, expression, context, cleanups)
 
     // Remove classes that were previously added but are no longer in the new set
     // Skip for object syntax since toggle already handles removal
-    if (!expression.startsWith('{')) {
+    if (!expression.trimStart().startsWith('{')) {
       for (const cls of previousClasses) {
         if (!newClasses.has(cls)) {
           el.classList.remove(cls);
