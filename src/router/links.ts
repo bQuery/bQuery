@@ -68,19 +68,19 @@ export const interceptLinks = (container?: Element): (() => void) => {
     if (e.defaultPrevented) return; // Already handled
     if (e.button !== 0) return; // Not left-click (middle-click opens new tab, right-click shows context menu)
     if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return; // Modifier keys (Ctrl/Cmd-click = new tab)
-    
+
     // Guard against non-Element targets and non-DOM environments
     if (typeof Element === 'undefined' || !(e.target instanceof Element)) return;
     const target = e.target as HTMLElement;
     const anchor = target.closest('a');
 
     if (!anchor) return;
-    
+
     // Cross-realm compatible anchor check: use owner document's constructor if available
     const anchorWindow = anchor.ownerDocument.defaultView;
     const AnchorConstructor = anchorWindow?.HTMLAnchorElement ?? HTMLAnchorElement;
     if (!(anchor instanceof AnchorConstructor)) return;
-    
+
     if (anchor.target) return; // Has target attribute
     if (anchor.hasAttribute('download')) return;
     if (typeof window === 'undefined') return; // Non-window environment

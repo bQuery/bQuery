@@ -17,7 +17,7 @@ export const persistedSignal = <T>(key: string, initialValue: T): Signal<T> => {
   // Check if localStorage is available and accessible
   let hasLocalStorage = false;
   let storage: Storage | null = null;
-  
+
   try {
     // In Safari private mode, accessing localStorage can throw SecurityError
     storage = globalThis.localStorage;
@@ -42,7 +42,7 @@ export const persistedSignal = <T>(key: string, initialValue: T): Signal<T> => {
     // localStorage unavailable or access denied (Safari private mode, sandboxed iframes, etc.)
     hasLocalStorage = false;
   }
-  
+
   let stored: T = initialValue;
 
   if (hasLocalStorage && storage) {

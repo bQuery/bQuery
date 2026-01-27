@@ -1162,7 +1162,7 @@ describe('Router', () => {
       // Test hash-routing link with query parameters
       container.innerHTML = '<a href="#/page?foo=bar">Hash Link with Query</a>';
       const anchor2 = container.querySelector('a')!;
-      
+
       const event2 = new MouseEvent('click', { bubbles: true, cancelable: true });
       anchor2.dispatchEvent(event2);
 
@@ -1292,10 +1292,10 @@ describe('Router', () => {
       const cleanup = interceptLinks(container);
 
       // Ctrl+click should not be intercepted (opens in new tab)
-      const event = new MouseEvent('click', { 
-        bubbles: true, 
-        cancelable: true, 
-        ctrlKey: true 
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        ctrlKey: true,
       });
       anchor.dispatchEvent(event);
 
@@ -1319,10 +1319,10 @@ describe('Router', () => {
       const cleanup = interceptLinks(container);
 
       // Cmd+click (metaKey) should not be intercepted (opens in new tab on Mac)
-      const event = new MouseEvent('click', { 
-        bubbles: true, 
-        cancelable: true, 
-        metaKey: true 
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        metaKey: true,
       });
       anchor.dispatchEvent(event);
 
@@ -1346,10 +1346,10 @@ describe('Router', () => {
       const cleanup = interceptLinks(container);
 
       // Shift+click should not be intercepted (opens in new window)
-      const event = new MouseEvent('click', { 
-        bubbles: true, 
-        cancelable: true, 
-        shiftKey: true 
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        shiftKey: true,
       });
       anchor.dispatchEvent(event);
 
@@ -1373,10 +1373,10 @@ describe('Router', () => {
       const cleanup = interceptLinks(container);
 
       // Alt+click should not be intercepted
-      const event = new MouseEvent('click', { 
-        bubbles: true, 
-        cancelable: true, 
-        altKey: true 
+      const event = new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+        altKey: true,
       });
       anchor.dispatchEvent(event);
 
@@ -1398,9 +1398,13 @@ describe('Router', () => {
       const anchor = container.querySelector('a')!;
 
       // Add another listener that prevents default first
-      anchor.addEventListener('click', (e) => {
-        e.preventDefault();
-      }, { capture: true });
+      anchor.addEventListener(
+        'click',
+        (e) => {
+          e.preventDefault();
+        },
+        { capture: true }
+      );
 
       const cleanup = interceptLinks(container);
 

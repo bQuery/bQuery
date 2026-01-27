@@ -265,7 +265,7 @@ describe('security/enhanced protections', () => {
   it('handles hash and query string URLs as internal', () => {
     const result = sanitizeHtml('<a href="#section">Link</a>');
     expect(result).not.toContain('rel=');
-    
+
     const result2 = sanitizeHtml('<a href="?query=value">Link</a>');
     expect(result2).not.toContain('rel=');
   });
@@ -273,7 +273,7 @@ describe('security/enhanced protections', () => {
   it('treats mailto and tel links as external for security', () => {
     const mailto = sanitizeHtml('<a href="mailto:test@example.com">Email</a>');
     expect(mailto).toContain('rel="noopener noreferrer"');
-    
+
     const tel = sanitizeHtml('<a href="tel:+1234567890">Call</a>');
     expect(tel).toContain('rel="noopener noreferrer"');
   });
@@ -288,10 +288,10 @@ describe('security/enhanced protections', () => {
   it('handles URLs with uppercase protocols', () => {
     const result1 = sanitizeHtml('<a href="HTTP://external.com">Link</a>');
     expect(result1).toContain('rel="noopener noreferrer"');
-    
+
     const result2 = sanitizeHtml('<a href="HTTPS://external.com">Link</a>');
     expect(result2).toContain('rel="noopener noreferrer"');
-    
+
     const result3 = sanitizeHtml('<a href="MAILTO:test@example.com">Email</a>');
     expect(result3).toContain('rel="noopener noreferrer"');
   });
@@ -304,10 +304,10 @@ describe('security/enhanced protections', () => {
   it('handles case-insensitive target="_blank"', () => {
     const result1 = sanitizeHtml('<a href="/page" target="_BLANK">Link</a>');
     expect(result1).toContain('rel="noopener noreferrer"');
-    
+
     const result2 = sanitizeHtml('<a href="/page" target="_Blank">Link</a>');
     expect(result2).toContain('rel="noopener noreferrer"');
-    
+
     const result3 = sanitizeHtml('<a href="/page" target="_blank">Link</a>');
     expect(result3).toContain('rel="noopener noreferrer"');
   });
@@ -315,12 +315,12 @@ describe('security/enhanced protections', () => {
   it('treats absolute URLs as external in SSR/Node.js environments', () => {
     // Save the original window object
     const originalWindow = globalThis.window;
-    
+
     try {
       // Simulate SSR environment by temporarily removing window
       // @ts-expect-error - Intentionally setting to undefined for testing
       globalThis.window = undefined;
-      
+
       const result = sanitizeHtml('<a href="https://external.com">Link</a>');
       expect(result).toContain('rel="noopener noreferrer"');
     } finally {

@@ -14,8 +14,13 @@
  */
 export const generateNonce = (length: number = 16): string => {
   // Check for required globals in browser/crypto environments
-  if (typeof globalThis.crypto === 'undefined' || typeof globalThis.crypto.getRandomValues !== 'function') {
-    throw new Error('generateNonce requires crypto.getRandomValues (not available in this environment)');
+  if (
+    typeof globalThis.crypto === 'undefined' ||
+    typeof globalThis.crypto.getRandomValues !== 'function'
+  ) {
+    throw new Error(
+      'generateNonce requires crypto.getRandomValues (not available in this environment)'
+    );
   }
   if (typeof globalThis.btoa !== 'function') {
     throw new Error('generateNonce requires btoa (not available in this environment)');
@@ -23,7 +28,8 @@ export const generateNonce = (length: number = 16): string => {
 
   const array = new Uint8Array(length);
   globalThis.crypto.getRandomValues(array);
-  return globalThis.btoa(String.fromCharCode(...array))
+  return globalThis
+    .btoa(String.fromCharCode(...array))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
     .replace(/=/g, '');

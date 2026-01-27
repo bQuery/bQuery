@@ -35,7 +35,7 @@ import {
 /**
  * Utility object containing common helper functions.
  * All utilities are designed to be tree-shakeable and have zero dependencies.
- * 
+ *
  * Note: `isPrototypePollutionKey` is intentionally excluded from this namespace
  * as it is an internal security helper. It remains available as a named export
  * for internal framework use.
