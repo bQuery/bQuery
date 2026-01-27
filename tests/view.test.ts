@@ -227,7 +227,7 @@ describe('View', () => {
 
       const div = container.querySelector('#test1')!;
       expect(div.classList.contains('enabled')).toBe(true);
-      
+
       // Verify it's reactive
       config.value = { activeClass: 'disabled' };
       expect(div.classList.contains('disabled')).toBe(true);
