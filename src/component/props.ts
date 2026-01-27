@@ -56,21 +56,31 @@ export const coercePropValue = <T>(rawValue: string, config: PropDefinition<T>):
       (Object.getOwnPropertyNames(type.prototype).length > 1 ||
         type.prototype.constructor !== type);
 
+    // For constructable types (e.g. Date, custom classes), prefer `new` to avoid
+    // silent wrong-type returns (Date() returns string, new Date() returns Date)
+    if (isConstructable) {
+      try {
+        return Reflect.construct(constructable, [rawValue]) as T;
+      } catch {
+        // Fall back to calling as function if construction fails
+        return callable(rawValue);
+      }
+    }
+
+    // For non-constructable types (arrow functions, plain functions), call directly
     try {
       return callable(rawValue);
     } catch (error) {
-      // Only fall back to constructor if:
-      // 1. The type is actually constructable (class-like), OR
-      // 2. The error explicitly indicates 'new' is required
+      // Fall back to constructor only if error explicitly indicates 'new' is required
       const isNewRequired =
         error instanceof TypeError &&
         /cannot be invoked without 'new'|is not a function/i.test(error.message);
 
-      if (isConstructable || isNewRequired) {
+      if (isNewRequired) {
         return new constructable(rawValue);
       }
 
-      // Rethrow original error for non-constructable converters (arrow functions, etc.)
+      // Rethrow original error for non-constructable converters
       throw error;
     }
   }

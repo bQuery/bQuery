@@ -1,6 +1,12 @@
 import { isComputed, isSignal, type Signal } from '../reactive/index';
 import type { BindingContext } from './types';
 
+/** Cache for compiled evaluate functions, keyed by expression string */
+const evaluateCache = new Map<string, (ctx: BindingContext) => unknown>();
+
+/** Cache for compiled evaluateRaw functions, keyed by "expression|key1,key2,..." */
+const evaluateRawCache = new Map<string, (...args: unknown[]) => unknown>();
+
 /**
  * Creates a proxy that lazily unwraps signals/computed only when accessed.
  * This avoids subscribing to signals that aren't referenced in the expression.
@@ -41,9 +47,16 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
     // Create a proxy that lazily unwraps signals/computed on access
     const lazyContext = createLazyContext(context);
 
-    // Use `with` to enable direct property access from proxy scope.
-    // Note: `new Function()` runs in non-strict mode, so `with` is allowed.
-    const fn = new Function('$ctx', `with($ctx) { return (${expression}); }`);
+    // Use cached function or compile and cache a new one
+    let fn = evaluateCache.get(expression);
+    if (!fn) {
+      // Use `with` to enable direct property access from proxy scope.
+      // Note: `new Function()` runs in non-strict mode, so `with` is allowed.
+      fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
+        ctx: BindingContext
+      ) => unknown;
+      evaluateCache.set(expression, fn);
+    }
     return fn(lazyContext) as T;
   } catch (error) {
     console.error(`bQuery view: Error evaluating "${expression}"`, error);
@@ -61,7 +74,14 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
   try {
     const keys = Object.keys(context);
     const values = keys.map((key) => context[key]);
-    const fn = new Function(...keys, `return (${expression})`);
+
+    // Cache key includes expression and sorted keys (order matters for function params)
+    const cacheKey = `${expression}|${keys.join(',')}`;
+    let fn = evaluateRawCache.get(cacheKey);
+    if (!fn) {
+      fn = new Function(...keys, `return (${expression})`) as (...args: unknown[]) => unknown;
+      evaluateRawCache.set(cacheKey, fn);
+    }
     return fn(...values) as T;
   } catch (error) {
     console.error(`bQuery view: Error evaluating "${expression}"`, error);
