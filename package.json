@@ -39,6 +39,10 @@
       "import": "./dist/security.es.mjs",
       "types": "./dist/security/index.d.ts"
     },
+    "./security/sanitize": {
+      "import": "./dist/security.es.mjs",
+      "types": "./dist/security/sanitize.d.ts"
+    },
     "./platform": {
       "import": "./dist/platform.es.mjs",
       "types": "./dist/platform/index.d.ts"

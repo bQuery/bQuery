@@ -72,7 +72,8 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
  */
 export const evaluateRaw = <T = unknown>(expression: string, context: BindingContext): T => {
   try {
-    const keys = Object.keys(context);
+    // Sort keys for consistent cache key regardless of property insertion order
+    const keys = Object.keys(context).sort();
     const values = keys.map((key) => context[key]);
 
     // Cache key includes expression and sorted keys (order matters for function params)

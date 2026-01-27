@@ -22,8 +22,7 @@ export const coercePropValue = <T>(rawValue: string, config: PropDefinition<T>):
   if (type === String) return rawValue as T;
 
   if (type === Number) {
-    const parsed = Number(rawValue);
-    return (Number.isNaN(parsed) ? rawValue : parsed) as T;
+    return Number(rawValue) as T;
   }
 
   if (type === Boolean) {
