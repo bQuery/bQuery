@@ -670,7 +670,7 @@ describe('View', () => {
         expect(duplicateKeyWarning).toBeDefined();
         const warningMessage = String(duplicateKeyWarning![0]);
         expect(warningMessage).toContain('"A"');
-        expect(warningMessage).toContain('incorrect DOM reconciliation');
+        expect(warningMessage).toContain('Falling back to index-based key');
       });
     });
   });
