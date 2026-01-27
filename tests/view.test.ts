@@ -249,6 +249,21 @@ describe('View', () => {
       expect(div.style.color).toBe('blue');
     });
 
+    it('should handle object-literal syntax with leading whitespace', () => {
+      container.innerHTML = '<div bq-style="  { color: textColor, fontSize: size }"></div>';
+      const textColor = signal('green');
+      const size = signal('14px');
+
+      view = mount(container, { textColor, size });
+
+      const div = container.querySelector('div') as HTMLElement;
+      expect(div.style.color).toBe('green');
+      expect(div.style.fontSize).toBe('14px');
+
+      textColor.value = 'purple';
+      expect(div.style.color).toBe('purple');
+    });
+
     it('should remove stale styles when style object changes', () => {
       container.innerHTML = '<div bq-style="styleObj"></div>';
       const styleObj = signal({ color: 'red', fontSize: '16px' });
