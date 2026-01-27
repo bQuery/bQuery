@@ -4,8 +4,9 @@
 
 import type { Computed } from './computed';
 import type { Signal } from './core';
+import type { CleanupFn } from './internals';
+
 import { effect } from './effect';
-import { CleanupFn } from './internals';
 
 /**
  * Options for the watch function.

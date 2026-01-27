@@ -106,9 +106,9 @@ export const mount = (
     // Check if element has bq-for before processing
     // bq-for replaces the element and handles its children internally
     const hasFor = node.hasAttribute(`${prefix}-for`);
-    
+
     processElement(node, nodeContext, prefix, nodeCleanups, handlers);
-    
+
     // Skip processChildren if bq-for was on this element - it handles children itself
     if (!hasFor) {
       processChildren(node, nodeContext, prefix, nodeCleanups, handlers);
@@ -173,7 +173,7 @@ export const createTemplate = (
     if (!el) {
       throw new Error('bQuery view: Template must contain a single root element.');
     }
-    
+
     // We know at least one element exists (firstElementChild is not null above)
     // Reject if there are multiple root elements
     if (container.childElementCount > 1) {
@@ -182,7 +182,7 @@ export const createTemplate = (
       );
     }
 
-    const prefix = options.prefix || 'bq';
+    const { prefix = 'bq' } = options;
     // Reject templates with bq-for on the root element
     // bq-for replaces the element with a placeholder comment, which would leave View.el detached
     if (el.hasAttribute(`${prefix}-for`)) {

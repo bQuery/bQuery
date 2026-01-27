@@ -160,7 +160,7 @@ export const createForHandler = (options: {
         rendered.item = newItem;
         rendered.itemSignal.value = newItem;
       }
-      
+
       // Update index if it changed
       if (rendered.index !== newIndex) {
         rendered.index = newIndex;
@@ -189,20 +189,21 @@ export const createForHandler = (options: {
       const seenKeys = new Set<unknown>();
 
       list.forEach((item, index) => {
-        const key = getItemKey(item, index, keyExpression, itemName, indexName, context);
-        newKeys.push(key);
-        
-        // Detect duplicate keys - warn developer as this causes incorrect reconciliation
+        let key = getItemKey(item, index, keyExpression, itemName, indexName, context);
+
+        // Detect duplicate keys - warn developer and fall back to unique composite key
         if (seenKeys.has(key)) {
           console.warn(
             `bq-for: Duplicate key "${String(key)}" detected at index ${index}. ` +
-            `This will cause incorrect DOM reconciliation. ` +
-            `Ensure :key expressions produce unique values for each item.`
+              `Falling back to index-based key for this item. ` +
+              `Ensure :key expressions produce unique values for each item.`
           );
+          // Create a unique composite key to avoid corrupting rendered output
+          key = { __bqDuplicateKey: key, __bqIndex: index };
         }
         seenKeys.add(key);
-        
-        // Later entries with same key overwrite earlier ones
+
+        newKeys.push(key);
         newItemsByKey.set(key, { item, index });
       });
 

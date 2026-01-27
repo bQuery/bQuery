@@ -17,10 +17,11 @@ export type Getters<S, G> = {
 
 /**
  * Action definition - methods that can modify state.
+ * The `this` context includes state, getters, and other actions.
  */
-export type Actions<S, A> = {
+export type Actions<S, G, A> = {
   [K in keyof A]: A[K] extends (...args: infer P) => infer R
-    ? (this: S & A, ...args: P) => R
+    ? (this: S & G & A, ...args: P) => R
     : never;
 };
 
@@ -40,7 +41,7 @@ export type StoreDefinition<
   /** Computed getters */
   getters?: Getters<S, G>;
   /** Action methods */
-  actions?: A;
+  actions?: Actions<S, G, A>;
 };
 
 /**
