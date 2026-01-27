@@ -50,6 +50,7 @@ export const flip = (
 
   // Skip animation if element has zero dimensions (avoid division by zero)
   if (lastBounds.width === 0 || lastBounds.height === 0) {
+    onComplete?.();
     return Promise.resolve();
   }
 
@@ -61,6 +62,7 @@ export const flip = (
 
   // Skip animation if no change
   if (deltaX === 0 && deltaY === 0 && deltaW === 1 && deltaH === 1) {
+    onComplete?.();
     return Promise.resolve();
   }
 
