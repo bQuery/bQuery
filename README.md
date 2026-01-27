@@ -134,8 +134,8 @@ $('#list').delegate('click', '.item', (event, target) => {
 $('#box').addClass('active').css({ opacity: '0.8' }).attr('data-state', 'ready');
 
 // DOM manipulation
-$('#content').wrap('<div class="wrapper"></div>');
-$('#wrapper').unwrap(); // Remove parent wrapper
+$('#content').wrap('div');
+$('#content').unwrap(); // Remove parent wrapper
 
 // Attribute helpers
 $('#dialog').toggleAttr('open');
