@@ -24,7 +24,7 @@ export const persistedSignal = <T>(key: string, initialValue: T): Signal<T> => {
     if (storage) {
       // Test actual access to ensure it's not just present but usable
       // Use a randomized test key to avoid overwriting real user data
-      const testKey = `__bquery_test_${Math.random().toString(36).substr(2, 9)}__`;
+      const testKey = `__bquery_test_${Math.random().toString(36).slice(2, 9)}__`;
       const testValue = '__test__';
       try {
         storage.setItem(testKey, testValue);
