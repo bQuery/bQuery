@@ -255,15 +255,18 @@ describe('View', () => {
       expect(div.className).toBe('class-c class-d');
     });
 
-    it('should run cleanup loop for object syntax (verifying the fix)', () => {
-      // This test explicitly verifies the bug fix by demonstrating that the cleanup
-      // loop now runs for object syntax. Before the fix, cleanup was skipped for
-      // expressions starting with '{', which could theoretically leave stale classes
-      // if the tracking logic had edge cases.
+    it('should handle object syntax class toggling correctly', () => {
+      // This test verifies correct behavior for object syntax after the fix.
+      // The fix ensures the cleanup loop runs for ALL syntax forms (object, string, array).
       
-      // The fix ensures consistency: cleanup runs for ALL syntax forms, not just
-      // string/array. This test shows that classes tracked but toggled to false
-      // are properly removed via the cleanup loop, not just via classList.toggle().
+      // For object syntax, classes are primarily removed by classList.toggle() (line 22
+      // in class.ts) when conditions change to false. All object syntax keys remain in
+      // newClasses regardless of boolean value (line 24 in class.ts), so the cleanup
+      // loop doesn't actively remove toggled-off classes in normal operation.
+      
+      // The fix provides consistency and defensive programming - the cleanup loop now
+      // runs for object syntax, handling edge cases like manual DOM manipulation or
+      // potential tracking bugs, even though classList.toggle() is the primary mechanism.
       
       container.innerHTML = '<div bq-class="{ foo: showFoo, bar: showBar }"></div>';
       const showFoo = signal(true);
@@ -275,24 +278,20 @@ describe('View', () => {
       expect(div.classList.contains('foo')).toBe(true);
       expect(div.classList.contains('bar')).toBe(false);
       
-      // At this point, both 'foo' and 'bar' are tracked in previousClasses,
-      // even though bar is toggled off (see line 24 in class.ts)
-      
-      // Now toggle foo off - without the fix, if there was a tracking bug,
-      // the cleanup loop wouldn't run for object syntax
+      // Toggle foo off - removed by classList.toggle(className, false)
       showFoo.value = false;
       
-      // Both should be removed - this verifies cleanup loop executes
       expect(div.classList.contains('foo')).toBe(false);
       expect(div.classList.contains('bar')).toBe(false);
       expect(div.className).toBe('');
     });
 
-    it('should remove object syntax classes that were toggled on then off', () => {
-      // This test verifies that when object syntax classes are toggled from true
-      // to false, they are properly removed. The fix ensures the cleanup loop
-      // runs for object syntax, providing an additional removal mechanism beyond
-      // just classList.toggle() for consistency with other syntax forms.
+    it('should preserve non-directive classes when toggling object syntax classes', () => {
+      // This test verifies that object syntax classes are properly toggled via
+      // classList.toggle() without affecting non-directive classes. After the fix,
+      // the cleanup loop runs for consistency across all syntax forms, though for
+      // object syntax the primary removal mechanism is classList.toggle() on line 22
+      // of class.ts, not the cleanup loop.
       
       container.innerHTML = '<div class="static-class" bq-class="{ dynamic: isDynamic }"></div>';
       const isDynamic = signal(true);
@@ -303,15 +302,15 @@ describe('View', () => {
       expect(div.classList.contains('static-class')).toBe(true);
       expect(div.classList.contains('dynamic')).toBe(true);
 
-      // Toggle off - the cleanup loop (now running for object syntax) should
-      // ensure the class is removed, and static classes are preserved
+      // Toggle off - class is removed by classList.toggle(className, false),
+      // while static classes are preserved
       isDynamic.value = false;
 
       expect(div.classList.contains('static-class')).toBe(true);
       expect(div.classList.contains('dynamic')).toBe(false);
       expect(div.className).toBe('static-class');
       
-      // Toggle back on to verify it works both ways
+      // Toggle back on to verify bidirectional toggling works correctly
       isDynamic.value = true;
       expect(div.classList.contains('dynamic')).toBe(true);
       expect(div.className).toBe('static-class dynamic');
