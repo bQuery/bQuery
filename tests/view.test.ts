@@ -231,6 +231,55 @@ describe('View', () => {
       expect(div.classList.contains('disabled')).toBe(true);
       expect(div.classList.contains('enabled')).toBe(false);
     });
+
+    it('should properly clean up stale classes from object syntax when conditions change', () => {
+      // This test verifies that classes are properly tracked and removed
+      // even for object syntax, addressing the review comment about stale classes
+      container.innerHTML = '<div bq-class="{ foo: showFoo, bar: showBar, baz: showBaz }"></div>';
+      const showFoo = signal(true);
+      const showBar = signal(true);
+      const showBaz = signal(false);
+
+      view = mount(container, { showFoo, showBar, showBaz });
+
+      const div = container.querySelector('div')!;
+      expect(div.classList.contains('foo')).toBe(true);
+      expect(div.classList.contains('bar')).toBe(true);
+      expect(div.classList.contains('baz')).toBe(false);
+
+      // Change conditions - foo and bar should be toggled off, baz on
+      showFoo.value = false;
+      showBar.value = false;
+      showBaz.value = true;
+      expect(div.classList.contains('foo')).toBe(false);
+      expect(div.classList.contains('bar')).toBe(false);
+      expect(div.classList.contains('baz')).toBe(true);
+
+      // Verify no stale classes remain
+      expect(div.className).toBe('baz');
+    });
+
+    it('should clean up classes when switching between different class expressions', () => {
+      // Test that classes from one expression are removed when expression changes
+      container.innerHTML = '<div bq-class="classValue"></div>';
+      const classValue = signal('class-a class-b');
+
+      view = mount(container, { classValue });
+
+      const div = container.querySelector('div')!;
+      expect(div.classList.contains('class-a')).toBe(true);
+      expect(div.classList.contains('class-b')).toBe(true);
+
+      // Change to completely different classes
+      classValue.value = 'class-c class-d';
+      expect(div.classList.contains('class-a')).toBe(false);
+      expect(div.classList.contains('class-b')).toBe(false);
+      expect(div.classList.contains('class-c')).toBe(true);
+      expect(div.classList.contains('class-d')).toBe(true);
+
+      // Verify only new classes remain
+      expect(div.className).toBe('class-c class-d');
+    });
   });
 
   describe('bq-style', () => {
