@@ -55,12 +55,11 @@ export const handleClass: DirectiveHandler = (el, expression, context, cleanups)
     }
 
     // Remove classes that were previously added but are no longer in the new set
-    // Skip for object syntax since toggle already handles removal
-    if (!expression.trimStart().startsWith('{')) {
-      for (const cls of previousClasses) {
-        if (!newClasses.has(cls)) {
-          el.classList.remove(cls);
-        }
+    // This keeps directive-managed classes in sync across all syntax forms and provides
+    // defensive cleanup behavior for edge cases (e.g. external classList changes)
+    for (const cls of previousClasses) {
+      if (!newClasses.has(cls)) {
+        el.classList.remove(cls);
       }
     }
 
