@@ -27,10 +27,10 @@ export const insertContent = (
 
   const elements = toElementList(content);
 
-  // For positions that insert relative to the target element rather than
-  // appending at the end, reverse the array to maintain the caller's order,
-  // since each insertAdjacentElement call is relative to the target element.
-  const orderedElements = position !== 'beforeend' ? elements.slice().reverse() : elements;
+  // For positions that insert at the beginning (afterbegin, afterend), reverse
+  // the array to maintain the caller's order. For beforeend/beforebegin, keep order.
+  const needsReverse = position === 'afterbegin' || position === 'afterend';
+  const orderedElements = needsReverse ? elements.slice().reverse() : elements;
 
   applyAll(orderedElements, (el) => {
     target.insertAdjacentElement(position, el);
