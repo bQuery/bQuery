@@ -45,9 +45,27 @@ const resolveAt = (at: TimelineStep['at'], previousEnd: number): number => {
   return previousEnd;
 };
 
-const normalizeDuration = (options?: KeyframeAnimationOptions): number =>
-  resolveTimeValue(options?.duration as number | string | undefined) +
-  resolveTimeValue(options?.endDelay as number | string | undefined);
+const normalizeDuration = (options?: KeyframeAnimationOptions): number => {
+  const baseDuration = resolveTimeValue(options?.duration as number | string | undefined);
+  const endDelay = resolveTimeValue(options?.endDelay as number | string | undefined);
+  const rawIterations = options?.iterations ?? 1;
+
+  // Handle infinite iterations - treat as a special case with a very large duration
+  // In practice, infinite iterations shouldn't be used in timelines as they never end
+  if (rawIterations === Infinity) {
+    // Return a large sentinel value - timeline calculations will be incorrect,
+    // but this at least prevents NaN/Infinity from breaking scheduling
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  // Per Web Animations spec, iterations must be a non-negative number
+  // Treat negative as 0 (only endDelay duration)
+  const iterations = Math.max(0, rawIterations);
+
+  // Total duration = (baseDuration * iterations) + endDelay
+  // Note: endDelay is applied once at the end, after all iterations
+  return baseDuration * iterations + endDelay;
+};
 
 const scheduleSteps = (steps: TimelineStep[]) => {
   let previousEnd = 0;

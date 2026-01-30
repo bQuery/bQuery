@@ -294,6 +294,166 @@ describe('motion/timeline', () => {
     // Clean up
     tl.stop();
   });
+
+  it('calculates duration correctly with iterations', () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: 3 },
+        at: 0,
+      },
+    ]);
+
+    // Duration should be 100ms * 3 iterations = 300ms
+    expect(tl.duration()).toBe(300);
+  });
+
+  it('accounts for iterations in scheduling relative steps', () => {
+    const el1 = document.createElement('div');
+    const el2 = document.createElement('div');
+    const animation1 = createMockAnimation();
+    const animation2 = createMockAnimation();
+
+    let animateCallCount = 0;
+    const mockAnimate = mock(() => {
+      animateCallCount += 1;
+      return animateCallCount === 1 ? animation1 : animation2;
+    });
+
+    (el1 as HTMLElement).animate = mockAnimate as unknown as Element['animate'];
+    (el2 as HTMLElement).animate = mockAnimate as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el1,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: 2 },
+        at: 0,
+      },
+      {
+        target: el2,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100 },
+        // This should start after el1's 200ms (100ms * 2 iterations)
+      },
+    ]);
+
+    // Total duration should be 200ms (el1) + 100ms (el2) = 300ms
+    expect(tl.duration()).toBe(300);
+  });
+
+  it('handles iterations with endDelay correctly', () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: 2, endDelay: 50 },
+        at: 0,
+      },
+    ]);
+
+    // Duration should be (100ms * 2 iterations) + 50ms endDelay = 250ms
+    expect(tl.duration()).toBe(250);
+  });
+
+  it('handles infinite iterations gracefully', () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: Infinity },
+        at: 0,
+      },
+    ]);
+
+    // Should return a very large number instead of Infinity
+    const duration = tl.duration();
+    expect(duration).toBe(Number.MAX_SAFE_INTEGER);
+    expect(Number.isFinite(duration)).toBe(true);
+  });
+
+  it('handles zero iterations correctly', () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: 0, endDelay: 50 },
+        at: 0,
+      },
+    ]);
+
+    // With 0 iterations, duration should be only the endDelay
+    expect(tl.duration()).toBe(50);
+  });
+
+  it('handles negative iterations gracefully', () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: -5, endDelay: 25 },
+        at: 0,
+      },
+    ]);
+
+    // Negative iterations should be treated as 0, so only endDelay remains
+    expect(tl.duration()).toBe(25);
+  });
+
+  it('accounts for iterations with delay option in scheduling', () => {
+    const el1 = document.createElement('div');
+    const el2 = document.createElement('div');
+    const animation1 = createMockAnimation();
+    const animation2 = createMockAnimation();
+
+    let animateCallCount = 0;
+    const mockAnimate = mock(() => {
+      animateCallCount += 1;
+      return animateCallCount === 1 ? animation1 : animation2;
+    });
+
+    (el1 as HTMLElement).animate = mockAnimate as unknown as Element['animate'];
+    (el2 as HTMLElement).animate = mockAnimate as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el1,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100, iterations: 2, delay: 50 },
+        at: 0,
+      },
+      {
+        target: el2,
+        keyframes: [{ opacity: 0 }, { opacity: 1 }],
+        options: { duration: 100 },
+        // Should start after el1 completes: delay(50) + duration*iterations(200) = 250ms
+      },
+    ]);
+
+    // Total timeline duration: el1 (50 delay + 200ms) + el2 (100ms) = 350ms
+    expect(tl.duration()).toBe(350);
+  });
 });
 
 describe('motion/spring', () => {
