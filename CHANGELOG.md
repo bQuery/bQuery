@@ -112,7 +112,7 @@ and this project adheres to Semantic Versioning.
 
 ### Fixed (1.1.1)
 
-- Fixed a possibly dangerous html handling in the playground examples.
+- Fixed a possibly dangerous HTML handling in the playground examples.
 
 ## [1.1.0] - 2026-01-23
 
