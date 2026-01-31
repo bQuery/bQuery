@@ -10,14 +10,14 @@
   "jsdelivr": "./dist/full.umd.js",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.es.mjs",
-      "require": "./dist/full.umd.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/full.umd.js"
     },
     "./full": {
+      "types": "./dist/full.d.ts",
       "import": "./dist/full.es.mjs",
-      "require": "./dist/full.umd.js",
-      "types": "./dist/full.d.ts"
+      "require": "./dist/full.umd.js"
     },
     "./core": {
       "import": "./dist/core.es.mjs",

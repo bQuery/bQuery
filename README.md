@@ -86,32 +86,32 @@ import { $, signal, component } from '@bquery/bquery';
 import { $, $$ } from '@bquery/bquery/core';
 
 // Core utilities (named exports, tree-shakeable)
-import { debounce, merge, uid, utils } from '@bquery/bquery/core';
+import { debounce, merge, uid, once, utils } from '@bquery/bquery/core';
 
 // À la carte (individual modules)
-import { signal, computed, effect } from '@bquery/bquery/reactive';
-import { component, html } from '@bquery/bquery/component';
-import { transition, spring } from '@bquery/bquery/motion';
+import { signal, computed, effect, linkedSignal, persistedSignal } from '@bquery/bquery/reactive';
+import { component, defineComponent, html } from '@bquery/bquery/component';
+import { transition, spring, animate, timeline } from '@bquery/bquery/motion';
 import { sanitize } from '@bquery/bquery/security';
 import { storage, cache } from '@bquery/bquery/platform';
 import { createRouter, navigate } from '@bquery/bquery/router';
-import { createStore } from '@bquery/bquery/store';
-import { mount } from '@bquery/bquery/view';
+import { createStore, defineStore } from '@bquery/bquery/store';
+import { mount, createTemplate } from '@bquery/bquery/view';
 ```
 
 ## Modules at a glance
 
 | Module        | Description                                        | Size (gzip) |
 | ------------- | -------------------------------------------------- | ----------- |
-| **Core**      | Selectors, DOM manipulation, events, utilities     | ~8.1 KB     |
-| **Reactive**  | `signal`, `computed`, `effect`, `batch`            | ~0.4 KB     |
-| **Component** | Lightweight Web Components with props              | ~1.6 KB     |
-| **Motion**    | View transitions, FLIP, timelines, scroll, springs | ~3.5 KB     |
-| **Security**  | HTML sanitizing, Trusted Types, CSP                | ~0.6 KB     |
-| **Platform**  | Storage, cache, notifications, buckets             | ~1.6 KB     |
-| **Router**    | SPA routing, navigation guards, history API        | ~2.0 KB     |
-| **Store**     | Signal-based state management, persistence         | ~0.4 KB     |
-| **View**      | Declarative DOM bindings, directives               | ~3.3 KB     |
+| **Core**      | Selectors, DOM manipulation, events, utilities     | ~11.3 KB    |
+| **Reactive**  | `signal`, `computed`, `effect`, `batch`            | ~0.3 KB     |
+| **Component** | Lightweight Web Components with props              | ~1.9 KB     |
+| **Motion**    | View transitions, FLIP, timelines, scroll, springs | ~4.0 KB     |
+| **Security**  | HTML sanitizing, Trusted Types, CSP                | ~0.7 KB     |
+| **Platform**  | Storage, cache, notifications, buckets             | ~2.2 KB     |
+| **Router**    | SPA routing, navigation guards, history API        | ~2.2 KB     |
+| **Store**     | Signal-based state management, persistence         | ~0.3 KB     |
+| **View**      | Declarative DOM bindings, directives               | ~4.3 KB     |
 
 ## Quick examples
 
@@ -344,8 +344,8 @@ effect(() => {
 ```ts
 import { createStore, createPersistedStore } from '@bquery/bquery/store';
 
-// Define a store
-const useCounter = createStore({
+// Create a store (returns the store instance directly)
+const counterStore = createStore({
   id: 'counter',
   state: () => ({ count: 0, name: 'Counter' }),
   getters: {
@@ -362,17 +362,16 @@ const useCounter = createStore({
 });
 
 // Use the store
-const counter = useCounter;
-counter.increment();
-console.log(counter.doubled); // Reactive getter
+counterStore.increment();
+console.log(counterStore.doubled); // Reactive getter
 
 // Persisted store (localStorage)
-const useSettings = createPersistedStore({
+const settingsStore = createPersistedStore({
   id: 'settings',
   state: () => ({ theme: 'dark', language: 'en' }),
 });
 
-// Factory-style store definition
+// Factory-style store definition (Pinia-style)
 import { defineStore, mapGetters, watchStore } from '@bquery/bquery/store';
 
 const useCounter = defineStore('counter', {
@@ -388,13 +387,13 @@ const useCounter = defineStore('counter', {
 });
 
 const counter = useCounter();
-const { doubled } = mapGetters(counter, ['doubled']);
+const getters = mapGetters(counter, ['doubled']);
 
 watchStore(
   counter,
   (state) => state.count,
   (value) => {
-    console.log('Count changed:', value, doubled);
+    console.log('Count changed:', value, getters.doubled);
   }
 );
 ```

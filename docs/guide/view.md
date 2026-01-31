@@ -299,6 +299,26 @@ Always destroy views when done:
 view.destroy();
 ```
 
+### Clearing Expression Cache
+
+The view module caches compiled expressions for performance. In rare cases (e.g., testing or dynamic template changes), you may want to clear this cache:
+
+```ts
+import { clearExpressionCache } from '@bquery/bquery/view';
+
+// Clear all cached expression functions
+clearExpressionCache();
+```
+
+::: tip When to Use
+You typically don't need to call this. It's mainly useful for:
+
+- Test environments that mount/unmount many views
+- Hot module replacement (HMR) scenarios
+- Memory-constrained applications with many dynamic templates
+
+:::
+
 ## Templates
 
 Create reusable template functions:

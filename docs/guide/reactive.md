@@ -90,8 +90,17 @@ batch(() => {
 import { persistedSignal } from '@bquery/bquery/reactive';
 
 const theme = persistedSignal('theme', 'light');
-theme.value = 'dark';
+theme.value = 'dark'; // Automatically saved to localStorage
 ```
+
+::: tip Environment Compatibility
+`persistedSignal` gracefully handles environments without `localStorage`:
+
+- **SSR/Node.js**: Falls back to in-memory signal
+- **Safari Private Mode**: Catches `SecurityError` and falls back to in-memory signal
+- **JSON parse errors**: Falls back to the provided initial value
+
+:::
 
 ## Linked signals
 

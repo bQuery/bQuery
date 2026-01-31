@@ -97,6 +97,28 @@ import { easingPresets } from '@bquery/bquery/motion';
 const ease = easingPresets.easeOutCubic;
 ```
 
+### Individual easing exports
+
+For tree-shaking, you can import individual easing functions:
+
+```ts
+import {
+  linear,
+  easeInQuad,
+  easeOutQuad,
+  easeInOutQuad,
+  easeInCubic,
+  easeOutCubic,
+  easeInOutCubic,
+  easeOutExpo,
+  easeOutBack,
+} from '@bquery/bquery/motion';
+
+// Use directly
+const t = 0.5;
+const value = easeOutCubic(t); // 0.875
+```
+
 ## Keyframe presets
 
 ```ts

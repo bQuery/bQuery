@@ -8,26 +8,26 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [[1.3.0] - 2026-01-26](#130---2026-01-26)
+  - [\[1.3.0\] - 2026-01-26](#130---2026-01-26)
     - [Added (1.3.0)](#added-130)
     - [Changed (1.3.0)](#changed-130)
     - [Fixed (1.3.0)](#fixed-130)
-  - [[1.2.0] - 2026-01-24](#120---2026-01-24)
+  - [\[1.2.0\] - 2026-01-24](#120---2026-01-24)
     - [Added (1.2.0)](#added-120)
-  - [[1.1.2] - 2026-01-24](#112---2026-01-24)
+  - [\[1.1.2\] - 2026-01-24](#112---2026-01-24)
     - [Fixed (1.1.2)](#fixed-112)
     - [Security (1.1.2)](#security-112)
-  - [[1.1.1] - 2026-01-24](#111---2026-01-24)
+  - [\[1.1.1\] - 2026-01-24](#111---2026-01-24)
     - [Fixed (1.1.1)](#fixed-111)
-  - [[1.1.0] - 2026-01-23](#110---2026-01-23)
+  - [\[1.1.0\] - 2026-01-23](#110---2026-01-23)
     - [Added (1.1.0)](#added-110)
     - [Changed (1.1.0)](#changed-110)
     - [Security (1.1.0)](#security-110)
-  - [[1.0.2] - 2026-01-23](#102---2026-01-23)
+  - [\[1.0.2\] - 2026-01-23](#102---2026-01-23)
     - [Fixed (1.0.2)](#fixed-102)
-  - [[1.0.1] - 2026-01-23](#101---2026-01-23)
+  - [\[1.0.1\] - 2026-01-23](#101---2026-01-23)
     - [Fixed (1.0.1)](#fixed-101)
-  - [[1.0.0] - 2026-01-21](#100---2026-01-21)
+  - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
 ## [1.3.0] - 2026-01-26
@@ -59,6 +59,30 @@ and this project adheres to Semantic Versioning.
 
 - **Security**: `security/sanitize` now re-exports `generateNonce()` and `isTrustedTypesSupported()` for legacy deep imports.
 - **Component**: Sanitize component render markup before writing to the Shadow DOM (security-by-default consistency).
+- **Component**: `attributeChangedCallback` now only triggers re-renders after initial mount, preventing double renders.
+- **Component**: Styles are now applied via `<style>` element with `textContent` instead of `innerHTML` to prevent markup injection.
+- **Core**: `unwrap()` on collections now correctly de-duplicates parents to avoid removing the same parent multiple times.
+- **Core**: `insertContent()` now maintains correct DOM order when inserting multiple elements for `beforebegin`, `afterbegin`, and `afterend` positions.
+- **Core**: `once()` utility no longer caches failures; function is retried on subsequent calls after an exception.
+- **Motion**: `timeline.seek()` now correctly calculates currentTime without double-subtracting delay offset.
+- **Motion**: `timeline.duration()` now properly accounts for `iterations` option when calculating total duration.
+- **Router**: `interceptLinks()` now skips middle-click, Ctrl+click, Cmd+click, Shift+click, Alt+click, and already-prevented events.
+- **Router**: Hash-routing mode now correctly parses query parameters and hash fragments for route matching.
+- **Router**: Navigation guards cancelling popstate now restore the full URL including query and hash.
+- **Router**: Link interception now correctly strips base path and handles hash-routing links (`href="#/route"`).
+- **Reactive**: `untrack()` now properly suppresses dependency tracking for computed values without breaking internal computed dependencies.
+- **Reactive**: `persistedSignal()` now gracefully handles Safari private mode and environments without `localStorage`.
+- **Store**: `defineStore()` now caches store instances properly and respects `destroyStore()` invalidation.
+- **Store**: `$state` snapshot now uses `untrack()` to prevent accidental reactive dependencies inside effects.
+- **Store**: Actions can now assign non-state properties without throwing `TypeError` in strict mode.
+- **View**: `bq-class` now correctly distinguishes bracket property access (`obj['key']`) from array literals.
+- **View**: `bq-style` now removes stale style properties when the style object changes.
+- **View**: `bq-show` now correctly shows elements that start with `display: none`.
+- **View**: `bq-for` now warns when duplicate keys are detected and falls back to index-based keying.
+- **View**: `bq-ref` now correctly handles nested object property access (e.g., `refs.inputEl`) and cleans up object refs on destroy.
+- **View**: `bq-on` now supports signal mutations in event expressions (e.g., `count.value++`).
+- **View**: `createTemplate()` now rejects templates with multiple root elements or `bq-for`/`bq-if` on root.
+- **View**: `mount()` now rejects mounting on elements with `bq-for` directive to prevent detached root issues.
 - **Docs**: Corrected the event section heading in the Core API guide for `BQueryElement`.
 
 ## [1.2.0] - 2026-01-24

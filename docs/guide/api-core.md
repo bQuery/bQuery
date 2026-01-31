@@ -106,14 +106,19 @@ $('#list').delegate('click', '.item', (event, target) => {
 
 ### DOM Manipulation
 
-- `wrap(wrapper)` – wrap element with new parent
+- `wrap(wrapper)` – wrap element with new parent (accepts tag name or Element)
 - `unwrap()` – remove parent, keeping element
 - `replaceWith(content)` – replace element with new content
 - `scrollTo(options?)` – scroll element into view
 
 ```ts
-// Wrap element
-$('#content').wrap('<div class="wrapper"></div>');
+// Wrap element with a div
+$('#content').wrap('div');
+
+// Wrap with an existing element
+const wrapper = document.createElement('section');
+wrapper.className = 'wrapper';
+$('#content').wrap(wrapper);
 
 // Unwrap (remove parent)
 $('#content').unwrap();
