@@ -48,14 +48,14 @@ export function debounce<TArgs extends unknown[]>(
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const debounced: DebouncedFn<TArgs> = Object.assign(
     (...args: TArgs) => {
-      if (timeoutId) {
+      if (timeoutId !== undefined) {
         clearTimeout(timeoutId);
       }
       timeoutId = setTimeout(() => fn(...args), delayMs);
     },
     {
       cancel: () => {
-        if (timeoutId) {
+        if (timeoutId !== undefined) {
           clearTimeout(timeoutId);
           timeoutId = undefined;
         }
