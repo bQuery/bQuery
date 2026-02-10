@@ -165,7 +165,7 @@ export class BQueryElement {
    *
    * @param property - A CSS property name or an object of property-value pairs
    * @param value - The value when setting a single property
-   * @returns The instance for method chaining
+   * @returns The computed style value when getting a single property, or the instance for method chaining when setting
    *
    * @example
    * ```ts
@@ -184,7 +184,11 @@ export class BQueryElement {
         (this.element as HTMLElement).style.setProperty(property, value);
         return this;
       }
-      return getComputedStyle(this.element).getPropertyValue(property);
+      const view = this.element.ownerDocument?.defaultView;
+      if (!view || typeof view.getComputedStyle !== 'function') {
+        return '';
+      }
+      return view.getComputedStyle(this.element).getPropertyValue(property);
     }
 
     for (const [key, val] of Object.entries(property)) {
@@ -580,7 +584,7 @@ export class BQueryElement {
    * ```
    */
   is(selector: string): boolean {
-    return this.element.matches(selector);
+    return this.matches(selector);
   }
 
   /**

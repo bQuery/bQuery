@@ -290,7 +290,11 @@ export class BQueryCollection {
         return this;
       }
       const first = this.first();
-      return first ? getComputedStyle(first).getPropertyValue(property) : '';
+      if (!first) {
+        return '';
+      }
+      const view = first.ownerDocument.defaultView;
+      return view ? view.getComputedStyle(first).getPropertyValue(property) : '';
     }
 
     applyAll(this.elements, (el) => {
