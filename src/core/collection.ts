@@ -279,7 +279,8 @@ export class BQueryCollection {
    * @param value - Value when setting single property
    * @returns The computed style value when getting, instance when setting
    */
-  css(property: string, value?: string): string | this;
+  css(property: string): string;
+  css(property: string, value: string): this;
   css(property: Record<string, string>): this;
   css(property: string | Record<string, string>, value?: string): string | this {
     if (typeof property === 'string') {
