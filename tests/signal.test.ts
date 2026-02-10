@@ -277,6 +277,31 @@ describe('batch', () => {
 
     expect(bRan).toBe(2);
   });
+
+  it('recovers from endBatch underflow (no matching beginBatch)', async () => {
+    const { endBatch } = await import('../src/reactive/internals');
+    const count = signal(0);
+    let runs = 0;
+
+    effect(() => {
+      void count.value;
+      runs++;
+    });
+
+    expect(runs).toBe(1);
+
+    // Call endBatch without beginBatch — should not break batching
+    endBatch();
+
+    // Subsequent batch should still work correctly
+    batch(() => {
+      count.value = 1;
+      count.value = 2;
+    });
+
+    expect(runs).toBe(2);
+    expect(count.value).toBe(2);
+  });
 });
 
 describe('watch', () => {
