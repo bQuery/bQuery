@@ -169,10 +169,13 @@ export class BQueryElement {
    *
    * @example
    * ```ts
-   * // Single property
+   * // Get a computed style value
+   * const color = $('#box').css('color');
+   *
+   * // Set a single property
    * $('#box').css('color', 'red');
    *
-   * // Multiple properties
+   * // Set multiple properties
    * $('#box').css({ color: 'red', 'font-size': '16px' });
    * ```
    */
