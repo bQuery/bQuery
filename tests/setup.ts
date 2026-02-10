@@ -72,6 +72,10 @@ if (typeof globalThis.crypto === 'undefined') {
 (globalThis as unknown as { MouseEvent: typeof MouseEvent }).MouseEvent =
   window.MouseEvent as unknown as typeof MouseEvent;
 
+// Register getComputedStyle for CSS getter tests
+(globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =
+  window.getComputedStyle.bind(window) as typeof getComputedStyle;
+
 // Mock localStorage for store persistence tests
 if (typeof globalThis.localStorage === 'undefined') {
   const storage = new Map<string, string>();

@@ -272,20 +272,33 @@ export class BQueryCollection {
   }
 
   /**
-   * Applies CSS styles to all elements.
+   * Gets or sets CSS styles on all elements.
+   * When getting, returns the computed style value from the first element.
    *
    * @param property - Property name or object of properties
    * @param value - Value when setting single property
-   * @returns The instance for method chaining
+   * @returns The computed style value when getting, instance when setting
    */
-  css(property: string | Record<string, string>, value?: string): this {
+  css(property: string): string;
+  css(property: string, value: string): this;
+  css(property: Record<string, string>): this;
+  css(property: string | Record<string, string>, value?: string): string | this {
     if (typeof property === 'string') {
       if (value !== undefined) {
         applyAll(this.elements, (el) => {
           (el as HTMLElement).style.setProperty(property, value);
         });
+        return this;
       }
-      return this;
+      const first = this.first();
+      if (!first) {
+        return '';
+      }
+      const view = first.ownerDocument.defaultView;
+      if (!view || typeof view.getComputedStyle !== 'function') {
+        return '';
+      }
+      return view.getComputedStyle(first).getPropertyValue(property);
     }
 
     applyAll(this.elements, (el) => {
@@ -543,6 +556,33 @@ export class BQueryCollection {
     });
 
     return this;
+  }
+
+  /**
+   * Finds all descendant elements matching the selector across all elements
+   * in the collection. Returns a new BQueryCollection with the results.
+   *
+   * @param selector - CSS selector to match
+   * @returns A new BQueryCollection with all matching descendants
+   *
+   * @example
+   * ```ts
+   * $$('.container').find('.item').addClass('highlight');
+   * ```
+   */
+  find(selector: string): BQueryCollection {
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      const found = el.querySelectorAll(selector);
+      for (let i = 0; i < found.length; i++) {
+        if (!seen.has(found[i])) {
+          seen.add(found[i]);
+          results.push(found[i]);
+        }
+      }
+    }
+    return new BQueryCollection(results);
   }
 
   /**

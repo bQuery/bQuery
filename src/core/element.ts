@@ -165,23 +165,34 @@ export class BQueryElement {
    *
    * @param property - A CSS property name or an object of property-value pairs
    * @param value - The value when setting a single property
-   * @returns The instance for method chaining
+   * @returns The computed style value when getting a single property, or the instance for method chaining when setting
    *
    * @example
    * ```ts
-   * // Single property
+   * // Get a computed style value
+   * const color = $('#box').css('color');
+   *
+   * // Set a single property
    * $('#box').css('color', 'red');
    *
-   * // Multiple properties
+   * // Set multiple properties
    * $('#box').css({ color: 'red', 'font-size': '16px' });
    * ```
    */
-  css(property: string | Record<string, string>, value?: string): this {
+  css(property: string): string;
+  css(property: string, value: string): this;
+  css(property: Record<string, string>): this;
+  css(property: string | Record<string, string>, value?: string): string | this {
     if (typeof property === 'string') {
       if (value !== undefined) {
         (this.element as HTMLElement).style.setProperty(property, value);
+        return this;
       }
-      return this;
+      const view = this.element.ownerDocument?.defaultView;
+      if (!view || typeof view.getComputedStyle !== 'function') {
+        return '';
+      }
+      return view.getComputedStyle(this.element).getPropertyValue(property);
     }
 
     for (const [key, val] of Object.entries(property)) {
@@ -561,6 +572,23 @@ export class BQueryElement {
    */
   matches(selector: string): boolean {
     return this.element.matches(selector);
+  }
+
+  /**
+   * Alias for `matches()`. Checks if the element matches a CSS selector.
+   *
+   * @param selector - CSS selector to match against
+   * @returns True if the element matches the selector
+   *
+   * @example
+   * ```ts
+   * if ($('#el').is('.active')) {
+   *   console.log('Element is active');
+   * }
+   * ```
+   */
+  is(selector: string): boolean {
+    return this.matches(selector);
   }
 
   /**

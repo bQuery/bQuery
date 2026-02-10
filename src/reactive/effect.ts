@@ -36,7 +36,11 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     // Clear old dependencies before running to avoid stale subscriptions
     clearDependencies(observer);
 
-    cleanupFn = track(observer, fn);
+    try {
+      cleanupFn = track(observer, fn);
+    } catch (error) {
+      console.error('bQuery reactive: Error in effect', error);
+    }
   };
 
   observer();

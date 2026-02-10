@@ -934,3 +934,127 @@ describe('core/DOM insertion order', () => {
     expect(children[3].textContent).toBe('C');
   });
 });
+
+describe('core/BQueryElement css getter', () => {
+  it('css returns computed style value when called with single property', () => {
+    const div = document.createElement('div') as HTMLElement;
+    document.body.appendChild(div);
+    div.style.color = 'red';
+
+    const wrapped = new BQueryElement(div);
+    const result = wrapped.css('color');
+
+    const expected = getComputedStyle(div).getPropertyValue('color');
+    expect(result).toBe(expected);
+    expect(result).not.toBe('');
+
+    div.remove();
+  });
+
+  it('css sets style and returns this when called with property and value', () => {
+    const div = document.createElement('div') as HTMLElement;
+    const wrapped = new BQueryElement(div);
+
+    const result = wrapped.css('color', 'blue');
+    expect(result).toBe(wrapped);
+    expect(div.style.color).toBe('blue');
+  });
+
+  it('css sets multiple styles and returns this when called with object', () => {
+    const div = document.createElement('div') as HTMLElement;
+    const wrapped = new BQueryElement(div);
+
+    const result = wrapped.css({ color: 'red', 'font-size': '16px' });
+    expect(result).toBe(wrapped);
+    expect(div.style.color).toBe('red');
+    expect(div.style.fontSize).toBe('16px');
+  });
+});
+
+describe('core/BQueryElement is()', () => {
+  it('is returns true for matching selector', () => {
+    const div = document.createElement('div');
+    div.classList.add('active');
+    const wrapped = new BQueryElement(div);
+
+    expect(wrapped.is('.active')).toBe(true);
+    expect(wrapped.is('div')).toBe(true);
+  });
+
+  it('is returns false for non-matching selector', () => {
+    const div = document.createElement('div');
+    const wrapped = new BQueryElement(div);
+
+    expect(wrapped.is('.active')).toBe(false);
+    expect(wrapped.is('span')).toBe(false);
+  });
+});
+
+describe('core/BQueryCollection css getter', () => {
+  it('css returns computed style from first element when called with property only', () => {
+    const div1 = document.createElement('div') as HTMLElement;
+    const div2 = document.createElement('div') as HTMLElement;
+    document.body.appendChild(div1);
+    document.body.appendChild(div2);
+    div1.style.color = 'red';
+
+    const collection = new BQueryCollection([div1, div2]);
+    const result = collection.css('color');
+
+    const expected = getComputedStyle(div1).getPropertyValue('color');
+    expect(result).toBe(expected);
+    expect(result).not.toBe('');
+
+    div1.remove();
+    div2.remove();
+  });
+
+  it('css returns empty string for empty collection getter', () => {
+    const collection = new BQueryCollection([]);
+    const result = collection.css('color');
+
+    expect(result).toBe('');
+  });
+});
+
+describe('core/BQueryCollection find()', () => {
+  it('find returns descendants matching selector', () => {
+    const container1 = document.createElement('div');
+    const child1 = document.createElement('span');
+    child1.classList.add('item');
+    container1.appendChild(child1);
+
+    const container2 = document.createElement('div');
+    const child2 = document.createElement('span');
+    child2.classList.add('item');
+    container2.appendChild(child2);
+
+    const collection = new BQueryCollection([container1, container2]);
+    const found = collection.find('.item');
+
+    expect(found.length).toBe(2);
+    expect(found.elements[0]).toBe(child1);
+    expect(found.elements[1]).toBe(child2);
+  });
+
+  it('find returns empty collection when no matches', () => {
+    const div = document.createElement('div');
+    const collection = new BQueryCollection([div]);
+    const found = collection.find('.nonexistent');
+
+    expect(found.length).toBe(0);
+  });
+
+  it('find deduplicates shared descendants', () => {
+    const parent = document.createElement('div');
+    const child = document.createElement('span');
+    child.classList.add('shared');
+    parent.appendChild(child);
+
+    // Both collections reference the same parent, so find should not duplicate
+    const collection = new BQueryCollection([parent, parent]);
+    const found = collection.find('.shared');
+
+    expect(found.length).toBe(1);
+  });
+});

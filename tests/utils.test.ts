@@ -297,3 +297,44 @@ describe('utils/security', () => {
     expect(Object.hasOwn(result, 'prototype')).toBe(false);
   });
 });
+
+describe('utils/debounce cancel', () => {
+  it('debounce.cancel prevents pending invocation', async () => {
+    let callCount = 0;
+    const debounced = utils.debounce(() => {
+      callCount++;
+    }, 50);
+
+    debounced();
+    debounced.cancel();
+
+    await new Promise((r) => setTimeout(r, 100));
+    expect(callCount).toBe(0);
+  });
+
+  it('debounce.cancel is safe to call multiple times', () => {
+    const debounced = utils.debounce(() => {}, 50);
+    debounced.cancel();
+    debounced.cancel(); // Should not throw
+  });
+});
+
+describe('utils/throttle cancel', () => {
+  it('throttle.cancel resets timer allowing immediate execution', () => {
+    let callCount = 0;
+    const throttled = utils.throttle(() => {
+      callCount++;
+    }, 10000);
+
+    throttled(); // First call executes
+    expect(callCount).toBe(1);
+
+    throttled(); // Throttled, should not execute
+    expect(callCount).toBe(1);
+
+    throttled.cancel(); // Reset throttle
+
+    throttled(); // Should execute immediately after cancel
+    expect(callCount).toBe(2);
+  });
+});

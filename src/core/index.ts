@@ -45,3 +45,4 @@ export {
   isPromise,
   isString,
 } from './utils';
+export type { DebouncedFn, ThrottledFn } from './utils';

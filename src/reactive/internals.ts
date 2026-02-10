@@ -96,6 +96,18 @@ export const registerDependency = (observer: Observer, source: ReactiveSource): 
 };
 
 /**
+ * Removes a specific source from an observer's dependency set.
+ * Used when a source (e.g. Signal) is disposed to prevent stale references.
+ * @internal
+ */
+export const removeDependency = (observer: Observer, source: ReactiveSource): void => {
+  const deps = observerDependencies.get(observer);
+  if (deps) {
+    deps.delete(source);
+  }
+};
+
+/**
  * Clears all dependencies for an observer, unsubscribing from all sources.
  * @internal
  */
