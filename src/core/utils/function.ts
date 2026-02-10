@@ -46,18 +46,22 @@ export function debounce<TArgs extends unknown[]>(
   delayMs: number
 ): DebouncedFn<TArgs> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
-  const debounced = (...args: TArgs) => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
+  const debounced: DebouncedFn<TArgs> = Object.assign(
+    (...args: TArgs) => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      timeoutId = setTimeout(() => fn(...args), delayMs);
+    },
+    {
+      cancel: () => {
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = undefined;
+        }
+      },
     }
-    timeoutId = setTimeout(() => fn(...args), delayMs);
-  };
-  debounced.cancel = () => {
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutId = undefined;
-    }
-  };
+  );
   return debounced;
 }
 
@@ -85,16 +89,20 @@ export function throttle<TArgs extends unknown[]>(
   intervalMs: number
 ): ThrottledFn<TArgs> {
   let lastRun = 0;
-  const throttled = (...args: TArgs) => {
-    const now = Date.now();
-    if (now - lastRun >= intervalMs) {
-      lastRun = now;
-      fn(...args);
+  const throttled: ThrottledFn<TArgs> = Object.assign(
+    (...args: TArgs) => {
+      const now = Date.now();
+      if (now - lastRun >= intervalMs) {
+        lastRun = now;
+        fn(...args);
+      }
+    },
+    {
+      cancel: () => {
+        lastRun = 0;
+      },
     }
-  };
-  throttled.cancel = () => {
-    lastRun = 0;
-  };
+  );
   return throttled;
 }
 

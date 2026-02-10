@@ -294,7 +294,10 @@ export class BQueryCollection {
         return '';
       }
       const view = first.ownerDocument.defaultView;
-      return view ? view.getComputedStyle(first).getPropertyValue(property) : '';
+      if (!view || typeof view.getComputedStyle !== 'function') {
+        return '';
+      }
+      return view.getComputedStyle(first).getPropertyValue(property);
     }
 
     applyAll(this.elements, (el) => {
