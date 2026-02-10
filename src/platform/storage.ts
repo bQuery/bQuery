@@ -71,7 +71,14 @@ abstract class WebStorageAdapter implements StorageAdapter {
   }
 
   async keys(): Promise<string[]> {
-    return Object.keys(this.storage);
+    const result: string[] = [];
+    for (let i = 0; i < this.storage.length; i++) {
+      const key = this.storage.key(i);
+      if (key !== null) {
+        result.push(key);
+      }
+    }
+    return result;
   }
 }
 

@@ -328,4 +328,35 @@ describe('security/enhanced protections', () => {
       globalThis.window = originalWindow;
     }
   });
+
+  it('validates individual URLs in srcset attribute', () => {
+    const result = sanitizeHtml(
+      '<img srcset="safe.jpg 1x, javascript:alert(1) 2x">',
+      { allowAttributes: ['srcset'] }
+    );
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('srcset');
+  });
+
+  it('preserves safe srcset attributes', () => {
+    const result = sanitizeHtml('<img srcset="small.jpg 480w, large.jpg 1024w">');
+    expect(result).toContain('srcset');
+    expect(result).toContain('small.jpg');
+    expect(result).toContain('large.jpg');
+  });
+
+  it('removes form action with javascript: URL', () => {
+    const result = sanitizeHtml('<form action="javascript:alert(1)">content</form>', {
+      allowAttributes: ['action'],
+    });
+    expect(result).not.toContain('javascript:');
+    expect(result).not.toContain('action');
+  });
+
+  it('allows form action with safe URL when explicitly allowed', () => {
+    const result = sanitizeHtml('<form action="/submit">content</form>', {
+      allowAttributes: ['action'],
+    });
+    expect(result).toContain('action="/submit"');
+  });
 });

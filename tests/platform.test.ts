@@ -63,6 +63,30 @@ describe('platform/storage interface', () => {
     expect(typeof local.keys).toBe('function');
   });
 
+  it('local adapter keys() returns storage keys', async () => {
+    if (typeof localStorage === 'undefined') {
+      expect(true).toBe(true);
+      return;
+    }
+    const { storage } = await import('../src/platform/storage');
+    const local = storage.local();
+
+    // Use unique prefixed keys to avoid cross-test interference
+    const key1 = '__bquery_test_keys_1__';
+    const key2 = '__bquery_test_keys_2__';
+
+    await local.set(key1, 'value1');
+    await local.set(key2, 'value2');
+
+    const keys = await local.keys();
+    expect(keys).toContain(key1);
+    expect(keys).toContain(key2);
+
+    // Clean up only our test keys
+    await local.remove(key1);
+    await local.remove(key2);
+  });
+
   it('session adapter has required methods', async () => {
     // Skip in test environment without sessionStorage
     if (typeof sessionStorage === 'undefined') {

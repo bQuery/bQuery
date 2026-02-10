@@ -188,14 +188,23 @@ export const parseObjectExpression = (expression: string): Record<string, string
 
   for (let i = 0; i < inner.length; i++) {
     const char = inner[i];
-    const prevChar = i > 0 ? inner[i - 1] : '';
 
-    // Handle string literals (including escape sequences)
-    if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
-      if (inString === null) {
-        inString = char;
-      } else if (inString === char) {
-        inString = null;
+    // Handle string literals: count consecutive backslashes before a quote
+    // to correctly distinguish escaped quotes from end-of-string
+    if ((char === '"' || char === "'" || char === '`')) {
+      let backslashCount = 0;
+      let j = i - 1;
+      while (j >= 0 && inner[j] === '\\') {
+        backslashCount++;
+        j--;
+      }
+      // Quote is escaped only if preceded by an odd number of backslashes
+      if (backslashCount % 2 === 0) {
+        if (inString === null) {
+          inString = char;
+        } else if (inString === char) {
+          inString = null;
+        }
       }
       current += char;
       continue;
@@ -237,13 +246,20 @@ export const parseObjectExpression = (expression: string): Record<string, string
 
     for (let i = 0; i < part.length; i++) {
       const char = part[i];
-      const prevChar = i > 0 ? part[i - 1] : '';
 
-      if ((char === '"' || char === "'" || char === '`') && prevChar !== '\\') {
-        if (partInString === null) {
-          partInString = char;
-        } else if (partInString === char) {
-          partInString = null;
+      if ((char === '"' || char === "'" || char === '`')) {
+        let backslashCount = 0;
+        let j = i - 1;
+        while (j >= 0 && part[j] === '\\') {
+          backslashCount++;
+          j--;
+        }
+        if (backslashCount % 2 === 0) {
+          if (partInString === null) {
+            partInString = char;
+          } else if (partInString === char) {
+            partInString = null;
+          }
         }
         continue;
       }

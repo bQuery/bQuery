@@ -17,12 +17,21 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
   let cleanupFn: CleanupFn | void;
   let isDisposed = false;
 
+  const runCleanup = (): void => {
+    if (cleanupFn) {
+      try {
+        cleanupFn();
+      } catch (error) {
+        console.error('bQuery reactive: Error in effect cleanup', error);
+      }
+      cleanupFn = undefined;
+    }
+  };
+
   const observer: Observer = () => {
     if (isDisposed) return;
 
-    if (cleanupFn) {
-      cleanupFn();
-    }
+    runCleanup();
 
     // Clear old dependencies before running to avoid stale subscriptions
     clearDependencies(observer);
@@ -34,9 +43,7 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
 
   return () => {
     isDisposed = true;
-    if (cleanupFn) {
-      cleanupFn();
-    }
+    runCleanup();
     // Clean up all dependencies when effect is disposed
     clearDependencies(observer);
   };

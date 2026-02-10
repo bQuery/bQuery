@@ -62,7 +62,11 @@ export const scheduleObserver = (observer: Observer): void => {
 const flushObservers = (): void => {
   for (const observer of Array.from(pendingObservers)) {
     pendingObservers.delete(observer);
-    observer();
+    try {
+      observer();
+    } catch (error) {
+      console.error('bQuery reactive: Error in observer during batch flush', error);
+    }
   }
 };
 
@@ -71,6 +75,7 @@ export const beginBatch = (): void => {
 };
 
 export const endBatch = (): void => {
+  if (batchDepth <= 0) return;
   batchDepth -= 1;
   if (batchDepth === 0) {
     flushObservers();

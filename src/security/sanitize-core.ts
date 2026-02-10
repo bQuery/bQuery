@@ -81,6 +81,21 @@ const isSafeUrl = (value: string): boolean => {
 };
 
 /**
+ * Check if a srcset attribute value is safe.
+ * srcset contains comma-separated entries of "url [descriptor]".
+ * Each individual URL must be validated.
+ * @internal
+ */
+const isSafeSrcset = (value: string): boolean => {
+  const entries = value.split(',');
+  for (const entry of entries) {
+    const url = entry.trim().split(/\s+/)[0];
+    if (url && !isSafeUrl(url)) return false;
+  }
+  return true;
+};
+
+/**
  * Check if a URL is external (different origin).
  * @internal
  */
@@ -275,9 +290,15 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
 
       // Validate URL attributes
       if (
-        (attrName === 'href' || attrName === 'src' || attrName === 'srcset') &&
+        (attrName === 'href' || attrName === 'src' || attrName === 'action') &&
         !isSafeUrl(attr.value)
       ) {
+        attrsToRemove.push(attr.name);
+        continue;
+      }
+
+      // Validate srcset URLs individually
+      if (attrName === 'srcset' && !isSafeSrcset(attr.value)) {
         attrsToRemove.push(attr.name);
       }
     }

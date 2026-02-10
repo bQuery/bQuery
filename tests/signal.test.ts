@@ -184,6 +184,36 @@ describe('effect', () => {
     count.value = 1;
     expect(cleanupRan).toBe(true);
   });
+
+  it('handles cleanup function errors without breaking', () => {
+    const count = signal(0);
+    let effectRan = 0;
+
+    const originalError = console.error;
+    let errorCalls = 0;
+    console.error = () => {
+      errorCalls++;
+    };
+
+    try {
+      effect(() => {
+        void count.value;
+        effectRan++;
+        return () => {
+          throw new Error('cleanup error');
+        };
+      });
+
+      expect(effectRan).toBe(1);
+
+      // Should not throw; error in cleanup is caught and logged
+      count.value = 1;
+      expect(effectRan).toBe(2);
+      expect(errorCalls).toBeGreaterThan(0);
+    } finally {
+      console.error = originalError;
+    }
+  });
 });
 
 describe('batch', () => {
@@ -227,6 +257,76 @@ describe('batch', () => {
 
     // Only runs after outermost batch completes
     expect(runs).toBe(2);
+  });
+
+  it('continues flushing remaining observers when one throws', () => {
+    const a = signal(0);
+    const b = signal(0);
+    let aRan = 0;
+    let bRan = 0;
+
+    // First effect will throw in batch
+    effect(() => {
+      if (a.value > 0) throw new Error('observer error');
+      aRan++;
+    });
+
+    // Second effect should still run
+    effect(() => {
+      void b.value;
+      bRan++;
+    });
+
+    expect(aRan).toBe(1);
+    expect(bRan).toBe(1);
+
+    // Mock console.error to avoid noisy output and assert logging behavior
+    const originalError = console.error;
+    let errorCalls = 0;
+    console.error = () => {
+      errorCalls++;
+    };
+
+    try {
+      // Both signals update in a batch; first observer throws but second should still run.
+      // Batch itself should not throw, it should log via console.error instead.
+      expect(() => {
+        batch(() => {
+          a.value = 1;
+          b.value = 1;
+        });
+      }).not.toThrow();
+
+      expect(bRan).toBe(2);
+      expect(errorCalls).toBeGreaterThan(0);
+    } finally {
+      console.error = originalError;
+    }
+  });
+
+  it('recovers from endBatch underflow (no matching beginBatch)', async () => {
+    const { endBatch } = await import('../src/reactive/internals');
+    const count = signal(0);
+    let runs = 0;
+
+    effect(() => {
+      void count.value;
+      runs++;
+    });
+
+    expect(runs).toBe(1);
+
+    // Call endBatch without beginBatch — should not break batching
+    endBatch();
+
+    // Subsequent batch should still work correctly
+    batch(() => {
+      count.value = 1;
+      count.value = 2;
+    });
+
+    expect(runs).toBe(2);
+    expect(count.value).toBe(2);
   });
 });
 
