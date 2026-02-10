@@ -563,11 +563,13 @@ export class BQueryCollection {
    * ```
    */
   find(selector: string): BQueryCollection {
+    const seen = new Set<Element>();
     const results: Element[] = [];
     for (const el of this.elements) {
       const found = el.querySelectorAll(selector);
       for (let i = 0; i < found.length; i++) {
-        if (!results.includes(found[i])) {
+        if (!seen.has(found[i])) {
+          seen.add(found[i]);
           results.push(found[i]);
         }
       }
