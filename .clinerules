@@ -1,0 +1,46 @@
+# bQuery.js — Cline Rules
+
+You are working on bQuery.js (`@bquery/bquery`), a TypeScript-first, zero-build DOM library.
+
+## Before You Start
+
+- Read `AGENT.md` for the full architecture, module API tables, and common tasks.
+- All commands use Bun: `bun test`, `bun run build`, `bun run lint`.
+- Tests use `bun:test` imports and `happy-dom` for DOM simulation.
+
+## Core Invariants
+
+1. **Security by default**: Every method that writes HTML MUST call `sanitizeHtml()`.
+2. **Chainable**: Mutating methods return `this`.
+3. **Strict TypeScript**: `strict: true`, no unused locals/params.
+4. **Pure ESM**: No CommonJS in source code.
+5. **Zero dependencies**: No `dependencies` in package.json.
+
+## When Adding Code
+
+- Add JSDoc with `@example` to all public APIs.
+- Add tests to `tests/<module>.test.ts`.
+- Re-export new public symbols from `src/<module>/index.ts`.
+- If adding a new entry point → update `vite.config.ts` and `package.json` exports.
+- Run `bun test` and `bun run lint` before finishing.
+
+## Quick Reference
+
+| Selector | Behavior                                         |
+| -------- | ------------------------------------------------ |
+| `$()`    | Returns `BQueryElement`, **throws** if not found |
+| `$$()`   | Returns `BQueryCollection`, never throws         |
+
+| Signal API       | Behavior                        |
+| ---------------- | ------------------------------- |
+| `.value`         | Reads and **tracks** dependency |
+| `.peek()`        | Reads **without** tracking      |
+| `computed()`     | Read-only derived value         |
+| `linkedSignal()` | Read-write derived value        |
+
+## Files to Consult
+
+- `AGENT.md` — Full agent guide
+- `llms.txt` — Compact project summary
+- `.github/copilot-instructions.md` — Copilot context
+- `CHANGELOG.md` — Version history and recent changes

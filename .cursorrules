@@ -1,0 +1,52 @@
+# bQuery.js — Cursor Rules
+
+You are working on bQuery.js, a TypeScript-first, zero-build DOM library.
+
+## Critical Rules
+
+- Runtime: Bun (not Node). Use `bun test` for tests, `bun:test` imports.
+- TypeScript: strict mode, ES2020 target, Bundler module resolution.
+- Security: ALL DOM HTML writes MUST use `sanitizeHtml()` from `src/security/sanitize-core.ts`.
+- Chaining: Mutating methods on `BQueryElement` / `BQueryCollection` return `this`.
+- No runtime dependencies. Zero `dependencies` in package.json.
+- `$()` throws if element not found → use `$$()` for optional queries.
+- Signal `.value` tracks dependencies → use `.peek()` to avoid tracking.
+
+## Module Imports
+
+```ts
+import { $, $$ } from '@bquery/bquery/core';
+import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
+import { component, html } from '@bquery/bquery/component';
+import { animate, transition, spring } from '@bquery/bquery/motion';
+import { sanitizeHtml, escapeHtml } from '@bquery/bquery/security';
+import { storage, cache } from '@bquery/bquery/platform';
+import { createRouter, navigate } from '@bquery/bquery/router';
+import { createStore, defineStore } from '@bquery/bquery/store';
+import { mount } from '@bquery/bquery/view';
+```
+
+## Test Pattern
+
+```ts
+import { describe, expect, it } from 'bun:test';
+it('description', () => {
+  const el = document.createElement('div');
+  document.body.appendChild(el);
+  // test...
+  el.remove();
+});
+```
+
+## File Structure
+
+- Source: `src/<module>/index.ts` re-exports public API
+- Tests: `tests/<module>.test.ts`
+- Types: `src/<module>/types.ts`
+- Internal helpers: marked with `@internal` JSDoc
+
+## See Also
+
+- `AGENT.md` for full architecture and API reference
+- `llms.txt` for compact project overview
+- `.github/copilot-instructions.md` for Copilot-specific context

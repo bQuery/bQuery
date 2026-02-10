@@ -1,0 +1,87 @@
+# bQuery.js
+
+> The jQuery for the modern Web Platform.
+
+bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals), Web Components, motion/animation utilities, SPA routing, state management, declarative views — all with security-by-default HTML sanitization.
+
+## Package
+
+- npm: `@bquery/bquery`
+- Version: 1.4.0
+- License: MIT
+- Repository: https://github.com/bQuery/bQuery
+- Homepage: https://bQuery.flausch-code.de
+- Runtime: Browser (ESM, UMD, IIFE)
+- Build: Bun + Vite + TypeScript (strict)
+- Tests: Bun test runner with happy-dom
+
+## Modules
+
+bQuery is modular — import only what you need:
+
+### Core (`@bquery/bquery/core`)
+DOM selection, manipulation, events, utilities. `$()` selects one element (throws if missing), `$$()` selects multiple (never throws). Both return chainable wrapper objects (`BQueryElement` / `BQueryCollection`) with jQuery-style methods: `addClass`, `removeClass`, `css`, `attr`, `text`, `html`, `on`, `off`, `trigger`, `find`, `closest`, `append`, `prepend`, `wrap`, `unwrap`, `delegate`, `serialize`, `scrollTo`. Also exports utility functions: `debounce`, `throttle`, `once`, `chunk`, `merge`, `clone`, `pick`, `omit`, `slugify`, `uid`, `sleep`, `clamp`, and type guards (`isArray`, `isString`, `isElement`, etc.).
+
+### Reactive (`@bquery/bquery/reactive`)
+Fine-grained reactivity system. `signal(value)` creates a reactive value. `computed(fn)` derives values with auto-tracking. `effect(fn)` runs side effects. `batch(fn)` groups updates. `watch(signal, callback)` observes changes. `linkedSignal(get, set)` creates writable computed values. `persistedSignal(key, init)` syncs to localStorage. `readonly(signal)` creates a read-only wrapper. Access via `.value` (tracks), `.peek()` (no tracking).
+
+### Component (`@bquery/bquery/component`)
+Lightweight Web Components helper. `component(tag, definition)` creates and auto-registers a custom element with typed props, Shadow DOM, lifecycle hooks (`connected`, `disconnected`, `beforeMount`, `beforeUpdate`, `onError`), and automatic HTML sanitization of rendered output. `defineComponent()` returns the class without registering. `html` tagged template for markup.
+
+### Motion (`@bquery/bquery/motion`)
+Animation utilities. `animate()` wraps the Web Animations API. `transition()` uses View Transitions API with fallback. `flip()` / `flipElements()` for FLIP animations. `spring()` for spring physics. `timeline()` and `sequence()` for choreographed animations. `stagger()` for staggered timing. `scrollAnimate()` for scroll-triggered animations. Includes `keyframePresets` and `easingPresets`. Respects `prefersReducedMotion()`.
+
+### Security (`@bquery/bquery/security`)
+HTML sanitization enabled by default across the library. `sanitizeHtml(html)` strips dangerous elements (script, iframe, svg, etc.), blocks DOM clobbering (reserved IDs), protects against Unicode URL bypasses, adds `rel="noopener noreferrer"` to external links. Also: `escapeHtml()`, `stripTags()`, `generateNonce()`, Trusted Types support, CSP helpers.
+
+### Platform (`@bquery/bquery/platform`)
+Browser API wrappers. `storage` provides unified localStorage/sessionStorage/IndexedDB access. `cache` for TTL-based caching. `notifications` wraps the Notifications API. `buckets` for rate limiting.
+
+### Router (`@bquery/bquery/router`)
+SPA routing. `createRouter(options)` sets up routes with path matching, parameters, and wildcards. `navigate(path)` for programmatic navigation. Supports navigation guards (`beforeEach` / `afterEach`), hash mode, base path, and `currentRoute` as a reactive signal. `interceptLinks()` auto-handles `<a>` clicks.
+
+### Store (`@bquery/bquery/store`)
+Signal-based state management. `createStore(definition)` creates a store with state, getters, and actions. `defineStore()` for factory-style (Pinia-like) stores. `createPersistedStore()` for localStorage persistence. Supports plugins, subscriptions, `$patch`, `$reset`. Helpers: `mapActions`, `mapGetters`, `mapState`, `watchStore`.
+
+### View (`@bquery/bquery/view`)
+Declarative DOM bindings. `mount(selector, context)` binds reactive state to DOM using directives: `bq-text`, `bq-html`, `bq-if`, `bq-for`, `bq-model` (two-way), `bq-class`, `bq-style`, `bq-show`, `bq-bind`, `bq-on:event`. Uses `new Function()` internally (requires CSP `unsafe-eval`).
+
+## Installation
+
+```bash
+bun add @bquery/bquery    # or npm/pnpm
+```
+
+CDN (zero-build):
+```html
+<script type="module">
+  import { $, signal } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
+</script>
+```
+
+## Development
+
+```bash
+bun install        # Install dependencies
+bun test           # Run tests
+bun run build      # Build library
+bun run lint       # Lint with auto-fix
+bun run dev        # Docs dev server
+bun run playground # Playground dev server
+```
+
+## Key Design Decisions
+
+- Security by default: all DOM HTML writes are sanitized
+- Chainable API: mutating methods return `this`
+- Zero runtime dependencies
+- Tree-shakeable with separate entry points per module
+- Strict TypeScript throughout
+- Tests use Bun runner (not Node)
+
+## Documentation
+
+- Full guide: https://bQuery.flausch-code.de
+- Agent guide: AGENT.md
+- API reference: docs/guide/api-core.md
+- Changelog: CHANGELOG.md

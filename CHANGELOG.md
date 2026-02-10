@@ -8,6 +8,10 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.4.0\] - 2026-02-10](#140---2026-02-10)
+    - [Added (1.4.0)](#added-140)
+    - [Fixed (1.4.0)](#fixed-140)
+    - [Security (1.4.0)](#security-140)
   - [\[1.3.0\] - 2026-01-26](#130---2026-01-26)
     - [Added (1.3.0)](#added-130)
     - [Changed (1.3.0)](#changed-130)
@@ -29,6 +33,31 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.4.0] - 2026-02-10
+
+### Added (1.4.0)
+
+- **Core**: `css()` on `BQueryElement` and `BQueryCollection` now acts as a getter when called with a single property name, returning the computed style value via `getComputedStyle()`. TypeScript overload signatures distinguish getter (`string`) from setter (`this`).
+- **Core**: `is(selector)` method on `BQueryElement` as a jQuery-style alias for `matches()`.
+- **Core**: `find(selector)` method on `BQueryCollection` to query descendant elements matching a CSS selector across all elements, with automatic deduplication via `Set`.
+- **Core**: `debounce()` and `throttle()` now return enhanced functions with a `.cancel()` method — `debounce.cancel()` clears the pending timeout, `throttle.cancel()` resets the throttle timer allowing immediate re-execution.
+- **Core**: Exported `DebouncedFn<TArgs>` and `ThrottledFn<TArgs>` interfaces from `@bquery/bquery/core` for typed usage of cancellable debounced/throttled functions.
+- **Reactive**: `Signal.dispose()` method to remove all subscribers from a signal, preventing memory leaks when a signal is no longer needed. Also cleans up observer dependency references bidirectionally.
+
+### Fixed (1.4.0)
+
+- **Reactive**: `effect()` now catches errors thrown inside the effect body and logs them via `console.error` instead of crashing the reactive system. Subsequent signal updates continue to trigger the effect.
+- **Reactive**: Effect cleanup functions are now wrapped in try/catch — errors during cleanup are caught and logged rather than propagating and breaking the reactive graph.
+- **Reactive**: Batch flush (`flushObservers()`) now catches errors thrown by individual observers and continues executing remaining pending observers, preventing a single failing observer from blocking others.
+- **Reactive**: `endBatch()` now guards against underflow — calling `endBatch()` without a matching `beginBatch()` is a safe no-op instead of decrementing `batchDepth` below zero.
+- **Platform**: `WebStorageAdapter.keys()` now uses the spec-compliant `Storage.key(index)` iteration API instead of `Object.keys()`, which is more reliable across environments (e.g., happy-dom, Safari).
+- **View**: `parseObjectExpression()` now correctly handles escaped backslashes before quotes by counting consecutive backslashes — a double backslash (`\\`) before a quote no longer incorrectly treats the quote as escaped, fixing edge cases in `bq-class` and `bq-style` object expressions.
+
+### Security (1.4.0)
+
+- `srcset` attributes are now validated per-URL rather than as a single URL string, correctly catching `javascript:` URLs embedded in responsive image descriptors (e.g., `"safe.jpg 1x, javascript:alert(1) 2x"`).
+- `action` attribute on `<form>` elements is now validated as a URL attribute (like `href`/`src`), preventing `javascript:` protocol URLs in form actions.
 
 ## [1.3.0] - 2026-01-26
 

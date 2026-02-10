@@ -62,7 +62,9 @@ All mutating methods are chainable and return `this`.
 
 ### Style & visibility
 
-- `css(property, value?)`
+- `css(property)` – getter: returns computed style value via `getComputedStyle()`
+- `css(property, value)` – setter: sets a single CSS property
+- `css(properties)` – setter: sets multiple CSS properties from an object
 - `show(display?)`
 - `hide()`
 - `toggle(force?)`
@@ -86,6 +88,30 @@ $('#list').delegate('click', '.item', (event, target) => {
 });
 ```
 
+### CSS Getter
+
+The `css()` method works as a getter when called with a single property name:
+
+```ts
+// Get computed style value
+const color = $('#box').css('color');
+
+// Set styles (chainable)
+$('#box').css('color', 'red');
+$('#box').css({ color: 'red', 'font-size': '16px' });
+```
+
+### Selector Matching
+
+```ts
+if ($('#el').is('.active')) {
+  console.log('Element is active');
+}
+
+// Equivalent to
+$('#el').matches('.active');
+```
+
 ### Traversal & utilities
 
 - `find(selector)`
@@ -97,6 +123,7 @@ $('#list').delegate('click', '.item', (event, target) => {
 - `next()`
 - `prev()`
 - `matches(selector)`
+- `is(selector)` – alias for `matches()`
 - `clone(deep?)`
 - `val(newValue?)`
 - `rect()`
@@ -160,6 +187,12 @@ All mutating methods are chainable and apply to every element. Getter methods re
 - `filter(predicate)`
 - `reduce(callback, initialValue)`
 - `toArray()`
+- `find(selector)` – query all descendant elements matching a selector across all collection elements (deduplicates shared descendants)
+
+```ts
+// Find all .item descendants across multiple containers
+$$('.container').find('.item').addClass('highlight');
+```
 
 ### DOM & class helpers
 
@@ -179,7 +212,9 @@ All mutating methods are chainable and apply to every element. Getter methods re
 - `wrap(wrapper)`
 - `unwrap()`
 - `replaceWith(content)`
-- `css(property, value?)`
+- `css(property)` – getter: returns computed style value (first element)
+- `css(property, value)` – setter: sets a single CSS property
+- `css(properties)` – setter: sets an object of properties
 - `show(display?)`
 - `hide()`
 - `remove()`
@@ -196,11 +231,16 @@ All mutating methods are chainable and apply to every element. Getter methods re
 ## Utilities
 
 ```ts
-import { debounce, merge, uid, utils } from '@bquery/bquery/core';
+import { debounce, throttle, merge, uid, utils } from '@bquery/bquery/core';
 
 const id = uid();
 const merged = merge({ a: 1 }, { b: 2 });
 const delayed = debounce(() => console.log('Saved'), 200);
+delayed.cancel(); // Cancel pending invocation
+
+const scrollHandler = throttle(() => console.log('Scroll'), 100);
+scrollHandler.cancel(); // Reset throttle, next call executes immediately
+
 const legacyId = utils.uid();
 ```
 
@@ -211,8 +251,8 @@ const legacyId = utils.uid();
 - `pick(obj, keys)`
 - `omit(obj, keys)`
 - `hasOwn(obj, key)`
-- `debounce(fn, delayMs)`
-- `throttle(fn, intervalMs)`
+- `debounce(fn, delayMs)` – returns `DebouncedFn` with `.cancel()` method
+- `throttle(fn, intervalMs)` – returns `ThrottledFn` with `.cancel()` method
 - `once(fn)`
 - `noop()`
 - `uid(prefix?)`

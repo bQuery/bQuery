@@ -49,6 +49,25 @@ Reserved IDs and names are stripped to prevent DOM clobbering attacks:
 sanitize('<form id="cookie">...</form>');
 ```
 
+### Srcset Validation
+
+`srcset` attributes are validated per-URL to catch `javascript:` URLs embedded in responsive image descriptors:
+
+```ts
+// Each URL in srcset is validated individually
+sanitize('<img srcset="safe.jpg 1x, javascript:alert(1) 2x">');
+// Result: dangerous URL entry removed
+```
+
+### Form Action Validation
+
+The `action` attribute on `<form>` elements is validated as a URL attribute, blocking `javascript:` protocol URLs:
+
+```ts
+sanitize('<form action="javascript:alert(1)">...</form>');
+// Result: action attribute removed
+```
+
 ### Unicode Bypass Protection
 
 Zero-width Unicode characters are stripped from URLs to prevent bypass attacks:

@@ -45,6 +45,21 @@ name.value = 'bQuery';
 - `value` (getter/setter) – tracked reads, reactive writes
 - `peek()` – read without tracking
 - `update(updater)` – update based on current value
+- `dispose()` – remove all subscribers, preventing memory leaks
+
+### Disposing a Signal
+
+When a signal is no longer needed, call `dispose()` to clean up all subscribers and prevent memory leaks:
+
+```ts
+const count = signal(0);
+
+const stop = effect(() => {
+  console.log(count.value);
+});
+
+count.dispose(); // All subscribers removed, effect no longer tracks this signal
+```
 
 ## Computed
 
@@ -61,6 +76,8 @@ const total = computed(() => price.value * quantity.value);
 ## Effect
 
 Effects run immediately and re-run when any accessed signal/computed changes. They can return a cleanup function.
+
+Errors thrown inside effects are caught and logged via `console.error` — the reactive system remains functional, and subsequent signal updates continue to trigger the effect.
 
 ```ts
 const stop = effect(() => {

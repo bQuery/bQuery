@@ -133,6 +133,14 @@ $('#list').delegate('click', '.item', (event, target) => {
 // Method chaining
 $('#box').addClass('active').css({ opacity: '0.8' }).attr('data-state', 'ready');
 
+// CSS getter (computed style)
+const color = $('#box').css('color'); // Returns computed style value
+
+// Selector matching
+if ($('#el').is('.active')) {
+  console.log('Element is active');
+}
+
 // DOM manipulation
 $('#content').wrap('div');
 $('#content').unwrap(); // Remove parent wrapper
@@ -150,6 +158,7 @@ const queryString = $('form').serializeString(); // Returns URL-encoded string
 // Collections
 $$('.items').addClass('highlight');
 $$('.items').append('<li class="item">New</li>');
+$$('.container').find('.item').addClass('found'); // Find descendants across collection
 ```
 
 ### Reactive – signals
@@ -185,6 +194,9 @@ batch(() => {
   count.value++;
   count.value++;
 });
+
+// Dispose signal (remove all subscribers)
+count.dispose();
 
 // Writable computed (linked signal)
 const first = signal('Ada');
@@ -280,6 +292,12 @@ const urlSafe = sanitize('<a href="java\u200Bscript:alert(1)">click</a>');
 
 // Automatic link security (adds rel="noopener noreferrer" to external/target="_blank" links)
 const secureLink = sanitize('<a href="https://external.com" target="_blank">Link</a>');
+
+// srcset validation (per-URL, catches javascript: in responsive image descriptors)
+const safeSrcset = sanitize('<img srcset="safe.jpg 1x, javascript:alert(1) 2x">');
+
+// Form action validation (blocks javascript: protocol)
+const safeForm = sanitize('<form action="javascript:alert(1)">...</form>');
 
 // Escape for text display
 const escaped = escapeHtml('<script>alert(1)</script>');
@@ -495,6 +513,14 @@ bQuery.js
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## AI Agent Support
+
+This project provides dedicated context files for AI coding agents:
+
+- **[AGENT.md](AGENT.md)** — Architecture, module API reference, coding conventions, common tasks
+- **[llms.txt](llms.txt)** — Compact LLM-optimized project summary
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — GitHub Copilot context
 
 ## License
 
