@@ -189,19 +189,30 @@ describe('effect', () => {
     const count = signal(0);
     let effectRan = 0;
 
-    effect(() => {
-      void count.value;
-      effectRan++;
-      return () => {
-        throw new Error('cleanup error');
-      };
-    });
+    const originalError = console.error;
+    let errorCalls = 0;
+    console.error = () => {
+      errorCalls++;
+    };
 
-    expect(effectRan).toBe(1);
+    try {
+      effect(() => {
+        void count.value;
+        effectRan++;
+        return () => {
+          throw new Error('cleanup error');
+        };
+      });
 
-    // Should not throw; error in cleanup is caught
-    count.value = 1;
-    expect(effectRan).toBe(2);
+      expect(effectRan).toBe(1);
+
+      // Should not throw; error in cleanup is caught and logged
+      count.value = 1;
+      expect(effectRan).toBe(2);
+      expect(errorCalls).toBeGreaterThan(0);
+    } finally {
+      console.error = originalError;
+    }
   });
 });
 
@@ -269,13 +280,28 @@ describe('batch', () => {
     expect(aRan).toBe(1);
     expect(bRan).toBe(1);
 
-    // Both signals update in a batch; first observer throws but second should still run
-    batch(() => {
-      a.value = 1;
-      b.value = 1;
-    });
+    // Mock console.error to avoid noisy output and assert logging behavior
+    const originalError = console.error;
+    let errorCalls = 0;
+    console.error = () => {
+      errorCalls++;
+    };
 
-    expect(bRan).toBe(2);
+    try {
+      // Both signals update in a batch; first observer throws but second should still run.
+      // Batch itself should not throw, it should log via console.error instead.
+      expect(() => {
+        batch(() => {
+          a.value = 1;
+          b.value = 1;
+        });
+      }).not.toThrow();
+
+      expect(bRan).toBe(2);
+      expect(errorCalls).toBeGreaterThan(0);
+    } finally {
+      console.error = originalError;
+    }
   });
 
   it('recovers from endBatch underflow (no matching beginBatch)', async () => {
