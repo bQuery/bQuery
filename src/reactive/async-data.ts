@@ -9,6 +9,7 @@ import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
 import { computed } from './computed';
 import { effect } from './effect';
 import { Signal, signal } from './core';
+import { untrack } from './untrack';
 
 /** Allowed status values for async composables. */
 export type AsyncDataStatus = 'idle' | 'pending' | 'success' | 'error';
@@ -154,7 +155,7 @@ const toUrl = (input: string | URL, baseUrl?: string): URL => {
     typeof window !== 'undefined' && /^https?:/i.test(window.location.href)
       ? window.location.href
       : 'http://localhost';
-  const base = baseUrl ?? runtimeBase;
+  const base = baseUrl ? new URL(baseUrl, runtimeBase).toString() : runtimeBase;
   return input instanceof URL ? new URL(input.toString(), base) : new URL(input, base);
 };
 
@@ -271,12 +272,12 @@ export const useAsyncData = <TResult, TData = TResult>(
       if (!initialized) {
         initialized = true;
         if (immediate) {
-          void execute();
+          void untrack(() => execute());
         }
         return;
       }
 
-      void execute();
+      void untrack(() => execute());
     });
   } else if (immediate) {
     void execute();

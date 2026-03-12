@@ -805,6 +805,42 @@ describe('useAsyncData', () => {
     expect(resultAfterDispose).toBe('/second');
     expect(seen).toEqual(['/second']);
   });
+
+  it('tracks only explicit watch sources during watched refreshes', async () => {
+    const endpoint = signal('/first');
+    const dependency = signal('alpha');
+    const seen: string[] = [];
+
+    const state = useAsyncData(
+      async () => {
+        seen.push(`${endpoint.value}:${dependency.value}`);
+        return dependency.value;
+      },
+      {
+        immediate: false,
+        watch: [endpoint],
+      }
+    );
+
+    expect(state.status.value).toBe('idle');
+    expect(state.data.value).toBeUndefined();
+    expect(state.error.value).toBeNull();
+
+    endpoint.value = '/second';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second:alpha']);
+
+    dependency.value = 'beta';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second:alpha']);
+
+    endpoint.value = '/third';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second:alpha', '/third:beta']);
+  });
 });
 
 describe('useFetch', () => {
@@ -906,6 +942,43 @@ describe('useFetch', () => {
     expect(capturedContentType).toBe('text/plain');
     expect(capturedRequestId).toBe('123');
     expect(capturedAuth).toBe('Bearer request-token');
+  });
+
+  it('resolves relative base URLs against the runtime base URL', async () => {
+    let capturedUrl = '';
+
+    const state = useFetch<{ ok: boolean }>('users', {
+      baseUrl: '/api/',
+      immediate: false,
+      fetcher: async (input) => {
+        capturedUrl = String(input);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedUrl).toBe('http://localhost/api/users');
+    expect(state.data.value).toEqual({ ok: true });
+  });
+
+  it('preserves absolute base URLs when resolving request URLs', async () => {
+    let capturedUrl = '';
+
+    const state = useFetch<{ ok: boolean }>('users', {
+      baseUrl: 'https://example.com/api/',
+      immediate: false,
+      fetcher: async (input) => {
+        capturedUrl = String(input);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedUrl).toBe('https://example.com/api/users');
+    expect(state.status.value).toBe('success');
+    expect(state.data.value).toEqual({ ok: true });
   });
 
   it('returns the cached value after dispose()', async () => {
