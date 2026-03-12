@@ -862,6 +862,22 @@ describe('component/registerDefaultComponents', () => {
     expect(() => registerDefaultComponents({ prefix })).not.toThrow();
   });
 
+  it('renders button labels from observed attributes for Storybook controls', () => {
+    const prefix = `story${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const button = document.createElement(tags.button);
+    button.setAttribute('label', 'Continue');
+    document.body.appendChild(button);
+
+    expect(button.shadowRoot?.textContent).toContain('Continue');
+
+    button.setAttribute('label', 'Updated label');
+    expect(button.shadowRoot?.textContent).toContain('Updated label');
+
+    button.remove();
+  });
+
   it('keeps form components interactive without external dependencies', () => {
     const prefix = `kit${Date.now()}`;
     const tags = registerDefaultComponents({ prefix });

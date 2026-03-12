@@ -116,7 +116,6 @@ export const DANGEROUS_TAGS = new Set([
   'style',
   'base',
   'template',
-  'slot',
   'math',
   'svg',
   'foreignobject',

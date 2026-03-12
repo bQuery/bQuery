@@ -206,7 +206,10 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
           emit,
         });
 
-        const sanitizedMarkup = sanitizeHtml(markup);
+        const sanitizedMarkup = sanitizeHtml(markup, {
+          allowTags: ['slot'],
+          allowAttributes: ['part'],
+        });
         this.shadowRoot.innerHTML = sanitizedMarkup;
 
         if (definition.styles) {
