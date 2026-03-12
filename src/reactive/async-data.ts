@@ -327,7 +327,11 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       appendQuery(requestUrl, options.query);
     }
 
-    const headers = toHeaders(fetchConfig?.headers, options.headers);
+    const headers = toHeaders(
+      requestInput instanceof Request ? requestInput.headers : undefined,
+      fetchConfig?.headers,
+      options.headers
+    );
     const requestInit: RequestInit = {
       ...options,
       headers,

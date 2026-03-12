@@ -875,6 +875,39 @@ describe('useFetch', () => {
     expect(contentTypes).toEqual(['application/json', 'application/json']);
   });
 
+  it('preserves existing headers when input is a Request', async () => {
+    let capturedContentType = '';
+    let capturedRequestId = '';
+    let capturedAuth = '';
+
+    const request = new Request('https://example.com/api/save', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer request-token',
+        'content-type': 'text/plain',
+      },
+      body: 'existing body',
+    });
+
+    const state = useFetch<{ saved: boolean }>(request, {
+      immediate: false,
+      headers: { 'x-request-id': '123' },
+      fetcher: async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        capturedContentType = headers.get('content-type') ?? '';
+        capturedRequestId = headers.get('x-request-id') ?? '';
+        capturedAuth = headers.get('authorization') ?? '';
+        return new Response(JSON.stringify({ saved: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedContentType).toBe('text/plain');
+    expect(capturedRequestId).toBe('123');
+    expect(capturedAuth).toBe('Bearer request-token');
+  });
+
   it('returns the cached value after dispose()', async () => {
     const calls: string[] = [];
     const state = useFetch<{ ok: boolean }>('/api/users', {
