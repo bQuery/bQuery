@@ -5,17 +5,17 @@
 
 ## Identity
 
-| Field       | Value                                                                                                                                              |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Name        | bQuery.js                                                                                                                                          |
-| Package     | `@bquery/bquery`                                                                                                                                   |
-| Version     | 1.4.0                                                                                                                                              |
-| License     | MIT                                                                                                                                                |
-| Language    | TypeScript (strict)                                                                                                                                |
-| Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                       |
-| Repository  | <https://github.com/bQuery/bQuery>                                                                                                                 |
-| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                   |
-| Description | jQuery-style DOM library with reactivity, Web Components, motion, routing, stores, and declarative views — zero-build capable, security-by-default |
+| Field       | Value                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name        | bQuery.js                                                                                                                                                                             |
+| Package     | `@bquery/bquery`                                                                                                                                                                      |
+| Version     | 1.5.0                                                                                                                                                                                 |
+| License     | MIT                                                                                                                                                                                   |
+| Language    | TypeScript (strict)                                                                                                                                                                   |
+| Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                          |
+| Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                    |
+| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                      |
+| Description | jQuery-style DOM library with reactivity, async data, Web Components, motion, routing, stores, declarative views, and shared runtime config — zero-build capable, security-by-default |
 
 ---
 
@@ -40,11 +40,11 @@ src/
 ├── index.ts            # Default entry — re-exports all modules
 ├── full.ts             # Full bundle with explicit named exports (CDN)
 ├── core/               # $, $$, BQueryElement, BQueryCollection, utils
-├── reactive/           # signal, computed, effect, batch, watch, linkedSignal
-├── component/          # component(), defineComponent(), html template tag
+├── reactive/           # signal, computed, effect, batch, watch, async data/fetch
+├── component/          # component(), defineComponent(), html template tag, defaults
 ├── motion/             # animate, transition, flip, spring, timeline, scroll
 ├── security/           # sanitizeHtml, escapeHtml, Trusted Types, CSP
-├── platform/           # storage, cache, notifications, buckets
+├── platform/           # storage, cache, cookies, announcers, page meta, config
 ├── router/             # createRouter, navigate, guards, currentRoute
 ├── store/              # createStore, defineStore, plugins, persistence
 └── view/               # mount(), bq-* directives, declarative DOM bindings
@@ -80,44 +80,48 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 
 ### Reactive (`@bquery/bquery/reactive`)
 
-| Export                       | Kind      | Description                                   |
-| ---------------------------- | --------- | --------------------------------------------- |
-| `signal(init)`               | function  | Create a reactive signal                      |
-| `computed(fn)`               | function  | Derived value that auto-tracks dependencies   |
-| `effect(fn)`                 | function  | Side-effect that re-runs on dependency change |
-| `batch(fn)`                  | function  | Group multiple signal writes, notify once     |
-| `watch(src, cb)`             | function  | Watch a signal with old/new values + cleanup  |
-| `untrack(fn)`                | function  | Read signals without tracking                 |
-| `linkedSignal(get, set)`     | function  | Writable computed (bidirectional)             |
-| `persistedSignal(key, init)` | function  | Signal persisted to localStorage              |
-| `readonly(sig)`              | function  | Read-only wrapper around a signal             |
-| `isSignal`, `isComputed`     | functions | Type guards                                   |
-| `Signal`, `Computed`         | classes   | Signal and Computed value classes             |
+| Export                       | Kind      | Description                                                   |
+| ---------------------------- | --------- | ------------------------------------------------------------- |
+| `signal(init)`               | function  | Create a reactive signal                                      |
+| `computed(fn)`               | function  | Derived value that auto-tracks dependencies                   |
+| `effect(fn)`                 | function  | Side-effect that re-runs on dependency change                 |
+| `batch(fn)`                  | function  | Group multiple signal writes, notify once                     |
+| `watch(src, cb)`             | function  | Watch a signal with old/new values + cleanup                  |
+| `untrack(fn)`                | function  | Read signals without tracking                                 |
+| `linkedSignal(get, set)`     | function  | Writable computed (bidirectional)                             |
+| `persistedSignal(key, init)` | function  | Signal persisted to localStorage                              |
+| `useAsyncData(handler)`      | function  | Reactive async lifecycle wrapper with `status`, `error`, etc. |
+| `useFetch(input, options)`   | function  | Fetch composable with query/header/body helpers               |
+| `createUseFetch(defaults)`   | function  | Factory for preconfigured fetch composables                   |
+| `readonly(sig)`              | function  | Read-only wrapper around a signal                             |
+| `isSignal`, `isComputed`     | functions | Type guards                                                   |
+| `Signal`, `Computed`         | classes   | Signal and Computed value classes                             |
 
 ### Component (`@bquery/bquery/component`)
 
-| Export                      | Kind     | Description                                    |
-| --------------------------- | -------- | ---------------------------------------------- |
-| `component(tag, def)`       | function | Define + auto-register a Web Component         |
-| `defineComponent(tag, def)` | function | Define a component class (manual registration) |
-| `html`                      | tag fn   | Tagged template for component markup           |
-| `safeHtml`                  | function | Sanitized HTML string helper                   |
+| Export                        | Kind     | Description                                          |
+| ----------------------------- | -------- | ---------------------------------------------------- |
+| `component(tag, def)`         | function | Define + auto-register a Web Component               |
+| `defineComponent(tag, def)`   | function | Define a component class (manual registration)       |
+| `registerDefaultComponents()` | function | Register the default button/card/input UI primitives |
+| `html`                        | tag fn   | Tagged template for component markup                 |
+| `safeHtml`                    | function | Sanitized HTML string helper                         |
 
 ### Motion (`@bquery/bquery/motion`)
 
-| Export                               | Kind      | Description                                 |
-| ------------------------------------ | --------- | ------------------------------------------- |
-| `animate(el, opts)`                  | function  | Web Animations API wrapper                  |
-| `transition(fn)`                     | function  | View Transitions API with fallback          |
-| `flip` / `flipElements` / `flipList` | functions | FLIP animation helpers                      |
-| `spring(init, config)`               | function  | Spring physics animation                    |
-| `timeline(steps)`                    | function  | Sequenced animation timeline                |
-| `sequence(steps)`                    | function  | Run animations in order                     |
-| `stagger(fn, opts)`                  | function  | Staggered timing for collections            |
-| `scrollAnimate(el, opts)`            | function  | Intersection Observer + animation           |
-| `keyframePresets`                    | object    | Pre-built keyframe sets (pop, fadeIn, etc.) |
-| `easingPresets`                      | object    | Named easing functions                      |
-| `prefersReducedMotion()`             | function  | Check user's motion preference              |
+| Export                               | Kind      | Description                                  |
+| ------------------------------------ | --------- | -------------------------------------------- |
+| `animate(el, opts)`                  | function  | Web Animations API wrapper                   |
+| `transition(fn \| options)`          | function  | View Transitions API with fallback + options |
+| `flip` / `flipElements` / `flipList` | functions | FLIP animation helpers                       |
+| `spring(init, config)`               | function  | Spring physics animation                     |
+| `timeline(steps)`                    | function  | Sequenced animation timeline                 |
+| `sequence(steps)`                    | function  | Run animations in order                      |
+| `stagger(fn, opts)`                  | function  | Staggered timing for collections             |
+| `scrollAnimate(el, opts)`            | function  | Intersection Observer + animation            |
+| `keyframePresets`                    | object    | Pre-built keyframe sets (pop, fadeIn, etc.)  |
+| `easingPresets`                      | object    | Named easing functions                       |
+| `prefersReducedMotion()`             | function  | Check user's motion preference               |
 
 ### Security (`@bquery/bquery/security`)
 
@@ -134,12 +138,17 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 
 ### Platform (`@bquery/bquery/platform`)
 
-| Export          | Kind     | Description                                               |
-| --------------- | -------- | --------------------------------------------------------- |
-| `storage`       | object   | Unified API for localStorage / sessionStorage / IndexedDB |
-| `cache`         | function | TTL-based in-memory and persistent cache                  |
-| `notifications` | object   | Browser Notifications API wrapper                         |
-| `buckets`       | function | Rate limiting / token bucket utility                      |
+| Export                       | Kind     | Description                                               |
+| ---------------------------- | -------- | --------------------------------------------------------- |
+| `storage`                    | object   | Unified API for localStorage / sessionStorage / IndexedDB |
+| `cache`                      | function | TTL-based in-memory and persistent cache                  |
+| `notifications`              | object   | Browser Notifications API wrapper                         |
+| `buckets`                    | function | Rate limiting / token bucket utility                      |
+| `defineBqueryConfig(config)` | function | Set shared runtime defaults across modules                |
+| `getBqueryConfig()`          | function | Read the resolved global config snapshot                  |
+| `useCookie(name, options)`   | function | Reactive cookie-backed signal                             |
+| `definePageMeta(definition)` | function | Manage document title, meta/link tags, and attrs          |
+| `useAnnouncer(options)`      | function | Accessible live-region announcer                          |
 
 ### Router (`@bquery/bquery/router`)
 
@@ -190,6 +199,7 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 5. **Tree-shakeable** — `"sideEffects": false`. Each module is a separate entry point.
 6. **Strict TypeScript** — `strict: true`, `noUnusedLocals`, `noUnusedParameters`.
 7. **No runtime dependencies** — Zero `dependencies` in package.json.
+8. **Shared runtime config** — Cross-module defaults flow through `defineBqueryConfig()` instead of ad-hoc globals.
 
 ---
 
@@ -256,6 +266,14 @@ it('should add class', () => {
 4. Add test in `tests/signal.test.ts`
 5. Run `bun test`
 
+### Updating runtime-config-aware APIs
+
+1. Check `src/platform/config.ts` for existing config surfaces and defaults
+2. Wire new defaults through the consuming module instead of duplicating config state
+3. Export any new public config types from `src/platform/index.ts` and `src/full.ts`
+4. Document the behavior in the relevant guide and in `README.md`
+5. Run `bun test`
+
 ### Adding a new module
 
 1. Create `src/<module>/` directory with `index.ts` + implementation files
@@ -285,6 +303,7 @@ it('should add class', () => {
 | `tsconfig.json`                 | TypeScript config (strict, ES2020, Bundler)    |
 | `tsconfig.test.json`            | Test-specific TypeScript config                |
 | `eslint.config.js`              | ESLint flat config                             |
+| `.storybook/main.ts`            | Storybook builder/configuration                |
 | `tests/setup.ts`                | DOM polyfills for test environment (happy-dom) |
 | `src/security/sanitize-core.ts` | Core HTML sanitization logic                   |
 | `package.json`                  | Package config, scripts, export maps           |
@@ -293,15 +312,16 @@ it('should add class', () => {
 
 ## Common Pitfalls
 
-| Pitfall                      | Explanation                                                    |
-| ---------------------------- | -------------------------------------------------------------- |
-| `$()` throws                 | Use `$$()` for optional/missing elements                       |
-| Forgetting sanitization      | ALL new DOM-writing methods must call `sanitizeHtml()`         |
-| Signal `.value` tracks       | Use `.peek()` to read without subscribing in computed/effect   |
-| Testing with Node            | Use `bun test` only — Bun-specific APIs are used               |
-| CSP with View module         | `mount()` uses `new Function()` → needs `'unsafe-eval'`        |
-| Double renders in components | `attributeChangedCallback` only re-renders after initial mount |
-| `linkedSignal` vs `computed` | `computed` is read-only; `linkedSignal` is read-write          |
+| Pitfall                      | Explanation                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `$()` throws                 | Use `$$()` for optional/missing elements                                                                      |
+| Forgetting sanitization      | ALL new DOM-writing methods must call `sanitizeHtml()`                                                        |
+| Signal `.value` tracks       | Use `.peek()` to read without subscribing in computed/effect                                                  |
+| Disposed async state         | `useAsyncData()` / `useFetch()` return cached data after `dispose()` and should not be re-used for fresh work |
+| Testing with Node            | Use `bun test` only — Bun-specific APIs are used                                                              |
+| CSP with View module         | `mount()` uses `new Function()` → needs `'unsafe-eval'`                                                       |
+| Double renders in components | `attributeChangedCallback` only re-renders after initial mount                                                |
+| `linkedSignal` vs `computed` | `computed` is read-only; `linkedSignal` is read-write                                                         |
 
 ---
 

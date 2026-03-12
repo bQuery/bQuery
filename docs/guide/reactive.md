@@ -10,6 +10,9 @@ import {
   batch,
   watch,
   readonly,
+  useAsyncData,
+  useFetch,
+  createUseFetch,
   untrack,
   isSignal,
   isComputed,
@@ -118,6 +121,73 @@ theme.value = 'dark'; // Automatically saved to localStorage
 - **JSON parse errors**: Falls back to the provided initial value
 
 :::
+
+## Async data composables
+
+Use `useAsyncData()` when you want a signal-based lifecycle around any async function.
+
+```ts
+import { signal, useAsyncData } from '@bquery/bquery/reactive';
+
+const userId = signal(1);
+const user = useAsyncData(
+  () => fetch(`/api/users/${userId.value}`).then((response) => response.json()),
+  {
+    watch: [userId],
+    defaultValue: null,
+    onError: (error) => console.error('Failed to load user', error),
+  }
+);
+
+await user.refresh();
+console.log(user.status.value, user.pending.value, user.data.value);
+```
+
+### AsyncDataState API
+
+- `data` – signal containing the last resolved value
+- `error` – signal containing the last `Error` or `null`
+- `status` – `'idle' | 'pending' | 'success' | 'error'`
+- `pending` – computed boolean for loading state
+- `execute()` / `refresh()` – trigger the async handler manually
+- `clear()` – reset data, error, and status
+- `dispose()` – stop watchers and future executions
+
+## Fetch composables
+
+`useFetch()` builds on `useAsyncData()` and adds request helpers such as `baseUrl`, `query`, `headers`, automatic JSON serialization for plain-object bodies, and response parsing strategies.
+
+```ts
+const users = useFetch<Array<{ id: number; name: string }>>('/users', {
+  baseUrl: 'https://api.example.com',
+  query: { page: 1, include: 'profile' },
+  headers: { authorization: 'Bearer token' },
+});
+```
+
+### `parseAs` options
+
+- `json` (default)
+- `text`
+- `blob`
+- `arrayBuffer`
+- `formData`
+- `response`
+
+## Preconfigured fetch factories
+
+`createUseFetch()` is handy when several requests share the same defaults.
+
+```ts
+const useApiFetch = createUseFetch({
+  baseUrl: 'https://api.example.com',
+  headers: { 'x-client': 'bquery-docs' },
+});
+
+const profile = useApiFetch<{ id: number; name: string }>('/profile');
+```
+
+Factory defaults merge with per-call options, including request headers and query params.
 
 ## Linked signals
 

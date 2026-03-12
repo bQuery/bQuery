@@ -67,7 +67,16 @@ bQuery is modular by design. You can import everything from the main entry point
 
 ```ts
 // Full import
-import { $, signal, component, transition, sanitize, storage } from '@bquery/bquery';
+import {
+  $,
+  signal,
+  component,
+  registerDefaultComponents,
+  transition,
+  sanitize,
+  defineBqueryConfig,
+  useCookie,
+} from '@bquery/bquery';
 
 // Core only (selectors, DOM, events)
 import { $, $$, utils } from '@bquery/bquery/core';
@@ -75,11 +84,11 @@ import { $, $$, utils } from '@bquery/bquery/core';
 // Core utilities as named exports
 import { debounce, merge, uid } from '@bquery/bquery/core';
 
-// Reactive only (signals, computed, effects)
-import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
+// Reactive only (signals, computed, effects, async composables)
+import { signal, computed, effect, batch, useFetch, createUseFetch } from '@bquery/bquery/reactive';
 
-// Components only (Web Components)
-import { component, html } from '@bquery/bquery/component';
+// Components only (Web Components + default library)
+import { component, html, registerDefaultComponents } from '@bquery/bquery/component';
 
 // Motion only (transitions, animations)
 import { transition, spring, flip } from '@bquery/bquery/motion';
@@ -87,8 +96,17 @@ import { transition, spring, flip } from '@bquery/bquery/motion';
 // Security only (sanitization)
 import { sanitize, escapeHtml } from '@bquery/bquery/security';
 
-// Platform only (storage, cache, notifications)
-import { storage, cache, notifications, buckets } from '@bquery/bquery/platform';
+// Platform only (storage, cache, config, cookies, page meta, accessibility)
+import {
+  storage,
+  cache,
+  notifications,
+  buckets,
+  defineBqueryConfig,
+  useCookie,
+  definePageMeta,
+  useAnnouncer,
+} from '@bquery/bquery/platform';
 ```
 
 ## Modules at a glance
@@ -96,11 +114,11 @@ import { storage, cache, notifications, buckets } from '@bquery/bquery/platform'
 | Module        | Description                                        | Size (gzip) |
 | ------------- | -------------------------------------------------- | ----------- |
 | **Core**      | Selectors, DOM manipulation, events, utilities     | ~8.1 KB     |
-| **Reactive**  | `signal`, `computed`, `effect`, `batch`            | ~0.4 KB     |
-| **Component** | Lightweight Web Components with props              | ~1.6 KB     |
+| **Reactive**  | `signal`, `computed`, `effect`, async data/fetch   | ~0.4 KB     |
+| **Component** | Lightweight Web Components with props and defaults | ~1.6 KB     |
 | **Motion**    | View transitions, FLIP, timelines, scroll, springs | ~3.5 KB     |
 | **Security**  | HTML sanitizing, Trusted Types, CSP                | ~0.6 KB     |
-| **Platform**  | Storage, cache, notifications, buckets             | ~1.6 KB     |
+| **Platform**  | Storage, cache, cookies, page meta, announcers     | ~1.6 KB     |
 | **Router**    | SPA routing, navigation guards, history API        | ~2.0 KB     |
 | **Store**     | Signal-based state management, persistence         | ~0.4 KB     |
 | **View**      | Declarative DOM bindings, directives               | ~3.3 KB     |
@@ -145,6 +163,24 @@ effect(() => {
 firstName.value = 'Jane'; // Title updates automatically
 ```
 
+### Async Data & Fetching
+
+```ts
+import { signal, useFetch } from '@bquery/bquery/reactive';
+
+const userId = signal(1);
+const user = useFetch<{ id: number; name: string }>(() => `/api/users/${userId.value}`, {
+  watch: [userId],
+  query: { include: 'profile' },
+});
+
+if (user.pending.value) {
+  console.log('Loading…');
+}
+
+console.log(user.data.value, user.error.value);
+```
+
 ### Web Components
 
 ```ts
@@ -172,6 +208,24 @@ component('greeting-card', {
 // Usage: <greeting-card name="World" message="How are you?"></greeting-card>
 ```
 
+### Default Components & Global Config
+
+```ts
+import { defineBqueryConfig, registerDefaultComponents, useCookie } from '@bquery/bquery';
+
+defineBqueryConfig({
+  components: { prefix: 'ui' },
+  fetch: { baseUrl: 'https://api.example.com' },
+  transitions: { skipOnReducedMotion: true, classes: ['page-transition'] },
+});
+
+const tags = registerDefaultComponents();
+const theme = useCookie<'light' | 'dark'>('theme', { defaultValue: 'light' });
+
+console.log(tags.button); // ui-button
+theme.value = 'dark';
+```
+
 ## Local Development
 
 If you're developing bQuery itself:
@@ -189,18 +243,21 @@ bun run storybook
 # Run tests
 bun test
 
-# Build documentation
+# Build library bundle
 bun run build
+
+# Build documentation site
+bun run build:docs
 ```
 
 ## Browser Support
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **Note:** Internet Explorer is not supported by design.
 
@@ -212,4 +269,4 @@ bun run build
 - [Components](./components.md) - Build Web Components
 - [Motion](./motion.md) - Add animations and transitions
 - [Security](./security.md) - Sanitization and CSP
-- [Platform](./platform.md) - Storage, cache, notifications, buckets
+- [Platform](./platform.md) - Storage, cache, cookies, page meta, announcers, and config

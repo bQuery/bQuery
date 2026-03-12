@@ -3,8 +3,114 @@
 The platform module provides consistent, promise‑based wrappers for common web platform APIs.
 
 ```ts
-import { storage, cache, notifications, buckets } from '@bquery/bquery/platform';
+import {
+  storage,
+  cache,
+  notifications,
+  buckets,
+  defineBqueryConfig,
+  useCookie,
+  definePageMeta,
+  useAnnouncer,
+} from '@bquery/bquery/platform';
 ```
+
+## Global configuration
+
+`defineBqueryConfig()` lets you set shared defaults once and reuse them across the `platform`, `reactive`, `motion`, and `component` modules.
+
+```ts
+defineBqueryConfig({
+  fetch: {
+    baseUrl: 'https://api.example.com',
+    headers: { 'x-client': 'bquery-docs' },
+    parseAs: 'json',
+  },
+  cookies: {
+    path: '/',
+    sameSite: 'Lax',
+  },
+  announcer: {
+    politeness: 'polite',
+    clearDelay: 1200,
+  },
+  pageMeta: {
+    titleTemplate: (title) => `${title} · bQuery`,
+  },
+  transitions: {
+    skipOnReducedMotion: true,
+    classes: ['page-transition'],
+  },
+  components: {
+    prefix: 'ui',
+  },
+});
+```
+
+Use `getBqueryConfig()` when you need a cloned snapshot of the current resolved config.
+
+## Cookies
+
+`useCookie()` creates a reactive signal backed by `document.cookie`.
+
+```ts
+const consent = useCookie<{ analytics: boolean }>('consent', {
+  defaultValue: { analytics: false },
+  maxAge: 60 * 60 * 24 * 365,
+});
+
+consent.value = { analytics: true };
+```
+
+### Cookie options
+
+- `defaultValue`
+- `path`, `domain`, `sameSite`, `secure`, `expires`, `maxAge`
+- `watch` – disable auto-persistence when set to `false`
+- `serialize` / `deserialize` – customize how values are stored
+
+When `sameSite: 'None'` is used, bQuery automatically enforces `Secure`.
+
+## Page metadata
+
+`definePageMeta()` updates document title, meta/link tags, and temporary `html` / `body` attributes. It returns a cleanup function so route transitions or page swaps can revert state cleanly.
+
+```ts
+const cleanupMeta = definePageMeta({
+  title: 'Dashboard',
+  description: 'Overview of your account',
+  meta: [{ property: 'og:type', content: 'website' }],
+  link: [{ rel: 'canonical', href: 'https://example.com/dashboard' }],
+  htmlAttributes: { lang: 'en' },
+  bodyAttributes: { 'data-page': 'dashboard' },
+});
+
+// later
+cleanupMeta();
+```
+
+## Accessible announcements
+
+`useAnnouncer()` manages an ARIA live region for screen-reader friendly feedback.
+
+```ts
+const announcer = useAnnouncer({
+  politeness: 'assertive',
+  id: 'global-announcer',
+});
+
+announcer.announce('Saved successfully');
+announcer.clear();
+announcer.destroy();
+```
+
+### Announcer API
+
+- `element` – the live-region element or `null`
+- `message` – reactive signal containing the current announcement
+- `announce(value, options?)`
+- `clear()`
+- `destroy()`
 
 ## Storage
 

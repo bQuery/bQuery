@@ -18,14 +18,16 @@ hero:
 features:
   - title: Zero Build
     details: Works directly in the browser via CDN or ES modules. Vite is optional, not required.
+  - title: Async Data Primitives
+    details: Signal-based useAsyncData/useFetch composables for loading, errors, and request state.
   - title: Secure by Default
     details: Sanitized DOM operations and Trusted Types compatibility.
-  - title: Tiny Footprint
-    details: Core stays small; extra modules are opt-in and tree-shakeable.
+  - title: Foundation Components
+    details: Register a default Web Component library and preview it in Storybook.
   - title: Platform APIs
-    details: Storage, cache, notifications, and buckets with consistent async APIs.
+    details: Storage, cache, cookies, page metadata, announcers, and shared runtime config.
 ---
 
 ## Why bQuery
 
-bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, components, motion, and platform helpers in a modular, progressive way.
+bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, async data composables, native components, motion, and platform helpers in a modular, progressive way.

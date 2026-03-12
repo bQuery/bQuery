@@ -66,19 +66,23 @@ describe('motion/transition', () => {
   });
 
   it('supports async updates and transition classes', async () => {
-    const original = (document as Document & {
-      startViewTransition?: Document['startViewTransition'];
-    }).startViewTransition;
+    const original = (
+      document as Document & {
+        startViewTransition?: Document['startViewTransition'];
+      }
+    ).startViewTransition;
     const calls: string[] = [];
 
-    (document as Document & {
-      startViewTransition?: (callback: () => void | Promise<void>) => {
-        finished: Promise<void>;
-        ready: Promise<void>;
-        updateCallbackDone: Promise<void>;
-        types: { add: (value: string) => void };
-      };
-    }).startViewTransition = (callback) => {
+    (
+      document as Document & {
+        startViewTransition?: (callback: () => void | Promise<void>) => {
+          finished: Promise<void>;
+          ready: Promise<void>;
+          updateCallbackDone: Promise<void>;
+          types: { add: (value: string) => void };
+        };
+      }
+    ).startViewTransition = (callback) => {
       const updateCallbackDone = Promise.resolve(callback()).then(() => {
         calls.push('updated');
       });
@@ -113,26 +117,32 @@ describe('motion/transition', () => {
       expect(calls).toContain('type:navigation');
       expect(document.documentElement.classList.contains('is-transitioning')).toBe(false);
     } finally {
-      (document as Document & {
-        startViewTransition?: Document['startViewTransition'];
-      }).startViewTransition = original;
+      (
+        document as Document & {
+          startViewTransition?: Document['startViewTransition'];
+        }
+      ).startViewTransition = original;
     }
   });
 
   it('ignores empty and whitespace transition class/type tokens', async () => {
-    const original = (document as Document & {
-      startViewTransition?: Document['startViewTransition'];
-    }).startViewTransition;
+    const original = (
+      document as Document & {
+        startViewTransition?: Document['startViewTransition'];
+      }
+    ).startViewTransition;
     const calls: string[] = [];
 
-    (document as Document & {
-      startViewTransition?: (callback: () => void | Promise<void>) => {
-        finished: Promise<void>;
-        ready: Promise<void>;
-        updateCallbackDone: Promise<void>;
-        types: { add: (value: string) => void };
-      };
-    }).startViewTransition = (callback) => {
+    (
+      document as Document & {
+        startViewTransition?: (callback: () => void | Promise<void>) => {
+          finished: Promise<void>;
+          ready: Promise<void>;
+          updateCallbackDone: Promise<void>;
+          types: { add: (value: string) => void };
+        };
+      }
+    ).startViewTransition = (callback) => {
       const updateCallbackDone = Promise.resolve(callback());
 
       return {
@@ -161,9 +171,11 @@ describe('motion/transition', () => {
       expect(calls).not.toContain('type:');
       expect(document.documentElement.classList.contains('is-transitioning')).toBe(false);
     } finally {
-      (document as Document & {
-        startViewTransition?: Document['startViewTransition'];
-      }).startViewTransition = original;
+      (
+        document as Document & {
+          startViewTransition?: Document['startViewTransition'];
+        }
+      ).startViewTransition = original;
     }
   });
 });

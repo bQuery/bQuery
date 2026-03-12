@@ -8,7 +8,7 @@
 
 ### 1.1 Mission Statement
 
-bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offers modern features (reactivity, components, motion) with the simplicity and directness that made jQuery successful.
+bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offers modern features (reactivity, async data, components, motion, routing, stores, declarative views) with the simplicity and directness that made jQuery successful.
 
 ### 1.2 Core Principles
 
@@ -38,11 +38,14 @@ bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offer
 ```text
 bQuery.js
 ├── core/       (selectors, DOM ops, events, utils)
-├── reactive/   (signals, computed, effects, batching)
-├── component/  (custom elements, props, lifecycle, shadow DOM)
+├── reactive/   (signals, computed, effects, async data/fetch)
+├── component/  (custom elements, props, lifecycle, shadow DOM, defaults)
 ├── motion/     (view transitions, FLIP, springs)
 ├── security/   (sanitizer, CSP compatibility, Trusted Types)
-└── platform/   (storage, cache, notifications, buckets)
+├── platform/   (storage, cache, cookies, announcers, page meta, config)
+├── router/     (SPA routing, guards, current route)
+├── store/      (signal-based state management)
+└── view/       (declarative DOM bindings)
 ```
 
 ### 2.2 Import Strategies
@@ -161,7 +164,7 @@ export function uid(): string;
 ### 3.2 Reactive Module (`@reactive`)
 
 ```ts
-import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
+import { signal, computed, effect, batch, useFetch } from '@bquery/bquery/reactive';
 
 const count = signal(0);
 const doubled = computed(() => count.value * 2);
@@ -174,6 +177,8 @@ batch(() => {
   count.value = 1;
   count.value = 2;
 });
+
+const profile = useFetch('/api/profile');
 ```
 
 #### 3.2.1 Reactive Contracts
@@ -205,6 +210,15 @@ component('user-card', {
 - `disconnected` → runs on teardown.
 - `updated` → runs after reactive props change.
 
+#### 3.3.2 Default Component Library
+
+```ts
+import { registerDefaultComponents } from '@bquery/bquery/component';
+
+const tags = registerDefaultComponents({ prefix: 'ui' });
+console.log(tags.button); // ui-button
+```
+
 ---
 
 ### 3.4 Motion Module (`@motion`)
@@ -214,6 +228,12 @@ import { transition } from '@bquery/bquery/motion';
 
 await transition(() => {
   $('#content').text('Updated');
+});
+
+await transition({
+  update: () => $('#content').text('Configured update'),
+  classes: ['page-transition'],
+  types: ['navigation'],
 });
 ```
 
@@ -300,6 +320,30 @@ const response = await assets.match('/styles.css');
 await assets.remove('/styles.css');
 ```
 
+#### 3.6.5 Runtime Config, Cookies, and Metadata
+
+```ts
+import {
+  defineBqueryConfig,
+  useCookie,
+  definePageMeta,
+  useAnnouncer,
+} from '@bquery/bquery/platform';
+
+defineBqueryConfig({
+  fetch: { baseUrl: 'https://api.example.com' },
+  components: { prefix: 'ui' },
+});
+
+const theme = useCookie('theme', { defaultValue: 'light' });
+const cleanup = definePageMeta({ title: 'Dashboard' });
+const announcer = useAnnouncer();
+
+announcer.announce('Saved');
+cleanup();
+theme.value = 'dark';
+```
+
 ---
 
 ---
@@ -334,7 +378,7 @@ await assets.remove('/styles.css');
 
 ## 5. Tooling & Project Structure
 
-This repo uses **Bun**, **Vite**, **VitePress**, and **TypeScript**.
+This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript**.
 
 ```text
 .
@@ -350,7 +394,8 @@ This repo uses **Bun**, **Vite**, **VitePress**, and **TypeScript**.
 ### 5.1 Scripts
 
 - `bun run dev` — VitePress docs
-- `bun run build` — Build docs
+- `bun run build` — Build library bundles + types
+- `bun run build:docs` — Build docs site
 - `bun run preview` — Preview docs
 - `bun run storybook` — Storybook dev server
 - `bun test` — Run tests
@@ -360,6 +405,7 @@ This repo uses **Bun**, **Vite**, **VitePress**, and **TypeScript**.
 - **Bun** is the runtime and test runner. No Node-only globals in source.
 - **Vite** powers the library builds and Storybook builder.
 - **VitePress** builds the documentation site from `docs/`.
+- **Storybook** is the primary component preview/development environment.
 - **TypeScript** is required for all public APIs and examples.
 
 ### 5.3 Local Development Flow

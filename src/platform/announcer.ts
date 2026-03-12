@@ -75,14 +75,16 @@ const visuallyHiddenStyle = [
  */
 export const useAnnouncer = (options: UseAnnouncerOptions = {}): AnnouncerHandle => {
   const defaults = getBqueryConfig().announcer;
-  const resolvedOptions: Required<Pick<UseAnnouncerOptions, 'politeness' | 'atomic' | 'delay' | 'clearDelay'>> &
+  const resolvedOptions: Required<
+    Pick<UseAnnouncerOptions, 'politeness' | 'atomic' | 'delay' | 'clearDelay'>
+  > &
     UseAnnouncerOptions = {
-      politeness: defaults?.politeness ?? 'polite',
-      atomic: defaults?.atomic ?? true,
-      delay: defaults?.delay ?? 16,
-      clearDelay: defaults?.clearDelay ?? 1000,
-      ...options,
-    };
+    politeness: defaults?.politeness ?? 'polite',
+    atomic: defaults?.atomic ?? true,
+    delay: defaults?.delay ?? 16,
+    clearDelay: defaults?.clearDelay ?? 1000,
+    ...options,
+  };
 
   const message = signal('');
 

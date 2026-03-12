@@ -16,17 +16,21 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
 [![JsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
 
+</p>
+
 **The jQuery for the modern Web Platform.**
 
-bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, Web Components, and motion utilities — without a mandatory build step.
+bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, async data composables, Web Components, motion utilities, routing, stores, and declarative views — without a mandatory build step.
 
 ## Highlights
 
-- **Zero‑build capable**: runs directly in the browser; build tools are optional.
-- **Security‑focused**: DOM writes are sanitized by default; Trusted Types supported.
-- **Modular**: the core stays small; extra modules are opt‑in.
-- **TypeScript‑first**: clear types and strong IDE support.
+- **Zero-build capable**: runs directly in the browser; build tools are optional.
+- **Async data built-in**: fetch and async state composables integrate directly with signals.
+- **Security-focused**: DOM writes are sanitized by default; Trusted Types supported.
+- **Modular**: the core stays small; extra modules are opt-in.
+- **TypeScript-first**: clear types and strong IDE support.
 - **Tree-shakeable**: import only what you need.
+- **Storybook-ready**: default components can be previewed and developed in Storybook.
 
 ## Installation
 
@@ -76,11 +80,17 @@ pnpm add @bquery/bquery
 </script>
 ```
 
-### Import Strategies
+## Import Strategies
 
 ```ts
 // Full bundle (all modules)
-import { $, signal, component } from '@bquery/bquery';
+import {
+  $,
+  signal,
+  component,
+  registerDefaultComponents,
+  defineBqueryConfig,
+} from '@bquery/bquery';
 
 // Core only
 import { $, $$ } from '@bquery/bquery/core';
@@ -88,12 +98,36 @@ import { $, $$ } from '@bquery/bquery/core';
 // Core utilities (named exports, tree-shakeable)
 import { debounce, merge, uid, once, utils } from '@bquery/bquery/core';
 
-// À la carte (individual modules)
-import { signal, computed, effect, linkedSignal, persistedSignal } from '@bquery/bquery/reactive';
-import { component, defineComponent, html } from '@bquery/bquery/component';
+// Reactive only
+import {
+  signal,
+  computed,
+  effect,
+  linkedSignal,
+  persistedSignal,
+  useAsyncData,
+  useFetch,
+  createUseFetch,
+} from '@bquery/bquery/reactive';
+
+// Components only
+import {
+  component,
+  defineComponent,
+  html,
+  registerDefaultComponents,
+} from '@bquery/bquery/component';
+
+// Motion only
 import { transition, spring, animate, timeline } from '@bquery/bquery/motion';
+
+// Security only
 import { sanitize } from '@bquery/bquery/security';
-import { storage, cache } from '@bquery/bquery/platform';
+
+// Platform only
+import { storage, cache, useCookie, definePageMeta, useAnnouncer } from '@bquery/bquery/platform';
+
+// Router, Store, View
 import { createRouter, navigate } from '@bquery/bquery/router';
 import { createStore, defineStore } from '@bquery/bquery/store';
 import { mount, createTemplate } from '@bquery/bquery/view';
@@ -104,11 +138,11 @@ import { mount, createTemplate } from '@bquery/bquery/view';
 | Module        | Description                                        | Size (gzip) |
 | ------------- | -------------------------------------------------- | ----------- |
 | **Core**      | Selectors, DOM manipulation, events, utilities     | ~11.3 KB    |
-| **Reactive**  | `signal`, `computed`, `effect`, `batch`            | ~0.3 KB     |
-| **Component** | Lightweight Web Components with props              | ~1.9 KB     |
+| **Reactive**  | `signal`, `computed`, `effect`, async data/fetch   | ~0.3 KB     |
+| **Component** | Lightweight Web Components with props + defaults   | ~1.9 KB     |
 | **Motion**    | View transitions, FLIP, timelines, scroll, springs | ~4.0 KB     |
 | **Security**  | HTML sanitizing, Trusted Types, CSP                | ~0.7 KB     |
-| **Platform**  | Storage, cache, notifications, buckets             | ~2.2 KB     |
+| **Platform**  | Storage, cache, cookies, meta, announcers, config  | ~2.2 KB     |
 | **Router**    | SPA routing, navigation guards, history API        | ~2.2 KB     |
 | **Store**     | Signal-based state management, persistence         | ~0.3 KB     |
 | **View**      | Declarative DOM bindings, directives               | ~4.3 KB     |
@@ -120,45 +154,23 @@ import { mount, createTemplate } from '@bquery/bquery/view';
 ```ts
 import { $, $$ } from '@bquery/bquery/core';
 
-// jQuery-style selectors
 $('#save').on('click', (event) => {
   console.log('Saved', event.type);
 });
 
-// Event delegation for dynamic content
 $('#list').delegate('click', '.item', (event, target) => {
   console.log('Item clicked', target.textContent);
 });
 
-// Method chaining
 $('#box').addClass('active').css({ opacity: '0.8' }).attr('data-state', 'ready');
 
-// CSS getter (computed style)
-const color = $('#box').css('color'); // Returns computed style value
+const color = $('#box').css('color');
 
-// Selector matching
 if ($('#el').is('.active')) {
   console.log('Element is active');
 }
 
-// DOM manipulation
-$('#content').wrap('div');
-$('#content').unwrap(); // Remove parent wrapper
-
-// Attribute helpers
-$('#dialog').toggleAttr('open');
-
-// Smooth scrolling
-$('#section').scrollTo({ behavior: 'smooth' });
-
-// Form serialization
-const formData = $('form').serialize(); // Returns object
-const queryString = $('form').serializeString(); // Returns URL-encoded string
-
-// Collections
-$$('.items').addClass('highlight');
-$$('.items').append('<li class="item">New</li>');
-$$('.container').find('.item').addClass('found'); // Find descendants across collection
+$$('.container').find('.item').addClass('found');
 ```
 
 ### Reactive – signals
@@ -181,24 +193,19 @@ effect(() => {
   console.log('Count changed', count.value);
 });
 
-// Watch with cleanup support
-const stop = watch(count, (newVal, oldVal) => {
+watch(count, (newVal, oldVal) => {
   console.log(`Changed from ${oldVal} to ${newVal}`);
 });
 
-// Read-only signal wrapper
 const readOnlyCount = readonly(count);
 
-// Batch updates for performance
 batch(() => {
   count.value++;
   count.value++;
 });
 
-// Dispose signal (remove all subscribers)
 count.dispose();
 
-// Writable computed (linked signal)
 const first = signal('Ada');
 const last = signal('Lovelace');
 const fullName = linkedSignal(
@@ -213,17 +220,44 @@ const fullName = linkedSignal(
 fullName.value = 'Grace Hopper';
 ```
 
+### Reactive – async data & fetch
+
+```ts
+import { signal, useFetch, createUseFetch } from '@bquery/bquery/reactive';
+
+const userId = signal(1);
+
+const user = useFetch<{ id: number; name: string }>(() => `/users/${userId.value}`, {
+  baseUrl: 'https://api.example.com',
+  watch: [userId],
+  query: { include: 'profile' },
+});
+
+const useApiFetch = createUseFetch({
+  baseUrl: 'https://api.example.com',
+  headers: { 'x-client': 'bquery-readme' },
+});
+
+const settings = useApiFetch<{ theme: string }>('/settings');
+
+console.log(user.pending.value, user.data.value, settings.error.value);
+```
+
 ### Components – Web Components
 
 ```ts
-import { component, defineComponent, html } from '@bquery/bquery/component';
+import {
+  component,
+  defineComponent,
+  html,
+  registerDefaultComponents,
+} from '@bquery/bquery/component';
 
 component('user-card', {
   props: {
     username: { type: String, required: true },
     age: { type: Number, validator: (v) => v >= 0 && v <= 150 },
   },
-  // Extended lifecycle hooks
   beforeMount() {
     console.log('About to mount');
   },
@@ -231,7 +265,6 @@ component('user-card', {
     console.log('Mounted');
   },
   beforeUpdate(props) {
-    // Return false to prevent update
     return props.username !== '';
   },
   onError(error) {
@@ -242,12 +275,15 @@ component('user-card', {
   },
 });
 
-// Optional: create the class without auto-registration
 const UserCard = defineComponent('user-card', {
   props: { username: { type: String, required: true } },
   render: ({ props }) => html`<div>Hello ${props.username}</div>`,
 });
+
 customElements.define('user-card', UserCard);
+
+const tags = registerDefaultComponents({ prefix: 'ui' });
+console.log(tags.button); // ui-button
 ```
 
 ### Motion – animations
@@ -255,18 +291,20 @@ customElements.define('user-card', UserCard);
 ```ts
 import { animate, keyframePresets, spring, transition } from '@bquery/bquery/motion';
 
-// View transitions (with fallback)
-await transition(() => {
-  $('#content').text('Updated');
+await transition({
+  update: () => {
+    $('#content').text('Updated');
+  },
+  classes: ['page-transition'],
+  types: ['navigation'],
+  skipOnReducedMotion: true,
 });
 
-// Web Animations helper
 await animate(card, {
   keyframes: keyframePresets.pop(),
   options: { duration: 240, easing: 'ease-out' },
 });
 
-// Spring physics
 const x = spring(0, { stiffness: 120, damping: 14 });
 x.onChange((value) => {
   element.style.transform = `translateX(${value}px)`;
@@ -276,44 +314,47 @@ await x.to(100);
 
 ### Security – sanitizing
 
-Internally modularized (sanitize core, Trusted Types, CSP helpers) — the public API remains unchanged. For legacy deep imports, `@bquery/bquery/security/sanitize` also re-exports `generateNonce()` and `isTrustedTypesSupported()`.
-
 ```ts
 import { sanitize, escapeHtml } from '@bquery/bquery/security';
 
-// Sanitize HTML (removes dangerous elements like script, iframe, svg)
 const safeHtml = sanitize(userInput);
-
-// DOM clobbering protection (reserved IDs are blocked)
-const safe = sanitize('<form id="cookie">...</form>'); // id stripped
-
-// Unicode bypass protection in URLs
+const safe = sanitize('<form id="cookie">...</form>');
 const urlSafe = sanitize('<a href="java\u200Bscript:alert(1)">click</a>');
-
-// Automatic link security (adds rel="noopener noreferrer" to external/target="_blank" links)
 const secureLink = sanitize('<a href="https://external.com" target="_blank">Link</a>');
-
-// srcset validation (per-URL; entire attribute removed if any entry is unsafe)
-const safeSrcset = sanitize('<img srcset="safe.jpg 1x, javascript:alert(1) 2x">'); // <img>
-
-// Form action validation (blocks javascript: protocol)
+const safeSrcset = sanitize('<img srcset="safe.jpg 1x, javascript:alert(1) 2x">');
 const safeForm = sanitize('<form action="javascript:alert(1)">...</form>');
-
-// Escape for text display
 const escaped = escapeHtml('<script>alert(1)</script>');
 ```
 
-### Platform – storage & APIs
+### Platform – config, cookies & accessibility
 
 ```ts
-import { storage, notifications } from '@bquery/bquery/platform';
+import {
+  defineBqueryConfig,
+  useCookie,
+  definePageMeta,
+  useAnnouncer,
+  storage,
+  notifications,
+} from '@bquery/bquery/platform';
 
-// Unified storage API
+defineBqueryConfig({
+  fetch: { baseUrl: 'https://api.example.com' },
+  transitions: { skipOnReducedMotion: true, classes: ['page-transition'] },
+  components: { prefix: 'ui' },
+});
+
+const theme = useCookie<'light' | 'dark'>('theme', { defaultValue: 'light' });
+const cleanupMeta = definePageMeta({ title: 'Dashboard' });
+const announcer = useAnnouncer();
+
+theme.value = 'dark';
+announcer.announce('Preferences saved');
+cleanupMeta();
+
 const local = storage.local();
-await local.set('theme', 'dark');
-const theme = await local.get<string>('theme');
+await local.set('theme', theme.value);
 
-// Notifications
 const permission = await notifications.requestPermission();
 if (permission === 'granted') {
   notifications.send('Build complete', {
@@ -324,12 +365,10 @@ if (permission === 'granted') {
 
 ### Router – SPA navigation
 
-Internally, the router has been split into focused submodules (matching, navigation, state, links, utilities) with no public API changes.
-
 ```ts
+import { effect } from '@bquery/bquery/reactive';
 import { createRouter, navigate, currentRoute } from '@bquery/bquery/router';
 
-// Create router with routes
 const router = createRouter({
   routes: [
     { path: '/', name: 'home', component: HomePage },
@@ -338,20 +377,13 @@ const router = createRouter({
   ],
 });
 
-// Navigation guards
-router.beforeEach(async (to, from) => {
+router.beforeEach(async (to) => {
   if (to.path === '/admin' && !isAuthenticated()) {
-    await navigate('/login'); // Redirect
-    return false; // Cancel original navigation
+    await navigate('/login');
+    return false;
   }
 });
 
-// Navigate programmatically
-await navigate('/user/42');
-await navigate('/search?q=bquery'); // Query params in path
-await navigate('/login', { replace: true }); // Replace history entry
-
-// Reactive current route
 effect(() => {
   console.log('Current path:', currentRoute.value.path);
 });
@@ -360,9 +392,14 @@ effect(() => {
 ### Store – state management
 
 ```ts
-import { createStore, createPersistedStore } from '@bquery/bquery/store';
+import {
+  createStore,
+  createPersistedStore,
+  defineStore,
+  mapGetters,
+  watchStore,
+} from '@bquery/bquery/store';
 
-// Create a store (returns the store instance directly)
 const counterStore = createStore({
   id: 'counter',
   state: () => ({ count: 0, name: 'Counter' }),
@@ -373,24 +410,13 @@ const counterStore = createStore({
     increment() {
       this.count++;
     },
-    async fetchCount() {
-      this.count = await api.getCount();
-    },
   },
 });
 
-// Use the store
-counterStore.increment();
-console.log(counterStore.doubled); // Reactive getter
-
-// Persisted store (localStorage)
 const settingsStore = createPersistedStore({
   id: 'settings',
   state: () => ({ theme: 'dark', language: 'en' }),
 });
-
-// Factory-style store definition (Pinia-style)
-import { defineStore, mapGetters, watchStore } from '@bquery/bquery/store';
 
 const useCounter = defineStore('counter', {
   state: () => ({ count: 0 }),
@@ -418,39 +444,28 @@ watchStore(
 
 ### View – declarative bindings
 
-Internally modularized into focused submodules; the public API remains unchanged.
-
 ```ts
 import { mount, createTemplate } from '@bquery/bquery/view';
 import { signal } from '@bquery/bquery/reactive';
 
-// Mount reactive bindings to DOM
 const count = signal(0);
 const items = signal(['Apple', 'Banana', 'Cherry']);
 
-const app = mount('#app', {
+mount('#app', {
   count,
   items,
   increment: () => count.value++,
 });
-
-// In HTML:
-// <p bq-text="count"></p>
-// <button bq-on:click="increment">+1</button>
-// <ul><li bq-for="item in items" bq-text="item"></li></ul>
-// <input bq-model="count" type="number" />
-// <div bq-if="count > 5">Count is high!</div>
-// <div bq-class="{ active: count > 0 }"></div>
 ```
 
 ## Browser Support
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
 
@@ -486,6 +501,9 @@ bun test
 # Build library
 bun run build
 
+# Build docs
+bun run build:docs
+
 # Generate API documentation
 bun run docs:api
 ```
@@ -496,17 +514,17 @@ bun run docs:api
 bQuery.js
 ├── src/
 │   ├── core/       # Selectors, DOM ops, events, utils
-│   ├── reactive/   # Signals, computed, effects
-│   ├── component/  # Web Components helper
+│   ├── reactive/   # Signals, computed, effects, async data
+│   ├── component/  # Web Components helper + default library
 │   ├── motion/     # View transitions, FLIP, springs
 │   ├── security/   # Sanitizer, CSP, Trusted Types
-│   ├── platform/   # Storage, cache, notifications
+│   ├── platform/   # Storage, cache, cookies, meta, config
 │   ├── router/     # SPA routing, navigation guards
 │   ├── store/      # State management, persistence
 │   └── view/       # Declarative DOM bindings
 ├── docs/           # VitePress documentation
-├── .storybook/    # Storybook config
-├── stories/       # Component stories
+├── .storybook/     # Storybook config
+├── stories/        # Component stories
 ├── tests/          # bun:test suites
 └── dist/           # Built files (ESM, UMD, IIFE)
 ```

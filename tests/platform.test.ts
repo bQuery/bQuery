@@ -20,9 +20,7 @@ const withMockCookies = async (
   Object.defineProperty(document, 'cookie', {
     configurable: true,
     get() {
-      return [...jar.entries()]
-        .map(([key, value]) => `${key}=${value}`)
-        .join('; ');
+      return [...jar.entries()].map(([key, value]) => `${key}=${value}`).join('; ');
     },
     set(value: string) {
       lastSetString = value;
@@ -402,7 +400,11 @@ describe('platform/useAnnouncer', () => {
 
   it('disposes reactive updates when destroyed', async () => {
     const { useAnnouncer } = await import('../src/platform/index');
-    const announcer = useAnnouncer({ delay: 0, clearDelay: 0, id: `announcer-destroy-${Date.now()}` });
+    const announcer = useAnnouncer({
+      delay: 0,
+      clearDelay: 0,
+      id: `announcer-destroy-${Date.now()}`,
+    });
 
     announcer.destroy();
     announcer.message.value = 'Should not render';

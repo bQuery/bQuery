@@ -948,9 +948,9 @@ describe('component/registerDefaultComponents', () => {
 
     expect(textarea.shadowRoot?.querySelector('em')).toBeNull();
     expect(textarea.shadowRoot?.querySelector('.label')?.textContent).toBe('<em>Notes</em>');
-    expect((textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null)?.value).toBe(
-      '<script>alert(1)</script>'
-    );
+    expect(
+      (textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null)?.value
+    ).toBe('<script>alert(1)</script>');
 
     expect(checkbox.shadowRoot?.querySelector('svg')).toBeNull();
     expect(checkbox.shadowRoot?.textContent).toContain('<svg>Active</svg>');
@@ -1048,7 +1048,9 @@ describe('component/registerDefaultComponents', () => {
     inputControl.value = 'Ada';
     inputControl.dispatchEvent(new Event('input', { bubbles: true }));
 
-    const inputControlAfterUpdate = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    const inputControlAfterUpdate = input.shadowRoot?.querySelector(
+      'input'
+    ) as HTMLInputElement | null;
     expect(inputControlAfterUpdate).toBe(inputControl);
     expect(input.getAttribute('value')).toBe('Ada');
     expect(inputControlAfterUpdate?.value).toBe('Ada');
@@ -1057,7 +1059,9 @@ describe('component/registerDefaultComponents', () => {
     textarea.setAttribute('label', 'Notes');
     document.body.appendChild(textarea);
 
-    const textareaControl = textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null;
+    const textareaControl = textarea.shadowRoot?.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement | null;
     expect(textareaControl).not.toBeNull();
     if (!textareaControl) throw new Error('Expected textarea control to exist');
     textareaControl.value = 'Updated notes';
@@ -1097,7 +1101,9 @@ describe('component/registerDefaultComponents', () => {
       textareaEvents.push({ value: (event as CustomEvent<{ value: string }>).detail?.value });
     });
 
-    const textareaControl = textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null;
+    const textareaControl = textarea.shadowRoot?.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement | null;
     if (!textareaControl) throw new Error('Expected textarea control to exist');
     textareaControl.value = 'Notes';
     textareaControl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
@@ -1106,7 +1112,9 @@ describe('component/registerDefaultComponents', () => {
     document.body.appendChild(checkbox);
     const checkboxEvents: Array<{ checked: boolean | undefined }> = [];
     checkbox.addEventListener('change', (event) => {
-      checkboxEvents.push({ checked: (event as CustomEvent<{ checked: boolean }>).detail?.checked });
+      checkboxEvents.push({
+        checked: (event as CustomEvent<{ checked: boolean }>).detail?.checked,
+      });
     });
 
     const checkboxControl = checkbox.shadowRoot?.querySelector('input') as HTMLInputElement | null;

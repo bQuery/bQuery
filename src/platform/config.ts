@@ -7,13 +7,7 @@
 import { isPlainObject, merge } from '../core/utils/object';
 
 /** Supported response parsing strategies for fetch composables. */
-export type BqueryFetchParseAs =
-  | 'json'
-  | 'text'
-  | 'blob'
-  | 'arrayBuffer'
-  | 'formData'
-  | 'response';
+export type BqueryFetchParseAs = 'json' | 'text' | 'blob' | 'arrayBuffer' | 'formData' | 'response';
 
 /** Global fetch defaults used by useFetch(). */
 export interface BqueryFetchConfig {

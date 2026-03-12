@@ -55,8 +55,7 @@ export interface AsyncDataState<TData> {
 
 /** Options for useFetch(). */
 export interface UseFetchOptions<TResponse = unknown, TData = TResponse>
-  extends UseAsyncDataOptions<TResponse, TData>,
-    Omit<RequestInit, 'body' | 'headers'> {
+  extends UseAsyncDataOptions<TResponse, TData>, Omit<RequestInit, 'body' | 'headers'> {
   /** Base URL prepended to relative URLs. */
   baseUrl?: string;
   /** Query parameters appended to the request URL. */
@@ -194,7 +193,8 @@ const resolveMethod = (
   requestInput: string | URL | Request,
   bodyProvided: boolean
 ): string | undefined => {
-  const requestMethod = requestInput instanceof Request ? normalizeMethod(requestInput.method) : undefined;
+  const requestMethod =
+    requestInput instanceof Request ? normalizeMethod(requestInput.method) : undefined;
   return explicitMethod ?? requestMethod ?? (bodyProvided ? 'POST' : undefined);
 };
 
@@ -412,7 +412,11 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
     delete (requestInit as Partial<UseFetchOptions>).onError;
 
     let requestTarget: Request | string | URL = requestUrl ?? requestInput;
-    if (requestInput instanceof Request && requestUrl && requestUrl.toString() !== requestInput.url) {
+    if (
+      requestInput instanceof Request &&
+      requestUrl &&
+      requestUrl.toString() !== requestInput.url
+    ) {
       // Rebuild Request inputs when query params changed so the updated URL is preserved.
       // String/URL inputs already use `requestUrl` directly, so only Request objects need rebuilding.
       requestTarget = new Request(requestUrl.toString(), toRequestInit(requestInput));

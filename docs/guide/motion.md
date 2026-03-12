@@ -23,6 +23,41 @@ await transition({
   update: () => {
     $('#content').text('Updated');
   },
+  classes: ['page-swap'],
+  types: ['navigation'],
+  skipOnReducedMotion: true,
+  onReady: () => console.log('transition ready'),
+  onFinish: () => console.log('transition finished'),
+});
+```
+
+### Transition options
+
+- `update` – DOM update callback that runs inside the transition
+- `classes` – CSS classes applied to `document.documentElement` while the transition is active
+- `types` – View Transition type tokens added when the browser supports them
+- `skipOnReducedMotion` – fallback to an immediate update if reduced motion is preferred
+- `onReady` – callback once the transition is ready to animate
+- `onFinish` – callback after the transition completes
+
+## Global transition defaults
+
+You can centralize motion defaults with the platform config helpers:
+
+```ts
+import { defineBqueryConfig } from '@bquery/bquery/platform';
+import { transition } from '@bquery/bquery/motion';
+
+defineBqueryConfig({
+  transitions: {
+    skipOnReducedMotion: true,
+    classes: ['app-transition'],
+    types: ['navigation'],
+  },
+});
+
+await transition(() => {
+  $('#content').text('Configured globally');
 });
 ```
 

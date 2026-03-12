@@ -143,7 +143,9 @@ const canSkipTextareaRender = (
     disabled: boolean;
   }
 ): boolean => {
-  const control = element.shadowRoot?.querySelector('textarea.control') as HTMLTextAreaElement | null;
+  const control = element.shadowRoot?.querySelector(
+    'textarea.control'
+  ) as HTMLTextAreaElement | null;
   if (!control) return false;
 
   if (getShadowLabelText(element) !== props.label) return false;
@@ -417,7 +419,9 @@ export const registerDefaultComponents = (
           name="${escapeProp(props.name)}"
           rows="${props.rows}"
           ${props.disabled ? 'disabled' : ''}
-        >${escapeProp(props.value)}</textarea>
+        >
+${escapeProp(props.value)}</textarea
+        >
       </label>
     `,
   });
@@ -475,7 +479,12 @@ export const registerDefaultComponents = (
     },
     render: ({ props }) => html`
       <label part="label">
-        <input part="control" type="checkbox" ${props.checked ? 'checked' : ''} ${props.disabled ? 'disabled' : ''} />
+        <input
+          part="control"
+          type="checkbox"
+          ${props.checked ? 'checked' : ''}
+          ${props.disabled ? 'disabled' : ''}
+        />
         <span part="text"><slot>${escapeProp(props.label)}</slot></span>
       </label>
     `,

@@ -8,6 +8,11 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.5.0\] - 2026-03-12](#150---2026-03-12)
+    - [Added (1.5.0)](#added-150)
+    - [Changed (1.5.0)](#changed-150)
+    - [Fixed (1.5.0)](#fixed-150)
+    - [Security (1.5.0)](#security-150)
   - [\[1.4.0\] - 2026-02-10](#140---2026-02-10)
     - [Added (1.4.0)](#added-140)
     - [Fixed (1.4.0)](#fixed-140)
@@ -33,6 +38,38 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.5.0] - 2026-03-12
+
+### Added (1.5.0)
+
+- **Reactive**: Added async composables `useAsyncData()`, `useFetch()`, and `createUseFetch()` for signal-driven request lifecycles with `data`, `error`, `status`, `pending`, `refresh()`, `clear()`, and `dispose()`.
+- **Reactive**: Exported async helper types from `@bquery/bquery/reactive`, including `AsyncDataState`, `AsyncDataStatus`, `AsyncWatchSource`, `FetchInput`, `UseAsyncDataOptions`, and `UseFetchOptions`.
+- **Platform**: Added global configuration helpers `defineBqueryConfig()` and `getBqueryConfig()` for fetch, cookies, announcers, page meta, transitions, and default component-library settings.
+- **Platform**: Added `useCookie()` for reactive cookie state with typed serialization/deserialization, default config inheritance, and automatic persistence.
+- **Platform**: Added `definePageMeta()` for document title, meta/link tags, and temporary `html` / `body` attribute management with cleanup support.
+- **Platform**: Added `useAnnouncer()` for accessible ARIA live-region announcements with configurable politeness, timing, and teardown.
+- **Component**: Added `registerDefaultComponents()` plus typed `DefaultComponentLibraryOptions` / `RegisteredDefaultComponents` exports to register a default native component library (`button`, `card`, `input`, `textarea`, `checkbox`) with configurable prefixes.
+- **Motion**: Expanded `transition()` to support richer `TransitionOptions`, including root classes, transition types, reduced-motion skipping, and `onReady` / `onFinish` callbacks.
+
+### Changed (1.5.0)
+
+- **Tooling**: Replaced the legacy playground workflow with Storybook-based component development, preview styling, and first-party stories for the default component library.
+- **Platform / Motion / Component**: Global defaults can now be shared across modules via `defineBqueryConfig()`, allowing centralized configuration for transitions, fetch requests, cookies, announcers, page metadata, and default component prefixes.
+- **Bundle exports**: The full bundle and module entry points now expose the new reactive composables, platform helpers, default component library registration, and their associated public types.
+
+### Fixed (1.5.0)
+
+- **Reactive**: `useAsyncData()` now handles watcher-triggered refreshes, disposal, and concurrent execution races more safely so stale executions do not overwrite newer state.
+- **Reactive / Platform**: `useFetch()` now preserves `Request` inputs and headers more reliably, merges configured/default headers safely, keeps factory typing intact in `createUseFetch()`, and rejects bodies on `GET` / `HEAD` requests.
+- **Platform**: `useCookie()` now only auto-parses likely JSON values, avoids write-on-initialization side effects, and automatically enforces `Secure` when `SameSite=None` is used.
+- **Platform**: `useAnnouncer()` now guards teardown and timer cleanup more defensively in edge cases and non-DOM environments.
+- **Component**: Default form controls avoid duplicate custom events and unnecessary full Shadow DOM re-renders while users type into input and textarea controls.
+- **Motion**: Transition class/type tokens are now sanitized before being applied, preventing empty or whitespace-only tokens from leaking into the document root or View Transitions API.
+
+### Security (1.5.0)
+
+- **Component**: Shadow DOM sanitization now preserves standard form-related attributes required by the default input, textarea, and checkbox components while still enforcing security-by-default rendering.
 
 ## [1.4.0] - 2026-02-10
 
