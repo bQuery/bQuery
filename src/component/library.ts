@@ -4,8 +4,8 @@
  * @module bquery/component
  */
 
-import { escapeHtml } from '../security';
 import { getBqueryConfig } from '../platform/config';
+import { escapeHtml } from '../security';
 import { component } from './component';
 import { html } from './html';
 
@@ -158,6 +158,25 @@ const canSkipTextareaRender = (
     control.value = props.value;
   }
   return true;
+};
+
+const renderTextareaControl = (props: {
+  value: string;
+  placeholder: string;
+  name: string;
+  rows: number;
+  disabled: boolean;
+}): string => {
+  return [
+    '<textarea',
+    ' part="control"',
+    ' class="control"',
+    ` placeholder="${escapeProp(props.placeholder)}"`,
+    ` name="${escapeProp(props.name)}"`,
+    ` rows="${props.rows}"`,
+    props.disabled ? ' disabled' : '',
+    `>${escapeProp(props.value)}</textarea>`,
+  ].join('');
 };
 
 /**
@@ -412,16 +431,7 @@ export const registerDefaultComponents = (
     render: ({ props }) => html`
       <label part="field" class="field">
         ${props.label ? `<span part="label" class="label">${escapeProp(props.label)}</span>` : ''}
-        <textarea
-          part="control"
-          class="control"
-          placeholder="${escapeProp(props.placeholder)}"
-          name="${escapeProp(props.name)}"
-          rows="${props.rows}"
-          ${props.disabled ? 'disabled' : ''}
-        >
-${escapeProp(props.value)}</textarea
-        >
+        ${renderTextareaControl(props)}
       </label>
     `,
   });

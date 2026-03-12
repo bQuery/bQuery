@@ -254,10 +254,10 @@ bun run build:docs
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full  |
-| Firefox | 90+     | ✅ Full  |
-| Safari  | 15+     | ✅ Full  |
-| Edge    | 90+     | ✅ Full  |
+| Chrome  | 90+     | ✅ Full |
+| Firefox | 90+     | ✅ Full |
+| Safari  | 15+     | ✅ Full |
+| Edge    | 90+     | ✅ Full |
 
 > **Note:** Internet Explorer is not supported by design.
 
