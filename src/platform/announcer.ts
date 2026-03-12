@@ -142,7 +142,7 @@ export const useAnnouncer = (options: UseAnnouncerOptions = {}): AnnouncerHandle
     parent.appendChild(element);
   }
 
-  effect(() => {
+  const disposeMessageEffect = effect(() => {
     element.textContent = message.value;
   });
 
@@ -179,6 +179,7 @@ export const useAnnouncer = (options: UseAnnouncerOptions = {}): AnnouncerHandle
 
   const destroy = (): void => {
     clear();
+    disposeMessageEffect();
     if (created) {
       element.remove();
     }

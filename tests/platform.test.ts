@@ -284,6 +284,17 @@ describe('platform/useAnnouncer', () => {
     announcer.destroy();
     expect(document.getElementById(announcer.element?.id ?? '')).toBeNull();
   });
+
+  it('disposes reactive updates when destroyed', async () => {
+    const { useAnnouncer } = await import('../src/platform/index');
+    const announcer = useAnnouncer({ delay: 0, clearDelay: 0, id: `announcer-destroy-${Date.now()}` });
+
+    announcer.destroy();
+    announcer.message.value = 'Should not render';
+
+    expect(announcer.element?.textContent).toBe('');
+    expect(document.getElementById(announcer.element?.id ?? '')).toBeNull();
+  });
 });
 
 describe('platform/defineBqueryConfig', () => {
@@ -299,5 +310,24 @@ describe('platform/defineBqueryConfig', () => {
     expect(config.fetch?.baseUrl).toBe('https://api.example.com');
     expect(config.fetch?.parseAs).toBe('json');
     expect(config.components?.prefix).toBe('ui');
+  });
+
+  it('returns cloned transition arrays from config snapshots', async () => {
+    const { defineBqueryConfig, getBqueryConfig } = await import('../src/platform/index');
+
+    defineBqueryConfig({
+      transitions: {
+        classes: ['is-transitioning'],
+        types: ['navigation'],
+      },
+    });
+
+    const snapshot = getBqueryConfig();
+    snapshot.transitions?.classes?.push('mutated');
+    snapshot.transitions?.types?.push('other');
+
+    const nextSnapshot = getBqueryConfig();
+    expect(nextSnapshot.transitions?.classes).toEqual(['is-transitioning']);
+    expect(nextSnapshot.transitions?.types).toEqual(['navigation']);
   });
 });

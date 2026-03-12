@@ -4,7 +4,7 @@
  * @module bquery/platform
  */
 
-import { merge } from '../core/utils/object';
+import { isPlainObject, merge } from '../core/utils/object';
 
 /** Supported response parsing strategies for fetch composables. */
 export type BqueryFetchParseAs =
@@ -112,7 +112,23 @@ const defaultConfig: BqueryConfig = {
   },
 };
 
-let currentConfig: BqueryConfig = merge({}, defaultConfig as Record<string, unknown>) as BqueryConfig;
+const cloneConfigValue = <T>(value: T): T => {
+  if (Array.isArray(value)) {
+    return value.map((entry) => cloneConfigValue(entry)) as T;
+  }
+
+  if (isPlainObject(value)) {
+    const result: Record<string, unknown> = {};
+    for (const [key, entry] of Object.entries(value)) {
+      result[key] = cloneConfigValue(entry);
+    }
+    return result as T;
+  }
+
+  return value;
+};
+
+let currentConfig: BqueryConfig = cloneConfigValue(defaultConfig);
 
 /**
  * Define or extend the global bQuery configuration.
@@ -129,11 +145,13 @@ let currentConfig: BqueryConfig = merge({}, defaultConfig as Record<string, unkn
  * ```
  */
 export const defineBqueryConfig = (config: BqueryConfig): BqueryConfig => {
-  currentConfig = merge(
-    defaultConfig as Record<string, unknown>,
-    currentConfig as Record<string, unknown>,
-    config as Record<string, unknown>
-  ) as BqueryConfig;
+  currentConfig = cloneConfigValue(
+    merge(
+      defaultConfig as Record<string, unknown>,
+      currentConfig as Record<string, unknown>,
+      config as Record<string, unknown>
+    ) as BqueryConfig
+  );
   return getBqueryConfig();
 };
 
@@ -143,5 +161,5 @@ export const defineBqueryConfig = (config: BqueryConfig): BqueryConfig => {
  * @returns A cloned snapshot of the active configuration
  */
 export const getBqueryConfig = (): BqueryConfig => {
-  return merge({}, currentConfig as Record<string, unknown>) as BqueryConfig;
+  return cloneConfigValue(currentConfig);
 };

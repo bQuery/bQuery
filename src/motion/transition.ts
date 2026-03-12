@@ -36,7 +36,7 @@ type DocumentWithTransition = Document & {
  * ```
  */
 export const transition = async (
-  updateOrOptions: (() => void) | TransitionOptions
+  updateOrOptions: (() => void | Promise<void>) | TransitionOptions
 ): Promise<void> => {
   const config = getBqueryConfig().transitions;
   const options: TransitionOptions =

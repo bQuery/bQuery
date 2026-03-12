@@ -46,6 +46,15 @@ describe('motion/transition', () => {
     expect(updated).toBe(true);
   });
 
+  it('accepts async update functions directly', async () => {
+    let updated = false;
+    await transition(async () => {
+      await Promise.resolve();
+      updated = true;
+    });
+    expect(updated).toBe(true);
+  });
+
   it('accepts options object with update property', async () => {
     let updated = false;
     await transition({
