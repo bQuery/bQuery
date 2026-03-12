@@ -46,6 +46,19 @@ const readCookie = (name: string): string | null => {
   return null;
 };
 
+const looksLikeSerializedValue = (value: string): boolean => {
+  const normalized = value.trim();
+  return (
+    normalized.startsWith('{') ||
+    normalized.startsWith('[') ||
+    normalized.startsWith('"') ||
+    normalized === 'true' ||
+    normalized === 'false' ||
+    normalized === 'null' ||
+    /^-?\d/.test(normalized)
+  );
+};
+
 const removeCookie = (
   name: string,
   options: Pick<UseCookieOptions<unknown>, 'path' | 'domain' | 'sameSite' | 'secure'>
@@ -113,8 +126,13 @@ export const useCookie = <T>(name: string, options: UseCookieOptions<T> = {}): S
 
   if (raw !== null) {
     try {
-      initialValue = resolvedOptions.deserialize ? resolvedOptions.deserialize(raw) : (JSON.parse(raw) as T);
-    } catch {
+      initialValue = resolvedOptions.deserialize
+        ? resolvedOptions.deserialize(raw)
+        : looksLikeSerializedValue(raw)
+          ? (JSON.parse(raw) as T)
+          : ((raw as T) ?? initialValue);
+    } catch (error) {
+      console.warn(`bQuery: Failed to deserialize cookie "${name}"`, error);
       initialValue = (raw as T) ?? initialValue;
     }
   }

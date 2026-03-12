@@ -73,7 +73,15 @@ export type FetchInput = string | URL | Request | (() => string | URL | Request)
 
 const normalizeError = (error: unknown): Error => {
   if (error instanceof Error) return error;
-  return new Error(typeof error === 'string' ? error : 'Unknown async error');
+  if (typeof error === 'string') {
+    return new Error(error);
+  }
+
+  try {
+    return new Error(JSON.stringify(error));
+  } catch {
+    return new Error(String(error));
+  }
 };
 
 const readWatchSource = (source: AsyncWatchSource): unknown => {

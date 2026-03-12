@@ -75,9 +75,12 @@ export const transition = async (
 
   try {
     const viewTransition = doc.startViewTransition(() => update());
+    const transitionTypes = viewTransition.types;
 
-    for (const type of options.types ?? []) {
-      viewTransition.types?.add(type);
+    if (transitionTypes) {
+      for (const type of options.types ?? []) {
+        transitionTypes.add(type);
+      }
     }
 
     await viewTransition.ready;
