@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
+      - name: Install ESLint SARIF formatter
+        run: bun add --dev --no-save @microsoft/eslint-formatter-sarif@3.1.0
+
       - name: Run ESLint
         env:
           SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
