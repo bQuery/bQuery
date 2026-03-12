@@ -68,7 +68,6 @@
     "build:docs": "vitepress build docs",
     "preview": "vitepress preview docs",
     "storybook": "storybook dev -p 6006",
-    "playground": "bun run storybook",
     "build:storybook": "storybook build",
     "build": "bun run build:lib && bun run build:umd && bun run build:types",
     "build:lib": "vite build",
