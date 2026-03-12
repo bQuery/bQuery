@@ -207,11 +207,35 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
         });
 
         // Component render output is authored by the component definition itself,
-        // so we can explicitly preserve shadow-DOM-specific markup such as <slot> and
-        // the stylistic `part` attribute without relaxing the global DOM sanitization rules.
+        // so we can explicitly preserve shadow-DOM-specific markup such as <slot>,
+        // the stylistic `part` attribute, and standard form/input attributes without
+        // relaxing the global DOM sanitization rules.
         const sanitizedMarkup = sanitizeHtml(markup, {
           allowTags: ['slot'],
-          allowAttributes: ['part'],
+          allowAttributes: [
+            'part',
+            // Standard form attributes required by interactive shadow DOM content
+            'disabled',
+            'checked',
+            'placeholder',
+            'value',
+            'rows',
+            'cols',
+            'readonly',
+            'required',
+            'maxlength',
+            'minlength',
+            'max',
+            'min',
+            'step',
+            'pattern',
+            'autocomplete',
+            'autofocus',
+            'for',
+            'multiple',
+            'selected',
+            'wrap',
+          ],
         });
         this.shadowRoot.innerHTML = sanitizedMarkup;
 

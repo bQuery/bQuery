@@ -961,4 +961,47 @@ describe('component/registerDefaultComponents', () => {
     input.remove();
     checkbox.remove();
   });
+
+  it('preserves standard form attributes in component shadow DOM', () => {
+    const prefix = `attrs${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const input = document.createElement(tags.input);
+    input.setAttribute('label', 'Email');
+    input.setAttribute('placeholder', 'user@example.com');
+    input.setAttribute('value', 'test@example.com');
+    input.setAttribute('disabled', 'true');
+    document.body.appendChild(input);
+
+    const inputShadow = input.shadowRoot?.innerHTML ?? '';
+    expect(inputShadow).toContain('placeholder="user@example.com"');
+    expect(inputShadow).toContain('value="test@example.com"');
+    expect(inputShadow).toContain('disabled');
+
+    const textarea = document.createElement(tags.textarea);
+    textarea.setAttribute('label', 'Notes');
+    textarea.setAttribute('placeholder', 'Enter notes');
+    textarea.setAttribute('rows', '6');
+    textarea.setAttribute('disabled', 'true');
+    document.body.appendChild(textarea);
+
+    const textareaShadow = textarea.shadowRoot?.innerHTML ?? '';
+    expect(textareaShadow).toContain('placeholder="Enter notes"');
+    expect(textareaShadow).toContain('rows="6"');
+    expect(textareaShadow).toContain('disabled');
+
+    const checkbox = document.createElement(tags.checkbox);
+    checkbox.setAttribute('label', 'Active');
+    checkbox.setAttribute('checked', 'true');
+    checkbox.setAttribute('disabled', 'true');
+    document.body.appendChild(checkbox);
+
+    const checkboxShadow = checkbox.shadowRoot?.innerHTML ?? '';
+    expect(checkboxShadow).toContain('checked');
+    expect(checkboxShadow).toContain('disabled');
+
+    input.remove();
+    textarea.remove();
+    checkbox.remove();
+  });
 });
