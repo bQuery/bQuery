@@ -52,6 +52,7 @@ export {
   effect,
   isComputed,
   isSignal,
+  linkedSignal,
   persistedSignal,
   readonly,
   signal,
@@ -63,7 +64,10 @@ export {
 export type {
   AsyncDataState,
   AsyncDataStatus,
+  AsyncWatchSource,
   CleanupFn,
+  FetchInput,
+  LinkedSignal,
   Observer,
   ReadonlySignal,
   UseAsyncDataOptions,
