@@ -5,9 +5,12 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { notifications } from '../src/platform/notifications';
 
-const withMockCookies = async (callback: () => Promise<void> | void): Promise<void> => {
+const withMockCookies = async (
+  callback: (ctx: { lastRawSet: () => string }) => Promise<void> | void
+): Promise<void> => {
   const original = Object.getOwnPropertyDescriptor(Document.prototype, 'cookie');
   const jar = new Map<string, string>();
+  let lastSetString = '';
 
   Object.defineProperty(document, 'cookie', {
     configurable: true,
@@ -17,6 +20,7 @@ const withMockCookies = async (callback: () => Promise<void> | void): Promise<vo
         .join('; ');
     },
     set(value: string) {
+      lastSetString = value;
       const [pair] = value.split(';');
       const [rawName, rawValue = ''] = pair.split('=');
       const name = rawName.trim();
@@ -32,7 +36,7 @@ const withMockCookies = async (callback: () => Promise<void> | void): Promise<vo
   });
 
   try {
-    await callback();
+    await callback({ lastRawSet: () => lastSetString });
   } finally {
     if (original) {
       Object.defineProperty(document, 'cookie', original);
@@ -218,6 +222,62 @@ describe('platform/useCookie', () => {
 
       prefs.value = { mode: 'dark' };
       expect(document.cookie).toContain(encodeURIComponent(cookieName));
+    });
+  });
+
+  it('returns primitive cookie values as raw strings instead of auto-parsing them', async () => {
+    await withMockCookies(async () => {
+      const { useCookie } = await import('../src/platform/index');
+
+      document.cookie = 'count=42; Path=/';
+      const count = useCookie<string>('count');
+      expect(count.value).toBe('42');
+      expect(typeof count.value).toBe('string');
+
+      document.cookie = 'flag=true; Path=/';
+      const flag = useCookie<string>('flag');
+      expect(flag.value).toBe('true');
+      expect(typeof flag.value).toBe('string');
+
+      document.cookie = 'empty=null; Path=/';
+      const empty = useCookie<string>('empty');
+      expect(empty.value).toBe('null');
+      expect(typeof empty.value).toBe('string');
+    });
+  });
+
+  it('still parses complex JSON structures from cookie values', async () => {
+    await withMockCookies(async () => {
+      const { useCookie } = await import('../src/platform/index');
+
+      document.cookie = `obj=${encodeURIComponent('{"key":"value"}')}; Path=/`;
+      const obj = useCookie<{ key: string }>('obj');
+      expect(obj.value).toEqual({ key: 'value' });
+
+      document.cookie = `arr=${encodeURIComponent('[1,2,3]')}; Path=/`;
+      const arr = useCookie<number[]>('arr');
+      expect(arr.value).toEqual([1, 2, 3]);
+
+      document.cookie = `quoted=${encodeURIComponent('"hello"')}; Path=/`;
+      const quoted = useCookie<string>('quoted');
+      expect(quoted.value).toBe('hello');
+    });
+  });
+
+  it('enforces secure flag when sameSite is None', async () => {
+    await withMockCookies(async ({ lastRawSet }) => {
+      const { useCookie } = await import('../src/platform/index');
+
+      const cookie = useCookie<string>('cross-site', {
+        defaultValue: 'val',
+        sameSite: 'None',
+        secure: false,
+      });
+
+      cookie.value = 'updated';
+      expect(document.cookie).toContain('cross-site');
+      expect(lastRawSet()).toContain('Secure');
+      expect(lastRawSet()).toContain('SameSite=None');
     });
   });
 });

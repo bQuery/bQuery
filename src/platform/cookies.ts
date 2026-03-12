@@ -46,17 +46,9 @@ const readCookie = (name: string): string | null => {
   return null;
 };
 
-const looksLikeSerializedValue = (value: string): boolean => {
+const requiresJsonParsing = (value: string): boolean => {
   const normalized = value.trim();
-  return (
-    normalized.startsWith('{') ||
-    normalized.startsWith('[') ||
-    normalized.startsWith('"') ||
-    normalized === 'true' ||
-    normalized === 'false' ||
-    normalized === 'null' ||
-    /^-?\d/.test(normalized)
-  );
+  return normalized.startsWith('{') || normalized.startsWith('[') || normalized.startsWith('"');
 };
 
 const removeCookie = (
@@ -120,6 +112,10 @@ export const useCookie = <T>(name: string, options: UseCookieOptions<T> = {}): S
     ...options,
   };
 
+  if (resolvedOptions.sameSite === 'None') {
+    resolvedOptions.secure = true;
+  }
+
   const raw = readCookie(name);
   const cookieExists = raw !== null;
   let initialValue = (resolvedOptions.defaultValue ?? null) as T | null;
@@ -128,7 +124,7 @@ export const useCookie = <T>(name: string, options: UseCookieOptions<T> = {}): S
     try {
       initialValue = resolvedOptions.deserialize
         ? resolvedOptions.deserialize(raw)
-        : looksLikeSerializedValue(raw)
+        : requiresJsonParsing(raw)
           ? (JSON.parse(raw) as T)
           : ((raw as T) ?? initialValue);
     } catch (error) {
