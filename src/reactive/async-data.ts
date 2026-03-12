@@ -42,12 +42,14 @@ export interface AsyncDataState<TData> {
   status: Signal<AsyncDataStatus>;
   /** Computed boolean that mirrors `status === 'pending'`. */
   pending: { readonly value: boolean; peek(): boolean };
-  /** Execute the handler manually. */
+  /** Execute the handler manually. Returns the cached data value when called after dispose(). */
   execute: () => Promise<TData | undefined>;
   /** Alias for execute(). */
   refresh: () => Promise<TData | undefined>;
   /** Clear data, error, and status back to the initial state. */
   clear: () => void;
+  /** Dispose reactive watchers and prevent future executions. */
+  dispose: () => void;
 }
 
 /** Options for useFetch(). */
@@ -205,6 +207,8 @@ export const useAsyncData = <TResult, TData = TResult>(
   const status = signal<AsyncDataStatus>('idle');
   const pending = computed(() => status.value === 'pending');
   let executionId = 0;
+  let disposed = false;
+  let stopWatching = (): void => {};
 
   const clear = (): void => {
     executionId += 1;
@@ -213,7 +217,18 @@ export const useAsyncData = <TResult, TData = TResult>(
     status.value = 'idle';
   };
 
+  const dispose = (): void => {
+    if (disposed) return;
+    disposed = true;
+    executionId += 1;
+    stopWatching();
+  };
+
   const execute = async (): Promise<TData | undefined> => {
+    if (disposed) {
+      return data.peek();
+    }
+
     const currentExecution = ++executionId;
     status.value = 'pending';
     error.value = null;
@@ -224,7 +239,7 @@ export const useAsyncData = <TResult, TData = TResult>(
         ? options.transform(resolved)
         : (resolved as unknown as TData);
 
-      if (currentExecution !== executionId) {
+      if (disposed || currentExecution !== executionId) {
         return data.peek();
       }
 
@@ -235,7 +250,7 @@ export const useAsyncData = <TResult, TData = TResult>(
     } catch (caught) {
       const normalizedError = normalizeError(caught);
 
-      if (currentExecution !== executionId) {
+      if (disposed || currentExecution !== executionId) {
         return data.peek();
       }
 
@@ -248,7 +263,7 @@ export const useAsyncData = <TResult, TData = TResult>(
 
   if (options.watch?.length) {
     let initialized = false;
-    effect(() => {
+    stopWatching = effect(() => {
       for (const source of options.watch ?? []) {
         readWatchSource(source);
       }
@@ -275,6 +290,7 @@ export const useAsyncData = <TResult, TData = TResult>(
     execute,
     refresh: execute,
     clear,
+    dispose,
   };
 };
 

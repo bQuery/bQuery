@@ -422,4 +422,21 @@ describe('platform/defineBqueryConfig', () => {
     expect(nextSnapshot.transitions?.classes).toEqual(['is-transitioning']);
     expect(nextSnapshot.transitions?.types).toEqual(['navigation']);
   });
+
+  it('prevents mutation of global config through returned Headers instances', async () => {
+    const { defineBqueryConfig, getBqueryConfig } = await import('../src/platform/index');
+
+    defineBqueryConfig({
+      fetch: {
+        headers: new Headers({ 'x-default': '1' }),
+      },
+    });
+
+    const snapshot = getBqueryConfig();
+    expect(snapshot.fetch?.headers).toBeInstanceOf(Headers);
+    (snapshot.fetch?.headers as Headers).set('x-default', 'mutated');
+
+    const nextSnapshot = getBqueryConfig();
+    expect(new Headers(nextSnapshot.fetch?.headers).get('x-default')).toBe('1');
+  });
 });

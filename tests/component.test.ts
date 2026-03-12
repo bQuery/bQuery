@@ -128,6 +128,34 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('supports arrow-function lifecycle hooks that do not use this', () => {
+    const tagName = `test-arrow-hooks-${Date.now()}`;
+    const calls: string[] = [];
+
+    component(tagName, {
+      props: {},
+      beforeMount: () => {
+        calls.push('beforeMount');
+      },
+      connected: () => {
+        calls.push('connected');
+      },
+      updated: () => {
+        calls.push('updated');
+      },
+      render: () => html`<div>Arrow hooks</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+    el.setAttribute('data-test', '1');
+
+    expect(calls).toContain('beforeMount');
+    expect(calls).toContain('connected');
+
+    el.remove();
+  });
+
   it('calls beforeUpdate before re-renders and receives props', () => {
     const tagName = `test-before-update-${Date.now()}`;
     const receivedProps: unknown[] = [];

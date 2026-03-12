@@ -773,6 +773,38 @@ describe('useAsyncData', () => {
     expect(seen).toEqual(['/second']);
     expect(state.data.value).toBe('/second');
   });
+
+  it('disposes watched refresh effects', async () => {
+    const endpoint = signal('/first');
+    const seen: string[] = [];
+    const state = useAsyncData(
+      async () => {
+        seen.push(endpoint.value);
+        return endpoint.value;
+      },
+      {
+        immediate: false,
+        watch: [endpoint],
+      }
+    );
+
+    endpoint.value = '/second';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second']);
+    expect(state.data.value).toBe('/second');
+
+    state.dispose();
+    endpoint.value = '/third';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second']);
+    expect(state.data.value).toBe('/second');
+
+    const resultAfterDispose = await state.execute();
+    expect(resultAfterDispose).toBe('/second');
+    expect(seen).toEqual(['/second']);
+  });
 });
 
 describe('useFetch', () => {
@@ -818,6 +850,27 @@ describe('useFetch', () => {
 
     expect(body).toBe(JSON.stringify({ name: 'Ada' }));
     expect(contentType).toBe('application/json');
+  });
+
+  it('returns the cached value after dispose()', async () => {
+    const calls: string[] = [];
+    const state = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      fetcher: async () => {
+        calls.push('fetch');
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    const initial = await state.execute();
+    expect(initial?.ok).toBe(true);
+    expect(calls).toEqual(['fetch']);
+
+    state.dispose();
+
+    const resultAfterDispose = await state.execute();
+    expect(resultAfterDispose?.ok).toBe(true);
+    expect(calls).toEqual(['fetch']);
   });
 });
 

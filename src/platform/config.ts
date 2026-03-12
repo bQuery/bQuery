@@ -113,6 +113,10 @@ const defaultConfig: BqueryConfig = {
 };
 
 const cloneConfigValue = <T>(value: T): T => {
+  if (typeof Headers !== 'undefined' && value instanceof Headers) {
+    return new Headers(value) as T;
+  }
+
   if (Array.isArray(value)) {
     return value.map((entry) => cloneConfigValue(entry)) as T;
   }
