@@ -10,6 +10,8 @@ const window = new Window();
 // Register essential DOM globals
 (globalThis as unknown as { window: Window }).window = window;
 (globalThis as unknown as { document: Document }).document = window.document as unknown as Document;
+(globalThis as unknown as { Document: typeof Document }).Document =
+  window.Document as unknown as typeof Document;
 (globalThis as unknown as { HTMLElement: typeof HTMLElement }).HTMLElement =
   window.HTMLElement as unknown as typeof HTMLElement;
 (globalThis as unknown as { Element: typeof Element }).Element =
@@ -20,6 +22,8 @@ const window = new Window();
 (globalThis as unknown as { Event: typeof Event }).Event = window.Event as unknown as typeof Event;
 (globalThis as unknown as { CustomEvent: typeof CustomEvent }).CustomEvent =
   window.CustomEvent as unknown as typeof CustomEvent;
+(globalThis as unknown as { SyntaxError: typeof SyntaxError }).SyntaxError = SyntaxError;
+(window as unknown as { SyntaxError: typeof SyntaxError }).SyntaxError = SyntaxError;
 (globalThis as unknown as { NodeList: typeof NodeList }).NodeList =
   window.NodeList as unknown as typeof NodeList;
 (globalThis as unknown as { customElements: CustomElementRegistry }).customElements =

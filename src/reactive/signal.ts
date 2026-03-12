@@ -5,6 +5,7 @@
  */
 
 export { batch } from './batch';
+export { createUseFetch, useAsyncData, useFetch } from './async-data';
 export { Computed, computed } from './computed';
 export { Signal, signal } from './core';
 export { effect } from './effect';
@@ -16,5 +17,13 @@ export { untrack } from './untrack';
 export { watch } from './watch';
 
 export type { CleanupFn, Observer } from './internals';
+export type {
+  AsyncDataState,
+  AsyncDataStatus,
+  AsyncWatchSource,
+  FetchInput,
+  UseAsyncDataOptions,
+  UseFetchOptions,
+} from './async-data';
 export type { LinkedSignal } from './linked';
 export type { ReadonlySignal } from './readonly';

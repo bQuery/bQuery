@@ -9,7 +9,17 @@
  */
 export interface TransitionOptions {
   /** The DOM update function to execute during transition */
-  update: () => void;
+  update: () => void | Promise<void>;
+  /** Skip the transition when reduced motion is preferred. */
+  skipOnReducedMotion?: boolean;
+  /** Classes applied to the root element while the transition is active. */
+  classes?: string[];
+  /** Transition types added when supported by the browser. */
+  types?: string[];
+  /** Called after the transition becomes ready. */
+  onReady?: () => void;
+  /** Called after the transition finishes. */
+  onFinish?: () => void;
 }
 
 /**

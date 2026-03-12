@@ -26,5 +26,5 @@
     "verbatimModuleSyntax": false
   },
   "include": ["src"],
-  "exclude": ["dist", "node_modules", "tests", "playground", "docs"]
+  "exclude": ["dist", "node_modules", "tests", "docs", "storybook-static"]
 }

@@ -48,22 +48,42 @@ export {
   Signal,
   batch,
   computed,
+  createUseFetch,
   effect,
   isComputed,
   isSignal,
+  linkedSignal,
   persistedSignal,
   readonly,
   signal,
+  useAsyncData,
+  useFetch,
   untrack,
   watch,
 } from './reactive/index';
-export type { CleanupFn, Observer, ReadonlySignal } from './reactive/index';
+export type {
+  AsyncDataState,
+  AsyncDataStatus,
+  AsyncWatchSource,
+  CleanupFn,
+  FetchInput,
+  LinkedSignal,
+  Observer,
+  ReadonlySignal,
+  UseAsyncDataOptions,
+  UseFetchOptions,
+} from './reactive/index';
 
 // ============================================================================
 // Component Module: Web Components helper with Shadow DOM
 // ============================================================================
-export { component, html, safeHtml } from './component/index';
-export type { ComponentDefinition, PropDefinition } from './component/index';
+export { component, html, registerDefaultComponents, safeHtml } from './component/index';
+export type {
+  ComponentDefinition,
+  DefaultComponentLibraryOptions,
+  PropDefinition,
+  RegisteredDefaultComponents,
+} from './component/index';
 
 // ============================================================================
 // Motion Module: View transitions, FLIP animations, springs
@@ -133,13 +153,29 @@ export type { SanitizeOptions } from './security/index';
 // ============================================================================
 // Platform Module: Storage, buckets, notifications, cache
 // ============================================================================
-export { buckets, cache, notifications, storage } from './platform/index';
+export {
+  buckets,
+  cache,
+  defineBqueryConfig,
+  definePageMeta,
+  getBqueryConfig,
+  notifications,
+  storage,
+  useAnnouncer,
+  useCookie,
+} from './platform/index';
 export type {
+  AnnounceOptions,
+  AnnouncerHandle,
   Bucket,
+  BqueryConfig,
   CacheHandle,
   IndexedDBOptions,
   NotificationOptions,
+  PageMetaDefinition,
   StorageAdapter,
+  UseAnnouncerOptions,
+  UseCookieOptions,
 } from './platform/index';
 
 // ============================================================================

@@ -183,8 +183,8 @@ bun install
 # Start documentation dev server
 bun run dev
 
-# Start playground demo
-bun run playground
+# Start Storybook
+bun run storybook
 
 # Run tests
 bun test

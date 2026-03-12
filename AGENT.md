@@ -27,7 +27,7 @@ bun test              # Run all tests
 bun run build         # Build ESM + UMD + types → dist/
 bun run lint          # ESLint with auto-fix
 bun run lint:types    # TypeScript type check only
-bun run playground    # Dev playground (Vite)
+bun run storybook     # Storybook dev server
 bun run dev           # VitePress docs server
 ```
 
@@ -50,7 +50,8 @@ src/
 └── view/               # mount(), bq-* directives, declarative DOM bindings
 
 tests/                  # Bun test suites (one file per module)
-playground/             # Vite demo app
+.storybook/            # Storybook config
+stories/                # Component stories
 docs/                   # VitePress documentation site
 ```
 

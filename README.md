@@ -477,8 +477,8 @@ bun install
 # Start VitePress docs
 bun run dev
 
-# Run Vite playground
-bun run playground
+# Run Storybook
+bun run storybook
 
 # Run tests
 bun test
@@ -505,7 +505,8 @@ bQuery.js
 │   ├── store/      # State management, persistence
 │   └── view/       # Declarative DOM bindings
 ├── docs/           # VitePress documentation
-├── playground/     # Vite demo app
+├── .storybook/    # Storybook config
+├── stories/       # Component stories
 ├── tests/          # bun:test suites
 └── dist/           # Built files (ESM, UMD, IIFE)
 ```

@@ -67,7 +67,7 @@ bun test           # Run tests
 bun run build      # Build library
 bun run lint       # Lint with auto-fix
 bun run dev        # Docs dev server
-bun run playground # Playground dev server
+bun run storybook # Storybook dev server
 ```
 
 ## Key Design Decisions

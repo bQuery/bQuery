@@ -116,7 +116,9 @@ export const DANGEROUS_TAGS = new Set([
   'style',
   'base',
   'template',
-  'slot',
+  // 'slot' is intentionally excluded here so component shadow markup can opt in
+  // via sanitizeHtml(..., { allowTags: ['slot'] }). It remains disallowed by default
+  // for general HTML writes, because DEFAULT_ALLOWED_TAGS does not include it.
   'math',
   'svg',
   'foreignobject',

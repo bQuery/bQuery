@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'bun:test';
-import { batch, computed, effect, signal } from '../src/reactive/signal';
+import {
+  batch,
+  computed,
+  createUseFetch,
+  effect,
+  signal,
+  useAsyncData,
+  useFetch,
+} from '../src/reactive/signal';
 
 describe('signal', () => {
   it('stores and retrieves values', () => {
@@ -719,5 +727,535 @@ describe('effect error handling', () => {
     } finally {
       console.error = originalError;
     }
+  });
+});
+
+describe('useAsyncData', () => {
+  it('tracks async state transitions and transforms results', async () => {
+    const state = useAsyncData(
+      async () => {
+        return { value: 21 };
+      },
+      {
+        transform: (result) => result.value * 2,
+      }
+    );
+
+    expect(state.status.value).toBe('pending');
+
+    const result = await state.execute();
+    expect(result).toBe(42);
+    expect(state.data.value).toBe(42);
+    expect(state.error.value).toBeNull();
+    expect(state.status.value).toBe('success');
+    expect(state.pending.value).toBe(false);
+  });
+
+  it('refreshes when watched signals change', async () => {
+    const endpoint = signal('/first');
+    const seen: string[] = [];
+    const state = useAsyncData(
+      async () => {
+        seen.push(endpoint.value);
+        return endpoint.value;
+      },
+      {
+        immediate: false,
+        watch: [endpoint],
+      }
+    );
+
+    expect(seen).toEqual([]);
+
+    endpoint.value = '/second';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second']);
+    expect(state.data.value).toBe('/second');
+  });
+
+  it('disposes watched refresh effects', async () => {
+    const endpoint = signal('/first');
+    const seen: string[] = [];
+    const state = useAsyncData(
+      async () => {
+        seen.push(endpoint.value);
+        return endpoint.value;
+      },
+      {
+        immediate: false,
+        watch: [endpoint],
+      }
+    );
+
+    endpoint.value = '/second';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second']);
+    expect(state.data.value).toBe('/second');
+
+    state.dispose();
+    endpoint.value = '/third';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second']);
+    expect(state.data.value).toBe('/second');
+
+    const resultAfterDispose = await state.execute();
+    expect(resultAfterDispose).toBe('/second');
+    expect(seen).toEqual(['/second']);
+  });
+
+  it('tracks only explicit watch sources during watched refreshes', async () => {
+    const endpoint = signal('/first');
+    const dependency = signal('alpha');
+    const seen: string[] = [];
+
+    const state = useAsyncData(
+      async () => {
+        seen.push(`${endpoint.value}:${dependency.value}`);
+        return dependency.value;
+      },
+      {
+        immediate: false,
+        watch: [endpoint],
+      }
+    );
+
+    expect(state.status.value).toBe('idle');
+    expect(state.data.value).toBeUndefined();
+    expect(state.error.value).toBeNull();
+
+    endpoint.value = '/second';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second:alpha']);
+
+    dependency.value = 'beta';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second:alpha']);
+
+    endpoint.value = '/third';
+    await Promise.resolve();
+
+    expect(seen).toEqual(['/second:alpha', '/third:beta']);
+  });
+});
+
+describe('useFetch', () => {
+  it('fetches JSON and appends query parameters', async () => {
+    const requests: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const state = useFetch<{ ok: boolean; search: string }>('/api/users', {
+      immediate: false,
+      query: { page: 2, tags: ['a', 'b'] },
+      fetcher: async (input, init) => {
+        requests.push({ input, init });
+        return new Response(JSON.stringify({ ok: true, search: String(input) }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      },
+    });
+
+    const result = await state.execute();
+
+    expect(result?.ok).toBe(true);
+    expect(result?.search).toContain('page=2');
+    expect(result?.search).toContain('tags=a');
+    expect(result?.search).toContain('tags=b');
+    expect(requests).toHaveLength(1);
+  });
+
+  it('serializes plain object bodies as JSON', async () => {
+    let body = '';
+    let contentType = '';
+
+    const state = useFetch<{ saved: boolean }>('/api/save', {
+      immediate: false,
+      method: 'POST',
+      body: { name: 'Ada' },
+      fetcher: async (_input, init) => {
+        body = String(init?.body);
+        contentType = new Headers(init?.headers).get('content-type') ?? '';
+        return new Response(JSON.stringify({ saved: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(body).toBe(JSON.stringify({ name: 'Ada' }));
+    expect(contentType).toBe('application/json');
+  });
+
+  it('creates fresh headers for each execution when serializing JSON bodies', async () => {
+    const contentTypes: string[] = [];
+    const state = useFetch<{ saved: boolean }>('/api/save', {
+      immediate: false,
+      method: 'POST',
+      body: { name: 'Ada' },
+      headers: { 'x-test': '1' },
+      fetcher: async (_input, init) => {
+        const headers = init?.headers;
+        expect(headers).toBeInstanceOf(Headers);
+        const requestHeaders = headers as Headers;
+        contentTypes.push(requestHeaders.get('content-type') ?? '');
+        requestHeaders.delete('content-type');
+        return new Response(JSON.stringify({ saved: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+    await state.execute();
+
+    expect(contentTypes).toEqual(['application/json', 'application/json']);
+  });
+
+  it('preserves existing headers when input is a Request', async () => {
+    let capturedContentType = '';
+    let capturedRequestId = '';
+    let capturedAuth = '';
+
+    const request = new Request('https://example.com/api/save', {
+      method: 'POST',
+      headers: {
+        authorization: 'Bearer request-token',
+        'content-type': 'text/plain',
+      },
+      body: 'existing body',
+    });
+
+    const state = useFetch<{ saved: boolean }>(request, {
+      immediate: false,
+      headers: { 'x-request-id': '123' },
+      fetcher: async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        capturedContentType = headers.get('content-type') ?? '';
+        capturedRequestId = headers.get('x-request-id') ?? '';
+        capturedAuth = headers.get('authorization') ?? '';
+        return new Response(JSON.stringify({ saved: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedContentType).toBe('text/plain');
+    expect(capturedRequestId).toBe('123');
+    expect(capturedAuth).toBe('Bearer request-token');
+  });
+
+  it('treats global fetch config headers as defaults for Request inputs', async () => {
+    const { defineBqueryConfig, getBqueryConfig } = await import('../src/platform/index');
+    const previousConfig = getBqueryConfig();
+    let capturedContentType = '';
+    let capturedAuth = '';
+    let capturedConfigHeader = '';
+    let capturedRequestId = '';
+
+    defineBqueryConfig({
+      fetch: {
+        headers: {
+          authorization: 'Bearer config-token',
+          'content-type': 'application/json',
+          'x-config': '1',
+        },
+      },
+    });
+
+    try {
+      const request = new Request('https://example.com/api/save', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer request-token',
+          'content-type': 'text/plain',
+        },
+        body: 'existing body',
+      });
+
+      const state = useFetch<{ saved: boolean }>(request, {
+        immediate: false,
+        headers: { 'x-request-id': '123' },
+        fetcher: async (_input, init) => {
+          const headers = new Headers(init?.headers);
+          capturedContentType = headers.get('content-type') ?? '';
+          capturedAuth = headers.get('authorization') ?? '';
+          capturedConfigHeader = headers.get('x-config') ?? '';
+          capturedRequestId = headers.get('x-request-id') ?? '';
+          return new Response(JSON.stringify({ saved: true }), { status: 200 });
+        },
+      });
+
+      await state.execute();
+    } finally {
+      defineBqueryConfig(previousConfig);
+    }
+
+    expect(capturedContentType).toBe('text/plain');
+    expect(capturedAuth).toBe('Bearer request-token');
+    expect(capturedConfigHeader).toBe('1');
+    expect(capturedRequestId).toBe('123');
+  });
+
+  it('applies query parameters when input is a Request', async () => {
+    let capturedUrl = '';
+    let capturedAuth = '';
+    let capturedExtra = '';
+
+    const request = new Request('https://example.com/api/users?existing=1', {
+      headers: { authorization: 'Bearer token' },
+    });
+
+    const state = useFetch<{ ok: boolean }>(request, {
+      immediate: false,
+      query: { page: 2, tags: ['a', 'hello world'] },
+      headers: { 'x-extra': '123' },
+      fetcher: async (input, init) => {
+        capturedUrl = input instanceof Request ? input.url : String(input);
+        const headers = new Headers(init?.headers);
+        capturedAuth = headers.get('authorization') ?? '';
+        capturedExtra = headers.get('x-extra') ?? '';
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedUrl).toBe(
+      'https://example.com/api/users?existing=1&page=2&tags=a&tags=hello+world'
+    );
+    expect(capturedAuth).toBe('Bearer token');
+    expect(capturedExtra).toBe('123');
+  });
+
+  it('preserves the original Request URL when no query parameters are provided', async () => {
+    let capturedUrl = '';
+    let capturedInput: RequestInfo | URL | null = null;
+
+    const request = new Request('https://example.com/api/users?existing=1');
+    const state = useFetch<{ ok: boolean }>(request, {
+      immediate: false,
+      fetcher: async (input) => {
+        capturedInput = input;
+        capturedUrl = input instanceof Request ? input.url : String(input);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedUrl).toBe('https://example.com/api/users?existing=1');
+    expect(capturedInput).toBe(request);
+  });
+
+  it('resolves relative base URLs against the runtime base URL', async () => {
+    let capturedUrl = '';
+
+    const state = useFetch<{ ok: boolean }>('users', {
+      baseUrl: '/api/',
+      immediate: false,
+      fetcher: async (input) => {
+        capturedUrl = String(input);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedUrl).toBe('http://localhost/api/users');
+    expect(state.data.value).toEqual({ ok: true });
+  });
+
+  it('preserves absolute base URLs when resolving request URLs', async () => {
+    let capturedUrl = '';
+
+    const state = useFetch<{ ok: boolean }>('users', {
+      baseUrl: 'https://example.com/api/',
+      immediate: false,
+      fetcher: async (input) => {
+        capturedUrl = String(input);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedUrl).toBe('https://example.com/api/users');
+    expect(state.status.value).toBe('success');
+    expect(state.data.value).toEqual({ ok: true });
+  });
+
+  it('returns the cached value after dispose()', async () => {
+    const calls: string[] = [];
+    const state = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      fetcher: async () => {
+        calls.push('fetch');
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    const initial = await state.execute();
+    expect(initial?.ok).toBe(true);
+    expect(calls).toEqual(['fetch']);
+
+    state.dispose();
+
+    const resultAfterDispose = await state.execute();
+    expect(resultAfterDispose?.ok).toBe(true);
+    expect(calls).toEqual(['fetch']);
+  });
+
+  it('defaults to POST when a body is provided without an explicit method', async () => {
+    let capturedMethod = '';
+
+    const state = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      body: { saved: true },
+      fetcher: async (_input, init) => {
+        capturedMethod = init?.method ?? '';
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await state.execute();
+
+    expect(capturedMethod).toBe('POST');
+    expect(state.status.value).toBe('success');
+  });
+
+  it('normalizes mixed-case methods and treats whitespace-only methods as unspecified', async () => {
+    let normalizedMethod = '';
+    let defaultedMethod = '';
+
+    const normalized = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      method: ' PoSt ',
+      body: { saved: true },
+      fetcher: async (_input, init) => {
+        normalizedMethod = init?.method ?? '';
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    const defaulted = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      method: '   ',
+      body: { saved: true },
+      fetcher: async (_input, init) => {
+        defaultedMethod = init?.method ?? '';
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await normalized.execute();
+    await defaulted.execute();
+
+    expect(normalizedMethod).toBe('POST');
+    expect(defaultedMethod).toBe('POST');
+  });
+
+  it('stores a clear error when a GET request is given a body', async () => {
+    let calls = 0;
+    const state = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      method: 'GET',
+      body: { invalid: true },
+      fetcher: async () => {
+        calls += 1;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    const result = await state.execute();
+
+    expect(result).toBeUndefined();
+    expect(state.status.value).toBe('error');
+    expect(state.error.value?.message).toBe('Cannot send a request body with GET requests');
+    expect(calls).toBe(0);
+  });
+
+  it('stores a clear error when a HEAD request is given a body', async () => {
+    const state = useFetch<{ ok: boolean }>('/api/users', {
+      immediate: false,
+      method: 'HEAD',
+      body: { invalid: true },
+    });
+
+    const result = await state.execute();
+
+    expect(result).toBeUndefined();
+    expect(state.status.value).toBe('error');
+    expect(state.error.value?.message).toBe('Cannot send a request body with HEAD requests');
+  });
+});
+
+describe('createUseFetch', () => {
+  it('applies shared defaults to derived useFetch instances', async () => {
+    const useApiFetch = createUseFetch<{ ok: boolean; url: string }>({
+      baseUrl: 'https://example.com',
+      headers: { 'x-default': '1' },
+      immediate: false,
+      fetcher: async (input, init) => {
+        expect(String(input)).toContain('https://example.com/users');
+        expect(new Headers(init?.headers).get('x-default')).toBe('1');
+        expect(new Headers(init?.headers).get('x-extra')).toBe('2');
+        return new Response(JSON.stringify({ ok: true, url: String(input) }), { status: 200 });
+      },
+    });
+
+    const state = useApiFetch('/users', {
+      headers: { 'x-extra': '2' },
+    });
+
+    const result = await state.execute();
+    expect(result?.ok).toBe(true);
+  });
+
+  it('allows response types to be specified per invocation', async () => {
+    const requests: string[] = [];
+    const useApiFetch = createUseFetch({
+      baseUrl: 'https://example.com',
+      immediate: false,
+      fetcher: async (input) => {
+        requests.push(String(input));
+
+        if (String(input).includes('/users')) {
+          return new Response(JSON.stringify([{ id: 1, name: 'Ada' }]), { status: 200 });
+        }
+
+        return new Response(JSON.stringify([{ id: 2, title: 'Hello' }]), { status: 200 });
+      },
+    });
+
+    const users = useApiFetch<Array<{ id: number; name: string }>>('/users');
+    const posts = useApiFetch<Array<{ id: number; title: string }>>('/posts');
+
+    const [userResult, postResult] = await Promise.all([users.execute(), posts.execute()]);
+
+    expect(userResult?.[0]?.name).toBe('Ada');
+    expect(postResult?.[0]?.title).toBe('Hello');
+    expect(requests).toEqual(['https://example.com/users', 'https://example.com/posts']);
+  });
+
+  it('preserves configured transform data types by default', async () => {
+    const useApiFetch = createUseFetch<{ id: number; name: string }, string>({
+      baseUrl: 'https://example.com',
+      immediate: false,
+      transform: (value) => value.name,
+      fetcher: async () =>
+        new Response(JSON.stringify({ id: 1, name: 'Ada' }), {
+          status: 200,
+        }),
+    });
+
+    const state = useApiFetch('/users');
+    const execution: Promise<string | undefined> = state.execute();
+    const currentValue: string | undefined = state.data.value;
+
+    expect(currentValue).toBeUndefined();
+    expect(await execution).toBe('Ada');
+    expect(state.data.value).toBe('Ada');
+    expect(state.status.value).toBe('success');
+    expect(state.error.value).toBeNull();
   });
 });

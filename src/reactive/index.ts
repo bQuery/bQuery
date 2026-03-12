@@ -9,6 +9,7 @@ export {
   Signal,
   batch,
   computed,
+  createUseFetch,
   effect,
   isComputed,
   isSignal,
@@ -16,8 +17,21 @@ export {
   persistedSignal,
   readonly,
   signal,
+  useAsyncData,
+  useFetch,
   untrack,
   watch,
 } from './signal';
 
-export type { CleanupFn, LinkedSignal, Observer, ReadonlySignal } from './signal';
+export type {
+  AsyncDataState,
+  AsyncDataStatus,
+  AsyncWatchSource,
+  CleanupFn,
+  FetchInput,
+  LinkedSignal,
+  Observer,
+  ReadonlySignal,
+  UseAsyncDataOptions,
+  UseFetchOptions,
+} from './signal';

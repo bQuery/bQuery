@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'bun:test';
-import { component, defineComponent, html } from '../src/component/index';
+import {
+  component,
+  defineComponent,
+  html,
+  registerDefaultComponents,
+} from '../src/component/index';
 
 describe('component/html', () => {
   it('creates HTML from template literal', () => {
@@ -119,6 +124,34 @@ describe('component/component', () => {
     document.body.appendChild(el);
 
     expect(callOrder).toEqual(['beforeMount', 'connected', 'render']);
+
+    el.remove();
+  });
+
+  it('supports arrow-function lifecycle hooks that do not use this', () => {
+    const tagName = `test-arrow-hooks-${Date.now()}`;
+    const calls: string[] = [];
+
+    component(tagName, {
+      props: {},
+      beforeMount: () => {
+        calls.push('beforeMount');
+      },
+      connected: () => {
+        calls.push('connected');
+      },
+      updated: () => {
+        calls.push('updated');
+      },
+      render: () => html`<div>Arrow hooks</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+    el.setAttribute('data-test', '1');
+
+    expect(calls).toContain('beforeMount');
+    expect(calls).toContain('connected');
 
     el.remove();
   });
@@ -835,5 +868,258 @@ describe('component/defineComponent', () => {
     expect(el.shadowRoot?.innerHTML).toContain('custom');
 
     el.remove();
+  });
+});
+
+describe('component/registerDefaultComponents', () => {
+  it('registers the default foundational component library', () => {
+    const prefix = `ui${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    expect(customElements.get(tags.button)).toBeDefined();
+    expect(customElements.get(tags.card)).toBeDefined();
+    expect(customElements.get(tags.input)).toBeDefined();
+    expect(customElements.get(tags.textarea)).toBeDefined();
+    expect(customElements.get(tags.checkbox)).toBeDefined();
+  });
+
+  it('allows re-registering the same default component tags for repeat dev bootstraps', () => {
+    const prefix = `dev${Date.now()}`;
+
+    expect(() => registerDefaultComponents({ prefix })).not.toThrow();
+    expect(() => registerDefaultComponents({ prefix })).not.toThrow();
+  });
+
+  it('updates button text when the label attribute changes', () => {
+    const prefix = `story${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const button = document.createElement(tags.button);
+    button.setAttribute('label', 'Continue');
+    document.body.appendChild(button);
+
+    expect(button.shadowRoot?.textContent).toContain('Continue');
+
+    button.setAttribute('label', 'Updated label');
+    expect(button.shadowRoot?.textContent).toContain('Updated label');
+
+    button.remove();
+  });
+
+  it('renders string props as text instead of injected markup', () => {
+    const prefix = `safe${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const button = document.createElement(tags.button);
+    button.setAttribute('label', '<img src=x onerror=alert(1)>');
+    document.body.appendChild(button);
+
+    const card = document.createElement(tags.card);
+    card.setAttribute('title', '<a href="https://example.com">Title</a>');
+    card.setAttribute('footer', '<img src="https://example.com/x.png">');
+    document.body.appendChild(card);
+
+    const input = document.createElement(tags.input);
+    input.setAttribute('label', '<strong>Name</strong>');
+    input.setAttribute('placeholder', '"quoted"');
+    input.setAttribute('value', '<value>');
+    document.body.appendChild(input);
+
+    const textarea = document.createElement(tags.textarea);
+    textarea.setAttribute('label', '<em>Notes</em>');
+    textarea.setAttribute('value', '<script>alert(1)</script>');
+    document.body.appendChild(textarea);
+
+    const checkbox = document.createElement(tags.checkbox);
+    checkbox.setAttribute('label', '<svg>Active</svg>');
+    document.body.appendChild(checkbox);
+
+    expect(button.shadowRoot?.querySelector('img')).toBeNull();
+    expect(button.shadowRoot?.textContent).toContain('<img src=x onerror=alert(1)>');
+
+    expect(card.shadowRoot?.querySelector('a')).toBeNull();
+    expect(card.shadowRoot?.querySelector('img')).toBeNull();
+    expect(card.shadowRoot?.textContent).toContain('<a href="https://example.com">Title</a>');
+    expect(card.shadowRoot?.textContent).toContain('<img src="https://example.com/x.png">');
+
+    expect(input.shadowRoot?.querySelector('strong')).toBeNull();
+    expect(input.shadowRoot?.querySelector('.label')?.textContent).toBe('<strong>Name</strong>');
+    expect(input.shadowRoot?.querySelector('img')).toBeNull();
+
+    expect(textarea.shadowRoot?.querySelector('em')).toBeNull();
+    expect(textarea.shadowRoot?.querySelector('.label')?.textContent).toBe('<em>Notes</em>');
+    expect((textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null)?.value).toBe(
+      '<script>alert(1)</script>'
+    );
+
+    expect(checkbox.shadowRoot?.querySelector('svg')).toBeNull();
+    expect(checkbox.shadowRoot?.textContent).toContain('<svg>Active</svg>');
+
+    button.remove();
+    card.remove();
+    input.remove();
+    textarea.remove();
+    checkbox.remove();
+  });
+
+  it('keeps form components interactive without external dependencies', () => {
+    const prefix = `kit${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const input = document.createElement(tags.input);
+    input.setAttribute('label', 'Name');
+    document.body.appendChild(input);
+
+    const inputControl = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    expect(inputControl).not.toBeNull();
+    if (!inputControl) throw new Error('Expected input control to exist');
+    inputControl.value = 'Ada';
+    inputControl.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(input.getAttribute('value')).toBe('Ada');
+
+    const checkbox = document.createElement(tags.checkbox);
+    checkbox.setAttribute('label', 'Active');
+    document.body.appendChild(checkbox);
+
+    const checkboxControl = checkbox.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    expect(checkboxControl).not.toBeNull();
+    checkboxControl!.checked = true;
+    checkboxControl!.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(checkbox.getAttribute('checked')).toBe('true');
+
+    input.remove();
+    checkbox.remove();
+  });
+
+  it('preserves standard form attributes in component shadow DOM', () => {
+    const prefix = `attrs${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const input = document.createElement(tags.input);
+    input.setAttribute('label', 'Email');
+    input.setAttribute('placeholder', 'user@example.com');
+    input.setAttribute('value', 'test@example.com');
+    input.setAttribute('disabled', 'true');
+    document.body.appendChild(input);
+
+    const inputShadow = input.shadowRoot?.innerHTML ?? '';
+    expect(inputShadow).toContain('placeholder="user@example.com"');
+    expect(inputShadow).toContain('value="test@example.com"');
+    expect(inputShadow).toContain('disabled');
+
+    const textarea = document.createElement(tags.textarea);
+    textarea.setAttribute('label', 'Notes');
+    textarea.setAttribute('placeholder', 'Enter notes');
+    textarea.setAttribute('rows', '6');
+    textarea.setAttribute('disabled', 'true');
+    document.body.appendChild(textarea);
+
+    const textareaShadow = textarea.shadowRoot?.innerHTML ?? '';
+    expect(textareaShadow).toContain('placeholder="Enter notes"');
+    expect(textareaShadow).toContain('rows="6"');
+    expect(textareaShadow).toContain('disabled');
+
+    const checkbox = document.createElement(tags.checkbox);
+    checkbox.setAttribute('label', 'Active');
+    checkbox.setAttribute('checked', 'true');
+    checkbox.setAttribute('disabled', 'true');
+    document.body.appendChild(checkbox);
+
+    const checkboxShadow = checkbox.shadowRoot?.innerHTML ?? '';
+    expect(checkboxShadow).toContain('checked');
+    expect(checkboxShadow).toContain('disabled');
+
+    input.remove();
+    textarea.remove();
+    checkbox.remove();
+  });
+
+  it('keeps input and textarea controls stable while reflecting typed values', () => {
+    const prefix = `stable${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const input = document.createElement(tags.input);
+    input.setAttribute('label', 'Name');
+    document.body.appendChild(input);
+
+    const inputControl = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    expect(inputControl).not.toBeNull();
+    if (!inputControl) throw new Error('Expected input control to exist');
+    inputControl.value = 'Ada';
+    inputControl.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const inputControlAfterUpdate = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    expect(inputControlAfterUpdate).toBe(inputControl);
+    expect(input.getAttribute('value')).toBe('Ada');
+    expect(inputControlAfterUpdate?.value).toBe('Ada');
+
+    const textarea = document.createElement(tags.textarea);
+    textarea.setAttribute('label', 'Notes');
+    document.body.appendChild(textarea);
+
+    const textareaControl = textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null;
+    expect(textareaControl).not.toBeNull();
+    if (!textareaControl) throw new Error('Expected textarea control to exist');
+    textareaControl.value = 'Updated notes';
+    textareaControl.dispatchEvent(new Event('input', { bubbles: true }));
+
+    const textareaControlAfterUpdate = textarea.shadowRoot?.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement | null;
+    expect(textareaControlAfterUpdate).toBe(textareaControl);
+    expect(textarea.getAttribute('value')).toBe('Updated notes');
+    expect(textareaControlAfterUpdate?.value).toBe('Updated notes');
+
+    input.remove();
+    textarea.remove();
+  });
+
+  it('dispatches a single host event for input, textarea, and checkbox interactions', () => {
+    const prefix = `events${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const input = document.createElement(tags.input);
+    document.body.appendChild(input);
+    const inputEvents: Array<{ value: string | undefined }> = [];
+    input.addEventListener('input', (event) => {
+      inputEvents.push({ value: (event as CustomEvent<{ value: string }>).detail?.value });
+    });
+
+    const inputControl = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    if (!inputControl) throw new Error('Expected input control to exist');
+    inputControl.value = 'Ada';
+    inputControl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+
+    const textarea = document.createElement(tags.textarea);
+    document.body.appendChild(textarea);
+    const textareaEvents: Array<{ value: string | undefined }> = [];
+    textarea.addEventListener('input', (event) => {
+      textareaEvents.push({ value: (event as CustomEvent<{ value: string }>).detail?.value });
+    });
+
+    const textareaControl = textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null;
+    if (!textareaControl) throw new Error('Expected textarea control to exist');
+    textareaControl.value = 'Notes';
+    textareaControl.dispatchEvent(new Event('input', { bubbles: true, composed: true }));
+
+    const checkbox = document.createElement(tags.checkbox);
+    document.body.appendChild(checkbox);
+    const checkboxEvents: Array<{ checked: boolean | undefined }> = [];
+    checkbox.addEventListener('change', (event) => {
+      checkboxEvents.push({ checked: (event as CustomEvent<{ checked: boolean }>).detail?.checked });
+    });
+
+    const checkboxControl = checkbox.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    if (!checkboxControl) throw new Error('Expected checkbox control to exist');
+    checkboxControl.checked = true;
+    checkboxControl.dispatchEvent(new Event('change', { bubbles: true, composed: true }));
+
+    expect(inputEvents).toEqual([{ value: 'Ada' }]);
+    expect(textareaEvents).toEqual([{ value: 'Notes' }]);
+    expect(checkboxEvents).toEqual([{ checked: true }]);
+
+    input.remove();
+    textarea.remove();
+    checkbox.remove();
   });
 });

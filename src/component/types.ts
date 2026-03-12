@@ -60,6 +60,12 @@ export type ComponentRenderContext<TProps extends Record<string, unknown>> = {
  *
  * @template TProps - Type of the component's props
  */
+type ComponentHook<TResult = void> = ((this: HTMLElement) => TResult) | (() => TResult);
+type ComponentHookWithProps<TProps extends Record<string, unknown>, TResult = void> =
+  | ((this: HTMLElement, props: TProps) => TResult)
+  | ((props: TProps) => TResult);
+type ComponentErrorHook = ((this: HTMLElement, error: Error) => void) | ((error: Error) => void);
+
 export type ComponentDefinition<TProps extends Record<string, unknown> = Record<string, unknown>> =
   {
     /** Prop definitions with types and defaults */
@@ -69,17 +75,17 @@ export type ComponentDefinition<TProps extends Record<string, unknown> = Record<
     /** CSS styles scoped to the component's shadow DOM */
     styles?: string;
     /** Lifecycle hook called before the component mounts (before first render) */
-    beforeMount?: () => void;
+    beforeMount?: ComponentHook;
     /** Lifecycle hook called when component is added to DOM */
-    connected?: () => void;
+    connected?: ComponentHook;
     /** Lifecycle hook called when component is removed from DOM */
-    disconnected?: () => void;
+    disconnected?: ComponentHook;
     /** Lifecycle hook called before an update render; return false to prevent */
-    beforeUpdate?: (props: TProps) => boolean | void;
+    beforeUpdate?: ComponentHookWithProps<TProps, boolean | void>;
     /** Lifecycle hook called after reactive updates trigger a render */
-    updated?: () => void;
+    updated?: ComponentHook;
     /** Error handler for errors during rendering or lifecycle */
-    onError?: (error: Error) => void;
+    onError?: ComponentErrorHook;
     /** Render function returning HTML string */
     render: (context: ComponentRenderContext<TProps>) => string;
   };
