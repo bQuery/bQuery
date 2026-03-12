@@ -167,7 +167,18 @@ const parseResponse = async <TResponse>(
   if (parseAs === 'formData') return (await response.formData()) as TResponse;
 
   const text = await response.text();
-  return (text ? (JSON.parse(text) as TResponse) : (undefined as TResponse));
+  if (!text) {
+    return undefined as TResponse;
+  }
+
+  try {
+    return JSON.parse(text) as TResponse;
+  } catch (error) {
+    const detail = response.url ? ` for ${response.url}` : '';
+    throw new Error(
+      `Failed to parse JSON response${detail} (status ${response.status}): ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 };
 
 /**

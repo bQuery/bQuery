@@ -132,7 +132,7 @@ export const useCookie = <T>(name: string, options: UseCookieOptions<T> = {}): S
           ? (JSON.parse(raw) as T)
           : ((raw as T) ?? initialValue);
     } catch (error) {
-      console.warn(`bQuery: Failed to deserialize cookie "${name}"`, error);
+      console.warn(`bQuery: Failed to deserialize cookie "${name}", using raw string value`, error);
       initialValue = (raw as T) ?? initialValue;
     }
   }

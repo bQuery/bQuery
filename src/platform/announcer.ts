@@ -123,7 +123,23 @@ export const useAnnouncer = (options: UseAnnouncerOptions = {}): AnnouncerHandle
   }
 
   if (created) {
-    (resolvedOptions.container ?? document.body ?? document.documentElement).appendChild(element);
+    const parent = resolvedOptions.container ?? document.body ?? document.documentElement;
+    if (!parent) {
+      return {
+        element: null,
+        message,
+        announce(value: string) {
+          message.value = value;
+        },
+        clear() {
+          message.value = '';
+        },
+        destroy() {
+          message.value = '';
+        },
+      };
+    }
+    parent.appendChild(element);
   }
 
   effect(() => {

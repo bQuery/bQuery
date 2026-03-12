@@ -72,12 +72,16 @@ const controlStyles = `
   }
 `;
 
-const storeHandler = (element: HTMLElement, key: string, value: EventListener): void => {
-  (element as HTMLElement & Record<string, unknown>)[key] = value;
-};
+const handlerStore = new WeakMap<HTMLElement, Record<string, EventListener>>();
 
 const readHandler = (element: HTMLElement, key: string): EventListener | undefined => {
-  return (element as HTMLElement & Record<string, EventListener | undefined>)[key];
+  return handlerStore.get(element)?.[key];
+};
+
+const storeHandler = (element: HTMLElement, key: string, value: EventListener): void => {
+  const handlers = handlerStore.get(element) ?? {};
+  handlers[key] = value;
+  handlerStore.set(element, handlers);
 };
 
 /**
