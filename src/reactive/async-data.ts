@@ -381,8 +381,8 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
     }
 
     const headers = toHeaders(
-      requestInput instanceof Request ? requestInput.headers : undefined,
       fetchConfig?.headers,
+      requestInput instanceof Request ? requestInput.headers : undefined,
       options.headers
     );
     const bodyProvided = options.body != null;

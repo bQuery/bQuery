@@ -944,6 +944,58 @@ describe('useFetch', () => {
     expect(capturedAuth).toBe('Bearer request-token');
   });
 
+  it('treats global fetch config headers as defaults for Request inputs', async () => {
+    const { defineBqueryConfig, getBqueryConfig } = await import('../src/platform/index');
+    const previousConfig = getBqueryConfig();
+    let capturedContentType = '';
+    let capturedAuth = '';
+    let capturedConfigHeader = '';
+    let capturedRequestId = '';
+
+    defineBqueryConfig({
+      fetch: {
+        headers: {
+          authorization: 'Bearer config-token',
+          'content-type': 'application/json',
+          'x-config': '1',
+        },
+      },
+    });
+
+    try {
+      const request = new Request('https://example.com/api/save', {
+        method: 'POST',
+        headers: {
+          authorization: 'Bearer request-token',
+          'content-type': 'text/plain',
+        },
+        body: 'existing body',
+      });
+
+      const state = useFetch<{ saved: boolean }>(request, {
+        immediate: false,
+        headers: { 'x-request-id': '123' },
+        fetcher: async (_input, init) => {
+          const headers = new Headers(init?.headers);
+          capturedContentType = headers.get('content-type') ?? '';
+          capturedAuth = headers.get('authorization') ?? '';
+          capturedConfigHeader = headers.get('x-config') ?? '';
+          capturedRequestId = headers.get('x-request-id') ?? '';
+          return new Response(JSON.stringify({ saved: true }), { status: 200 });
+        },
+      });
+
+      await state.execute();
+    } finally {
+      defineBqueryConfig(previousConfig);
+    }
+
+    expect(capturedContentType).toBe('text/plain');
+    expect(capturedAuth).toBe('Bearer request-token');
+    expect(capturedConfigHeader).toBe('1');
+    expect(capturedRequestId).toBe('123');
+  });
+
   it('applies query parameters when input is a Request', async () => {
     let capturedUrl = '';
     let capturedAuth = '';
