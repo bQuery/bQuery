@@ -1,0 +1,56 @@
+core:
+  - 'src/core/**'
+
+reactive:
+  - 'src/reactive/**'
+
+component:
+  - 'src/component/**'
+
+motion:
+  - 'src/motion/**'
+
+platform:
+  - 'src/platform/**'
+
+router:
+  - 'src/router/**'
+
+security:
+  - 'src/security/**'
+
+store:
+  - 'src/store/**'
+
+view:
+  - 'src/view/**'
+
+docs:
+  - 'docs/**'
+  - '*.md'
+
+tests:
+  - 'tests/**'
+  - '**/*.test.ts'
+
+build:
+  - 'package.json'
+  - 'bun.lock'
+  - 'bunfig.toml'
+  - 'vite*.ts'
+  - 'tsconfig*.json'
+  - 'eslint.config.js'
+  - 'typedoc.json'
+  - '.prettier*'
+  - '.npmignore'
+
+ci/cd:
+  - '.github/workflows/**'
+
+github:
+  - '.github/ISSUE_TEMPLATE/**'
+  - '.github/FUNDING.yml'
+  - '.github/copilot-instructions.md'
+  - '.clinerules'
+  - '.cursorrules'
+  - 'llms.txt'
