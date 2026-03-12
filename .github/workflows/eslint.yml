@@ -57,12 +57,14 @@ jobs:
           const eslintResults = JSON.parse(fs.readFileSync('eslint-results.json', 'utf8'));
           const rules = new Map();
           const results = [];
+          const workspaceUri =
+            process.platform === 'win32' ? process.cwd().replace(/\\/g, '/') : process.cwd();
 
           for (const file of eslintResults) {
             const resolvedPath = path.resolve(file.filePath);
             const relativePath = path.relative(process.cwd(), resolvedPath).split(path.sep).join('/');
 
-            for (const message of file.messages ?? []) {
+            for (const message of file.messages) {
               const ruleId = message.ruleId ?? 'eslint';
 
               if (!rules.has(ruleId)) {
@@ -77,7 +79,7 @@ jobs:
 
               results.push({
                 ruleId,
-                level: message.severity === 2 || message.fatal ? 'error' : 'warning',
+                level: message.severity === 2 || message.fatal === true ? 'error' : 'warning',
                 message: {
                   text: message.message,
                 },
@@ -115,7 +117,7 @@ jobs:
                 },
                 originalUriBaseIds: {
                   SRCROOT: {
-                    uri: `file://${process.cwd().replace(/\\/g, '/')}/`,
+                    uri: `file://${workspaceUri}/`,
                   },
                 },
                 results,
