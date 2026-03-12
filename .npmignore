@@ -53,7 +53,8 @@ temp/
 
 # Source-only / dev-only assets
 docs/
-playground/
+.storybook/
+stories/
 tests/
 .github/
 assets/

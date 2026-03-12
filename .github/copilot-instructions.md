@@ -34,7 +34,7 @@ bun install           # Install dependencies
 bun test              # Run tests (uses happy-dom for DOM simulation)
 bun test --watch      # Watch mode
 bun run build         # Build library (lib + UMD + types)
-bun run playground    # Start dev playground at playground/
+bun run storybook     # Start Storybook dev server
 bun run dev           # Start VitePress docs server
 bun run lint          # ESLint with auto-fix
 bun run lint:types    # TypeScript type checking only

@@ -1,5 +1,5 @@
 dist/
 node_modules/
 docs/.vitepress/
-playground/dist/
+storybook-static/
 *.min.*

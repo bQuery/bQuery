@@ -18,9 +18,9 @@ Thanks for your interest in contributing to **bQuery**! This guide explains how 
 
 - Start the dev server: `bun run dev`
 
-### Playground
+### Storybook
 
-- Start the playground: `bun run playground`
+- Start Storybook: `bun run storybook`
 
 ### Build
 

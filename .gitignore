@@ -6,6 +6,7 @@ bower_components/
 dist/
 build/
 out/
+storybook-static/
 *.min.js
 *.min.css
 

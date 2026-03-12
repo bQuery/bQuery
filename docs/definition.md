@@ -339,7 +339,8 @@ This repo uses **Bun**, **Vite**, **VitePress**, and **TypeScript**.
 ```text
 .
 ├── docs/                 # VitePress site
-├── playground/           # Vite demo app
+├── .storybook/          # Storybook config
+├── stories/             # Component stories
 ├── src/                  # TypeScript source
 ├── tests/                # bun:test suites
 ├── package.json
@@ -351,13 +352,13 @@ This repo uses **Bun**, **Vite**, **VitePress**, and **TypeScript**.
 - `bun run dev` — VitePress docs
 - `bun run build` — Build docs
 - `bun run preview` — Preview docs
-- `bun run playground` — Vite playground
+- `bun run storybook` — Storybook dev server
 - `bun test` — Run tests
 
 ### 5.2 Tooling Contracts
 
 - **Bun** is the runtime and test runner. No Node-only globals in source.
-- **Vite** powers the playground and local dev builds.
+- **Vite** powers the library builds and Storybook builder.
 - **VitePress** builds the documentation site from `docs/`.
 - **TypeScript** is required for all public APIs and examples.
 
@@ -365,7 +366,7 @@ This repo uses **Bun**, **Vite**, **VitePress**, and **TypeScript**.
 
 1. `bun install`
 2. `bun run dev` (docs)
-3. `bun run playground` (examples)
+3. `bun run storybook` (components)
 4. `bun test` (verify behavior)
 
 ---

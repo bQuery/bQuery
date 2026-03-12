@@ -855,6 +855,13 @@ describe('component/registerDefaultComponents', () => {
     expect(customElements.get(tags.checkbox)).toBeDefined();
   });
 
+  it('allows re-registering the same default component tags for repeat dev bootstraps', () => {
+    const prefix = `dev${Date.now()}`;
+
+    expect(() => registerDefaultComponents({ prefix })).not.toThrow();
+    expect(() => registerDefaultComponents({ prefix })).not.toThrow();
+  });
+
   it('keeps form components interactive without external dependencies', () => {
     const prefix = `kit${Date.now()}`;
     const tags = registerDefaultComponents({ prefix });
