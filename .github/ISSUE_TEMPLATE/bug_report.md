@@ -27,14 +27,14 @@ If applicable, add screenshots to help explain your problem.
 
 - OS: [e.g. macOS 14, Windows 11, Ubuntu 22.04]
 - Browser: [e.g. Chrome, Safari, Firefox]
-- App version: [e.g. 1.4.2]
+- bQuery version (@bquery/bquery): [e.g. 1.4.2]
 
 **Smartphone (please complete the following information):**
 
 - Device: [e.g. iPhone 15, Pixel 8]
 - OS: [e.g. iOS 17.2, Android 14]
 - Browser: [e.g. Safari, Chrome]
-- App version: [e.g. 1.4.2]
+- bQuery version (@bquery/bquery): [e.g. 1.4.2]
 
 **Additional context**
 Add any other context about the problem here.
