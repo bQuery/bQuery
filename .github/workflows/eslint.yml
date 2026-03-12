@@ -11,10 +11,10 @@ name: ESLint
 
 on:
   push:
-    branches: [ "main", "development" ]
+    branches: ['main', 'development']
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "main", "development" ]
+    branches: ['main', 'development']
   schedule:
     - cron: '43 16 * * 1'
 
@@ -38,20 +38,28 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Install ESLint SARIF formatter
-        run: bun add --dev --no-save @microsoft/eslint-formatter-sarif@3.1.0
-
-      - name: Run ESLint
+      - name: Run ESLint (PR/Push)
+        if: github.event_name != 'schedule'
         env:
-          SARIF_ESLINT_IGNORE_SUPPRESSED: "true"
+          SARIF_ESLINT_IGNORE_SUPPRESSED: 'true'
         run: |
-          bunx eslint . \
+          bunx --bun -p @microsoft/eslint-formatter-sarif@3.1.0 eslint . \
             --format @microsoft/eslint-formatter-sarif \
             --output-file eslint-results.sarif
+
+      - name: Run ESLint (Scheduled)
+        if: github.event_name == 'schedule'
         continue-on-error: true
+        env:
+          SARIF_ESLINT_IGNORE_SUPPRESSED: 'true'
+        run: |
+          bunx --bun -p @microsoft/eslint-formatter-sarif@3.1.0 eslint . \
+            --format @microsoft/eslint-formatter-sarif \
+            --output-file eslint-results.sarif
 
       - name: Upload analysis results to GitHub
-        uses: github/codeql-action/upload-sarif@v3
+        if: ${{ always() && hashFiles('eslint-results.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: eslint-results.sarif
           wait-for-processing: true
