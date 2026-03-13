@@ -4,8 +4,6 @@ bQuery sanitizes DOM writes by default and supports Trusted Types. Use the secur
 
 As of 1.3.0, the security module is internally modularized (sanitize core, Trusted Types, CSP helpers, and constants). Import from `@bquery/bquery/security` for the stable public API surface.
 
-For compatibility with legacy deep imports, `@bquery/bquery/security/sanitize` also re-exports `generateNonce()` and `isTrustedTypesSupported()`.
-
 ```ts
 import { sanitize, escapeHtml, stripTags } from '@bquery/bquery/security';
 

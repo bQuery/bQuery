@@ -125,13 +125,13 @@ export const html = (strings: TemplateStringsArray, ...values: unknown[]): strin
  *
  * @param strings - Template literal string parts
  * @param values - Interpolated values to escape
- * @returns Combined HTML string with escaped values
+ * @returns Branded escaped HTML string safe for bQuery template composition
  *
  * @example
  * ```ts
  * const userInput = '<script>alert("xss")</script>';
  * const safe = safeHtml`<div>${userInput}</div>`;
- * // Result: '<div>&lt;script&gt;alert("xss")&lt;/script&gt;</div>'
+ * // Result: '<div>&lt;script&gt;alert(&quot;xss&quot;)&lt;/script&gt;</div>'
  * ```
  */
 export const safeHtml = (
