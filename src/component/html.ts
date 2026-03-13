@@ -1,21 +1,4 @@
-/**
- * Tagged template literal for creating HTML strings.
- *
- * This function handles interpolation of values into HTML templates,
- * converting null/undefined to empty strings.
- *
- * @param strings - Template literal string parts
- * @param values - Interpolated values
- * @returns Combined HTML string
- *
- * @example
- * ```ts
- * const name = 'World';
- * const greeting = html`<h1>Hello, ${name}!</h1>`;
- * // Result: '<h1>Hello, World!</h1>'
- * ```
- */
-const BOOLEAN_ATTRIBUTE_MARKER = Symbol('bquery.booleanAttribute');
+const BOOLEAN_ATTRIBUTE_MARKER: unique symbol = Symbol('bquery.booleanAttribute');
 const BOOLEAN_ATTRIBUTE_NAME = /^[^\0-\x20"'/>=]+$/;
 
 interface BooleanAttributeValue {
@@ -76,6 +59,23 @@ export const bool = (name: string, enabled: unknown): BooleanAttributeValue => {
   };
 };
 
+/**
+ * Tagged template literal for creating HTML strings.
+ *
+ * This function handles interpolation of values into HTML templates,
+ * converting null/undefined to empty strings.
+ *
+ * @param strings - Template literal string parts
+ * @param values - Interpolated values
+ * @returns Combined HTML string
+ *
+ * @example
+ * ```ts
+ * const name = 'World';
+ * const greeting = html`<h1>Hello, ${name}!</h1>`;
+ * // Result: '<h1>Hello, World!</h1>'
+ * ```
+ */
 export const html = (strings: TemplateStringsArray, ...values: unknown[]): string => {
   return strings.reduce((acc, part, index) => `${acc}${part}${stringifyTemplateValue(values[index])}`, '');
 };
