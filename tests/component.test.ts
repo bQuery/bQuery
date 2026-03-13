@@ -862,12 +862,17 @@ describe('component/defineComponent', () => {
     const el = document.createElement(tagName);
     document.body.appendChild(el);
 
-    const initialStyleTag = el.shadowRoot?.querySelector('style');
-    expect(initialStyleTag).toBeDefined();
+    const initialStyleTag = el.shadowRoot?.querySelector(
+      'style[data-bquery-component-style]'
+    ) as HTMLStyleElement | null;
+    expect(initialStyleTag).not.toBeNull();
+    expect(initialStyleTag?.tagName).toBe('STYLE');
 
     el.setAttribute('value', 'updated');
 
-    const updatedStyleTag = el.shadowRoot?.querySelector('style');
+    const updatedStyleTag = el.shadowRoot?.querySelector(
+      'style[data-bquery-component-style]'
+    ) as HTMLStyleElement | null;
     expect(updatedStyleTag).toBe(initialStyleTag);
     expect(el.shadowRoot?.querySelectorAll('style')).toHaveLength(1);
     expect(el.shadowRoot?.textContent).toContain('updated');
