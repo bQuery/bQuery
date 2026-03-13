@@ -4,7 +4,10 @@ Components are lightweight Web Components with typed props, optional state, and 
 Internally, the component module is now split into focused submodules (types, props coercion, render helpers), with no breaking API changes.
 
 ```ts
-import { component, html, safeHtml } from '@bquery/bquery/component';
+import { component, safeHtml } from '@bquery/bquery/component';
+import { sanitizeHtml, trusted } from '@bquery/bquery/security';
+
+const activeBadge = trusted(sanitizeHtml('<em>Active</em>'));
 
 component('user-card', {
   props: {
@@ -24,10 +27,11 @@ component('user-card', {
     console.log('updated');
   },
   render({ props, state }) {
-    return html`
+    return safeHtml`
       <div class="card ${props.active ? 'active' : ''}">
         <img src="${props.avatar}" alt="${props.username}" />
-        <strong>${safeHtml`${props.username}`}</strong>
+        <strong>${props.username}</strong>
+        ${props.active ? activeBadge : ''}
         <div>Clicks: ${state.clicks}</div>
       </div>
     `;
@@ -193,6 +197,7 @@ component('my-element', {
 
 - `html` – template literal helper for building HTML strings
 - `safeHtml` – escapes interpolated values for safety
+- `trusted(sanitizeHtml(...))` – opt in to reusing a sanitized fragment inside `safeHtml`
 
 Rendered component output is sanitized before it is written into the Shadow DOM. That keeps custom elements aligned with bQuery's security-by-default model while still allowing standard form attributes used by the default component library.
 

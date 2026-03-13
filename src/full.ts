@@ -151,8 +151,9 @@ export {
   sanitize,
   sanitizeHtml,
   stripTags,
+  trusted,
 } from './security/index';
-export type { SanitizeOptions } from './security/index';
+export type { SanitizedHtml, SanitizeOptions, TrustedHtml } from './security/index';
 
 // ============================================================================
 // Platform Module: Storage, buckets, notifications, cache

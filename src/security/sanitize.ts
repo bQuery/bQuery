@@ -6,9 +6,13 @@
  */
 
 import { sanitizeHtmlCore } from './sanitize-core';
+import { toSanitizedHtml } from './trusted-html';
+import type { SanitizedHtml } from './trusted-html';
 import type { SanitizeOptions } from './types';
 export { generateNonce } from './csp';
 export { isTrustedTypesSupported } from './trusted-types';
+export { trusted } from './trusted-html';
+export type { SanitizedHtml, TrustedHtml } from './trusted-html';
 
 /**
  * Sanitize HTML string, removing dangerous elements and attributes.
@@ -24,8 +28,8 @@ export { isTrustedTypesSupported } from './trusted-types';
  * // Returns: '<div>Hello</div>'
  * ```
  */
-export const sanitizeHtml = (html: string, options: SanitizeOptions = {}): string => {
-  return sanitizeHtmlCore(html, options);
+export const sanitizeHtml = (html: string, options: SanitizeOptions = {}): SanitizedHtml => {
+  return toSanitizedHtml(sanitizeHtmlCore(html, options));
 };
 
 /**
