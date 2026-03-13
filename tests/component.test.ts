@@ -43,9 +43,14 @@ describe('component/html', () => {
     expect(result).toBe('<span>true false</span>');
   });
 
-  it('renders boolean attributes when enabled and omits them when disabled', () => {
-    const result = html`<button ${bool('disabled', true)} ${bool('loading', false)}>Save</button>`;
-    expect(result).toBe('<button disabled >Save</button>');
+  it('renders multiple enabled boolean attributes without values', () => {
+    const result = html`<button ${bool('disabled', true)} ${bool('loading', true)}>Save</button>`;
+    expect(result).toBe('<button disabled loading>Save</button>');
+  });
+
+  it('omits disabled boolean attributes entirely', () => {
+    const result = html`<button ${bool('disabled', false)}>Save</button>`;
+    expect(result).toBe('<button >Save</button>');
   });
 
   it('supports boolean attributes in safeHtml templates', () => {

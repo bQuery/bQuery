@@ -27,7 +27,7 @@ interface BooleanAttributeValue {
 const isBooleanAttributeValue = (value: unknown): value is BooleanAttributeValue =>
   typeof value === 'object' && value !== null && BOOLEAN_ATTRIBUTE_MARKER in value;
 
-const renderValue = (value: unknown): string => {
+const stringifyTemplateValue = (value: unknown): string => {
   if (isBooleanAttributeValue(value)) {
     return value.enabled ? value.name : '';
   }
@@ -44,13 +44,15 @@ const escapeMap: Record<string, string> = {
   '`': '&#x60;',
 };
 
-const escape = (value: unknown): string => renderValue(value).replace(/[&<>"'`]/g, (char) => escapeMap[char]);
+const escapeTemplateValue = (value: unknown): string =>
+  stringifyTemplateValue(value).replace(/[&<>"'`]/g, (char) => escapeMap[char]);
 
 /**
  * Creates a boolean-attribute marker for the {@link html} and {@link safeHtml} template tags.
  *
  * When the condition is truthy, the attribute name is rendered without a value.
- * When the condition is falsy, nothing is rendered.
+ * When the condition is falsy, an empty string is rendered and any surrounding
+ * template-literal whitespace is preserved.
  *
  * @param name - HTML attribute name to emit
  * @param enabled - Whether the boolean attribute should be present
@@ -60,7 +62,6 @@ const escape = (value: unknown): string => renderValue(value).replace(/[&<>"'`]/
  * ```ts
  * html`<button ${bool('disabled', isDisabled)}>Save</button>`;
  * // Result when isDisabled = true: '<button disabled>Save</button>'
- * // Result when isDisabled = false: '<button >Save</button>'
  * ```
  */
 export const bool = (name: string, enabled: unknown): BooleanAttributeValue => {
@@ -76,7 +77,7 @@ export const bool = (name: string, enabled: unknown): BooleanAttributeValue => {
 };
 
 export const html = (strings: TemplateStringsArray, ...values: unknown[]): string => {
-  return strings.reduce((acc, part, index) => `${acc}${part}${renderValue(values[index])}`, '');
+  return strings.reduce((acc, part, index) => `${acc}${part}${stringifyTemplateValue(values[index])}`, '');
 };
 
 /**
@@ -95,5 +96,5 @@ export const html = (strings: TemplateStringsArray, ...values: unknown[]): strin
  * ```
  */
 export const safeHtml = (strings: TemplateStringsArray, ...values: unknown[]): string => {
-  return strings.reduce((acc, part, index) => `${acc}${part}${escape(values[index])}`, '');
+  return strings.reduce((acc, part, index) => `${acc}${part}${escapeTemplateValue(values[index])}`, '');
 };
