@@ -7,7 +7,7 @@ import {
 } from '../src/component/index';
 import type { ComponentDefinition, ComponentRenderContext } from '../src/component/index';
 
-const assertType = <T>(_value: T): void => {};
+const expectType = <T>(_value: T): void => {};
 
 describe('component/html', () => {
   it('creates HTML from template literal', () => {
@@ -118,11 +118,11 @@ describe('component/component', () => {
         ready: false,
       },
       render({ props, state }) {
-        assertType<string>(props.label);
-        assertType<number>(state.count);
-        assertType<boolean>(state.ready);
+        expectType<string>(props.label);
+        expectType<number>(state.count);
+        expectType<boolean>(state.ready);
         // @ts-expect-error state.count should remain a number
-        assertType<string>(state.count);
+        expectType<string>(state.count);
 
         return html`<div>${props.label}:${state.count}:${state.ready}</div>`;
       },
@@ -137,10 +137,10 @@ describe('component/component', () => {
       emit: () => {},
     };
 
-    assertType<number>(renderContext.state.count);
-    assertType<boolean>(renderContext.state.ready);
+    expectType<number>(renderContext.state.count);
+    expectType<boolean>(renderContext.state.ready);
     // @ts-expect-error typed state should not widen to string fields
-    assertType<string>(renderContext.state.ready);
+    expectType<string>(renderContext.state.ready);
 
     const el = document.createElement(tagName);
     el.setAttribute('label', 'Counter');

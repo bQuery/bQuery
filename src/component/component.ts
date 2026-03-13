@@ -132,8 +132,8 @@ export const defineComponent = <
      * @param key - The state property key
      * @param value - The new value
      */
-    setState(key: string, value: unknown): void {
-      (this.state as Record<string, unknown>)[key] = value;
+    setState<TKey extends keyof TState>(key: TKey, value: TState[TKey]): void {
+      this.state[key] = value;
       this.render(true);
     }
 
@@ -143,8 +143,8 @@ export const defineComponent = <
      * @param key - The state property key
      * @returns The current value
      */
-    getState<T = unknown>(key: string): T {
-      return (this.state as Record<string, unknown>)[key] as T;
+    getState<TKey extends keyof TState>(key: TKey): TState[TKey] {
+      return this.state[key];
     }
 
     /**
