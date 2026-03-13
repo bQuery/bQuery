@@ -75,7 +75,8 @@ export const storyHtml = (strings: TemplateStringsArray, ...values: StoryValue[]
  * @param condition - Condition that controls rendering
  * @param truthyValue - Value or callback rendered when the condition is truthy
  * @param falsyValue - Optional value or callback rendered when the condition is falsy
- * @returns Rendered string fragment
+ * @returns Rendered string fragment, or an empty string when the condition is
+ * falsy and no fallback is provided
  */
 export const when = (
   condition: unknown,
