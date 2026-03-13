@@ -11,24 +11,8 @@ import { sanitizeHtml } from '../security/sanitize';
 
 type StoryValue = string | number | boolean | null | undefined | StoryValue[] | (() => StoryValue);
 
-/**
- * Marks template interpolation boundaries while inferring sanitizer allowlists.
- * Uses the null character because authored HTML/template strings should not
- * contain it, making it a safe internal sentinel during parsing.
- */
-const INTERPOLATION_BOUNDARY_MARKER = '\u0000';
-
 const isWhitespace = (value: string): boolean => {
   return value === ' ' || value === '\t' || value === '\n' || value === '\r' || value === '\f';
-};
-
-/**
- * Detects interpolation boundaries embedded into joined template string fragments.
- */
-const isInterpolationBoundaryMarker = (value: string): boolean => value === INTERPOLATION_BOUNDARY_MARKER;
-
-const isAttributeSeparator = (value: string): boolean => {
-  return isWhitespace(value) || isInterpolationBoundaryMarker(value);
 };
 
 const isAsciiLetter = (value: string): boolean => {
@@ -51,8 +35,6 @@ const isAttributeNameChar = (value: string): boolean => {
     value === '-'
   );
 };
-
-const isQuoteChar = (value: string): boolean => value === '"' || value === "'";
 
 const isTagNameChar = (value: string): boolean => {
   const code = value.charCodeAt(0);
@@ -81,7 +63,7 @@ const getTagNameEnd = (fragment: string): number => {
 
   while (
     index < fragment.length &&
-    !isAttributeSeparator(fragment[index]) &&
+    !isWhitespace(fragment[index]) &&
     fragment[index] !== '/' &&
     fragment[index] !== '>'
   ) {
@@ -100,10 +82,6 @@ const isCustomElementTagName = (tagName: string): boolean => {
   const code = last.charCodeAt(0);
 
   return isAsciiLetter(last) || (code >= 48 && code <= 57) || last === '.' || last === '_';
-};
-
-const isAutoAllowedStoryAttribute = (attributeName: string): boolean => {
-  return attributeName !== 'style' && !attributeName.startsWith('on');
 };
 
 const findBooleanAttributeSuffix = (
@@ -230,89 +208,15 @@ const collectOpeningTagFragments = (template: string): string[] => {
   return fragments;
 };
 
-/**
- * Consumes a literal HTML attribute value starting at the given index.
- *
- * Returns the position immediately after a quoted or unquoted value. When the
- * current position reaches an interpolation boundary (optionally after
- * whitespace), the returned index advances past the boundary marker so
- * interpolated attributes do not swallow following authored attributes during
- * sanitizer allowlist inference.
- *
- * @param fragment - The opening-tag fragment currently being scanned
- * @param index - The position immediately after the `=` sign
- * @returns The index after the consumed literal value, or just past an
- * interpolation boundary when no literal value should be consumed from the
- * current template fragment.
- */
-const skipAttributeValue = (fragment: string, index: number): number => {
-  if (index >= fragment.length) {
-    return index;
-  }
-
-  let cursor = index;
-
-  if (isInterpolationBoundaryMarker(fragment[cursor])) {
-    return cursor + 1;
-  }
-
-  while (cursor < fragment.length && isWhitespace(fragment[cursor])) {
-    cursor += 1;
-  }
-
-  if (cursor >= fragment.length) {
-    return cursor;
-  }
-
-  if (isInterpolationBoundaryMarker(fragment[cursor])) {
-    return cursor + 1;
-  }
-
-  const quote = fragment[cursor];
-
-  if (isQuoteChar(quote)) {
-    cursor += 1;
-
-    while (cursor < fragment.length) {
-      if (fragment[cursor] === quote) {
-        return cursor + 1;
-      }
-
-      cursor += 1;
-    }
-
-    return cursor;
-  }
-
-  while (
-    cursor < fragment.length &&
-    !isAttributeSeparator(fragment[cursor]) &&
-    fragment[cursor] !== '/' &&
-    fragment[cursor] !== '>'
-  ) {
-    cursor += 1;
-  }
-
-  if (cursor < fragment.length && isInterpolationBoundaryMarker(fragment[cursor])) {
-    return cursor + 1;
-  }
-
-  return cursor;
-};
-
-const collectAttributesFromTagFragment = (
-  fragment: string,
-  allowAttributes: Set<string>,
-  autoAllowAttributes: boolean
-): void => {
+const collectAttributesFromTagFragment = (fragment: string, allowAttributes: Set<string>): void => {
   let index = 0;
 
-  while (index < fragment.length && !isAttributeSeparator(fragment[index])) {
+  while (index < fragment.length && !isWhitespace(fragment[index])) {
     index += 1;
   }
 
   while (index < fragment.length) {
-    while (index < fragment.length && isAttributeSeparator(fragment[index])) {
+    while (index < fragment.length && isWhitespace(fragment[index])) {
       index += 1;
     }
 
@@ -348,38 +252,35 @@ const collectAttributesFromTagFragment = (
 
     const attributeName = fragment.slice(nameStart, index).toLowerCase();
 
-    while (index < fragment.length && isAttributeSeparator(fragment[index])) {
+    while (index < fragment.length && isWhitespace(fragment[index])) {
       index += 1;
     }
 
     if (index < fragment.length && fragment[index] === '=') {
-      if (autoAllowAttributes && isAutoAllowedStoryAttribute(attributeName)) {
-        allowAttributes.add(attributeName);
-      }
-      index = skipAttributeValue(fragment, index + 1);
+      allowAttributes.add(attributeName);
+      index += 1;
       continue;
     }
 
-    if (hasBooleanPrefix && autoAllowAttributes && isAutoAllowedStoryAttribute(attributeName)) {
+    if (hasBooleanPrefix) {
       allowAttributes.add(attributeName);
     }
   }
 };
 
 const collectTemplateSanitizeOptions = (strings: TemplateStringsArray) => {
-  const template = strings.join(INTERPOLATION_BOUNDARY_MARKER);
+  const template = strings.join('');
   const allowTags = new Set<string>();
   const allowAttributes = new Set<string>();
 
   for (const fragment of collectOpeningTagFragments(template)) {
     const tagName = fragment.slice(0, getTagNameEnd(fragment)).toLowerCase();
-    const isCustomElement = isCustomElementTagName(tagName);
 
-    if (isCustomElement) {
+    if (isCustomElementTagName(tagName)) {
       allowTags.add(tagName);
     }
 
-    collectAttributesFromTagFragment(fragment, allowAttributes, isCustomElement);
+    collectAttributesFromTagFragment(fragment, allowAttributes);
   }
 
   return {
@@ -402,26 +303,6 @@ const resolveStoryValue = (value: StoryValue): string => {
   }
 
   return String(value);
-};
-
-const resolveBooleanStoryValue = (value: StoryValue): boolean => {
-  if (value == null) {
-    return false;
-  }
-
-  if (typeof value === 'function') {
-    return resolveBooleanStoryValue(value());
-  }
-
-  if (Array.isArray(value)) {
-    return Boolean(resolveStoryValue(value));
-  }
-
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  return Boolean(value);
 };
 
 /**
@@ -450,9 +331,8 @@ export const storyHtml = (strings: TemplateStringsArray, ...values: StoryValue[]
     if (booleanAttributeMatch) {
       const { attribute, basePart, spacing } = booleanAttributeMatch;
       const preservedSpacing = hasLineBreak(spacing) ? spacing : '';
-      const isEnabled = resolveBooleanStoryValue(values[index]);
 
-      return `${acc}${basePart}${isEnabled ? `${spacing}${attribute}` : preservedSpacing}`;
+      return `${acc}${basePart}${values[index] ? `${spacing}${attribute}` : preservedSpacing}`;
     }
 
     return `${acc}${part}${resolveStoryValue(values[index])}`;
