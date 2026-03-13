@@ -44,6 +44,52 @@ export type PropDefinition<T = unknown> = {
 };
 
 /**
+ * Resolves the concrete runtime state shape exposed by component APIs.
+ *
+ * When no explicit state generic is provided, component state falls back to
+ * an untyped string-keyed record for backwards compatibility.
+ */
+export type ComponentStateShape<
+  TState extends Record<string, unknown> | undefined = undefined,
+> = TState extends Record<string, unknown> ? TState : Record<string, unknown>;
+
+/**
+ * Public component element instance shape exposed by lifecycle hooks and
+ * `defineComponent()` return values.
+ */
+export type ComponentElement<
+  TState extends Record<string, unknown> | undefined = undefined,
+> = HTMLElement & {
+  /**
+   * Updates a state property and triggers a re-render.
+   *
+   * @param key - The state property key
+   * @param value - The new value
+   */
+  setState<TKey extends keyof ComponentStateShape<TState>>(
+    key: TKey,
+    value: ComponentStateShape<TState>[TKey]
+  ): void;
+  /**
+   * Gets a state property value.
+   *
+   * @param key - The state property key
+   * @returns The current value
+   */
+  getState<TKey extends keyof ComponentStateShape<TState>>(
+    key: TKey
+  ): ComponentStateShape<TState>[TKey];
+};
+
+/**
+ * Constructor returned by `defineComponent()`.
+ */
+export type ComponentClass<TState extends Record<string, unknown> | undefined = undefined> = {
+  new (): ComponentElement<TState>;
+  readonly observedAttributes: string[];
+};
+
+/**
  * Render context passed into a component render function.
  *
  * @template TProps - Type of the component's props
@@ -51,12 +97,12 @@ export type PropDefinition<T = unknown> = {
  */
 export type ComponentRenderContext<
   TProps extends Record<string, unknown>,
-  TState extends Record<string, unknown> = Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
 > = {
   /** Typed props object populated from attributes */
   props: TProps;
   /** Internal mutable state object */
-  state: TState;
+  state: ComponentStateShape<TState>;
   /** Emit a custom event from the component */
   emit: (event: string, detail?: unknown) => void;
 };
@@ -67,34 +113,49 @@ export type ComponentRenderContext<
  * @template TProps - Type of the component's props
  * @template TState - Type of the component's internal state
  */
-type ComponentHook<TResult = void> = ((this: HTMLElement) => TResult) | (() => TResult);
-type ComponentHookWithProps<TProps extends Record<string, unknown>, TResult = void> =
-  | ((this: HTMLElement, props: TProps) => TResult)
-  | ((props: TProps) => TResult);
-type ComponentErrorHook = ((this: HTMLElement, error: Error) => void) | ((error: Error) => void);
+type ComponentHook<
+  TState extends Record<string, unknown> | undefined = undefined,
+  TResult = void,
+> = (this: ComponentElement<TState>) => TResult;
+type ComponentHookWithProps<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+  TResult = void,
+> = (this: ComponentElement<TState>, props: TProps) => TResult;
+type ComponentErrorHook<TState extends Record<string, unknown> | undefined = undefined> =
+  (this: ComponentElement<TState>, error: Error) => void;
+
+type ComponentStateDefinition<TState extends Record<string, unknown> | undefined = undefined> =
+  TState extends Record<string, unknown>
+    ? {
+        /** Initial internal state */
+        state: TState;
+      }
+    : {
+        /** Initial internal state */
+        state?: Record<string, unknown>;
+      };
 
 export type ComponentDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
-  TState extends Record<string, unknown> = Record<string, unknown>,
-> = {
+  TState extends Record<string, unknown> | undefined = undefined,
+> = ComponentStateDefinition<TState> & {
     /** Prop definitions with types and defaults */
     props?: Record<keyof TProps, PropDefinition>;
-    /** Initial internal state */
-    state?: TState;
     /** CSS styles scoped to the component's shadow DOM */
     styles?: string;
     /** Lifecycle hook called before the component mounts (before first render) */
-    beforeMount?: ComponentHook;
+    beforeMount?: ComponentHook<TState>;
     /** Lifecycle hook called when component is added to DOM */
-    connected?: ComponentHook;
+    connected?: ComponentHook<TState>;
     /** Lifecycle hook called when component is removed from DOM */
-    disconnected?: ComponentHook;
+    disconnected?: ComponentHook<TState>;
     /** Lifecycle hook called before an update render; return false to prevent */
-    beforeUpdate?: ComponentHookWithProps<TProps, boolean | void>;
+    beforeUpdate?: ComponentHookWithProps<TProps, TState, boolean | void>;
     /** Lifecycle hook called after reactive updates trigger a render */
-    updated?: ComponentHook;
+    updated?: ComponentHook<TState>;
     /** Error handler for errors during rendering or lifecycle */
-    onError?: ComponentErrorHook;
+    onError?: ComponentErrorHook<TState>;
     /** Render function returning HTML string */
     render: (context: ComponentRenderContext<TProps, TState>) => string;
   };

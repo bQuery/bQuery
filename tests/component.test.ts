@@ -151,6 +151,21 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('requires initial state when an explicit state generic is used', () => {
+    type Props = { label: string };
+    type State = { count: number };
+
+    // @ts-expect-error explicit state generics require an initial state object
+    const invalidDefinition: ComponentDefinition<Props, State> = {
+      props: {
+        label: { type: String, required: true },
+      },
+      render: ({ props, state }) => html`<div>${props.label}:${state.count}</div>`,
+    };
+
+    expect(invalidDefinition).toBeDefined();
+  });
+
   it('calls beforeMount before the first render', () => {
     const tagName = `test-before-mount-${Date.now()}`;
     const callOrder: string[] = [];
@@ -752,6 +767,45 @@ describe('component/defineComponent', () => {
     expect(el.shadowRoot?.innerHTML).toContain('Shadow Content');
 
     el.remove();
+  });
+
+  it('returns instances with typed state helpers', () => {
+    type State = { count: number; ready: boolean };
+
+    const tagName = `test-define-state-helpers-${Date.now()}`;
+    const ElementClass = defineComponent<{}, State>(tagName, {
+      props: {},
+      state: {
+        count: 0,
+        ready: false,
+      },
+      connected() {
+        expectType<number>(this.getState('count'));
+        expectType<boolean>(this.getState('ready'));
+        this.setState('count', this.getState('count') + 1);
+      },
+      render: ({ state }) => html`<div>${state.count}:${state.ready}</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
+    const assertInvalidConnectedSetState = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error count expects a number
+      element.setState('count', '1');
+    };
+
+    expectType<number>(instance.getState('count'));
+    expectType<boolean>(instance.getState('ready'));
+    instance.setState('count', 2);
+    const assertInvalidInstanceSetState = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error ready expects a boolean
+      element.setState('ready', 'true');
+    };
+    void assertInvalidConnectedSetState;
+    void assertInvalidInstanceSetState;
+
+    expect(instance.shadowRoot?.textContent).toContain('2:false');
+    instance.remove();
   });
 
   it('attributeChangedCallback triggers re-render', () => {
