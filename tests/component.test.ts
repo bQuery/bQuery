@@ -189,6 +189,7 @@ describe('component/component', () => {
     expectType<unknown>(instance.getState('count'));
     instance.setState('anotherKey', 1);
 
+    expect(instance.getState('anotherKey')).toBe(1);
     expect(instance.shadowRoot?.textContent).toContain('0:1');
     instance.remove();
   });
