@@ -1051,14 +1051,14 @@ describe('component/defineComponent', () => {
   });
 
   it('extends the component sanitizer tag allowlist when explicitly requested', () => {
-    const defaultTagName = `test-define-sanitize-tag-default-${Date.now()}`;
-    const allowedTagName = `test-define-sanitize-tag-allowed-${Date.now()}`;
+    const restrictedComponentTagName = `test-define-sanitize-tag-default-${Date.now()}`;
+    const permissiveComponentTagName = `test-define-sanitize-tag-allowed-${Date.now()}`;
 
-    const DefaultElementClass = defineComponent(defaultTagName, {
+    const DefaultElementClass = defineComponent(restrictedComponentTagName, {
       props: {},
       render: () => html`<dialog>Default hidden dialog</dialog>`,
     });
-    const AllowedElementClass = defineComponent(allowedTagName, {
+    const AllowedElementClass = defineComponent(permissiveComponentTagName, {
       props: {},
       sanitize: {
         allowTags: ['dialog'],
@@ -1066,11 +1066,11 @@ describe('component/defineComponent', () => {
       render: () => html`<dialog>Allowed visible dialog</dialog>`,
     });
 
-    customElements.define(defaultTagName, DefaultElementClass);
-    customElements.define(allowedTagName, AllowedElementClass);
+    customElements.define(restrictedComponentTagName, DefaultElementClass);
+    customElements.define(permissiveComponentTagName, AllowedElementClass);
 
-    const defaultEl = document.createElement(defaultTagName);
-    const allowedEl = document.createElement(allowedTagName);
+    const defaultEl = document.createElement(restrictedComponentTagName);
+    const allowedEl = document.createElement(permissiveComponentTagName);
 
     document.body.appendChild(defaultEl);
     document.body.appendChild(allowedEl);
