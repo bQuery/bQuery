@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  bool,
   component,
   defineComponent,
   html,
   registerDefaultComponents,
+  safeHtml,
 } from '../src/component/index';
+import type { ComponentDefinition, ComponentRenderContext } from '../src/component/index';
+
+const expectType = <T>(_value: T): void => {};
 
 describe('component/html', () => {
   it('creates HTML from template literal', () => {
@@ -39,6 +44,36 @@ describe('component/html', () => {
   it('handles boolean values', () => {
     const result = html`<span>${true} ${false}</span>`;
     expect(result).toBe('<span>true false</span>');
+  });
+
+  it('renders multiple enabled boolean attributes without values', () => {
+    const result = html`<button ${bool('disabled', true)} ${bool('loading', true)}>Save</button>`;
+    expect(result).toBe('<button disabled loading>Save</button>');
+  });
+
+  it('omits disabled boolean attributes entirely', () => {
+    const result = html`<button ${bool('disabled', false)}>Save</button>`;
+    expect(result).toBe('<button >Save</button>');
+  });
+
+  it('supports boolean attributes in safeHtml templates', () => {
+    const result = safeHtml`<button ${bool('disabled', true)}>${'<Save>'}</button>`;
+    expect(result).toBe('<button disabled>&lt;Save&gt;</button>');
+  });
+
+  it('does not escape boolean attribute markers in safeHtml templates', () => {
+    const result = safeHtml`<button ${bool('data-safe&sound', true)}>Save</button>`;
+    expect(result).toBe('<button data-safe&sound>Save</button>');
+  });
+
+  it('rejects invalid boolean attribute names', () => {
+    expect(() => bool('disabled="true"', true)).toThrow(
+      'Invalid boolean attribute name: disabled="true"'
+    );
+  });
+
+  it('returns an immutable boolean attribute marker', () => {
+    expect(Object.isFrozen(bool('disabled', true))).toBe(true);
   });
 });
 
@@ -100,6 +135,97 @@ describe('component/component', () => {
     expect(rendered).toContain('number:3|true|admin');
 
     el.remove();
+  });
+
+  it('preserves typed state generics in component definitions', () => {
+    type Props = { label: string };
+    type State = { count: number; ready: boolean };
+
+    const definition: ComponentDefinition<Props, State> = {
+      props: {
+        label: { type: String, required: true },
+      },
+      state: {
+        count: 0,
+        ready: false,
+      },
+      render({ props, state }) {
+        expectType<string>(props.label);
+        expectType<number>(state.count);
+        expectType<boolean>(state.ready);
+        // @ts-expect-error state.count should remain a number
+        expectType<string>(state.count);
+
+        return html`<div>${props.label}:${state.count}:${state.ready}</div>`;
+      },
+    };
+
+    const tagName = `test-typed-state-${Date.now()}`;
+    component<Props, State>(tagName, definition);
+
+    const renderContext: ComponentRenderContext<Props, State> = {
+      props: { label: 'Counter' },
+      state: { count: 1, ready: true },
+      emit: () => {},
+    };
+
+    expectType<number>(renderContext.state.count);
+    expectType<boolean>(renderContext.state.ready);
+    // @ts-expect-error typed state should not widen to string fields
+    expectType<string>(renderContext.state.ready);
+
+    const el = document.createElement(tagName);
+    el.setAttribute('label', 'Counter');
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.textContent).toContain('Counter:0:false');
+
+    el.remove();
+  });
+
+  it('requires initial state when an explicit state generic is used', () => {
+    type Props = { label: string };
+    type State = { count: number };
+
+    // @ts-expect-error explicit state generics require an initial state object
+    const invalidDefinition: ComponentDefinition<Props, State> = {
+      props: {
+        label: { type: String, required: true },
+      },
+      render: ({ props, state }) => html`<div>${props.label}:${state.count}</div>`,
+    };
+
+    expect(invalidDefinition).toBeDefined();
+  });
+
+  it('keeps inferred state untyped when TState is not explicit', () => {
+    const tagName = `test-untyped-inferred-state-${Date.now()}`;
+
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      state: {
+        count: 0,
+      },
+      connected() {
+        expectType<unknown>(this.getState('count'));
+        expectType<number>(this.getState<number>('count'));
+        this.setState('dynamic', true);
+      },
+      render({ state }) {
+        expectType<unknown>(state.count);
+        return html`<div>${String(state.count)}:${String(state.anotherKey)}</div>`;
+      },
+    });
+
+    customElements.define(tagName, ElementClass);
+    const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
+    expectType<unknown>(instance.getState('count'));
+    expectType<number>(instance.getState<number>('count'));
+    instance.setState('anotherKey', 1);
+
+    expect(instance.getState('anotherKey')).toBe(1);
+    expect(instance.shadowRoot?.textContent).toContain('0:1');
+    instance.remove();
   });
 
   it('calls beforeMount before the first render', () => {
@@ -374,7 +500,7 @@ describe('component/component', () => {
         count: {
           type: Number,
           default: 0,
-          validator: (value) => value >= 0 && value <= 100,
+          validator: (value) => typeof value === 'number' && value >= 0 && value <= 100,
         },
       },
       onError(error) {
@@ -470,7 +596,7 @@ describe('component/component', () => {
         age: {
           type: Number,
           default: 18, // Valid default to allow initial mount
-          validator: (value) => value >= 18,
+          validator: (value) => typeof value === 'number' && value >= 18,
         },
       },
       onError(error) {
@@ -505,7 +631,7 @@ describe('component/component', () => {
           default: 0,
           validator: (value) => {
             validatorCallCount++;
-            return value <= 50;
+            return typeof value === 'number' && value <= 50;
           },
         },
       },
@@ -599,7 +725,7 @@ describe('component/component', () => {
         email: {
           type: String,
           default: 'default@example.com', // Valid default to allow initial mount
-          validator: (value) => value.includes('@'),
+          validator: (value) => typeof value === 'string' && value.includes('@'),
         },
       },
       onError(error) {
@@ -731,6 +857,46 @@ describe('component/defineComponent', () => {
     expect(el.shadowRoot?.innerHTML).toContain('Shadow Content');
 
     el.remove();
+  });
+
+  it('returns instances with typed state helpers', () => {
+    type Props = Record<string, never>;
+    type State = { count: number; ready: boolean };
+
+    const tagName = `test-define-state-helpers-${Date.now()}`;
+    const ElementClass = defineComponent<Props, State>(tagName, {
+      props: {},
+      state: {
+        count: 0,
+        ready: false,
+      },
+      connected() {
+        expectType<number>(this.getState('count'));
+        expectType<boolean>(this.getState('ready'));
+        this.setState('count', this.getState('count') + 1);
+      },
+      render: ({ state }) => html`<div>${state.count}:${state.ready}</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
+    const assertInvalidConnectedSetState = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error count expects a number
+      element.setState('count', '1');
+    };
+
+    expectType<number>(instance.getState('count'));
+    expectType<boolean>(instance.getState('ready'));
+    instance.setState('count', 2);
+    const assertInvalidInstanceSetState = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error ready expects a boolean
+      element.setState('ready', 'true');
+    };
+    void assertInvalidConnectedSetState;
+    void assertInvalidInstanceSetState;
+
+    expect(instance.shadowRoot?.textContent).toContain('2:false');
+    instance.remove();
   });
 
   it('attributeChangedCallback triggers re-render', () => {

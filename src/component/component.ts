@@ -6,25 +6,25 @@
 
 import { sanitizeHtml } from '../security/sanitize';
 import { coercePropValue } from './props';
-import type { AttributeChange, ComponentDefinition, PropDefinition } from './types';
+import type {
+  ComponentClass,
+  ComponentDefinition,
+  ComponentStateShape,
+  PropDefinition,
+} from './types';
 
-/**
- * Creates a custom element class for a component definition.
- *
- * This is useful when you want to extend or register the class manually
- * (e.g. with different tag names in tests or custom registries).
- *
- * @template TProps - Type of the component's props
- * @param tagName - The custom element tag name (used for diagnostics)
- * @param definition - The component configuration
- */
-export const defineComponent = <TProps extends Record<string, unknown>>(
+const createComponentClass = <
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+>(
   tagName: string,
-  definition: ComponentDefinition<TProps>
-): typeof HTMLElement => {
+  definition: ComponentDefinition<TProps, TState>
+): ComponentClass<TState> => {
   class BQueryComponent extends HTMLElement {
     /** Internal state object for the component */
-    private readonly state = { ...(definition.state ?? {}) };
+    private readonly state: ComponentStateShape<TState> = {
+      ...(definition.state ?? {}),
+    } as ComponentStateShape<TState>;
     /** Typed props object populated from attributes */
     private props = {} as TProps;
     /** Tracks missing required props for validation during connectedCallback */
@@ -129,7 +129,10 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      * @param key - The state property key
      * @param value - The new value
      */
-    setState(key: string, value: unknown): void {
+    setState<TKey extends keyof ComponentStateShape<TState>>(
+      key: TKey,
+      value: ComponentStateShape<TState>[TKey]
+    ): void {
       this.state[key] = value;
       this.render(true);
     }
@@ -140,8 +143,12 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      * @param key - The state property key
      * @returns The current value
      */
-    getState<T = unknown>(key: string): T {
-      return this.state[key] as T;
+    getState<TKey extends keyof ComponentStateShape<TState>>(
+      key: TKey
+    ): ComponentStateShape<TState>[TKey];
+    getState<TResult = unknown>(key: string): TResult;
+    getState(key: string): unknown {
+      return (this.state as Record<string, unknown>)[key];
     }
 
     /**
@@ -254,8 +261,42 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     }
   }
 
-  return BQueryComponent;
+  return BQueryComponent as ComponentClass<TState>;
 };
+
+/**
+ * Creates a custom element class for a component definition.
+ *
+ * This is useful when you want to extend or register the class manually
+ * (e.g. with different tag names in tests or custom registries).
+ *
+ * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state. When provided,
+ * `definition.state` is required, `render({ state })` is strongly typed, and
+ * returned instances expose typed `getState()` / `setState()` helpers.
+ * @param tagName - The custom element tag name (used for diagnostics)
+ * @param definition - The component configuration
+ */
+export function defineComponent<TProps extends Record<string, unknown>>(
+  tagName: string,
+  definition: ComponentDefinition<TProps>
+): ComponentClass<undefined>;
+export function defineComponent<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown>,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): ComponentClass<TState>;
+export function defineComponent<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): ComponentClass<TState> {
+  return createComponentClass(tagName, definition);
+}
 
 /**
  * Defines and registers a custom Web Component.
@@ -265,12 +306,15 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  * and automatically re-renders when observed attributes change.
  *
  * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state. When provided,
+ * `definition.state` is required and lifecycle hooks receive typed state
+ * helpers via `this.getState()` / `this.setState()`.
  * @param tagName - The custom element tag name (must contain a hyphen)
  * @param definition - The component configuration
  *
  * @example
  * ```ts
- * component('counter-button', {
+ * component<{ start: number }, { count: number }>('counter-button', {
  *   props: {
  *     start: { type: Number, default: 0 },
  *   },
@@ -283,7 +327,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  *     const handleClick = (event: Event) => {
  *       const target = event.target as HTMLElement | null;
  *       if (target?.matches('button')) {
- *         this.setState('count', (this.getState('count') as number) + 1);
+ *         this.setState('count', this.getState('count') + 1);
  *       }
  *     };
  *     this.shadowRoot?.addEventListener('click', handleClick);
@@ -307,13 +351,27 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  * });
  * ```
  */
-export const component = <TProps extends Record<string, unknown>>(
+export function component<TProps extends Record<string, unknown>>(
   tagName: string,
   definition: ComponentDefinition<TProps>
-): void => {
-  const elementClass = defineComponent(tagName, definition);
+): void;
+export function component<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown>,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): void;
+export function component<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): void {
+  const elementClass = createComponentClass(tagName, definition);
 
   if (!customElements.get(tagName)) {
     customElements.define(tagName, elementClass);
   }
-};
+}

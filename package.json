@@ -74,6 +74,7 @@
     "build:umd": "vite build --config vite.umd.config.ts",
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
     "test": "bun test",
+    "test:types": "tsc -p tsconfig.component-test.json --noEmit",
     "test:watch": "bun test --watch",
     "lint": "eslint . --fix",
     "lint:types": "tsc --noEmit",
