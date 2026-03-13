@@ -5,8 +5,10 @@
  */
 
 import { sanitizeHtml } from '../security/sanitize';
+import { effect, untrack } from '../reactive/signal';
+import type { CleanupFn } from '../reactive/signal';
 import { coercePropValue } from './props';
-import type { ComponentDefinition, PropDefinition } from './types';
+import type { ComponentDefinition, ComponentSignals, PropDefinition } from './types';
 
 /**
  * Creates a custom element class for a component definition.
@@ -18,9 +20,12 @@ import type { ComponentDefinition, PropDefinition } from './types';
  * @param tagName - The custom element tag name (used for diagnostics)
  * @param definition - The component configuration
  */
-export const defineComponent = <TProps extends Record<string, unknown>>(
+export const defineComponent = <
+  TProps extends Record<string, unknown>,
+  TSignals extends ComponentSignals = Record<string, never>,
+>(
   tagName: string,
-  definition: ComponentDefinition<TProps>
+  definition: ComponentDefinition<TProps, TSignals>
 ): typeof HTMLElement => {
   class BQueryComponent extends HTMLElement {
     /** Internal state object for the component */
@@ -31,6 +36,8 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     private missingRequiredProps = new Set<string>();
     /** Tracks whether the component has completed its initial mount */
     private hasMounted = false;
+    /** Cleanup for external signal subscriptions */
+    private signalEffectCleanup?: CleanupFn;
 
     constructor() {
       super();
@@ -57,6 +64,10 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
           // via attributeChangedCallback
           return;
         }
+        if (this.hasMounted) {
+          this.setupSignalSubscriptions(true);
+          return;
+        }
         this.mount();
       } catch (error) {
         this.handleError(error as Error);
@@ -73,6 +84,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
       definition.beforeMount?.call(this);
       definition.connected?.call(this);
       this.render();
+      this.setupSignalSubscriptions();
       this.hasMounted = true;
     }
 
@@ -81,6 +93,8 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      */
     disconnectedCallback(): void {
       try {
+        this.signalEffectCleanup?.();
+        this.signalEffectCleanup = undefined;
         definition.disconnected?.call(this);
       } catch (error) {
         this.handleError(error as Error);
@@ -145,6 +159,37 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     }
 
     /**
+     * Subscribes to declared reactive sources and re-renders on change.
+     * @internal
+     */
+    private setupSignalSubscriptions(renderOnInitialRun = false): void {
+      if (this.signalEffectCleanup || !definition.signals) return;
+
+      let isInitialRun = true;
+      this.signalEffectCleanup = effect(() => {
+        for (const source of Object.values(definition.signals ?? {})) {
+          source.value;
+        }
+
+        if (isInitialRun) {
+          isInitialRun = false;
+          if (renderOnInitialRun && this.hasMounted && this.isConnected) {
+            untrack(() => {
+              this.render(true);
+            });
+          }
+          return;
+        }
+
+        if (!this.hasMounted || !this.isConnected) return;
+
+        untrack(() => {
+          this.render(true);
+        });
+      });
+    }
+
+    /**
      * Synchronizes props from attributes.
      * @internal
      */
@@ -203,6 +248,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
         const markup = definition.render({
           props: this.props,
           state: this.state,
+          signals: (definition.signals ?? {}) as TSignals,
           emit,
         });
 
@@ -307,9 +353,12 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
  * });
  * ```
  */
-export const component = <TProps extends Record<string, unknown>>(
+export const component = <
+  TProps extends Record<string, unknown>,
+  TSignals extends ComponentSignals = Record<string, never>,
+>(
   tagName: string,
-  definition: ComponentDefinition<TProps>
+  definition: ComponentDefinition<TProps, TSignals>
 ): void => {
   const elementClass = defineComponent(tagName, definition);
 

@@ -5,6 +5,7 @@ import {
   html,
   registerDefaultComponents,
 } from '../src/component/index';
+import { computed, signal } from '../src/reactive/index';
 
 describe('component/html', () => {
   it('creates HTML from template literal', () => {
@@ -256,6 +257,95 @@ describe('component/component', () => {
     expect(callOrder).toEqual(['beforeUpdate', 'render', 'updated']);
 
     el.remove();
+  });
+
+  it('re-renders when declared signals change', () => {
+    const tagName = `test-signal-rerender-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    let renderCount = 0;
+
+    component<{}, { theme: typeof theme }>(tagName, {
+      props: {},
+      signals: { theme },
+      render: ({ signals }) => {
+        renderCount++;
+        return html`<div class="${signals.theme.value}">${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('light');
+
+    theme.value = 'dark';
+
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('dark');
+
+    el.remove();
+  });
+
+  it('supports computed values as component signals', () => {
+    const tagName = `test-computed-signal-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    const themeClass = computed(() => `theme-${theme.value}`);
+
+    component<{}, { themeClass: typeof themeClass }>(tagName, {
+      props: {},
+      signals: { themeClass },
+      render: ({ signals }) => html`<div class="${signals.themeClass.value}">Theme</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('theme-light');
+
+    theme.value = 'dark';
+
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('theme-dark');
+
+    el.remove();
+  });
+
+  it('only subscribes to signals declared in the component definition', () => {
+    const tagName = `test-explicit-signals-${Date.now()}`;
+    const declared = signal('declared-1');
+    const undeclared = signal('undeclared-1');
+    let renderCount = 0;
+
+    component<{}, { declared: typeof declared }>(tagName, {
+      props: {},
+      signals: { declared },
+      render: ({ signals }) => {
+        renderCount++;
+        return html`<div>${signals.declared.value}:${undeclared.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+
+    undeclared.value = 'undeclared-2';
+    expect(renderCount).toBe(1);
+
+    declared.value = 'declared-2';
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.textContent).toContain('declared-2:undeclared-2');
+
+    const renderCountBeforeRemove = renderCount;
+    el.remove();
+
+    declared.value = 'declared-3';
+    expect(renderCount).toBe(renderCountBeforeRemove);
+
+    document.body.appendChild(el);
+    expect(renderCount).toBe(renderCountBeforeRemove + 1);
+    expect(el.shadowRoot?.textContent).toContain('declared-3:undeclared-2');
   });
 
   it('calls onError when lifecycle methods throw', () => {
