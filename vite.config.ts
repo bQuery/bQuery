@@ -26,6 +26,7 @@ const entries = {
   router: resolve(__dirname, 'src/router/index.ts'),
   store: resolve(__dirname, 'src/store/index.ts'),
   view: resolve(__dirname, 'src/view/index.ts'),
+  storybook: resolve(__dirname, 'src/storybook/index.ts'),
 };
 
 /**
@@ -71,6 +72,7 @@ export default defineConfig({
       'bquery/router': resolve(__dirname, 'src/router/index.ts'),
       'bquery/store': resolve(__dirname, 'src/store/index.ts'),
       'bquery/view': resolve(__dirname, 'src/view/index.ts'),
+      'bquery/storybook': resolve(__dirname, 'src/storybook/index.ts'),
     },
   },
 });

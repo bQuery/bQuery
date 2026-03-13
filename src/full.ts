@@ -221,3 +221,8 @@ export type { StateFactory, Store, StoreDefinition, StorePlugin } from './store/
 // ============================================================================
 export { createTemplate, mount } from './view/index';
 export type { BindingContext, MountOptions, View } from './view/index';
+
+// ============================================================================
+// Storybook Module: Story authoring template helpers
+// ============================================================================
+export { storyHtml, when } from './storybook/index';
