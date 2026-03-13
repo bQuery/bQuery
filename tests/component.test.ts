@@ -620,6 +620,53 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('restores signal subscriptions on reconnect even if connected throws', () => {
+    const tagName = `test-connected-throw-reconnect-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    const capturedErrors: Error[] = [];
+    let connectedCount = 0;
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {},
+      signals: { theme },
+      connected() {
+        connectedCount++;
+        if (connectedCount > 1) {
+          throw new Error('Reconnect error');
+        }
+      },
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render: ({ signals }) => {
+        renderCount++;
+        return html`<div>${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(capturedErrors).toHaveLength(0);
+
+    el.remove();
+    document.body.appendChild(el);
+
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toBe('Reconnect error');
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.textContent).toContain('light');
+
+    theme.value = 'dark';
+
+    expect(renderCount).toBe(3);
+    expect(el.shadowRoot?.textContent).toContain('dark');
+
+    el.remove();
+  });
+
   it('routes signal subscription errors through onError', () => {
     const tagName = `test-signal-on-error-${Date.now()}`;
     const value = signal(1);

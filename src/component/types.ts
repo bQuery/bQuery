@@ -102,10 +102,9 @@ export type ComponentClass<TState extends Record<string, unknown> | undefined = 
   };
 
 /**
- * Render context passed into a component render function.
+ * Minimal reactive source shape supported by component `signals`.
  *
- * @template TProps - Type of the component's props
- * @template TState - Type of the component's internal state
+ * @template T - Value exposed by the signal-like source
  */
 export type ComponentSignalLike<T = unknown> = {
   /** Gets the current reactive value */
@@ -121,6 +120,10 @@ export type ComponentSignals = Record<string, ComponentSignalLike<unknown>>;
 
 /**
  * Render context passed into a component render function.
+ *
+ * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state
+ * @template TSignals - Declared reactive sources available during render
  */
 export type ComponentRenderContext<
   TProps extends Record<string, unknown>,

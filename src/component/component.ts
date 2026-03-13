@@ -121,7 +121,11 @@ const createComponentClass = <
           return;
         }
         if (this.hasMounted) {
-          definition.connected?.call(this);
+          try {
+            definition.connected?.call(this);
+          } catch (error) {
+            this.handleError(error as Error);
+          }
           this.setupSignalSubscriptions(true);
           return;
         }
