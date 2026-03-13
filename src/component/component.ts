@@ -61,7 +61,6 @@ const COMPONENT_ALLOWED_ATTRIBUTES = [
  * @param tagName - The custom element tag name (used for diagnostics)
  * @param definition - The component configuration
  */
-export const defineComponent = <TProps extends Record<string, unknown>>(
 const createComponentClass = <
   TProps extends Record<string, unknown>,
   TState extends Record<string, unknown> | undefined = undefined,

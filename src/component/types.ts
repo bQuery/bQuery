@@ -142,11 +142,6 @@ export type AttributeChange = {
  * Arrow functions capture outer scope, so component APIs like `this.getState()`
  * are only available from method/function syntax.
  */
-type ComponentHook<TResult = void> = ((this: HTMLElement) => TResult) | (() => TResult);
-type ComponentHookWithProps<TProps extends Record<string, unknown>, TResult = void> =
-  | ((this: HTMLElement, props: TProps) => TResult)
-  | ((props: TProps) => TResult);
-type ComponentErrorHook = ((this: HTMLElement, error: Error) => void) | ((error: Error) => void);
 type ComponentSanitizeOptions = Pick<SanitizeOptions, 'allowTags' | 'allowAttributes'>;
 type ComponentHook<
   TState extends Record<string, unknown> | undefined = undefined,
@@ -194,7 +189,12 @@ export type ComponentDefinition<
     props?: Record<keyof TProps, PropDefinition>;
     /** CSS styles scoped to the component's shadow DOM */
     styles?: string;
-    /** Extra sanitizer options merged with the framework base allowlist during render */
+    /**
+     * Extra sanitizer options merged with the framework base allowlist during render.
+     * Only opt in attributes/tags whose values you control or validate. Sensitive
+     * attributes such as `style` are not value-sanitized and can reintroduce XSS
+     * or UI-redressing risks if used with untrusted input.
+     */
     sanitize?: ComponentSanitizeOptions;
     /** Lifecycle hook called before the component mounts (before first render) */
     beforeMount?: ComponentHook<TState>;

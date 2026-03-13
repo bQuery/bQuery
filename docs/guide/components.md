@@ -195,16 +195,20 @@ component('my-element', {
 
 Rendered component output is sanitized before it is written into the Shadow DOM. That keeps custom elements aligned with bQuery's security-by-default model while still allowing standard form attributes used by the default component library.
 
-If a component needs a few additional safe tags or attributes, add a `sanitize` option to extend the component render allowlist without changing global sanitization defaults:
+If a component needs a few additional tags or attributes, add a `sanitize` option to extend the component render allowlist without changing global sanitization defaults:
 
 ```ts
 component('bq-dialog', {
   sanitize: {
-    allowAttributes: ['open', 'style'],
+    allowAttributes: ['open'],
   },
-  render: () => html`<div role="dialog" open style="--offset: 12px">Hello</div>`,
+  render: () => html`<div role="dialog" open>Hello</div>`,
 });
 ```
+
+Only opt into attributes whose values you control or validate. In particular,
+`style` is excluded by default and bQuery does not sanitize CSS values for you,
+so enabling it for untrusted input can reintroduce security risks.
 
 ## Manual element class creation
 
