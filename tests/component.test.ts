@@ -770,10 +770,11 @@ describe('component/defineComponent', () => {
   });
 
   it('returns instances with typed state helpers', () => {
+    type Props = Record<string, never>;
     type State = { count: number; ready: boolean };
 
     const tagName = `test-define-state-helpers-${Date.now()}`;
-    const ElementClass = defineComponent<{}, State>(tagName, {
+    const ElementClass = defineComponent<Props, State>(tagName, {
       props: {},
       state: {
         count: 0,
