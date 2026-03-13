@@ -61,7 +61,12 @@ const hasLineBreak = (value: string): boolean => {
 const getTagNameEnd = (fragment: string): number => {
   let index = 0;
 
-  while (index < fragment.length && !isWhitespace(fragment[index]) && fragment[index] !== '/') {
+  while (
+    index < fragment.length &&
+    !isWhitespace(fragment[index]) &&
+    fragment[index] !== '/' &&
+    fragment[index] !== '>'
+  ) {
     index += 1;
   }
 
@@ -219,6 +224,7 @@ const collectAttributesFromTagFragment = (fragment: string, allowAttributes: Set
       return;
     }
 
+    // Skip standalone colons (e.g. namespace prefixes or framework-specific bindings)
     if (fragment[index] === ':') {
       index += 1;
       continue;
@@ -231,6 +237,7 @@ const collectAttributesFromTagFragment = (fragment: string, allowAttributes: Set
     }
 
     if (index >= fragment.length || !isAttributeNameStart(fragment[index])) {
+      // Skip unrecognised character to avoid an infinite loop
       index += 1;
       continue;
     }
