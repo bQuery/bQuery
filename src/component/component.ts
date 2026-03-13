@@ -121,6 +121,7 @@ const createComponentClass = <
           return;
         }
         if (this.hasMounted) {
+          definition.connected?.call(this);
           this.setupSignalSubscriptions(true);
           return;
         }
@@ -235,32 +236,36 @@ const createComponentClass = <
 
       let isInitialRun = true;
       this.signalEffectCleanup = effect(() => {
-        for (const source of signalSources) {
-          // Intentionally read each source to register this effect as a subscriber.
-          void source.value;
-        }
-
-        if (isInitialRun) {
-          isInitialRun = false;
-          if (renderOnInitialRun && this.hasMounted && this.isConnected) {
-            // Signal-driven reconnect renders do not change props, so the
-            // previous-props snapshot is the current prop set at reconnect time.
-            const previousProps = this.cloneProps();
-            untrack(() => {
-              this.render(true, previousProps);
-            });
+        try {
+          for (const source of signalSources) {
+            // Intentionally read each source to register this effect as a subscriber.
+            void source.value;
           }
-          return;
+
+          if (isInitialRun) {
+            isInitialRun = false;
+            if (renderOnInitialRun && this.hasMounted && this.isConnected) {
+              // Signal-driven reconnect renders do not change props, so the
+              // previous-props snapshot is the current prop set at reconnect time.
+              const previousProps = this.cloneProps();
+              untrack(() => {
+                this.render(true, previousProps);
+              });
+            }
+            return;
+          }
+
+          if (!this.hasMounted || !this.isConnected) return;
+
+          // Signal updates leave props unchanged, so cloning the current props
+          // provides the previous-props snapshot expected by beforeUpdate().
+          const previousProps = this.cloneProps();
+          untrack(() => {
+            this.render(true, previousProps);
+          });
+        } catch (error) {
+          this.handleError(error as Error);
         }
-
-        if (!this.hasMounted || !this.isConnected) return;
-
-        // Signal updates leave props unchanged, so cloning the current props
-        // provides the previous-props snapshot expected by beforeUpdate().
-        const previousProps = this.cloneProps();
-        untrack(() => {
-          this.render(true, previousProps);
-        });
       });
     }
 

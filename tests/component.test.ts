@@ -521,6 +521,8 @@ describe('component/component', () => {
     document.body.appendChild(el);
     expect(renderCount).toBe(renderCountBeforeRemove + 1);
     expect(el.shadowRoot?.textContent).toContain('declared-3:undeclared-2');
+
+    el.remove();
   });
 
   it('skips signal effect setup when the signals map is empty', () => {
@@ -589,6 +591,65 @@ describe('component/component', () => {
 
     expect(renderCount).toBe(renderCountAfterReconnect + 2);
     expect(el.shadowRoot?.textContent).toContain('restored:light');
+
+    el.remove();
+  });
+
+  it('calls connected again when a mounted component reconnects', () => {
+    const tagName = `test-connected-reconnect-${Date.now()}`;
+    const calls: string[] = [];
+
+    component(tagName, {
+      props: {},
+      connected() {
+        calls.push('connected');
+      },
+      disconnected() {
+        calls.push('disconnected');
+      },
+      render: () => html`<div>Reconnect</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+    el.remove();
+    document.body.appendChild(el);
+
+    expect(calls).toEqual(['connected', 'disconnected', 'connected']);
+
+    el.remove();
+  });
+
+  it('routes signal subscription errors through onError', () => {
+    const tagName = `test-signal-on-error-${Date.now()}`;
+    const value = signal(1);
+    const shouldThrow = signal(false);
+    const capturedErrors: Error[] = [];
+    const derived = computed(() => {
+      if (shouldThrow.value) {
+        throw new Error('Signal subscription error');
+      }
+      return value.value;
+    });
+
+    component(tagName, {
+      props: {},
+      signals: { derived },
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render: () => html`<div>Signal test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(capturedErrors).toHaveLength(0);
+
+    shouldThrow.value = true;
+
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toBe('Signal subscription error');
 
     el.remove();
   });
