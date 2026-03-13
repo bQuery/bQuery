@@ -28,10 +28,10 @@ import type {
  */
 export const defineComponent = <
   TProps extends Record<string, unknown>,
-  TState extends Record<string, unknown> | undefined = undefined,
+  TState extends Record<string, unknown> | undefined = Record<string, unknown>,
 >(
   tagName: string,
-  definition: ComponentDefinition<TProps, TState>
+  definition: ComponentDefinition<TProps, Record<string, unknown>>
 ): ComponentClass<TState> => {
   class BQueryComponent extends HTMLElement {
     /** Internal state object for the component */
@@ -330,10 +330,10 @@ export const defineComponent = <
  */
 export const component = <
   TProps extends Record<string, unknown>,
-  TState extends Record<string, unknown> | undefined = undefined,
+  TState extends Record<string, unknown> | undefined = Record<string, unknown>,
 >(
   tagName: string,
-  definition: ComponentDefinition<TProps, TState>
+  definition: ComponentDefinition<TProps, Record<string, unknown>>
 ): void => {
   const elementClass = defineComponent(tagName, definition);
 
