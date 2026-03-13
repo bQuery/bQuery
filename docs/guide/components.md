@@ -155,7 +155,7 @@ el.setState('clicks', 1);
 
 - `beforeMount()` – runs before the element renders (can modify initial state)
 - `connected()` – runs when the element mounts
-- `beforeUpdate(props)` – runs before re-render; return `false` to prevent update
+- `beforeUpdate(newProps, oldProps)` – runs before re-render; return `false` to prevent update
 - `updated()` – runs after re-render on prop changes
 - `disconnected()` – runs on teardown
 - `onError(error)` – handles errors during lifecycle/render
@@ -169,9 +169,9 @@ component('my-element', {
   connected() {
     console.log('Mounted');
   },
-  beforeUpdate(props) {
+  beforeUpdate(newProps, oldProps) {
     // Prevent update if count is negative
-    if (props.count < 0) return false;
+    if (newProps.count < 0 || newProps.count === oldProps.count) return false;
   },
   updated() {
     console.log('Updated');

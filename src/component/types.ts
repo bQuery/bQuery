@@ -62,8 +62,8 @@ export type ComponentRenderContext<TProps extends Record<string, unknown>> = {
  */
 type ComponentHook<TResult = void> = ((this: HTMLElement) => TResult) | (() => TResult);
 type ComponentHookWithProps<TProps extends Record<string, unknown>, TResult = void> =
-  | ((this: HTMLElement, props: TProps) => TResult)
-  | ((props: TProps) => TResult);
+  | ((this: HTMLElement, newProps: TProps, oldProps: TProps) => TResult)
+  | ((newProps: TProps, oldProps: TProps) => TResult);
 type ComponentErrorHook = ((this: HTMLElement, error: Error) => void) | ((error: Error) => void);
 
 export type ComponentDefinition<TProps extends Record<string, unknown> = Record<string, unknown>> =

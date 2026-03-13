@@ -96,11 +96,12 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
       _newValue: string | null
     ): void {
       try {
+        const previousProps = this.cloneProps();
         this.syncProps();
 
         if (this.hasMounted) {
           // Component already mounted - trigger update render
-          this.render(true);
+          this.render(true, previousProps);
         } else if (this.isConnected && this.missingRequiredProps.size === 0) {
           // All required props are now satisfied and element is connected
           // Trigger the deferred initial mount
@@ -131,7 +132,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      */
     setState(key: string, value: unknown): void {
       this.state[key] = value;
-      this.render(true);
+      this.render(true, this.cloneProps());
     }
 
     /**
@@ -184,13 +185,21 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
     }
 
     /**
+     * Creates a shallow snapshot of the current props for lifecycle diffing.
+     * @internal
+     */
+    private cloneProps(): TProps {
+      return { ...(this.props as Record<string, unknown>) } as TProps;
+    }
+
+    /**
      * Renders the component to its shadow root.
      * @internal
      */
-    private render(triggerUpdated = false): void {
+    private render(triggerUpdated = false, oldProps = this.cloneProps()): void {
       try {
         if (triggerUpdated && definition.beforeUpdate) {
-          const shouldUpdate = definition.beforeUpdate.call(this, this.props);
+          const shouldUpdate = definition.beforeUpdate.call(this, this.props, oldProps);
           if (shouldUpdate === false) return;
         }
 
