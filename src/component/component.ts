@@ -6,7 +6,7 @@
 
 import { sanitizeHtml } from '../security/sanitize';
 import { coercePropValue } from './props';
-import type { ComponentDefinition, PropDefinition } from './types';
+import type { AttributeChange, ComponentDefinition, PropDefinition } from './types';
 
 /**
  * Creates a custom element class for a component definition.
@@ -91,16 +91,16 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      * Called when an observed attribute changes.
      */
     attributeChangedCallback(
-      _name: string,
-      _oldValue: string | null,
-      _newValue: string | null
+      name: string,
+      oldValue: string | null,
+      newValue: string | null
     ): void {
       try {
         this.syncProps();
 
         if (this.hasMounted) {
           // Component already mounted - trigger update render
-          this.render(true);
+          this.render(true, { name, oldValue, newValue });
         } else if (this.isConnected && this.missingRequiredProps.size === 0) {
           // All required props are now satisfied and element is connected
           // Trigger the deferred initial mount
@@ -187,7 +187,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
      * Renders the component to its shadow root.
      * @internal
      */
-    private render(triggerUpdated = false): void {
+    private render(triggerUpdated = false, change?: AttributeChange): void {
       try {
         if (triggerUpdated && definition.beforeUpdate) {
           const shouldUpdate = definition.beforeUpdate.call(this, this.props);
@@ -246,7 +246,7 @@ export const defineComponent = <TProps extends Record<string, unknown>>(
         }
 
         if (triggerUpdated) {
-          definition.updated?.call(this);
+          definition.updated?.call(this, change);
         }
       } catch (error) {
         this.handleError(error as Error);

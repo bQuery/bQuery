@@ -228,6 +228,8 @@ describe('component/component', () => {
   it('calls updated after re-renders', () => {
     const tagName = `test-updated-${Date.now()}`;
     const callOrder: string[] = [];
+    const receivedChanges: Array<{ name: string; oldValue: string | null; newValue: string | null }> =
+      [];
 
     component<{ count: number }>(tagName, {
       props: {
@@ -237,8 +239,9 @@ describe('component/component', () => {
         callOrder.push('beforeUpdate');
         return true;
       },
-      updated() {
+      updated(change) {
         callOrder.push('updated');
+        if (change) receivedChanges.push(change);
       },
       render: () => {
         callOrder.push('render');
@@ -254,6 +257,31 @@ describe('component/component', () => {
     el.setAttribute('count', '10');
 
     expect(callOrder).toEqual(['beforeUpdate', 'render', 'updated']);
+    expect(receivedChanges).toEqual([{ name: 'count', oldValue: null, newValue: '10' }]);
+
+    el.remove();
+  });
+
+  it('passes undefined to updated for non-attribute updates', () => {
+    const tagName = `test-updated-state-${Date.now()}`;
+    const receivedChanges: unknown[] = [];
+
+    component(tagName, {
+      props: {},
+      updated(change) {
+        receivedChanges.push(change);
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName) as HTMLElement & {
+      setState: (key: string, value: unknown) => void;
+    };
+    document.body.appendChild(el);
+
+    el.setState('count', 1);
+
+    expect(receivedChanges).toEqual([undefined]);
 
     el.remove();
   });

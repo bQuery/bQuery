@@ -56,6 +56,18 @@ export type ComponentRenderContext<TProps extends Record<string, unknown>> = {
 };
 
 /**
+ * Describes an observed attribute change that triggered a component update.
+ */
+export type AttributeChange = {
+  /** The observed attribute name */
+  name: string;
+  /** The previous serialized attribute value */
+  oldValue: string | null;
+  /** The next serialized attribute value */
+  newValue: string | null;
+};
+
+/**
  * Complete component definition including props, state, styles, and lifecycle.
  *
  * @template TProps - Type of the component's props
@@ -64,6 +76,9 @@ type ComponentHook<TResult = void> = ((this: HTMLElement) => TResult) | (() => T
 type ComponentHookWithProps<TProps extends Record<string, unknown>, TResult = void> =
   | ((this: HTMLElement, props: TProps) => TResult)
   | ((props: TProps) => TResult);
+type ComponentUpdatedHook<TResult = void> =
+  | ((this: HTMLElement, change?: AttributeChange) => TResult)
+  | ((change?: AttributeChange) => TResult);
 type ComponentErrorHook = ((this: HTMLElement, error: Error) => void) | ((error: Error) => void);
 
 export type ComponentDefinition<TProps extends Record<string, unknown> = Record<string, unknown>> =
@@ -82,8 +97,8 @@ export type ComponentDefinition<TProps extends Record<string, unknown> = Record<
     disconnected?: ComponentHook;
     /** Lifecycle hook called before an update render; return false to prevent */
     beforeUpdate?: ComponentHookWithProps<TProps, boolean | void>;
-    /** Lifecycle hook called after reactive updates trigger a render */
-    updated?: ComponentHook;
+    /** Lifecycle hook called after update renders; receives attribute change info when applicable */
+    updated?: ComponentUpdatedHook;
     /** Error handler for errors during rendering or lifecycle */
     onError?: ComponentErrorHook;
     /** Render function returning HTML string */
