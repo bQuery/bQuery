@@ -43,5 +43,7 @@ export type {
   AttributeChange,
   ComponentDefinition,
   ComponentRenderContext,
+  ComponentSignalLike,
+  ComponentSignals,
   PropDefinition,
 } from './types';
