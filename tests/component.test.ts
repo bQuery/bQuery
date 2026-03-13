@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'bun:test';
 import {
+  bool,
   component,
   defineComponent,
   html,
   registerDefaultComponents,
+  safeHtml,
 } from '../src/component/index';
 import { computed, signal } from '../src/reactive/index';
+import type { ComponentDefinition, ComponentRenderContext } from '../src/component/index';
+
+const expectType = <T>(_value: T): void => {};
 
 describe('component/html', () => {
   it('creates HTML from template literal', () => {
@@ -40,6 +45,36 @@ describe('component/html', () => {
   it('handles boolean values', () => {
     const result = html`<span>${true} ${false}</span>`;
     expect(result).toBe('<span>true false</span>');
+  });
+
+  it('renders multiple enabled boolean attributes without values', () => {
+    const result = html`<button ${bool('disabled', true)} ${bool('loading', true)}>Save</button>`;
+    expect(result).toBe('<button disabled loading>Save</button>');
+  });
+
+  it('omits disabled boolean attributes entirely', () => {
+    const result = html`<button ${bool('disabled', false)}>Save</button>`;
+    expect(result).toBe('<button >Save</button>');
+  });
+
+  it('supports boolean attributes in safeHtml templates', () => {
+    const result = safeHtml`<button ${bool('disabled', true)}>${'<Save>'}</button>`;
+    expect(result).toBe('<button disabled>&lt;Save&gt;</button>');
+  });
+
+  it('does not escape boolean attribute markers in safeHtml templates', () => {
+    const result = safeHtml`<button ${bool('data-safe&sound', true)}>Save</button>`;
+    expect(result).toBe('<button data-safe&sound>Save</button>');
+  });
+
+  it('rejects invalid boolean attribute names', () => {
+    expect(() => bool('disabled="true"', true)).toThrow(
+      'Invalid boolean attribute name: disabled="true"'
+    );
+  });
+
+  it('returns an immutable boolean attribute marker', () => {
+    expect(Object.isFrozen(bool('disabled', true))).toBe(true);
   });
 });
 
@@ -103,6 +138,97 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('preserves typed state generics in component definitions', () => {
+    type Props = { label: string };
+    type State = { count: number; ready: boolean };
+
+    const definition: ComponentDefinition<Props, State> = {
+      props: {
+        label: { type: String, required: true },
+      },
+      state: {
+        count: 0,
+        ready: false,
+      },
+      render({ props, state }) {
+        expectType<string>(props.label);
+        expectType<number>(state.count);
+        expectType<boolean>(state.ready);
+        // @ts-expect-error state.count should remain a number
+        expectType<string>(state.count);
+
+        return html`<div>${props.label}:${state.count}:${state.ready}</div>`;
+      },
+    };
+
+    const tagName = `test-typed-state-${Date.now()}`;
+    component<Props, State>(tagName, definition);
+
+    const renderContext: ComponentRenderContext<Props, State> = {
+      props: { label: 'Counter' },
+      state: { count: 1, ready: true },
+      emit: () => {},
+    };
+
+    expectType<number>(renderContext.state.count);
+    expectType<boolean>(renderContext.state.ready);
+    // @ts-expect-error typed state should not widen to string fields
+    expectType<string>(renderContext.state.ready);
+
+    const el = document.createElement(tagName);
+    el.setAttribute('label', 'Counter');
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.textContent).toContain('Counter:0:false');
+
+    el.remove();
+  });
+
+  it('requires initial state when an explicit state generic is used', () => {
+    type Props = { label: string };
+    type State = { count: number };
+
+    // @ts-expect-error explicit state generics require an initial state object
+    const invalidDefinition: ComponentDefinition<Props, State> = {
+      props: {
+        label: { type: String, required: true },
+      },
+      render: ({ props, state }) => html`<div>${props.label}:${state.count}</div>`,
+    };
+
+    expect(invalidDefinition).toBeDefined();
+  });
+
+  it('keeps inferred state untyped when TState is not explicit', () => {
+    const tagName = `test-untyped-inferred-state-${Date.now()}`;
+
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      state: {
+        count: 0,
+      },
+      connected() {
+        expectType<unknown>(this.getState('count'));
+        expectType<number>(this.getState<number>('count'));
+        this.setState('dynamic', true);
+      },
+      render({ state }) {
+        expectType<unknown>(state.count);
+        return html`<div>${String(state.count)}:${String(state.anotherKey)}</div>`;
+      },
+    });
+
+    customElements.define(tagName, ElementClass);
+    const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
+    expectType<unknown>(instance.getState('count'));
+    expectType<number>(instance.getState<number>('count'));
+    instance.setState('anotherKey', 1);
+
+    expect(instance.getState('anotherKey')).toBe(1);
+    expect(instance.shadowRoot?.textContent).toContain('0:1');
+    instance.remove();
+  });
+
   it('calls beforeMount before the first render', () => {
     const tagName = `test-before-mount-${Date.now()}`;
     const callOrder: string[] = [];
@@ -157,17 +283,17 @@ describe('component/component', () => {
     el.remove();
   });
 
-  it('calls beforeUpdate before re-renders and receives props', () => {
+  it('calls beforeUpdate before re-renders and receives new and previous props', () => {
     const tagName = `test-before-update-${Date.now()}`;
-    const receivedProps: unknown[] = [];
+    const receivedProps: Array<{ newProps: { count: number }; oldProps: { count: number } }> = [];
     let renderCount = 0;
 
     component<{ count: number }>(tagName, {
       props: {
         count: { type: Number, default: 0 },
       },
-      beforeUpdate(props) {
-        receivedProps.push({ ...props });
+      beforeUpdate(newProps, oldProps) {
+        receivedProps.push({ newProps: { ...newProps }, oldProps: { ...oldProps } });
         return true; // allow update
       },
       render: ({ props }) => {
@@ -187,7 +313,10 @@ describe('component/component', () => {
 
     expect(renderCount).toBe(2);
     expect(receivedProps).toHaveLength(1);
-    expect(receivedProps[0]).toEqual({ count: 10 });
+    expect(receivedProps[0]).toEqual({
+      newProps: { count: 10 },
+      oldProps: { count: 0 },
+    });
 
     el.remove();
   });
@@ -229,6 +358,8 @@ describe('component/component', () => {
   it('calls updated after re-renders', () => {
     const tagName = `test-updated-${Date.now()}`;
     const callOrder: string[] = [];
+    const receivedChanges: Array<{ name: string; oldValue: string | null; newValue: string | null }> =
+      [];
 
     component<{ count: number }>(tagName, {
       props: {
@@ -238,8 +369,9 @@ describe('component/component', () => {
         callOrder.push('beforeUpdate');
         return true;
       },
-      updated() {
+      updated(change) {
         callOrder.push('updated');
+        if (change) receivedChanges.push(change);
       },
       render: () => {
         callOrder.push('render');
@@ -255,6 +387,31 @@ describe('component/component', () => {
     el.setAttribute('count', '10');
 
     expect(callOrder).toEqual(['beforeUpdate', 'render', 'updated']);
+    expect(receivedChanges).toEqual([{ name: 'count', oldValue: null, newValue: '10' }]);
+
+    el.remove();
+  });
+
+  it('passes undefined to updated for non-attribute updates', () => {
+    const tagName = `test-updated-state-${Date.now()}`;
+    const receivedChanges: unknown[] = [];
+
+    component(tagName, {
+      props: {},
+      updated(change) {
+        receivedChanges.push(change);
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName) as HTMLElement & {
+      setState: (key: string, value: unknown) => void;
+    };
+    document.body.appendChild(el);
+
+    el.setState('count', 1);
+
+    expect(receivedChanges).toEqual([undefined]);
 
     el.remove();
   });
@@ -436,7 +593,7 @@ describe('component/component', () => {
         count: {
           type: Number,
           default: 0,
-          validator: (value) => value >= 0 && value <= 100,
+          validator: (value) => typeof value === 'number' && value >= 0 && value <= 100,
         },
       },
       onError(error) {
@@ -532,7 +689,7 @@ describe('component/component', () => {
         age: {
           type: Number,
           default: 18, // Valid default to allow initial mount
-          validator: (value) => value >= 18,
+          validator: (value) => typeof value === 'number' && value >= 18,
         },
       },
       onError(error) {
@@ -567,7 +724,7 @@ describe('component/component', () => {
           default: 0,
           validator: (value) => {
             validatorCallCount++;
-            return value <= 50;
+            return typeof value === 'number' && value <= 50;
           },
         },
       },
@@ -661,7 +818,7 @@ describe('component/component', () => {
         email: {
           type: String,
           default: 'default@example.com', // Valid default to allow initial mount
-          validator: (value) => value.includes('@'),
+          validator: (value) => typeof value === 'string' && value.includes('@'),
         },
       },
       onError(error) {
@@ -795,6 +952,46 @@ describe('component/defineComponent', () => {
     el.remove();
   });
 
+  it('returns instances with typed state helpers', () => {
+    type Props = Record<string, never>;
+    type State = { count: number; ready: boolean };
+
+    const tagName = `test-define-state-helpers-${Date.now()}`;
+    const ElementClass = defineComponent<Props, State>(tagName, {
+      props: {},
+      state: {
+        count: 0,
+        ready: false,
+      },
+      connected() {
+        expectType<number>(this.getState('count'));
+        expectType<boolean>(this.getState('ready'));
+        this.setState('count', this.getState('count') + 1);
+      },
+      render: ({ state }) => html`<div>${state.count}:${state.ready}</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
+    const assertInvalidConnectedSetState = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error count expects a number
+      element.setState('count', '1');
+    };
+
+    expectType<number>(instance.getState('count'));
+    expectType<boolean>(instance.getState('ready'));
+    instance.setState('count', 2);
+    const assertInvalidInstanceSetState = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error ready expects a boolean
+      element.setState('ready', 'true');
+    };
+    void assertInvalidConnectedSetState;
+    void assertInvalidInstanceSetState;
+
+    expect(instance.shadowRoot?.textContent).toContain('2:false');
+    instance.remove();
+  });
+
   it('attributeChangedCallback triggers re-render', () => {
     const tagName = `test-define-attr-change-${Date.now()}`;
     let renderCount = 0;
@@ -917,6 +1114,69 @@ describe('component/defineComponent', () => {
     expect(shadowHTML).toContain('Safe text');
 
     el.remove();
+  });
+
+  it('merges per-component sanitizer options with the base allowlist', () => {
+    const tagName = `test-define-sanitize-options-${Date.now()}`;
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      sanitize: {
+        allowAttributes: ['open', 'style'],
+      },
+      render: () =>
+        html`<div role="dialog" open style="--offset: 12px" onclick="alert('xss')">Visible</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    const dialog = el.shadowRoot?.querySelector('div');
+    expect(dialog?.getAttribute('role')).toBe('dialog');
+    expect(dialog?.hasAttribute('open')).toBe(true);
+    expect(dialog?.getAttribute('style')).toBe('--offset: 12px');
+    expect(dialog?.hasAttribute('onclick')).toBe(false);
+    expect(el.shadowRoot?.innerHTML).not.toContain('onclick');
+    expect(el.shadowRoot?.innerHTML).not.toContain('alert');
+    expect(el.shadowRoot?.innerHTML).toContain('Visible');
+
+    el.remove();
+  });
+
+  it('extends the component sanitizer tag allowlist when explicitly requested', () => {
+    const restrictedComponentTagName = `test-define-sanitize-tag-default-${Date.now()}`;
+    const permissiveComponentTagName = `test-define-sanitize-tag-allowed-${Date.now()}`;
+
+    const DefaultElementClass = defineComponent(restrictedComponentTagName, {
+      props: {},
+      render: () => html`<dialog>Default hidden dialog</dialog>`,
+    });
+    const AllowedElementClass = defineComponent(permissiveComponentTagName, {
+      props: {},
+      sanitize: {
+        allowTags: ['dialog'],
+      },
+      render: () => html`<dialog>Allowed visible dialog</dialog>`,
+    });
+
+    customElements.define(restrictedComponentTagName, DefaultElementClass);
+    customElements.define(permissiveComponentTagName, AllowedElementClass);
+
+    const defaultEl = document.createElement(restrictedComponentTagName);
+    const allowedEl = document.createElement(permissiveComponentTagName);
+
+    document.body.appendChild(defaultEl);
+    document.body.appendChild(allowedEl);
+
+    expect(defaultEl.shadowRoot?.querySelector('dialog')).toBeNull();
+    expect(defaultEl.shadowRoot?.innerHTML).not.toContain('<dialog');
+
+    const allowedDialog = allowedEl.shadowRoot?.querySelector('dialog');
+    expect(allowedDialog).not.toBeNull();
+    expect(allowedDialog?.textContent).toBe('Allowed visible dialog');
+
+    defaultEl.remove();
+    allowedEl.remove();
   });
 
   it('instances apply styles correctly', () => {
@@ -1163,6 +1423,50 @@ describe('component/registerDefaultComponents', () => {
     expect(textareaControlAfterUpdate).toBe(textareaControl);
     expect(textarea.getAttribute('value')).toBe('Updated notes');
     expect(textareaControlAfterUpdate?.value).toBe('Updated notes');
+
+    input.remove();
+    textarea.remove();
+  });
+
+  it('re-renders input and textarea controls when non-value props change', () => {
+    const prefix = `rerender${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const input = document.createElement(tags.input);
+    input.setAttribute('label', 'Name');
+    document.body.appendChild(input);
+
+    const inputControl = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
+    expect(inputControl).not.toBeNull();
+    if (!inputControl) throw new Error('Expected input control to exist');
+
+    input.setAttribute('label', 'Full name');
+
+    const inputControlAfterLabelUpdate = input.shadowRoot?.querySelector(
+      'input'
+    ) as HTMLInputElement | null;
+    expect(inputControlAfterLabelUpdate).not.toBeNull();
+    expect(inputControlAfterLabelUpdate).not.toBe(inputControl);
+    expect(input.shadowRoot?.textContent).toContain('Full name');
+
+    const textarea = document.createElement(tags.textarea);
+    textarea.setAttribute('label', 'Notes');
+    document.body.appendChild(textarea);
+
+    const textareaControl = textarea.shadowRoot?.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement | null;
+    expect(textareaControl).not.toBeNull();
+    if (!textareaControl) throw new Error('Expected textarea control to exist');
+
+    textarea.setAttribute('rows', '6');
+
+    const textareaControlAfterRowsUpdate = textarea.shadowRoot?.querySelector(
+      'textarea'
+    ) as HTMLTextAreaElement | null;
+    expect(textareaControlAfterRowsUpdate).not.toBeNull();
+    expect(textareaControlAfterRowsUpdate).not.toBe(textareaControl);
+    expect(textareaControlAfterRowsUpdate?.getAttribute('rows')).toBe('6');
 
     input.remove();
     textarea.remove();

@@ -8,7 +8,50 @@ import { sanitizeHtml } from '../security/sanitize';
 import { effect, untrack } from '../reactive/signal';
 import type { CleanupFn } from '../reactive/signal';
 import { coercePropValue } from './props';
-import type { ComponentDefinition, ComponentSignals, PropDefinition } from './types';
+import type {
+  AttributeChange,
+  ComponentClass,
+  ComponentDefinition,
+  ComponentStateShape,
+  PropDefinition,
+} from './types';
+
+/**
+ * Base extra tags preserved for component shadow DOM renders in addition to the
+ * global sanitizer defaults. `slot` must remain allowed here because shadow DOM
+ * content projection depends on authored `<slot>` elements in component render
+ * output.
+ */
+const COMPONENT_ALLOWED_TAGS = ['slot'];
+
+/**
+ * Base extra attributes preserved for component shadow DOM renders in addition
+ * to the global sanitizer defaults.
+ */
+const COMPONENT_ALLOWED_ATTRIBUTES = [
+  'part',
+  // Standard form attributes required by interactive shadow DOM content
+  'disabled',
+  'checked',
+  'placeholder',
+  'value',
+  'rows',
+  'cols',
+  'readonly',
+  'required',
+  'maxlength',
+  'minlength',
+  'max',
+  'min',
+  'step',
+  'pattern',
+  'autocomplete',
+  'autofocus',
+  'for',
+  'multiple',
+  'selected',
+  'wrap',
+];
 
 /**
  * Creates a custom element class for a component definition.
@@ -20,16 +63,24 @@ import type { ComponentDefinition, ComponentSignals, PropDefinition } from './ty
  * @param tagName - The custom element tag name (used for diagnostics)
  * @param definition - The component configuration
  */
-export const defineComponent = <
+const createComponentClass = <
   TProps extends Record<string, unknown>,
-  TSignals extends ComponentSignals = Record<string, never>,
+  TState extends Record<string, unknown> | undefined = undefined,
 >(
   tagName: string,
-  definition: ComponentDefinition<TProps, TSignals>
-): typeof HTMLElement => {
+  definition: ComponentDefinition<TProps, TState>
+): ComponentClass<TState> => {
+  const componentAllowedTags = [...COMPONENT_ALLOWED_TAGS, ...(definition.sanitize?.allowTags ?? [])];
+  const componentAllowedAttributes = [
+    ...COMPONENT_ALLOWED_ATTRIBUTES,
+    ...(definition.sanitize?.allowAttributes ?? []),
+  ];
+
   class BQueryComponent extends HTMLElement {
     /** Internal state object for the component */
-    private readonly state = { ...(definition.state ?? {}) };
+    private readonly state: ComponentStateShape<TState> = {
+      ...(definition.state ?? {}),
+    } as ComponentStateShape<TState>;
     /** Typed props object populated from attributes */
     private props = {} as TProps;
     /** Tracks missing required props for validation during connectedCallback */
@@ -105,16 +156,17 @@ export const defineComponent = <
      * Called when an observed attribute changes.
      */
     attributeChangedCallback(
-      _name: string,
-      _oldValue: string | null,
-      _newValue: string | null
+      name: string,
+      oldValue: string | null,
+      newValue: string | null
     ): void {
       try {
+        const previousProps = this.cloneProps();
         this.syncProps();
 
         if (this.hasMounted) {
           // Component already mounted - trigger update render
-          this.render(true);
+          this.render(true, previousProps, { name, oldValue, newValue });
         } else if (this.isConnected && this.missingRequiredProps.size === 0) {
           // All required props are now satisfied and element is connected
           // Trigger the deferred initial mount
@@ -143,9 +195,12 @@ export const defineComponent = <
      * @param key - The state property key
      * @param value - The new value
      */
-    setState(key: string, value: unknown): void {
+    setState<TKey extends keyof ComponentStateShape<TState>>(
+      key: TKey,
+      value: ComponentStateShape<TState>[TKey]
+    ): void {
       this.state[key] = value;
-      this.render(true);
+      this.render(true, this.cloneProps());
     }
 
     /**
@@ -154,8 +209,12 @@ export const defineComponent = <
      * @param key - The state property key
      * @returns The current value
      */
-    getState<T = unknown>(key: string): T {
-      return this.state[key] as T;
+    getState<TKey extends keyof ComponentStateShape<TState>>(
+      key: TKey
+    ): ComponentStateShape<TState>[TKey];
+    getState<TResult = unknown>(key: string): TResult;
+    getState(key: string): unknown {
+      return (this.state as Record<string, unknown>)[key];
     }
 
     /**
@@ -234,13 +293,29 @@ export const defineComponent = <
     }
 
     /**
+     * Creates a shallow snapshot of the current props for lifecycle diffing.
+     * A shallow copy is sufficient because component props are re-derived from
+     * reflected attributes on each update, so nested object mutation is not
+     * tracked as part of this lifecycle diff.
+     * @internal
+     */
+    private cloneProps(): TProps {
+      return { ...(this.props as Record<string, unknown>) } as TProps;
+    }
+
+    /**
      * Renders the component to its shadow root.
      * @internal
      */
-    private render(triggerUpdated = false): void {
+    private render(): void;
+    private render(triggerUpdated: true, oldProps: TProps, change?: AttributeChange): void;
+    private render(triggerUpdated = false, oldProps?: TProps, change?: AttributeChange): void {
       try {
         if (triggerUpdated && definition.beforeUpdate) {
-          const shouldUpdate = definition.beforeUpdate.call(this, this.props);
+          if (!oldProps) {
+            throw new Error('bQuery component: previous props are required for update renders');
+          }
+          const shouldUpdate = definition.beforeUpdate.call(this, this.props, oldProps);
           if (shouldUpdate === false) return;
         }
 
@@ -262,31 +337,8 @@ export const defineComponent = <
         // the stylistic `part` attribute, and standard form/input attributes without
         // relaxing the global DOM sanitization rules.
         const sanitizedMarkup = sanitizeHtml(markup, {
-          allowTags: ['slot'],
-          allowAttributes: [
-            'part',
-            // Standard form attributes required by interactive shadow DOM content
-            'disabled',
-            'checked',
-            'placeholder',
-            'value',
-            'rows',
-            'cols',
-            'readonly',
-            'required',
-            'maxlength',
-            'minlength',
-            'max',
-            'min',
-            'step',
-            'pattern',
-            'autocomplete',
-            'autofocus',
-            'for',
-            'multiple',
-            'selected',
-            'wrap',
-          ],
+          allowTags: componentAllowedTags,
+          allowAttributes: componentAllowedAttributes,
         });
         this.shadowRoot.innerHTML = sanitizedMarkup;
 
@@ -297,7 +349,7 @@ export const defineComponent = <
         }
 
         if (triggerUpdated) {
-          definition.updated?.call(this);
+          definition.updated?.call(this, change);
         }
       } catch (error) {
         this.handleError(error as Error);
@@ -305,8 +357,42 @@ export const defineComponent = <
     }
   }
 
-  return BQueryComponent;
+  return BQueryComponent as ComponentClass<TState>;
 };
+
+/**
+ * Creates a custom element class for a component definition.
+ *
+ * This is useful when you want to extend or register the class manually
+ * (e.g. with different tag names in tests or custom registries).
+ *
+ * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state. When provided,
+ * `definition.state` is required, `render({ state })` is strongly typed, and
+ * returned instances expose typed `getState()` / `setState()` helpers.
+ * @param tagName - The custom element tag name (used for diagnostics)
+ * @param definition - The component configuration
+ */
+export function defineComponent<TProps extends Record<string, unknown>>(
+  tagName: string,
+  definition: ComponentDefinition<TProps>
+): ComponentClass<undefined>;
+export function defineComponent<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown>,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): ComponentClass<TState>;
+export function defineComponent<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): ComponentClass<TState> {
+  return createComponentClass(tagName, definition);
+}
 
 /**
  * Defines and registers a custom Web Component.
@@ -316,12 +402,15 @@ export const defineComponent = <
  * and automatically re-renders when observed attributes change.
  *
  * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state. When provided,
+ * `definition.state` is required and lifecycle hooks receive typed state
+ * helpers via `this.getState()` / `this.setState()`.
  * @param tagName - The custom element tag name (must contain a hyphen)
  * @param definition - The component configuration
  *
  * @example
  * ```ts
- * component('counter-button', {
+ * component<{ start: number }, { count: number }>('counter-button', {
  *   props: {
  *     start: { type: Number, default: 0 },
  *   },
@@ -334,7 +423,7 @@ export const defineComponent = <
  *     const handleClick = (event: Event) => {
  *       const target = event.target as HTMLElement | null;
  *       if (target?.matches('button')) {
- *         this.setState('count', (this.getState('count') as number) + 1);
+ *         this.setState('count', this.getState('count') + 1);
  *       }
  *     };
  *     this.shadowRoot?.addEventListener('click', handleClick);
@@ -358,16 +447,27 @@ export const defineComponent = <
  * });
  * ```
  */
-export const component = <
+export function component<TProps extends Record<string, unknown>>(
+  tagName: string,
+  definition: ComponentDefinition<TProps>
+): void;
+export function component<
   TProps extends Record<string, unknown>,
-  TSignals extends ComponentSignals = Record<string, never>,
+  TState extends Record<string, unknown>,
 >(
   tagName: string,
-  definition: ComponentDefinition<TProps, TSignals>
-): void => {
-  const elementClass = defineComponent(tagName, definition);
+  definition: ComponentDefinition<TProps, TState>
+): void;
+export function component<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+>(
+  tagName: string,
+  definition: ComponentDefinition<TProps, TState>
+): void {
+  const elementClass = createComponentClass(tagName, definition);
 
   if (!customElements.get(tagName)) {
     customElements.define(tagName, elementClass);
   }
-};
+}

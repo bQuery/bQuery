@@ -264,8 +264,8 @@ component('user-card', {
   connected() {
     console.log('Mounted');
   },
-  beforeUpdate(props) {
-    return props.username !== '';
+  beforeUpdate(newProps, oldProps) {
+    return newProps.username !== oldProps.username;
   },
   onError(error) {
     console.error('Component error:', error);

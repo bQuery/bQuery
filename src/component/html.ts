@@ -1,3 +1,98 @@
+const BOOLEAN_ATTRIBUTE_MARKER: unique symbol = Symbol('bquery.booleanAttribute');
+const BOOLEAN_ATTRIBUTE_NAME = /^[^\0-\x20"'/>=]+$/;
+
+/**
+ * Public shape of a boolean HTML attribute created by {@link bool}.
+ *
+ * This type is returned from {@link bool} and can be interpolated into
+ * {@link html} / {@link safeHtml} templates to conditionally include or omit
+ * an attribute by name. The internal marker property used for runtime checks
+ * remains private and is not part of the public API.
+ *
+ * @example
+ * ```ts
+ * const disabled = bool('disabled', isDisabled);
+ * const button = html`<button ${disabled}>Click</button>`;
+ * ```
+ */
+export interface BooleanAttribute {
+  readonly enabled: boolean;
+  readonly name: string;
+}
+
+interface BooleanAttributeValue extends BooleanAttribute {
+  readonly [BOOLEAN_ATTRIBUTE_MARKER]: true;
+}
+
+const isBooleanAttributeValue = (value: unknown): value is BooleanAttributeValue => {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<BooleanAttributeValue>;
+  return (
+    candidate[BOOLEAN_ATTRIBUTE_MARKER] === true &&
+    typeof candidate.enabled === 'boolean' &&
+    typeof candidate.name === 'string'
+  );
+};
+
+const stringifyTemplateValue = (value: unknown): string => {
+  if (isBooleanAttributeValue(value)) {
+    return value.enabled ? value.name : '';
+  }
+
+  return String(value ?? '');
+};
+
+const escapeMap: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#x27;',
+  '`': '&#x60;',
+};
+
+const escapeTemplateValue = (value: unknown): string => {
+  if (isBooleanAttributeValue(value)) {
+    return value.enabled ? value.name : '';
+  }
+
+  return stringifyTemplateValue(value).replace(/[&<>"'`]/g, (char) => escapeMap[char]);
+};
+
+/**
+ * Creates a boolean-attribute marker for the {@link html} and {@link safeHtml} template tags.
+ *
+ * When the condition is truthy, the attribute name is rendered without a value.
+ * When the condition is falsy, an empty string is rendered and any surrounding
+ * template-literal whitespace is preserved.
+ *
+ * @param name - HTML attribute name to emit
+ * @param enabled - Whether the boolean attribute should be present
+ * @returns Internal marker consumed by template tags
+ *
+ * @example
+ * ```ts
+ * html`<button ${bool('disabled', isDisabled)}>Save</button>`;
+ * // Result when isDisabled = true: '<button disabled>Save</button>'
+ * ```
+ */
+export const bool = (name: string, enabled: unknown): BooleanAttribute => {
+  if (!BOOLEAN_ATTRIBUTE_NAME.test(name)) {
+    throw new TypeError(`Invalid boolean attribute name: ${name}`);
+  }
+
+  const attribute: BooleanAttributeValue = {
+    [BOOLEAN_ATTRIBUTE_MARKER]: true,
+    enabled: Boolean(enabled),
+    name,
+  };
+
+  return Object.freeze(attribute);
+};
+
 /**
  * Tagged template literal for creating HTML strings.
  *
@@ -16,7 +111,7 @@
  * ```
  */
 export const html = (strings: TemplateStringsArray, ...values: unknown[]): string => {
-  return strings.reduce((acc, part, index) => `${acc}${part}${values[index] ?? ''}`, '');
+  return strings.reduce((acc, part, index) => `${acc}${part}${stringifyTemplateValue(values[index])}`, '');
 };
 
 /**
@@ -35,19 +130,5 @@ export const html = (strings: TemplateStringsArray, ...values: unknown[]): strin
  * ```
  */
 export const safeHtml = (strings: TemplateStringsArray, ...values: unknown[]): string => {
-  const escapeMap: Record<string, string> = {
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;',
-    "'": '&#x27;',
-    '`': '&#x60;',
-  };
-
-  const escape = (value: unknown): string => {
-    const str = String(value ?? '');
-    return str.replace(/[&<>"'`]/g, (char) => escapeMap[char]);
-  };
-
-  return strings.reduce((acc, part, index) => `${acc}${part}${escape(values[index])}`, '');
+  return strings.reduce((acc, part, index) => `${acc}${part}${escapeTemplateValue(values[index])}`, '');
 };

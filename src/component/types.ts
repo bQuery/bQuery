@@ -4,6 +4,8 @@
  * @module bquery/component
  */
 
+import type { SanitizeOptions } from '../security/types';
+
 /**
  * Defines a single prop's type and configuration.
  *
@@ -44,7 +46,66 @@ export type PropDefinition<T = unknown> = {
 };
 
 /**
+ * Resolves the concrete runtime state shape exposed by component APIs.
+ *
+ * When no explicit state generic is provided, component state falls back to
+ * an untyped string-keyed record for backwards compatibility.
+ */
+export type ComponentStateShape<
+  TState extends Record<string, unknown> | undefined = undefined,
+> = TState extends Record<string, unknown> ? TState : Record<string, unknown>;
+
+/**
+ * Public component element instance shape exposed by lifecycle hooks and
+ * `defineComponent()` return values.
+ */
+export type ComponentElement<
+  TState extends Record<string, unknown> | undefined = undefined,
+> = HTMLElement & {
+  /**
+   * Updates a state property and triggers a re-render.
+   *
+   * @param key - The state property key
+   * @param value - The new value
+   */
+  setState<TKey extends keyof ComponentStateShape<TState>>(
+    key: TKey,
+    value: ComponentStateShape<TState>[TKey]
+  ): void;
+  /**
+   * Gets a state property value.
+   *
+   * @param key - The state property key
+   * @returns The current value
+   */
+  getState<TKey extends keyof ComponentStateShape<TState>>(
+    key: TKey
+  ): ComponentStateShape<TState>[TKey];
+  /**
+   * Gets a state property value with an explicit cast for backwards
+   * compatibility with the pre-typed-state API.
+   *
+   * @param key - The state property key
+   * @returns The current value cast to `TResult`
+   */
+  getState<TResult = unknown>(key: string): TResult;
+};
+
+/**
+ * Constructor returned by `defineComponent()`.
+ */
+export type ComponentClass<TState extends Record<string, unknown> | undefined = undefined> =
+  CustomElementConstructor & {
+    new (): ComponentElement<TState>;
+    prototype: ComponentElement<TState>;
+    readonly observedAttributes: string[];
+  };
+
+/**
  * Render context passed into a component render function.
+ *
+ * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state
  */
 export type ComponentSignalLike<T = unknown> = {
   /** Gets the current reactive value */
@@ -64,6 +125,9 @@ export type ComponentSignals = Record<string, ComponentSignalLike<unknown>>;
 export type ComponentRenderContext<
   TProps extends Record<string, unknown>,
   TSignals extends ComponentSignals = Record<string, never>,
+export type ComponentRenderContext<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
 > = {
   /** Typed props object populated from attributes */
   props: TProps;
@@ -71,20 +135,72 @@ export type ComponentRenderContext<
   state: Record<string, unknown>;
   /** External reactive sources subscribed for re-rendering */
   signals: TSignals;
+  state: ComponentStateShape<TState>;
   /** Emit a custom event from the component */
   emit: (event: string, detail?: unknown) => void;
+};
+
+/**
+ * Describes an observed attribute change that triggered a component update.
+ */
+export type AttributeChange = {
+  /** The observed attribute name */
+  name: string;
+  /** The previous serialized attribute value */
+  oldValue: string | null;
+  /** The next serialized attribute value */
+  newValue: string | null;
 };
 
 /**
  * Complete component definition including props, state, styles, and lifecycle.
  *
  * @template TProps - Type of the component's props
+ * @template TState - Type of the component's internal state
  */
-type ComponentHook<TResult = void> = ((this: HTMLElement) => TResult) | (() => TResult);
-type ComponentHookWithProps<TProps extends Record<string, unknown>, TResult = void> =
-  | ((this: HTMLElement, props: TProps) => TResult)
-  | ((props: TProps) => TResult);
-type ComponentErrorHook = ((this: HTMLElement, error: Error) => void) | ((error: Error) => void);
+/*
+ * Lifecycle hooks use dynamic `this` when declared with method/function syntax.
+ * Arrow functions capture outer scope, so component APIs like `this.getState()`
+ * are only available from method/function syntax.
+ */
+type ComponentSanitizeOptions = Pick<SanitizeOptions, 'allowTags' | 'allowAttributes'>;
+type ComponentHook<
+  TState extends Record<string, unknown> | undefined = undefined,
+  TResult = void,
+> = {
+  (this: ComponentElement<TState>): TResult;
+  (): TResult;
+};
+type ComponentHookWithProps<
+  TProps extends Record<string, unknown>,
+  TState extends Record<string, unknown> | undefined = undefined,
+  TResult = void,
+> = {
+   (this: ComponentElement<TState>, newProps: TProps, oldProps: TProps): TResult;
+   (newProps: TProps, oldProps: TProps): TResult;
+};
+type ComponentUpdatedHook<
+  TState extends Record<string, unknown> | undefined = undefined,
+  TResult = void,
+> = {
+  (this: ComponentElement<TState>, change?: AttributeChange): TResult;
+  (change?: AttributeChange): TResult;
+};
+type ComponentErrorHook<TState extends Record<string, unknown> | undefined = undefined> = {
+  (this: ComponentElement<TState>, error: Error): void;
+  (error: Error): void;
+};
+
+type ComponentStateDefinition<TState extends Record<string, unknown> | undefined = undefined> =
+  TState extends Record<string, unknown>
+    ? {
+        /** Initial internal state */
+        state: TState;
+      }
+    : {
+        /** Initial internal state */
+        state?: Record<string, unknown>;
+      };
 
 export type ComponentDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
@@ -96,20 +212,32 @@ export type ComponentDefinition<
     state?: Record<string, unknown>;
     /** External signals/computed values that should trigger re-renders */
     signals?: TSignals;
+  TState extends Record<string, unknown> | undefined = undefined,
+> = ComponentStateDefinition<TState> & {
+    /** Prop definitions with types and defaults */
+    props?: Record<keyof TProps, PropDefinition>;
     /** CSS styles scoped to the component's shadow DOM */
     styles?: string;
+    /**
+     * Extra sanitizer options merged with the framework base allowlist during render.
+     * Only opt in attributes/tags whose values you control or validate. Sensitive
+     * attributes such as `style` are not value-sanitized and can reintroduce XSS
+     * or UI-redressing risks if used with untrusted input.
+     */
+    sanitize?: ComponentSanitizeOptions;
     /** Lifecycle hook called before the component mounts (before first render) */
-    beforeMount?: ComponentHook;
+    beforeMount?: ComponentHook<TState>;
     /** Lifecycle hook called when component is added to DOM */
-    connected?: ComponentHook;
+    connected?: ComponentHook<TState>;
     /** Lifecycle hook called when component is removed from DOM */
-    disconnected?: ComponentHook;
+    disconnected?: ComponentHook<TState>;
     /** Lifecycle hook called before an update render; return false to prevent */
-    beforeUpdate?: ComponentHookWithProps<TProps, boolean | void>;
-    /** Lifecycle hook called after reactive updates trigger a render */
-    updated?: ComponentHook;
+    beforeUpdate?: ComponentHookWithProps<TProps, TState, boolean | void>;
+    /** Lifecycle hook called after update renders; receives attribute change info when applicable */
+    updated?: ComponentUpdatedHook<TState>;
     /** Error handler for errors during rendering or lifecycle */
-    onError?: ComponentErrorHook;
+    onError?: ComponentErrorHook<TState>;
     /** Render function returning HTML string */
     render: (context: ComponentRenderContext<TProps, TSignals>) => string;
+    render: (context: ComponentRenderContext<TProps, TState>) => string;
   };

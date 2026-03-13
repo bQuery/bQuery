@@ -87,20 +87,25 @@ const storeHandler = (element: HTMLElement, key: string, value: EventListener): 
   handlerStore.set(element, handlers);
 };
 
-const getShadowLabelText = (element: HTMLElement): string => {
-  return element.shadowRoot?.querySelector('.label')?.textContent ?? '';
-};
-
 /**
  * Detect a value-only input update, patch the live control in place, and
  * return whether the component can skip a full shadow DOM re-render.
  *
  * @param element - The host custom element whose shadow DOM is being updated
- * @param props - The next reflected input props for the pending update
+ * @param newProps - The next reflected input props for the pending update
+ * @param oldProps - The previous reflected input props from the last render
  */
 const canSkipInputRender = (
   element: HTMLElement,
-  props: {
+  newProps: {
+    label: string;
+    type: string;
+    value: string;
+    placeholder: string;
+    name: string;
+    disabled: boolean;
+  },
+  oldProps: {
     label: string;
     type: string;
     value: string;
@@ -109,17 +114,17 @@ const canSkipInputRender = (
     disabled: boolean;
   }
 ): boolean => {
+  if (oldProps.label !== newProps.label) return false;
+  if (oldProps.type !== newProps.type) return false;
+  if (oldProps.placeholder !== newProps.placeholder) return false;
+  if (oldProps.name !== newProps.name) return false;
+  if (oldProps.disabled !== newProps.disabled) return false;
+
   const control = element.shadowRoot?.querySelector('input.control') as HTMLInputElement | null;
   if (!control) return false;
 
-  if (getShadowLabelText(element) !== props.label) return false;
-  if ((control.getAttribute('type') ?? 'text') !== props.type) return false;
-  if ((control.getAttribute('placeholder') ?? '') !== props.placeholder) return false;
-  if ((control.getAttribute('name') ?? '') !== props.name) return false;
-  if (control.disabled !== props.disabled) return false;
-
-  if (control.value !== props.value) {
-    control.value = props.value;
+  if (control.value !== newProps.value) {
+    control.value = newProps.value;
   }
 
   return true;
@@ -130,11 +135,20 @@ const canSkipInputRender = (
  * return whether the component can skip a full shadow DOM re-render.
  *
  * @param element - The host custom element whose shadow DOM is being updated
- * @param props - The next reflected textarea props for the pending update
+ * @param newProps - The next reflected textarea props for the pending update
+ * @param oldProps - The previous reflected textarea props from the last render
  */
 const canSkipTextareaRender = (
   element: HTMLElement,
-  props: {
+  newProps: {
+    label: string;
+    value: string;
+    placeholder: string;
+    name: string;
+    rows: number;
+    disabled: boolean;
+  },
+  oldProps: {
     label: string;
     value: string;
     placeholder: string;
@@ -143,19 +157,19 @@ const canSkipTextareaRender = (
     disabled: boolean;
   }
 ): boolean => {
+  if (oldProps.label !== newProps.label) return false;
+  if (oldProps.placeholder !== newProps.placeholder) return false;
+  if (oldProps.name !== newProps.name) return false;
+  if (oldProps.rows !== newProps.rows) return false;
+  if (oldProps.disabled !== newProps.disabled) return false;
+
   const control = element.shadowRoot?.querySelector(
     'textarea.control'
   ) as HTMLTextAreaElement | null;
   if (!control) return false;
 
-  if (getShadowLabelText(element) !== props.label) return false;
-  if ((control.getAttribute('placeholder') ?? '') !== props.placeholder) return false;
-  if ((control.getAttribute('name') ?? '') !== props.name) return false;
-  if (control.getAttribute('rows') !== String(props.rows)) return false;
-  if (control.disabled !== props.disabled) return false;
-
-  if (control.value !== props.value) {
-    control.value = props.value;
+  if (control.value !== newProps.value) {
+    control.value = newProps.value;
   }
   return true;
 };
@@ -328,8 +342,8 @@ export const registerDefaultComponents = (
      * Skip the full shadow DOM re-render when only the reflected input value
      * changed, because the live control has already been patched in place.
      */
-    beforeUpdate(props) {
-      if (canSkipInputRender(this, props)) {
+    beforeUpdate(newProps, oldProps) {
+      if (canSkipInputRender(this, newProps, oldProps)) {
         return false;
       }
       return true;
@@ -399,8 +413,8 @@ export const registerDefaultComponents = (
      * Skip the full shadow DOM re-render when only the reflected textarea value
      * changed, because the live control has already been patched in place.
      */
-    beforeUpdate(props) {
-      if (canSkipTextareaRender(this, props)) {
+    beforeUpdate(newProps, oldProps) {
+      if (canSkipTextareaRender(this, newProps, oldProps)) {
         return false;
       }
       return true;

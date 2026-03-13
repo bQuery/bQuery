@@ -36,7 +36,7 @@
  */
 
 export { component, defineComponent } from './component';
-export { html, safeHtml } from './html';
+export { bool, html, safeHtml } from './html';
 export { registerDefaultComponents } from './library';
 export type { DefaultComponentLibraryOptions, RegisteredDefaultComponents } from './library';
 export type {
@@ -44,5 +44,8 @@ export type {
   ComponentRenderContext,
   ComponentSignalLike,
   ComponentSignals,
+  AttributeChange,
+  ComponentDefinition,
+  ComponentRenderContext,
   PropDefinition,
 } from './types';
