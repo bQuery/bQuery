@@ -79,6 +79,7 @@ export type {
 // ============================================================================
 export { bool, component, html, registerDefaultComponents, safeHtml } from './component/index';
 export type {
+  AttributeChange,
   ComponentDefinition,
   DefaultComponentLibraryOptions,
   PropDefinition,

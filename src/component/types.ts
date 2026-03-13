@@ -118,6 +118,18 @@ export type ComponentRenderContext<
 };
 
 /**
+ * Describes an observed attribute change that triggered a component update.
+ */
+export type AttributeChange = {
+  /** The observed attribute name */
+  name: string;
+  /** The previous serialized attribute value */
+  oldValue: string | null;
+  /** The next serialized attribute value */
+  newValue: string | null;
+};
+
+/**
  * Complete component definition including props, state, styles, and lifecycle.
  *
  * @template TProps - Type of the component's props
@@ -142,6 +154,13 @@ type ComponentHookWithProps<
 > = {
   (this: ComponentElement<TState>, props: TProps): TResult;
   (props: TProps): TResult;
+};
+type ComponentUpdatedHook<
+  TState extends Record<string, unknown> | undefined = undefined,
+  TResult = void,
+> = {
+  (this: ComponentElement<TState>, change?: AttributeChange): TResult;
+  (change?: AttributeChange): TResult;
 };
 type ComponentErrorHook<TState extends Record<string, unknown> | undefined = undefined> = {
   (this: ComponentElement<TState>, error: Error): void;
@@ -175,8 +194,8 @@ export type ComponentDefinition<
     disconnected?: ComponentHook<TState>;
     /** Lifecycle hook called before an update render; return false to prevent */
     beforeUpdate?: ComponentHookWithProps<TProps, TState, boolean | void>;
-    /** Lifecycle hook called after reactive updates trigger a render */
-    updated?: ComponentHook<TState>;
+    /** Lifecycle hook called after update renders; receives attribute change info when applicable */
+    updated?: ComponentUpdatedHook<TState>;
     /** Error handler for errors during rendering or lifecycle */
     onError?: ComponentErrorHook<TState>;
     /** Render function returning HTML string */
