@@ -166,6 +166,33 @@ describe('component/component', () => {
     expect(invalidDefinition).toBeDefined();
   });
 
+  it('keeps inferred state untyped when TState is not explicit', () => {
+    const tagName = `test-untyped-inferred-state-${Date.now()}`;
+
+    const ElementClass = defineComponent(tagName, {
+      props: {},
+      state: {
+        count: 0,
+      },
+      connected() {
+        expectType<unknown>(this.getState('count'));
+        this.setState('dynamic', true);
+      },
+      render({ state }) {
+        expectType<unknown>(state.count);
+        return html`<div>${String(state.count)}:${String(state.anotherKey)}</div>`;
+      },
+    });
+
+    customElements.define(tagName, ElementClass);
+    const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
+    expectType<unknown>(instance.getState('count'));
+    instance.setState('anotherKey', 1);
+
+    expect(instance.shadowRoot?.textContent).toContain('0:1');
+    instance.remove();
+  });
+
   it('calls beforeMount before the first render', () => {
     const tagName = `test-before-mount-${Date.now()}`;
     const callOrder: string[] = [];
