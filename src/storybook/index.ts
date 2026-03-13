@@ -7,6 +7,8 @@
  * @module bquery/storybook
  */
 
+import { sanitizeHtml } from '../security/sanitize';
+
 type StoryValue =
   | string
   | number
@@ -17,6 +19,27 @@ type StoryValue =
   | (() => StoryValue);
 
 const BOOLEAN_ATTRIBUTE_PATTERN = /(\s*)\?([^\s=/>]+)\s*=\s*$/;
+const CUSTOM_ELEMENT_PATTERN = /<\s*\/?\s*([a-z][\w:-]*-[\w:-]*)\b/gi;
+const ATTRIBUTE_PATTERN = /(?:^|[\s<])\?*([^\s=/>]+)\s*=/g;
+
+const collectTemplateSanitizeOptions = (strings: TemplateStringsArray) => {
+  const template = strings.join('');
+  const allowTags = new Set<string>();
+  const allowAttributes = new Set<string>();
+
+  for (const match of template.matchAll(CUSTOM_ELEMENT_PATTERN)) {
+    allowTags.add(match[1].toLowerCase());
+  }
+
+  for (const match of template.matchAll(ATTRIBUTE_PATTERN)) {
+    allowAttributes.add(match[1].toLowerCase());
+  }
+
+  return {
+    allowTags: Array.from(allowTags),
+    allowAttributes: Array.from(allowAttributes),
+  };
+};
 
 const resolveStoryValue = (value: StoryValue): string => {
   if (value == null) {
@@ -50,7 +73,7 @@ const resolveStoryValue = (value: StoryValue): string => {
  * @returns HTML string compatible with `@storybook/web-components`
  */
 export const storyHtml = (strings: TemplateStringsArray, ...values: StoryValue[]): string => {
-  return strings.reduce((acc, part, index) => {
+  const rendered = strings.reduce((acc, part, index) => {
     if (index >= values.length) {
       return `${acc}${part}`;
     }
@@ -67,6 +90,8 @@ export const storyHtml = (strings: TemplateStringsArray, ...values: StoryValue[]
 
     return `${acc}${part}${resolveStoryValue(values[index])}`;
   }, '');
+
+  return sanitizeHtml(rendered, collectTemplateSanitizeOptions(strings));
 };
 
 /**
