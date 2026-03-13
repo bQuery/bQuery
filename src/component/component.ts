@@ -148,7 +148,7 @@ const createComponentClass = <
       ): ComponentStateShape<TState>[TKey];
       getState<TResult = unknown>(key: string): TResult;
       getState(key: string): unknown {
-        return this.state[key];
+        return (this.state as Record<string, unknown>)[key];
       }
 
     /**
