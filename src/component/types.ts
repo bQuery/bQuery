@@ -124,18 +124,15 @@ export type ComponentSignals = Record<string, ComponentSignalLike<unknown>>;
  */
 export type ComponentRenderContext<
   TProps extends Record<string, unknown>,
-  TSignals extends ComponentSignals = Record<string, never>,
-export type ComponentRenderContext<
-  TProps extends Record<string, unknown>,
   TState extends Record<string, unknown> | undefined = undefined,
+  TSignals extends ComponentSignals = Record<string, never>,
 > = {
   /** Typed props object populated from attributes */
   props: TProps;
   /** Internal mutable state object */
-  state: Record<string, unknown>;
+  state: ComponentStateShape<TState>;
   /** External reactive sources subscribed for re-rendering */
   signals: TSignals;
-  state: ComponentStateShape<TState>;
   /** Emit a custom event from the component */
   emit: (event: string, detail?: unknown) => void;
 };
@@ -204,18 +201,13 @@ type ComponentStateDefinition<TState extends Record<string, unknown> | undefined
 
 export type ComponentDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
-  TSignals extends ComponentSignals = Record<string, never>,
-> = {
-    /** Prop definitions with types and defaults */
-    props?: Record<keyof TProps, PropDefinition>;
-    /** Initial internal state */
-    state?: Record<string, unknown>;
-    /** External signals/computed values that should trigger re-renders */
-    signals?: TSignals;
   TState extends Record<string, unknown> | undefined = undefined,
+  TSignals extends ComponentSignals = Record<string, never>,
 > = ComponentStateDefinition<TState> & {
     /** Prop definitions with types and defaults */
     props?: Record<keyof TProps, PropDefinition>;
+    /** External signals/computed values that should trigger re-renders */
+    signals?: TSignals;
     /** CSS styles scoped to the component's shadow DOM */
     styles?: string;
     /**
@@ -238,6 +230,5 @@ export type ComponentDefinition<
     /** Error handler for errors during rendering or lifecycle */
     onError?: ComponentErrorHook<TState>;
     /** Render function returning HTML string */
-    render: (context: ComponentRenderContext<TProps, TSignals>) => string;
-    render: (context: ComponentRenderContext<TProps, TState>) => string;
+    render: (context: ComponentRenderContext<TProps, TState, TSignals>) => string;
   };

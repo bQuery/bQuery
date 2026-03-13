@@ -167,6 +167,7 @@ describe('component/component', () => {
     const renderContext: ComponentRenderContext<Props, State> = {
       props: { label: 'Counter' },
       state: { count: 1, ready: true },
+      signals: {},
       emit: () => {},
     };
 
@@ -421,7 +422,7 @@ describe('component/component', () => {
     const theme = signal<'light' | 'dark'>('light');
     let renderCount = 0;
 
-    component<{}, { theme: typeof theme }>(tagName, {
+    component(tagName, {
       props: {},
       signals: { theme },
       render: ({ signals }) => {
@@ -449,7 +450,7 @@ describe('component/component', () => {
     const theme = signal<'light' | 'dark'>('light');
     const themeClass = computed(() => `theme-${theme.value}`);
 
-    component<{}, { themeClass: typeof themeClass }>(tagName, {
+    component(tagName, {
       props: {},
       signals: { themeClass },
       render: ({ signals }) => html`<div class="${signals.themeClass.value}">Theme</div>`,
@@ -473,7 +474,7 @@ describe('component/component', () => {
     const undeclared = signal('undeclared-1');
     let renderCount = 0;
 
-    component<{}, { declared: typeof declared }>(tagName, {
+    component(tagName, {
       props: {},
       signals: { declared },
       render: ({ signals }) => {
@@ -503,6 +504,48 @@ describe('component/component', () => {
     document.body.appendChild(el);
     expect(renderCount).toBe(renderCountBeforeRemove + 1);
     expect(el.shadowRoot?.textContent).toContain('declared-3:undeclared-2');
+  });
+
+  it('restores signal subscriptions after reconnecting with missing required props', () => {
+    const tagName = `test-signal-reconnect-required-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {
+        label: { type: String, required: true },
+      },
+      signals: { theme },
+      render: ({ props, signals }) => {
+        renderCount++;
+        return html`<div>${String(props.label)}:${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    el.setAttribute('label', 'ready');
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+
+    el.removeAttribute('label');
+    expect(renderCount).toBe(2);
+
+    el.remove();
+    theme.value = 'dark';
+
+    document.body.appendChild(el);
+    const renderCountAfterReconnect = renderCount;
+
+    el.setAttribute('label', 'restored');
+    expect(renderCount).toBe(renderCountAfterReconnect + 1);
+
+    theme.value = 'light';
+
+    expect(renderCount).toBe(renderCountAfterReconnect + 2);
+    expect(el.shadowRoot?.textContent).toContain('restored:light');
+
+    el.remove();
   });
 
   it('calls onError when lifecycle methods throw', () => {

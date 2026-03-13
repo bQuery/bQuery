@@ -81,6 +81,9 @@ export { bool, component, html, registerDefaultComponents, safeHtml } from './co
 export type {
   AttributeChange,
   ComponentDefinition,
+  ComponentRenderContext,
+  ComponentSignalLike,
+  ComponentSignals,
   DefaultComponentLibraryOptions,
   PropDefinition,
   RegisteredDefaultComponents,
