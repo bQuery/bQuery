@@ -7,7 +7,12 @@ import {
   registerDefaultComponents,
   safeHtml,
 } from '../src/component/index';
-import type { ComponentDefinition, ComponentRenderContext } from '../src/component/index';
+import { computed, signal } from '../src/reactive/index';
+import type {
+  ComponentDefinition,
+  ComponentRenderContext,
+  ComponentSignalLike,
+} from '../src/component/index';
 
 const expectType = <T>(_value: T): void => {};
 
@@ -166,6 +171,7 @@ describe('component/component', () => {
     const renderContext: ComponentRenderContext<Props, State> = {
       props: { label: 'Counter' },
       state: { count: 1, ready: true },
+      signals: {},
       emit: () => {},
     };
 
@@ -193,6 +199,19 @@ describe('component/component', () => {
         label: { type: String, required: true },
       },
       render: ({ props, state }) => html`<div>${props.label}:${state.count}</div>`,
+    };
+
+    expect(invalidDefinition).toBeDefined();
+  });
+
+  it('requires runtime signals when an explicit signal generic is used', () => {
+    type Props = Record<string, never>;
+    type ThemeSignals = { theme: ComponentSignalLike<'light' | 'dark'> };
+
+    // @ts-expect-error explicit signal generics require a matching runtime signals object
+    const invalidDefinition: ComponentDefinition<Props, undefined, ThemeSignals> = {
+      props: {},
+      render: ({ signals }) => html`<div>${signals.theme.value}</div>`,
     };
 
     expect(invalidDefinition).toBeDefined();
@@ -411,6 +430,316 @@ describe('component/component', () => {
     el.setState('count', 1);
 
     expect(receivedChanges).toEqual([undefined]);
+
+    el.remove();
+  });
+
+  it('re-renders when declared signals change', () => {
+    const tagName = `test-signal-rerender-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {},
+      signals: { theme },
+      render: ({ signals }) => {
+        renderCount++;
+        return html`<div class="${signals.theme.value}">${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('light');
+
+    theme.value = 'dark';
+
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('dark');
+
+    el.remove();
+  });
+
+  it('does not let beforeUpdate block signal-driven renders when props are unchanged', () => {
+    const tagName = `test-signal-before-update-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    let renderCount = 0;
+    let beforeUpdateCount = 0;
+
+    component<{ label: string }, { theme: ComponentSignalLike<'light' | 'dark'> }>(tagName, {
+      props: {
+        label: { type: String, default: 'theme' },
+      },
+      signals: { theme },
+      beforeUpdate(newProps, oldProps) {
+        beforeUpdateCount++;
+        return newProps.label !== oldProps.label;
+      },
+      render: ({ props, signals }) => {
+        renderCount++;
+        return html`<div>${props.label}:${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(beforeUpdateCount).toBe(0);
+    expect(el.shadowRoot?.textContent).toContain('theme:light');
+
+    theme.value = 'dark';
+
+    expect(renderCount).toBe(2);
+    expect(beforeUpdateCount).toBe(0);
+    expect(el.shadowRoot?.textContent).toContain('theme:dark');
+
+    el.setAttribute('label', 'updated');
+
+    expect(beforeUpdateCount).toBe(1);
+    expect(renderCount).toBe(3);
+    expect(el.shadowRoot?.textContent).toContain('updated:dark');
+
+    el.remove();
+  });
+
+  it('supports computed values as component signals', () => {
+    const tagName = `test-computed-signal-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    const themeClass = computed(() => `theme-${theme.value}`);
+
+    component(tagName, {
+      props: {},
+      signals: { themeClass },
+      render: ({ signals }) => html`<div class="${signals.themeClass.value}">Theme</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('theme-light');
+
+    theme.value = 'dark';
+
+    expect(el.shadowRoot?.querySelector('div')?.className).toBe('theme-dark');
+
+    el.remove();
+  });
+
+  it('only subscribes to signals declared in the component definition', () => {
+    const tagName = `test-explicit-signals-${Date.now()}`;
+    const declared = signal('declared-1');
+    const undeclared = signal('undeclared-1');
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {},
+      signals: { declared },
+      render: ({ signals }) => {
+        renderCount++;
+        return html`<div>${signals.declared.value}:${undeclared.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+
+    undeclared.value = 'undeclared-2';
+    expect(renderCount).toBe(1);
+
+    declared.value = 'declared-2';
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.textContent).toContain('declared-2:undeclared-2');
+
+    const renderCountBeforeRemove = renderCount;
+    el.remove();
+
+    declared.value = 'declared-3';
+    expect(renderCount).toBe(renderCountBeforeRemove);
+
+    document.body.appendChild(el);
+    expect(renderCount).toBe(renderCountBeforeRemove + 1);
+    expect(el.shadowRoot?.textContent).toContain('declared-3:undeclared-2');
+
+    el.remove();
+  });
+
+  it('skips signal effect setup when the signals map is empty', () => {
+    const tagName = `test-empty-signals-${Date.now()}`;
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {},
+      signals: {},
+      render: () => {
+        renderCount++;
+        return html`<div>Static</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(el.shadowRoot?.textContent).toContain('Static');
+
+    el.remove();
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(el.shadowRoot?.textContent).toContain('Static');
+
+    el.remove();
+  });
+
+  it('restores signal subscriptions after reconnecting with missing required props', () => {
+    const tagName = `test-signal-reconnect-required-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {
+        label: { type: String, required: true },
+      },
+      signals: { theme },
+      render: ({ props, signals }) => {
+        renderCount++;
+        return html`<div>${String(props.label)}:${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    el.setAttribute('label', 'ready');
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+
+    el.removeAttribute('label');
+    expect(renderCount).toBe(2);
+
+    el.remove();
+    theme.value = 'dark';
+
+    document.body.appendChild(el);
+    const renderCountAfterReconnect = renderCount;
+
+    el.setAttribute('label', 'restored');
+    expect(renderCount).toBe(renderCountAfterReconnect + 1);
+
+    theme.value = 'light';
+
+    expect(renderCount).toBe(renderCountAfterReconnect + 2);
+    expect(el.shadowRoot?.textContent).toContain('restored:light');
+
+    el.remove();
+  });
+
+  it('calls connected again when a mounted component reconnects', () => {
+    const tagName = `test-connected-reconnect-${Date.now()}`;
+    const calls: string[] = [];
+
+    component(tagName, {
+      props: {},
+      connected() {
+        calls.push('connected');
+      },
+      disconnected() {
+        calls.push('disconnected');
+      },
+      render: () => html`<div>Reconnect</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+    el.remove();
+    document.body.appendChild(el);
+
+    expect(calls).toEqual(['connected', 'disconnected', 'connected']);
+
+    el.remove();
+  });
+
+  it('restores signal subscriptions on reconnect even if connected throws', () => {
+    const tagName = `test-connected-throw-reconnect-${Date.now()}`;
+    const theme = signal<'light' | 'dark'>('light');
+    const capturedErrors: Error[] = [];
+    let connectedCount = 0;
+    let renderCount = 0;
+
+    component(tagName, {
+      props: {},
+      signals: { theme },
+      connected() {
+        connectedCount++;
+        if (connectedCount > 1) {
+          throw new Error('Reconnect error');
+        }
+      },
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render: ({ signals }) => {
+        renderCount++;
+        return html`<div>${signals.theme.value}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(capturedErrors).toHaveLength(0);
+
+    el.remove();
+    document.body.appendChild(el);
+
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toBe('Reconnect error');
+    expect(renderCount).toBe(2);
+    expect(el.shadowRoot?.textContent).toContain('light');
+
+    theme.value = 'dark';
+
+    expect(renderCount).toBe(3);
+    expect(el.shadowRoot?.textContent).toContain('dark');
+
+    el.remove();
+  });
+
+  it('routes signal subscription errors through onError', () => {
+    const tagName = `test-signal-on-error-${Date.now()}`;
+    const value = signal(1);
+    const shouldThrow = signal(false);
+    const capturedErrors: Error[] = [];
+    const derived = computed(() => {
+      if (shouldThrow.value) {
+        throw new Error('Signal subscription error');
+      }
+      return value.value;
+    });
+
+    component(tagName, {
+      props: {},
+      signals: { derived },
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render: () => html`<div>Signal test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(capturedErrors).toHaveLength(0);
+
+    shouldThrow.value = true;
+
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toBe('Signal subscription error');
 
     el.remove();
   });

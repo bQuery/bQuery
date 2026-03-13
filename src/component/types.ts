@@ -102,19 +102,40 @@ export type ComponentClass<TState extends Record<string, unknown> | undefined = 
   };
 
 /**
+ * Minimal reactive source shape supported by component `signals`.
+ *
+ * @template T - Value exposed by the signal-like source
+ */
+export type ComponentSignalLike<T = unknown> = {
+  /** Gets the current reactive value */
+  readonly value: T;
+  /** Gets the current value without dependency tracking */
+  peek(): T;
+};
+
+/**
+ * Named reactive sources that can drive component re-renders.
+ */
+export type ComponentSignals = Record<string, ComponentSignalLike<unknown>>;
+
+/**
  * Render context passed into a component render function.
  *
  * @template TProps - Type of the component's props
  * @template TState - Type of the component's internal state
+ * @template TSignals - Declared reactive sources available during render
  */
 export type ComponentRenderContext<
   TProps extends Record<string, unknown>,
   TState extends Record<string, unknown> | undefined = undefined,
+  TSignals extends ComponentSignals = Record<string, never>,
 > = {
   /** Typed props object populated from attributes */
   props: TProps;
   /** Internal mutable state object */
   state: ComponentStateShape<TState>;
+  /** External reactive sources subscribed for re-rendering */
+  signals: TSignals;
   /** Emit a custom event from the component */
   emit: (event: string, detail?: unknown) => void;
 };
@@ -181,10 +202,23 @@ type ComponentStateDefinition<TState extends Record<string, unknown> | undefined
         state?: Record<string, unknown>;
       };
 
+type ComponentSignalsDefinition<TSignals extends ComponentSignals = Record<string, never>> =
+  TSignals extends Record<string, never>
+    ? {
+        /** External signals/computed values that should trigger re-renders */
+        signals?: TSignals;
+      }
+    : {
+        /** External signals/computed values that should trigger re-renders */
+        signals: TSignals;
+      };
+
 export type ComponentDefinition<
   TProps extends Record<string, unknown> = Record<string, unknown>,
   TState extends Record<string, unknown> | undefined = undefined,
-> = ComponentStateDefinition<TState> & {
+  TSignals extends ComponentSignals = Record<string, never>,
+> = ComponentStateDefinition<TState> &
+  ComponentSignalsDefinition<TSignals> & {
     /** Prop definitions with types and defaults */
     props?: Record<keyof TProps, PropDefinition>;
     /** CSS styles scoped to the component's shadow DOM */
@@ -209,5 +243,5 @@ export type ComponentDefinition<
     /** Error handler for errors during rendering or lifecycle */
     onError?: ComponentErrorHook<TState>;
     /** Render function returning HTML string */
-    render: (context: ComponentRenderContext<TProps, TState>) => string;
+    render: (context: ComponentRenderContext<TProps, TState, TSignals>) => string;
   };
