@@ -7,6 +7,7 @@
 import { sanitizeHtml } from '../security/sanitize';
 import { coercePropValue } from './props';
 import type {
+  AttributeChange,
   ComponentClass,
   ComponentDefinition,
   ComponentStateShape,
