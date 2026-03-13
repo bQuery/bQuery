@@ -115,25 +115,22 @@ export type ComponentRenderContext<
  * @template TProps - Type of the component's props
  * @template TState - Type of the component's internal state
  */
+/**
+ * Lifecycle hooks use dynamic `this` when declared with method/function syntax.
+ * Arrow functions capture outer scope, so component APIs like `this.getState()`
+ * are only available from method/function syntax.
+ */
 type ComponentHook<
   TState extends Record<string, unknown> | undefined = undefined,
   TResult = void,
-> = {
-  (this: ComponentElement<TState>): TResult;
-  (): TResult;
-};
+> = (this: ComponentElement<TState>) => TResult;
 type ComponentHookWithProps<
   TProps extends Record<string, unknown>,
   TState extends Record<string, unknown> | undefined = undefined,
   TResult = void,
-> = {
-  (this: ComponentElement<TState>, props: TProps): TResult;
-  (props: TProps): TResult;
-};
-type ComponentErrorHook<TState extends Record<string, unknown> | undefined = undefined> = {
-  (this: ComponentElement<TState>, error: Error): void;
-  (error: Error): void;
-};
+> = (this: ComponentElement<TState>, props: TProps) => TResult;
+type ComponentErrorHook<TState extends Record<string, unknown> | undefined = undefined> =
+  (this: ComponentElement<TState>, error: Error) => void;
 
 type ComponentStateDefinition<TState extends Record<string, unknown> | undefined = undefined> =
   TState extends Record<string, unknown>
