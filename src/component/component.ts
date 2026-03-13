@@ -68,6 +68,12 @@ const createComponentClass = <
   tagName: string,
   definition: ComponentDefinition<TProps, TState>
 ): ComponentClass<TState> => {
+  const componentAllowedTags = [...COMPONENT_ALLOWED_TAGS, ...(definition.sanitize?.allowTags ?? [])];
+  const componentAllowedAttributes = [
+    ...COMPONENT_ALLOWED_ATTRIBUTES,
+    ...(definition.sanitize?.allowAttributes ?? []),
+  ];
+
   class BQueryComponent extends HTMLElement {
     /** Internal state object for the component */
     private readonly state: ComponentStateShape<TState> = {
@@ -266,11 +272,8 @@ const createComponentClass = <
         // the stylistic `part` attribute, and standard form/input attributes without
         // relaxing the global DOM sanitization rules.
         const sanitizedMarkup = sanitizeHtml(markup, {
-          allowTags: [...COMPONENT_ALLOWED_TAGS, ...(definition.sanitize?.allowTags ?? [])],
-          allowAttributes: [
-            ...COMPONENT_ALLOWED_ATTRIBUTES,
-            ...(definition.sanitize?.allowAttributes ?? []),
-          ],
+          allowTags: componentAllowedTags,
+          allowAttributes: componentAllowedAttributes,
         });
         this.shadowRoot.innerHTML = sanitizedMarkup;
 

@@ -1050,6 +1050,42 @@ describe('component/defineComponent', () => {
     el.remove();
   });
 
+  it('extends the component sanitizer tag allowlist when explicitly requested', () => {
+    const defaultTagName = `test-define-sanitize-tag-default-${Date.now()}`;
+    const allowedTagName = `test-define-sanitize-tag-allowed-${Date.now()}`;
+
+    const DefaultElementClass = defineComponent(defaultTagName, {
+      props: {},
+      render: () => html`<dialog>Default hidden dialog</dialog>`,
+    });
+    const AllowedElementClass = defineComponent(allowedTagName, {
+      props: {},
+      sanitize: {
+        allowTags: ['dialog'],
+      },
+      render: () => html`<dialog>Allowed visible dialog</dialog>`,
+    });
+
+    customElements.define(defaultTagName, DefaultElementClass);
+    customElements.define(allowedTagName, AllowedElementClass);
+
+    const defaultEl = document.createElement(defaultTagName);
+    const allowedEl = document.createElement(allowedTagName);
+
+    document.body.appendChild(defaultEl);
+    document.body.appendChild(allowedEl);
+
+    expect(defaultEl.shadowRoot?.querySelector('dialog')).toBeNull();
+    expect(defaultEl.shadowRoot?.innerHTML).not.toContain('<dialog');
+
+    const allowedDialog = allowedEl.shadowRoot?.querySelector('dialog');
+    expect(allowedDialog).not.toBeNull();
+    expect(allowedDialog?.textContent).toBe('Allowed visible dialog');
+
+    defaultEl.remove();
+    allowedEl.remove();
+  });
+
   it('instances apply styles correctly', () => {
     const tagName = `test-define-styles-${Date.now()}`;
     const ElementClass = defineComponent(tagName, {
