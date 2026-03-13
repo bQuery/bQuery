@@ -176,6 +176,7 @@ describe('component/component', () => {
       },
       connected() {
         expectType<unknown>(this.getState('count'));
+        expectType<number>(this.getState<number>('count'));
         this.setState('dynamic', true);
       },
       render({ state }) {
@@ -187,6 +188,7 @@ describe('component/component', () => {
     customElements.define(tagName, ElementClass);
     const instance = document.createElement(tagName) as InstanceType<typeof ElementClass>;
     expectType<unknown>(instance.getState('count'));
+    expectType<number>(instance.getState<number>('count'));
     instance.setState('anotherKey', 1);
 
     expect(instance.getState('anotherKey')).toBe(1);

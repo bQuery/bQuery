@@ -143,11 +143,13 @@ const createComponentClass = <
      * @param key - The state property key
      * @returns The current value
      */
-    getState<TKey extends keyof ComponentStateShape<TState>>(
-      key: TKey
-    ): ComponentStateShape<TState>[TKey] {
-      return this.state[key];
-    }
+      getState<TKey extends keyof ComponentStateShape<TState>>(
+        key: TKey
+      ): ComponentStateShape<TState>[TKey];
+      getState<TResult = unknown>(key: string): TResult;
+      getState(key: string): unknown {
+        return this.state[key];
+      }
 
     /**
      * Synchronizes props from attributes.

@@ -79,6 +79,14 @@ export type ComponentElement<
   getState<TKey extends keyof ComponentStateShape<TState>>(
     key: TKey
   ): ComponentStateShape<TState>[TKey];
+  /**
+   * Gets a state property value with an explicit cast for backwards
+   * compatibility with the pre-typed-state API.
+   *
+   * @param key - The state property key
+   * @returns The current value cast to `TResult`
+   */
+  getState<TResult = unknown>(key: string): TResult;
 };
 
 /**
