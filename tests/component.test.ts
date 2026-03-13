@@ -848,6 +848,33 @@ describe('component/defineComponent', () => {
     el.remove();
   });
 
+  it('reuses the same style element across attribute-triggered re-renders', () => {
+    const tagName = `test-define-style-reuse-${Date.now()}`;
+    const ElementClass = defineComponent<{ value: string }>(tagName, {
+      props: {
+        value: { type: String, default: 'initial' },
+      },
+      styles: '.test { color: red; }',
+      render: ({ props }) => html`<div class="test">${props.value}</div>`,
+    });
+
+    customElements.define(tagName, ElementClass);
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    const initialStyleTag = el.shadowRoot?.querySelector('style');
+    expect(initialStyleTag).toBeDefined();
+
+    el.setAttribute('value', 'updated');
+
+    const updatedStyleTag = el.shadowRoot?.querySelector('style');
+    expect(updatedStyleTag).toBe(initialStyleTag);
+    expect(el.shadowRoot?.querySelectorAll('style')).toHaveLength(1);
+    expect(el.shadowRoot?.textContent).toContain('updated');
+
+    el.remove();
+  });
+
   it('can be used to test component in isolation', () => {
     // This pattern is useful for testing without polluting global registry
     const ElementClass = defineComponent('test-isolated', {
