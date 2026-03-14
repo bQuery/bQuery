@@ -59,7 +59,7 @@ export type ComponentStateShape<
  * Component state keys are string-based because runtime state access is backed
  * by plain object properties.
  */
-type ComponentStateKey<TState extends Record<string, unknown> | undefined> =
+export type ComponentStateKey<TState extends Record<string, unknown> | undefined> =
   keyof ComponentStateShape<TState> & string;
 
 /**
