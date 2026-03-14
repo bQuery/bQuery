@@ -455,6 +455,52 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('does not let beforeUpdate block state-driven renders when props are unchanged', () => {
+    const tagName = `test-state-before-update-${Date.now()}`;
+    let renderCount = 0;
+    let beforeUpdateCount = 0;
+
+    component<{ label: string }, { count: number }>(tagName, {
+      props: {
+        label: { type: String, default: 'count' },
+      },
+      state: {
+        count: 0,
+      },
+      beforeUpdate(newProps, oldProps) {
+        beforeUpdateCount++;
+        return newProps.label !== oldProps.label;
+      },
+      render: ({ props, state }) => {
+        renderCount++;
+        return html`<div>${props.label}:${state.count}</div>`;
+      },
+    });
+
+    const el = document.createElement(tagName) as HTMLElement & {
+      setState: (key: string, value: unknown) => void;
+    };
+    document.body.appendChild(el);
+
+    expect(renderCount).toBe(1);
+    expect(beforeUpdateCount).toBe(0);
+    expect(el.shadowRoot?.textContent).toContain('count:0');
+
+    el.setState('count', 1);
+
+    expect(renderCount).toBe(2);
+    expect(beforeUpdateCount).toBe(0);
+    expect(el.shadowRoot?.textContent).toContain('count:1');
+
+    el.setAttribute('label', 'updated');
+
+    expect(beforeUpdateCount).toBe(1);
+    expect(renderCount).toBe(3);
+    expect(el.shadowRoot?.textContent).toContain('updated:1');
+
+    el.remove();
+  });
+
   it('re-renders when declared signals change', () => {
     const tagName = `test-signal-rerender-${Date.now()}`;
     const theme = signal<'light' | 'dark'>('light');

@@ -74,6 +74,14 @@ describe('storybook/storyHtml', () => {
     expect(result).toContain('data-name="hero"');
   });
 
+  it('does not auto-allow inline style attributes in story templates', () => {
+    const result = storyHtml`<bq-button style=${'color:red'} variant=${'primary'}>Save</bq-button>`;
+
+    expect(result).toContain('<bq-button');
+    expect(result).toContain('variant="primary"');
+    expect(result).not.toContain('style=');
+  });
+
   it('sanitizes dangerous interpolated markup', () => {
     const result = storyHtml`<bq-button>${'<img src=x onerror=alert(1)><script>alert(1)</script>'}</bq-button>`;
 
@@ -81,5 +89,13 @@ describe('storybook/storyHtml', () => {
     expect(result).toContain('<img src="x">');
     expect(result).not.toContain('onerror');
     expect(result).not.toContain('<script>');
+  });
+
+  it('resolves boolean shorthand from callback values before deciding attribute presence', () => {
+    const disabled = storyHtml`<bq-button ?disabled=${() => true}>Save</bq-button>`;
+    const enabled = storyHtml`<bq-button ?disabled=${() => false}>Save</bq-button>`;
+
+    expect(disabled).toBe('<bq-button disabled="">Save</bq-button>');
+    expect(enabled).toBe('<bq-button>Save</bq-button>');
   });
 });

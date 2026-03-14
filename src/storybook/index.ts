@@ -84,6 +84,10 @@ const isCustomElementTagName = (tagName: string): boolean => {
   return isAsciiLetter(last) || (code >= 48 && code <= 57) || last === '.' || last === '_';
 };
 
+const isAutoAllowedStoryAttribute = (attributeName: string): boolean => {
+  return attributeName !== 'style' && !attributeName.startsWith('on');
+};
+
 const findBooleanAttributeSuffix = (
   part: string
 ): { attribute: string; basePart: string; spacing: string } | null => {
@@ -208,7 +212,11 @@ const collectOpeningTagFragments = (template: string): string[] => {
   return fragments;
 };
 
-const collectAttributesFromTagFragment = (fragment: string, allowAttributes: Set<string>): void => {
+const collectAttributesFromTagFragment = (
+  fragment: string,
+  allowAttributes: Set<string>,
+  autoAllowAttributes: boolean
+): void => {
   let index = 0;
 
   while (index < fragment.length && !isWhitespace(fragment[index])) {
@@ -257,12 +265,14 @@ const collectAttributesFromTagFragment = (fragment: string, allowAttributes: Set
     }
 
     if (index < fragment.length && fragment[index] === '=') {
-      allowAttributes.add(attributeName);
+      if (autoAllowAttributes && isAutoAllowedStoryAttribute(attributeName)) {
+        allowAttributes.add(attributeName);
+      }
       index += 1;
       continue;
     }
 
-    if (hasBooleanPrefix) {
+    if (hasBooleanPrefix && autoAllowAttributes && isAutoAllowedStoryAttribute(attributeName)) {
       allowAttributes.add(attributeName);
     }
   }
@@ -275,12 +285,13 @@ const collectTemplateSanitizeOptions = (strings: TemplateStringsArray) => {
 
   for (const fragment of collectOpeningTagFragments(template)) {
     const tagName = fragment.slice(0, getTagNameEnd(fragment)).toLowerCase();
+    const isCustomElement = isCustomElementTagName(tagName);
 
-    if (isCustomElementTagName(tagName)) {
+    if (isCustomElement) {
       allowTags.add(tagName);
     }
 
-    collectAttributesFromTagFragment(fragment, allowAttributes);
+    collectAttributesFromTagFragment(fragment, allowAttributes, isCustomElement);
   }
 
   return {
@@ -303,6 +314,22 @@ const resolveStoryValue = (value: StoryValue): string => {
   }
 
   return String(value);
+};
+
+const resolveBooleanStoryValue = (value: StoryValue): boolean => {
+  if (value == null) {
+    return false;
+  }
+
+  if (Array.isArray(value)) {
+    return value.some((item) => resolveBooleanStoryValue(item));
+  }
+
+  if (typeof value === 'function') {
+    return resolveBooleanStoryValue(value());
+  }
+
+  return value === true;
 };
 
 /**
@@ -331,8 +358,9 @@ export const storyHtml = (strings: TemplateStringsArray, ...values: StoryValue[]
     if (booleanAttributeMatch) {
       const { attribute, basePart, spacing } = booleanAttributeMatch;
       const preservedSpacing = hasLineBreak(spacing) ? spacing : '';
+      const isEnabled = resolveBooleanStoryValue(values[index]);
 
-      return `${acc}${basePart}${values[index] ? `${spacing}${attribute}` : preservedSpacing}`;
+      return `${acc}${basePart}${isEnabled ? `${spacing}${attribute}` : preservedSpacing}`;
     }
 
     return `${acc}${part}${resolveStoryValue(values[index])}`;
