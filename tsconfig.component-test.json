@@ -6,6 +6,6 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "tests/component.test.ts", "tests/setup.ts"],
+  "include": ["src", "tests"],
   "exclude": ["dist", "node_modules"]
 }

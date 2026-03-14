@@ -83,7 +83,7 @@ describe('security/sanitizeHtml', () => {
     const result = sanitizeHtml('<div><b>Bold</b> text</div>', {
       stripAllTags: true,
     });
-    expect(result).toBe('Bold text');
+    expect(String(result)).toBe('Bold text');
   });
 
   it('disables data attributes when allowDataAttributes is false', () => {

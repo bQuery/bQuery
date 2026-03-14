@@ -584,14 +584,16 @@ describe('core/BQueryElement - new methods', () => {
     const wrapped = new BQueryElement(container);
     let delegatedTarget: Element | null = null;
 
-    wrapped.delegate('click', '.btn', (e, target) => {
+    wrapped.delegate('click', '.btn', (_e, target) => {
       delegatedTarget = target;
     });
 
     const btn = container.querySelector('.btn');
-    btn?.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(btn).not.toBeNull();
+    btn!.dispatchEvent(new Event('click', { bubbles: true }));
 
-    expect(delegatedTarget).toBe(btn);
+    expect(delegatedTarget).not.toBeNull();
+    expect(delegatedTarget === btn).toBe(true);
     container.remove();
   });
 
@@ -797,12 +799,16 @@ describe('core/BQueryCollection - delegate/undelegate', () => {
       clickedTargets.push(target);
     });
 
-    container1.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
-    container2.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
+    const button1 = container1.querySelector('.btn');
+    const button2 = container2.querySelector('.btn');
+    expect(button1).not.toBeNull();
+    expect(button2).not.toBeNull();
+    button1!.dispatchEvent(new Event('click', { bubbles: true }));
+    button2!.dispatchEvent(new Event('click', { bubbles: true }));
 
     expect(clickedTargets.length).toBe(2);
-    expect(clickedTargets[0]).toBe(container1.querySelector('.btn'));
-    expect(clickedTargets[1]).toBe(container2.querySelector('.btn'));
+    expect(clickedTargets[0]).toBe(button1!);
+    expect(clickedTargets[1]).toBe(button2!);
 
     container1.remove();
     container2.remove();

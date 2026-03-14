@@ -1245,8 +1245,13 @@ describe('component/defineComponent', () => {
       // @ts-expect-error ready expects a boolean
       element.setState('ready', 'true');
     };
+    const assertNumericStateKeyIsRejected = (element: InstanceType<typeof ElementClass>): void => {
+      // @ts-expect-error state keys must be strings
+      element.getState(0);
+    };
     void assertInvalidConnectedSetState;
     void assertInvalidInstanceSetState;
+    void assertNumericStateKeyIsRejected;
 
     expect(instance.shadowRoot?.textContent).toContain('2:false');
     instance.remove();

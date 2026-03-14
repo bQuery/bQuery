@@ -279,7 +279,7 @@ describe('utils/security', () => {
     // Should not pollute Object prototype
     expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     // The key should not be an own property of the result
-    expect(Object.hasOwn(result, '__proto__')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(result, '__proto__')).toBe(false);
   });
 
   it('merge ignores constructor pollution', () => {
@@ -287,14 +287,14 @@ describe('utils/security', () => {
     const result = utils.merge({}, malicious);
 
     // Constructor should not be an own property with polluted value
-    expect(Object.hasOwn(result, 'constructor')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(result, 'constructor')).toBe(false);
   });
 
   it('merge ignores prototype key', () => {
     const malicious = JSON.parse('{"prototype": {"polluted": true}}');
     const result = utils.merge({}, malicious);
 
-    expect(Object.hasOwn(result, 'prototype')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(result, 'prototype')).toBe(false);
   });
 });
 

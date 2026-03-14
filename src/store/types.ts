@@ -20,10 +20,8 @@ export type Getters<S, G> = {
  * The `this` context includes state, getters, and other actions.
  */
 export type Actions<S, G, A> = {
-  [K in keyof A]: A[K] extends (...args: infer P) => infer R
-    ? (this: S & G & A, ...args: P) => R
-    : never;
-};
+  [K in keyof A]: A[K];
+} & ThisType<S & G & A>;
 
 /**
  * Store definition for createStore.

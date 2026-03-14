@@ -9,6 +9,15 @@ import {
   useFetch,
 } from '../src/reactive/signal';
 
+const asMockFetch = (
+  handler: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
+): typeof fetch =>
+  Object.assign(handler, {
+    // Bun augments fetch with a preconnect helper; tests only need the call signature.
+    preconnect: (_url: string | URL, _options?: { dns?: boolean; tcp?: boolean; tls?: boolean }) =>
+      undefined,
+  }) as typeof fetch;
+
 describe('signal', () => {
   it('stores and retrieves values', () => {
     const count = signal(0);
@@ -849,13 +858,13 @@ describe('useFetch', () => {
     const state = useFetch<{ ok: boolean; search: string }>('/api/users', {
       immediate: false,
       query: { page: 2, tags: ['a', 'b'] },
-      fetcher: async (input, init) => {
+      fetcher: asMockFetch(async (input, init) => {
         requests.push({ input, init });
         return new Response(JSON.stringify({ ok: true, search: String(input) }), {
           status: 200,
           headers: { 'Content-Type': 'application/json' },
         });
-      },
+      }),
     });
 
     const result = await state.execute();
@@ -875,11 +884,11 @@ describe('useFetch', () => {
       immediate: false,
       method: 'POST',
       body: { name: 'Ada' },
-      fetcher: async (_input, init) => {
+      fetcher: asMockFetch(async (_input, init) => {
         body = String(init?.body);
         contentType = new Headers(init?.headers).get('content-type') ?? '';
         return new Response(JSON.stringify({ saved: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -895,14 +904,14 @@ describe('useFetch', () => {
       method: 'POST',
       body: { name: 'Ada' },
       headers: { 'x-test': '1' },
-      fetcher: async (_input, init) => {
+      fetcher: asMockFetch(async (_input, init) => {
         const headers = init?.headers;
         expect(headers).toBeInstanceOf(Headers);
         const requestHeaders = headers as Headers;
         contentTypes.push(requestHeaders.get('content-type') ?? '');
         requestHeaders.delete('content-type');
         return new Response(JSON.stringify({ saved: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -928,13 +937,13 @@ describe('useFetch', () => {
     const state = useFetch<{ saved: boolean }>(request, {
       immediate: false,
       headers: { 'x-request-id': '123' },
-      fetcher: async (_input, init) => {
+      fetcher: asMockFetch(async (_input, init) => {
         const headers = new Headers(init?.headers);
         capturedContentType = headers.get('content-type') ?? '';
         capturedRequestId = headers.get('x-request-id') ?? '';
         capturedAuth = headers.get('authorization') ?? '';
         return new Response(JSON.stringify({ saved: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -975,14 +984,14 @@ describe('useFetch', () => {
       const state = useFetch<{ saved: boolean }>(request, {
         immediate: false,
         headers: { 'x-request-id': '123' },
-        fetcher: async (_input, init) => {
+        fetcher: asMockFetch(async (_input, init) => {
           const headers = new Headers(init?.headers);
           capturedContentType = headers.get('content-type') ?? '';
           capturedAuth = headers.get('authorization') ?? '';
           capturedConfigHeader = headers.get('x-config') ?? '';
           capturedRequestId = headers.get('x-request-id') ?? '';
           return new Response(JSON.stringify({ saved: true }), { status: 200 });
-        },
+        }),
       });
 
       await state.execute();
@@ -1009,13 +1018,13 @@ describe('useFetch', () => {
       immediate: false,
       query: { page: 2, tags: ['a', 'hello world'] },
       headers: { 'x-extra': '123' },
-      fetcher: async (input, init) => {
+      fetcher: asMockFetch(async (input, init) => {
         capturedUrl = input instanceof Request ? input.url : String(input);
         const headers = new Headers(init?.headers);
         capturedAuth = headers.get('authorization') ?? '';
         capturedExtra = headers.get('x-extra') ?? '';
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -1029,22 +1038,22 @@ describe('useFetch', () => {
 
   it('preserves the original Request URL when no query parameters are provided', async () => {
     let capturedUrl = '';
-    let capturedInput: RequestInfo | URL | null = null;
+    let capturedInput: Request | null = null;
 
     const request = new Request('https://example.com/api/users?existing=1');
     const state = useFetch<{ ok: boolean }>(request, {
       immediate: false,
-      fetcher: async (input) => {
-        capturedInput = input;
+      fetcher: asMockFetch(async (input) => {
+        capturedInput = input as Request;
         capturedUrl = input instanceof Request ? input.url : String(input);
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
 
     expect(capturedUrl).toBe('https://example.com/api/users?existing=1');
-    expect(capturedInput).toBe(request);
+    expect(capturedInput === request).toBe(true);
   });
 
   it('resolves relative base URLs against the runtime base URL', async () => {
@@ -1053,10 +1062,10 @@ describe('useFetch', () => {
     const state = useFetch<{ ok: boolean }>('users', {
       baseUrl: '/api/',
       immediate: false,
-      fetcher: async (input) => {
+      fetcher: asMockFetch(async (input) => {
         capturedUrl = String(input);
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -1071,10 +1080,10 @@ describe('useFetch', () => {
     const state = useFetch<{ ok: boolean }>('users', {
       baseUrl: 'https://example.com/api/',
       immediate: false,
-      fetcher: async (input) => {
+      fetcher: asMockFetch(async (input) => {
         capturedUrl = String(input);
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -1088,10 +1097,10 @@ describe('useFetch', () => {
     const calls: string[] = [];
     const state = useFetch<{ ok: boolean }>('/api/users', {
       immediate: false,
-      fetcher: async () => {
+      fetcher: asMockFetch(async () => {
         calls.push('fetch');
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     const initial = await state.execute();
@@ -1111,10 +1120,10 @@ describe('useFetch', () => {
     const state = useFetch<{ ok: boolean }>('/api/users', {
       immediate: false,
       body: { saved: true },
-      fetcher: async (_input, init) => {
+      fetcher: asMockFetch(async (_input, init) => {
         capturedMethod = init?.method ?? '';
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     await state.execute();
@@ -1131,20 +1140,20 @@ describe('useFetch', () => {
       immediate: false,
       method: ' PoSt ',
       body: { saved: true },
-      fetcher: async (_input, init) => {
+      fetcher: asMockFetch(async (_input, init) => {
         normalizedMethod = init?.method ?? '';
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     const defaulted = useFetch<{ ok: boolean }>('/api/users', {
       immediate: false,
       method: '   ',
       body: { saved: true },
-      fetcher: async (_input, init) => {
+      fetcher: asMockFetch(async (_input, init) => {
         defaultedMethod = init?.method ?? '';
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     await normalized.execute();
@@ -1160,10 +1169,10 @@ describe('useFetch', () => {
       immediate: false,
       method: 'GET',
       body: { invalid: true },
-      fetcher: async () => {
+      fetcher: asMockFetch(async () => {
         calls += 1;
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      },
+      }),
     });
 
     const result = await state.execute();
@@ -1195,12 +1204,12 @@ describe('createUseFetch', () => {
       baseUrl: 'https://example.com',
       headers: { 'x-default': '1' },
       immediate: false,
-      fetcher: async (input, init) => {
+      fetcher: asMockFetch(async (input, init) => {
         expect(String(input)).toContain('https://example.com/users');
         expect(new Headers(init?.headers).get('x-default')).toBe('1');
         expect(new Headers(init?.headers).get('x-extra')).toBe('2');
         return new Response(JSON.stringify({ ok: true, url: String(input) }), { status: 200 });
-      },
+      }),
     });
 
     const state = useApiFetch('/users', {
@@ -1216,7 +1225,7 @@ describe('createUseFetch', () => {
     const useApiFetch = createUseFetch({
       baseUrl: 'https://example.com',
       immediate: false,
-      fetcher: async (input) => {
+      fetcher: asMockFetch(async (input) => {
         requests.push(String(input));
 
         if (String(input).includes('/users')) {
@@ -1224,7 +1233,7 @@ describe('createUseFetch', () => {
         }
 
         return new Response(JSON.stringify([{ id: 2, title: 'Hello' }]), { status: 200 });
-      },
+      }),
     });
 
     const users = useApiFetch<Array<{ id: number; name: string }>>('/users');
@@ -1242,10 +1251,10 @@ describe('createUseFetch', () => {
       baseUrl: 'https://example.com',
       immediate: false,
       transform: (value) => value.name,
-      fetcher: async () =>
+      fetcher: asMockFetch(async () =>
         new Response(JSON.stringify({ id: 1, name: 'Ada' }), {
           status: 200,
-        }),
+        })),
     });
 
     const state = useApiFetch('/users');

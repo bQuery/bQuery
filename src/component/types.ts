@@ -56,6 +56,15 @@ export type ComponentStateShape<
 > = TState extends Record<string, unknown> ? TState : Record<string, unknown>;
 
 /**
+ * Component state keys are string-based because runtime state access is backed
+ * by plain object properties.
+ */
+export type ComponentStateKey<
+  TState extends Record<string, unknown> | undefined = undefined,
+> =
+  keyof ComponentStateShape<TState> & string;
+
+/**
  * Public component element instance shape exposed by lifecycle hooks and
  * `defineComponent()` return values.
  */
@@ -68,7 +77,7 @@ export type ComponentElement<
    * @param key - The state property key
    * @param value - The new value
    */
-  setState<TKey extends keyof ComponentStateShape<TState>>(
+  setState<TKey extends ComponentStateKey<TState>>(
     key: TKey,
     value: ComponentStateShape<TState>[TKey]
   ): void;
@@ -78,7 +87,7 @@ export type ComponentElement<
    * @param key - The state property key
    * @returns The current value
    */
-  getState<TKey extends keyof ComponentStateShape<TState>>(
+  getState<TKey extends ComponentStateKey<TState>>(
     key: TKey
   ): ComponentStateShape<TState>[TKey];
   /**

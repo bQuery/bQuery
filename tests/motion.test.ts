@@ -37,6 +37,25 @@ const createMockAnimation = () => ({
   currentTime: 0,
 });
 
+const mockViewTransition = (
+  updateCallbackDone: Promise<void>,
+  onReady?: () => void,
+  onType?: (value: string) => void
+): ViewTransition =>
+  ({
+    finished: updateCallbackDone.then(() => undefined),
+    ready: Promise.resolve().then(() => {
+      onReady?.();
+    }),
+    updateCallbackDone,
+    skipTransition: () => {},
+    types: {
+      add: (value: string) => {
+        onType?.(value);
+      },
+    },
+  }) as ViewTransition;
+
 describe('motion/transition', () => {
   it('executes update function without view transition API', async () => {
     let updated = false;
@@ -75,31 +94,25 @@ describe('motion/transition', () => {
 
     (
       document as Document & {
-        startViewTransition?: (callback: () => void | Promise<void>) => {
-          finished: Promise<void>;
-          ready: Promise<void>;
-          updateCallbackDone: Promise<void>;
-          types: { add: (value: string) => void };
-        };
+        startViewTransition?: Document['startViewTransition'];
       }
-    ).startViewTransition = (callback) => {
-      const updateCallbackDone = Promise.resolve(callback()).then(() => {
+    ).startViewTransition = ((callbackOrOptions) => {
+      const update =
+        typeof callbackOrOptions === 'function' ? callbackOrOptions : callbackOrOptions?.update;
+      const updateCallbackDone = Promise.resolve(update?.()).then(() => {
         calls.push('updated');
       });
 
-      return {
-        finished: updateCallbackDone.then(() => undefined),
-        ready: Promise.resolve().then(() => {
-          calls.push('ready');
-        }),
+      return mockViewTransition(
         updateCallbackDone,
-        types: {
-          add: (value: string) => {
-            calls.push(`type:${value}`);
-          },
+        () => {
+          calls.push('ready');
         },
-      };
-    };
+        (value) => {
+          calls.push(`type:${value}`);
+        }
+      );
+    }) as Document['startViewTransition'];
 
     try {
       await transition({
@@ -135,27 +148,17 @@ describe('motion/transition', () => {
 
     (
       document as Document & {
-        startViewTransition?: (callback: () => void | Promise<void>) => {
-          finished: Promise<void>;
-          ready: Promise<void>;
-          updateCallbackDone: Promise<void>;
-          types: { add: (value: string) => void };
-        };
+        startViewTransition?: Document['startViewTransition'];
       }
-    ).startViewTransition = (callback) => {
-      const updateCallbackDone = Promise.resolve(callback());
+    ).startViewTransition = ((callbackOrOptions) => {
+      const update =
+        typeof callbackOrOptions === 'function' ? callbackOrOptions : callbackOrOptions?.update;
+      const updateCallbackDone = Promise.resolve(update?.());
 
-      return {
-        finished: updateCallbackDone.then(() => undefined),
-        ready: Promise.resolve(),
-        updateCallbackDone,
-        types: {
-          add: (value: string) => {
-            calls.push(`type:${value}`);
-          },
-        },
-      };
-    };
+      return mockViewTransition(updateCallbackDone, undefined, (value) => {
+        calls.push(`type:${value}`);
+      });
+    }) as Document['startViewTransition'];
 
     try {
       await transition({

@@ -17,6 +17,7 @@ import {
   link,
   navigate,
   resolve,
+  type Route,
   type RouteDefinition,
   type Router,
 } from '../src/router/index';
@@ -1464,10 +1465,7 @@ describe('Router', () => {
         ],
       });
 
-      let _guardCalled = false;
-      router.beforeEach(() => {
-        _guardCalled = true;
-      });
+      router.beforeEach(() => true);
 
       router.destroy();
 
@@ -1712,7 +1710,7 @@ describe('Router', () => {
       });
 
       let guardCalled = false;
-      let guardToRoute = null;
+      let guardToRoute: Route | null = null;
 
       router.beforeEach((to) => {
         guardCalled = true;
@@ -1726,9 +1724,9 @@ describe('Router', () => {
       // Verify guard was called with properly parsed route
       expect(guardCalled).toBe(true);
       expect(guardToRoute).not.toBeNull();
-      expect(guardToRoute.path).toBe('/page');
-      expect(guardToRoute.query).toEqual({ foo: 'bar' });
-      expect(guardToRoute.hash).toBe('section');
+      expect(guardToRoute!.path).toBe('/page');
+      expect(guardToRoute!.query).toEqual({ foo: 'bar' });
+      expect(guardToRoute!.hash).toBe('section');
     });
 
     it('should handle replace mode in hash routing', async () => {

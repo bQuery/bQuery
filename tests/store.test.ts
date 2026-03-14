@@ -111,7 +111,11 @@ describe('Store', () => {
 
   describe('actions', () => {
     it('should define callable actions', () => {
-      const store = createStore({
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void; add(amount: number): void }
+      >({
         id: 'counter',
         state: () => ({ count: 0 }),
         actions: {
@@ -132,7 +136,11 @@ describe('Store', () => {
     });
 
     it('should support async actions', async () => {
-      const store = createStore({
+      const store = createStore<
+        { data: string | null },
+        Record<string, never>,
+        { fetchData(): Promise<void> }
+      >({
         id: 'async',
         state: () => ({ data: null as string | null }),
         actions: {
@@ -149,7 +157,11 @@ describe('Store', () => {
     });
 
     it('should allow non-state property assignments in actions without throwing', () => {
-      const store = createStore({
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { complexOperation(): string }
+      >({
         id: 'assignment-test',
         state: () => ({ count: 0 }),
         actions: {
@@ -335,7 +347,11 @@ describe('Store', () => {
     });
 
     it('should allow defineStore factory to create fresh instance after destroy', () => {
-      const useStore = defineStore('destroy-test', {
+      const useStore = defineStore<
+        { value: number },
+        Record<string, never>,
+        { setValue(val: number): void }
+      >('destroy-test', {
         state: () => ({ value: 0 }),
         actions: {
           setValue(val: number) {
@@ -395,7 +411,11 @@ describe('Store', () => {
 
   describe('mapActions', () => {
     it('should map actions', () => {
-      const store = createStore({
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void }
+      >({
         id: 'counter',
         state: () => ({ count: 0 }),
         actions: {
@@ -441,7 +461,11 @@ describe('Store', () => {
 
   describe('defineStore', () => {
     it('should create a store factory', () => {
-      const useCounter = defineStore('factory-counter', {
+      const useCounter = defineStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void }
+      >('factory-counter', {
         state: () => ({ count: 0 }),
         actions: {
           increment() {
@@ -456,7 +480,11 @@ describe('Store', () => {
     });
 
     it('should cache and return the same store instance on multiple calls', () => {
-      const useCachedStore = defineStore('cached-store', {
+      const useCachedStore = defineStore<
+        { value: number },
+        Record<string, never>,
+        { setValue(val: number): void }
+      >('cached-store', {
         state: () => ({ value: 0 }),
         actions: {
           setValue(val: number) {

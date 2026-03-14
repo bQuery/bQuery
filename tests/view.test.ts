@@ -329,7 +329,10 @@ describe('View', () => {
 
     it('should remove stale styles when style object changes', () => {
       container.innerHTML = '<div bq-style="styleObj"></div>';
-      const styleObj = signal({ color: 'red', fontSize: '16px' });
+      const styleObj = signal<{ color: string; fontSize?: string }>({
+        color: 'red',
+        fontSize: '16px',
+      });
 
       view = mount(container, { styleObj });
 
