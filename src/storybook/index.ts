@@ -36,6 +36,8 @@ const isAttributeNameChar = (value: string): boolean => {
   );
 };
 
+const isQuoteChar = (value: string): boolean => value === '"' || value === "'";
+
 const isTagNameChar = (value: string): boolean => {
   const code = value.charCodeAt(0);
 
@@ -212,6 +214,70 @@ const collectOpeningTagFragments = (template: string): string[] => {
   return fragments;
 };
 
+/**
+ * Consumes a literal HTML attribute value starting at the given index.
+ *
+ * Returns the position immediately after a quoted or unquoted value. When the
+ * current position only contains template-gap whitespace before the next
+ * attribute, the original index is returned so interpolated attributes do not
+ * swallow following authored attributes during sanitizer allowlist inference.
+ *
+ * @param fragment - The opening-tag fragment currently being scanned
+ * @param index - The position immediately after the `=` sign
+ * @returns The index after the consumed literal value, or the original index
+ * when no literal value should be consumed from the template fragment
+ */
+const skipAttributeValue = (fragment: string, index: number): number => {
+  if (index >= fragment.length) {
+    return index;
+  }
+
+  let whitespaceIndex = index;
+
+  while (whitespaceIndex < fragment.length && isWhitespace(fragment[whitespaceIndex])) {
+    whitespaceIndex += 1;
+  }
+
+  if (whitespaceIndex !== index) {
+    if (whitespaceIndex >= fragment.length || !isQuoteChar(fragment[whitespaceIndex])) {
+      return index;
+    }
+
+    index = whitespaceIndex;
+  }
+
+  if (index >= fragment.length) {
+    return index;
+  }
+
+  const quote = fragment[index];
+
+  if (isQuoteChar(quote)) {
+    index += 1;
+
+    while (index < fragment.length) {
+      if (fragment[index] === quote) {
+        return index + 1;
+      }
+
+      index += 1;
+    }
+
+    return index;
+  }
+
+  while (
+    index < fragment.length &&
+    !isWhitespace(fragment[index]) &&
+    fragment[index] !== '/' &&
+    fragment[index] !== '>'
+  ) {
+    index += 1;
+  }
+
+  return index;
+};
+
 const collectAttributesFromTagFragment = (
   fragment: string,
   allowAttributes: Set<string>,
@@ -268,7 +334,7 @@ const collectAttributesFromTagFragment = (
       if (autoAllowAttributes && isAutoAllowedStoryAttribute(attributeName)) {
         allowAttributes.add(attributeName);
       }
-      index += 1;
+      index = skipAttributeValue(fragment, index + 1);
       continue;
     }
 

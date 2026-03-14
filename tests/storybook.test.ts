@@ -82,6 +82,22 @@ describe('storybook/storyHtml', () => {
     expect(result).not.toContain('style=');
   });
 
+  it('does not treat literal attribute values as additional allowlisted attributes', () => {
+    const result = storyHtml`<bq-card title="literal foo=bar">${'<span foo="bar">Visible</span>'}</bq-card>`;
+
+    expect(result).toBe('<bq-card title="literal foo=bar"><span>Visible</span></bq-card>');
+    expect(result).not.toContain('<span foo=');
+  });
+
+  it('does not treat unquoted literal attribute values as additional allowlisted attributes', () => {
+    const result = storyHtml`<bq-card data-token=foo=bar>${'<span foo="bar">Visible</span>'}</bq-card>`;
+
+    expect(result).toContain('<bq-card');
+    expect(result).toContain('data-token=');
+    expect(result).toContain('<span>Visible</span>');
+    expect(result).not.toContain('<span foo=');
+  });
+
   it('sanitizes dangerous interpolated markup', () => {
     const result = storyHtml`<bq-button>${'<img src=x onerror=alert(1)><script>alert(1)</script>'}</bq-button>`;
 
