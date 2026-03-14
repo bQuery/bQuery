@@ -210,7 +210,7 @@ const createComponentClass = <
       value: ComponentStateShape<TState>[TKey]
     ): void {
       this.state[key] = value;
-      this.render(true, this.cloneProps());
+      this.render(true, this.cloneProps(), undefined, false);
     }
 
     /**
