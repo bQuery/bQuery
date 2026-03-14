@@ -30,7 +30,7 @@ bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM 
 - **Modular**: the core stays small; extra modules are opt-in.
 - **TypeScript-first**: clear types and strong IDE support.
 - **Tree-shakeable**: import only what you need.
-- **Storybook-ready**: default components can be previewed and developed in Storybook.
+- **Storybook-ready**: default components can be previewed and developed in Storybook with dedicated story template helpers.
 
 ## Installation
 
@@ -112,6 +112,7 @@ import {
 
 // Components only
 import {
+  bool,
   component,
   defineComponent,
   html,
@@ -122,7 +123,7 @@ import {
 import { transition, spring, animate, timeline } from '@bquery/bquery/motion';
 
 // Security only
-import { sanitize } from '@bquery/bquery/security';
+import { sanitize, sanitizeHtml, trusted } from '@bquery/bquery/security';
 
 // Platform only
 import { storage, cache, useCookie, definePageMeta, useAnnouncer } from '@bquery/bquery/platform';
@@ -131,6 +132,9 @@ import { storage, cache, useCookie, definePageMeta, useAnnouncer } from '@bquery
 import { createRouter, navigate } from '@bquery/bquery/router';
 import { createStore, defineStore } from '@bquery/bquery/store';
 import { mount, createTemplate } from '@bquery/bquery/view';
+
+// Storybook helpers
+import { storyHtml, when } from '@bquery/bquery/storybook';
 ```
 
 ## Modules at a glance
@@ -146,6 +150,8 @@ import { mount, createTemplate } from '@bquery/bquery/view';
 | **Router**    | SPA routing, navigation guards, history API        | ~2.2 KB     |
 | **Store**     | Signal-based state management, persistence         | ~0.3 KB     |
 | **View**      | Declarative DOM bindings, directives               | ~4.3 KB     |
+
+Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`.
 
 ## Quick examples
 
@@ -247,17 +253,23 @@ console.log(user.pending.value, user.data.value, settings.error.value);
 
 ```ts
 import {
+  bool,
   component,
   defineComponent,
   html,
   registerDefaultComponents,
+  safeHtml,
 } from '@bquery/bquery/component';
+import { sanitizeHtml, trusted } from '@bquery/bquery/security';
+
+const badge = trusted(sanitizeHtml('<span class="badge">Active</span>'));
 
 component('user-card', {
   props: {
     username: { type: String, required: true },
     age: { type: Number, validator: (v) => v >= 0 && v <= 150 },
   },
+  state: { count: 0 },
   beforeMount() {
     console.log('About to mount');
   },
@@ -267,23 +279,48 @@ component('user-card', {
   beforeUpdate(newProps, oldProps) {
     return newProps.username !== oldProps.username;
   },
+  updated(change) {
+    console.log('Updated because of', change?.name ?? 'state/signal change');
+  },
   onError(error) {
     console.error('Component error:', error);
   },
-  render({ props }) {
-    return html`<div>Hello ${props.username}</div>`;
+  render({ props, state }) {
+    return safeHtml`
+      <button class="user-card" ${bool('disabled', state.count > 3)}>
+        ${badge}
+        <span>Hello ${props.username}</span>
+      </button>
+    `;
   },
 });
 
-const UserCard = defineComponent('user-card', {
+const UserCard = defineComponent('user-card-manual', {
   props: { username: { type: String, required: true } },
   render: ({ props }) => html`<div>Hello ${props.username}</div>`,
 });
 
-customElements.define('user-card', UserCard);
+customElements.define('user-card-manual', UserCard);
 
 const tags = registerDefaultComponents({ prefix: 'ui' });
 console.log(tags.button); // ui-button
+```
+
+### Storybook – authoring helpers
+
+```ts
+import { storyHtml, when } from '@bquery/bquery/storybook';
+
+export const Primary = {
+  args: { disabled: false, label: 'Save' },
+  render: ({ disabled, label }) =>
+    storyHtml`
+      <ui-card>
+        <ui-button ?disabled=${disabled}>${label}</ui-button>
+        ${when(!disabled, '<small>Ready to submit</small>')}
+      </ui-card>
+    `,
+};
 ```
 
 ### Motion – animations
@@ -315,15 +352,18 @@ await x.to(100);
 ### Security – sanitizing
 
 ```ts
-import { sanitize, escapeHtml } from '@bquery/bquery/security';
+import { sanitize, escapeHtml, sanitizeHtml, trusted } from '@bquery/bquery/security';
+import { safeHtml } from '@bquery/bquery/component';
 
-const safeHtml = sanitize(userInput);
+const safeMarkup = sanitize(userInput);
 const safe = sanitize('<form id="cookie">...</form>');
 const urlSafe = sanitize('<a href="java\u200Bscript:alert(1)">click</a>');
 const secureLink = sanitize('<a href="https://external.com" target="_blank">Link</a>');
 const safeSrcset = sanitize('<img srcset="safe.jpg 1x, javascript:alert(1) 2x">');
 const safeForm = sanitize('<form action="javascript:alert(1)">...</form>');
 const escaped = escapeHtml('<script>alert(1)</script>');
+const icon = trusted(sanitizeHtml('<span class="icon">♥</span>'));
+const button = safeHtml`<button>${icon}<span>Save</span></button>`;
 ```
 
 ### Platform – config, cookies & accessibility
@@ -462,10 +502,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
 

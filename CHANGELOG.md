@@ -8,6 +8,11 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.6.0\] - 2026-03-14](#160---2026-03-14)
+    - [Added (1.6.0)](#added-160)
+    - [Changed (1.6.0)](#changed-160)
+    - [Fixed (1.6.0)](#fixed-160)
+    - [Security (1.6.0)](#security-160)
   - [\[1.5.0\] - 2026-03-12](#150---2026-03-12)
     - [Added (1.5.0)](#added-150)
     - [Changed (1.5.0)](#changed-150)
@@ -38,6 +43,32 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.6.0] - 2026-03-14
+
+### Added (1.6.0)
+
+- **Component**: Added `bool()` for boolean attribute interpolation in `html` / `safeHtml` templates, making component markup more ergonomic for `disabled`, `checked`, and similar flags.
+- **Component**: Added typed state-aware component definitions and element helpers so `component()` / `defineComponent()` preserve explicit state generics in `render()`, lifecycle hooks, `getState()`, and `setState()`.
+- **Component**: Added explicit `signals` support for component renders plus exported `ComponentSignalLike` / `ComponentSignals` types for strongly typed external reactive inputs.
+- **Component**: Added `AttributeChange` metadata for `updated()` hooks and previous props for `beforeUpdate(newProps, oldProps)`.
+- **Security**: Added `trusted()` fragment composition for safely splicing previously sanitized markup into `safeHtml` templates without double-escaping.
+- **Storybook**: Added the `@bquery/bquery/storybook` entry point with `storyHtml()` and `when()` helpers for authoring web-component stories with sanitization and boolean-attribute shorthand.
+
+### Changed (1.6.0)
+
+- **Docs**: Expanded the README and VitePress guides to document boolean template attributes, typed component state, trusted fragment composition, explicit component signals, and Storybook story helpers.
+- **Bundle exports**: The package metadata, agent reference files, and public entry-point documentation now reflect the new `storybook` export and the expanded component/security surface.
+
+### Fixed (1.6.0)
+
+- **Component**: Components now reuse their Shadow DOM style element across re-renders instead of recreating styles on every update.
+- **Component**: Default input and textarea components preserve stable native controls during value updates while still re-rendering correctly for structural prop changes.
+- **Component**: Declared signal subscriptions are now restored correctly across disconnect/reconnect cycles and ignore undeclared reactive reads during render.
+
+### Security (1.6.0)
+
+- **Component / Storybook**: Story-authored and component-authored markup is sanitized while preserving explicitly authored custom-element tags and opted-in attributes, improving secure composition for design-system stories.
 
 ## [1.5.0] - 2026-03-12
 

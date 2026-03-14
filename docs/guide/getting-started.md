@@ -88,13 +88,13 @@ import { debounce, merge, uid } from '@bquery/bquery/core';
 import { signal, computed, effect, batch, useFetch, createUseFetch } from '@bquery/bquery/reactive';
 
 // Components only (Web Components + default library)
-import { component, html, registerDefaultComponents } from '@bquery/bquery/component';
+import { bool, component, html, registerDefaultComponents } from '@bquery/bquery/component';
 
 // Motion only (transitions, animations)
 import { transition, spring, flip } from '@bquery/bquery/motion';
 
 // Security only (sanitization)
-import { sanitize, escapeHtml } from '@bquery/bquery/security';
+import { sanitize, escapeHtml, sanitizeHtml, trusted } from '@bquery/bquery/security';
 
 // Platform only (storage, cache, config, cookies, page meta, accessibility)
 import {
@@ -107,6 +107,9 @@ import {
   definePageMeta,
   useAnnouncer,
 } from '@bquery/bquery/platform';
+
+// Storybook helpers
+import { storyHtml, when } from '@bquery/bquery/storybook';
 ```
 
 ## Modules at a glance
@@ -226,6 +229,23 @@ console.log(tags.button); // ui-button
 theme.value = 'dark';
 ```
 
+### Storybook authoring
+
+```ts
+import { storyHtml, when } from '@bquery/bquery/storybook';
+
+export const Playground = {
+  args: { disabled: false },
+  render: ({ disabled }: { disabled: boolean }) =>
+    storyHtml`
+      <ui-card>
+        <ui-button ?disabled=${disabled}>Save</ui-button>
+        ${when(disabled, '<small>Currently disabled</small>', '<small>Ready</small>')}
+      </ui-card>
+    `,
+};
+```
+
 ## Local Development
 
 If you're developing bQuery itself:
@@ -254,10 +274,10 @@ bun run build:docs
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **Note:** Internet Explorer is not supported by design.
 

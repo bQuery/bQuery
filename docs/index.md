@@ -23,7 +23,9 @@ features:
   - title: Secure by Default
     details: Sanitized DOM operations and Trusted Types compatibility.
   - title: Foundation Components
-    details: Register a default Web Component library and preview it in Storybook.
+    details: Register a default Web Component library, wire signals into components, and preview it in Storybook.
+  - title: Storybook Helpers
+    details: Author safe stories with storyHtml(), when(), and boolean attribute shorthand.
   - title: Platform APIs
     details: Storage, cache, cookies, page metadata, announcers, and shared runtime config.
 ---

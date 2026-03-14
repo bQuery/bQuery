@@ -7,7 +7,7 @@ bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combi
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.5.0
+- Version: 1.6.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bQuery.flausch-code.de
@@ -26,13 +26,16 @@ DOM selection, manipulation, events, utilities. `$()` selects one element (throw
 Fine-grained reactivity system. `signal(value)` creates a reactive value. `computed(fn)` derives values with auto-tracking. `effect(fn)` runs side effects. `batch(fn)` groups updates. `watch(signal, callback)` observes changes. `linkedSignal(get, set)` creates writable computed values. `persistedSignal(key, init)` syncs to localStorage. `useAsyncData(handler)` wraps arbitrary async work in signal-driven `data` / `error` / `status` state. `useFetch(input, options)` adds query/header/body helpers and response parsing. `createUseFetch(defaults)` creates preconfigured fetch composables. `readonly(signal)` creates a read-only wrapper. Access via `.value` (tracks), `.peek()` (no tracking).
 
 ### Component (`@bquery/bquery/component`)
-Lightweight Web Components helper. `component(tag, definition)` creates and auto-registers a custom element with typed props, Shadow DOM, lifecycle hooks (`connected`, `disconnected`, `beforeMount`, `beforeUpdate`, `onError`), and automatic HTML sanitization of rendered output. `defineComponent()` returns the class without registering. `registerDefaultComponents()` registers a dependency-free default component library (`button`, `card`, `input`, `textarea`, `checkbox`). `html` tagged template for markup.
+Lightweight Web Components helper. `component(tag, definition)` creates and auto-registers a custom element with typed props, typed optional state, declared `signals`, Shadow DOM, lifecycle hooks (`connected`, `disconnected`, `beforeMount`, `beforeUpdate`, `updated`, `onError`), and automatic HTML sanitization of rendered output. `defineComponent()` returns the class without registering. `registerDefaultComponents()` registers a dependency-free default component library (`button`, `card`, `input`, `textarea`, `checkbox`). `html`, `safeHtml`, and `bool()` help author safe templates and boolean attributes.
 
 ### Motion (`@bquery/bquery/motion`)
 Animation utilities. `animate()` wraps the Web Animations API. `transition()` uses View Transitions API with fallback and supports classes, transition types, reduced-motion skipping, and ready/finish callbacks. `flip()` / `flipElements()` for FLIP animations. `spring()` for spring physics. `timeline()` and `sequence()` for choreographed animations. `stagger()` for staggered timing. `scrollAnimate()` for scroll-triggered animations. Includes `keyframePresets` and `easingPresets`. Respects `prefersReducedMotion()`.
 
 ### Security (`@bquery/bquery/security`)
-HTML sanitization enabled by default across the library. `sanitizeHtml(html)` strips dangerous elements (script, iframe, svg, etc.), blocks DOM clobbering (reserved IDs), protects against Unicode URL bypasses, adds `rel="noopener noreferrer"` to external links. Also: `escapeHtml()`, `stripTags()`, `generateNonce()`, Trusted Types support, CSP helpers.
+HTML sanitization enabled by default across the library. `sanitizeHtml(html)` strips dangerous elements (script, iframe, svg, etc.), blocks DOM clobbering (reserved IDs), protects against Unicode URL bypasses, adds `rel="noopener noreferrer"` to external links. Also: `escapeHtml()`, `stripTags()`, `trusted()` for safe fragment composition, `generateNonce()`, Trusted Types support, CSP helpers.
+
+### Storybook (`@bquery/bquery/storybook`)
+String-template helpers for component stories. `storyHtml` sanitizes interpolated story markup, preserves authored custom elements/attributes, and supports Storybook-style boolean attribute shorthand such as `?disabled=${true}`. `when()` conditionally renders fragments or callbacks.
 
 ### Platform (`@bquery/bquery/platform`)
 Browser API wrappers and shared runtime configuration. `storage` provides unified localStorage/sessionStorage/IndexedDB access. `cache` for TTL-based caching. `notifications` wraps the Notifications API. `buckets` for rate limiting. `defineBqueryConfig()` / `getBqueryConfig()` manage shared defaults for fetch, cookies, transitions, announcers, page metadata, and default component prefixes. `useCookie()` provides reactive cookie state. `definePageMeta()` manages document title/meta/link tags and temporary `html` / `body` attributes. `useAnnouncer()` manages accessible ARIA live-region announcements.

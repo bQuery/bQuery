@@ -9,7 +9,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                             |
 | Package     | `@bquery/bquery`                                                                                                                                                                      |
-| Version     | 1.5.0                                                                                                                                                                                 |
+| Version     | 1.6.0                                                                                                                                                                                 |
 | License     | MIT                                                                                                                                                                                   |
 | Language    | TypeScript (strict)                                                                                                                                                                   |
 | Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                          |
@@ -41,7 +41,8 @@ src/
 ├── full.ts             # Full bundle with explicit named exports (CDN)
 ├── core/               # $, $$, BQueryElement, BQueryCollection, utils
 ├── reactive/           # signal, computed, effect, batch, watch, async data/fetch
-├── component/          # component(), defineComponent(), html template tag, defaults
+├── component/          # component(), defineComponent(), html/safeHtml/bool helpers, defaults
+├── storybook/          # storyHtml(), when() helpers for Storybook stories
 ├── motion/             # animate, transition, flip, spring, timeline, scroll
 ├── security/           # sanitizeHtml, escapeHtml, Trusted Types, CSP
 ├── platform/           # storage, cache, cookies, announcers, page meta, config
@@ -104,8 +105,16 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `component(tag, def)`         | function | Define + auto-register a Web Component               |
 | `defineComponent(tag, def)`   | function | Define a component class (manual registration)       |
 | `registerDefaultComponents()` | function | Register the default button/card/input UI primitives |
+| `bool(name, enabled)`         | function | Boolean-attribute helper for `html` / `safeHtml`     |
 | `html`                        | tag fn   | Tagged template for component markup                 |
 | `safeHtml`                    | function | Sanitized HTML string helper                         |
+
+### Storybook (`@bquery/bquery/storybook`)
+
+| Export               | Kind     | Description                                                      |
+| -------------------- | -------- | ---------------------------------------------------------------- |
+| `storyHtml`          | tag fn   | Sanitized story template helper with boolean attribute shorthand |
+| `when(condition, …)` | function | Conditionally render story fragments or callbacks                |
 
 ### Motion (`@bquery/bquery/motion`)
 
@@ -125,16 +134,17 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 
 ### Security (`@bquery/bquery/security`)
 
-| Export                            | Kind     | Description                                      |
-| --------------------------------- | -------- | ------------------------------------------------ |
-| `sanitizeHtml(html)` / `sanitize` | function | Strip dangerous HTML (script, iframe, svg, etc.) |
-| `escapeHtml(str)`                 | function | Escape `<>&"'` for text display                  |
-| `stripTags(html)`                 | function | Remove all HTML tags                             |
-| `generateNonce()`                 | function | Generate a random nonce for CSP                  |
-| `hasCSPDirective(name)`           | function | Check if a CSP directive is set                  |
-| `createTrustedHtml(html)`         | function | Create Trusted Types HTML                        |
-| `getTrustedTypesPolicy()`         | function | Access the Trusted Types policy                  |
-| `isTrustedTypesSupported()`       | function | Feature detection                                |
+| Export                            | Kind     | Description                                       |
+| --------------------------------- | -------- | ------------------------------------------------- |
+| `sanitizeHtml(html)` / `sanitize` | function | Strip dangerous HTML (script, iframe, svg, etc.)  |
+| `trusted(html)`                   | function | Mark sanitized HTML for verbatim `safeHtml` reuse |
+| `escapeHtml(str)`                 | function | Escape `<>&"'` for text display                   |
+| `stripTags(html)`                 | function | Remove all HTML tags                              |
+| `generateNonce()`                 | function | Generate a random nonce for CSP                   |
+| `hasCSPDirective(name)`           | function | Check if a CSP directive is set                   |
+| `createTrustedHtml(html)`         | function | Create Trusted Types HTML                         |
+| `getTrustedTypesPolicy()`         | function | Access the Trusted Types policy                   |
+| `isTrustedTypesSupported()`       | function | Feature detection                                 |
 
 ### Platform (`@bquery/bquery/platform`)
 

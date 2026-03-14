@@ -5,11 +5,14 @@ bQuery sanitizes DOM writes by default and supports Trusted Types. Use the secur
 As of 1.3.0, the security module is internally modularized (sanitize core, Trusted Types, CSP helpers, and constants). Import from `@bquery/bquery/security` for the stable public API surface.
 
 ```ts
-import { sanitize, escapeHtml, stripTags } from '@bquery/bquery/security';
+import { sanitize, escapeHtml, stripTags, sanitizeHtml, trusted } from '@bquery/bquery/security';
+import { safeHtml } from '@bquery/bquery/component';
 
-const safeHtml = sanitize(userInput);
+const safeMarkup = sanitize(userInput);
 const escaped = escapeHtml('<script>alert(1)</script>');
 const textOnly = stripTags('<b>Hello</b>');
+const badge = trusted(sanitizeHtml('<span class="icon">♥</span>'));
+const markup = safeHtml`<button>${badge}<span>Save</span></button>`;
 ```
 
 ## Sanitization
@@ -131,6 +134,8 @@ const escaped = escapeHtml('<b>bold</b>');
 ## Trusted fragment composition
 
 When you need to reuse sanitized markup inside `safeHtml`, wrap the sanitized string with `trusted()` so the fragment is inserted verbatim instead of being escaped again.
+
+This is especially useful for component templates and Storybook stories where some fragments are framework-authored and already sanitized, while normal user data should still be escaped on interpolation.
 
 ```ts
 import { safeHtml } from '@bquery/bquery/component';

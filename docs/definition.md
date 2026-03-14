@@ -40,6 +40,7 @@ bQuery.js
 ├── core/       (selectors, DOM ops, events, utils)
 ├── reactive/   (signals, computed, effects, async data/fetch)
 ├── component/  (custom elements, props, lifecycle, shadow DOM, defaults)
+├── storybook/  (template helpers for Storybook web-component stories)
 ├── motion/     (view transitions, FLIP, springs)
 ├── security/   (sanitizer, CSP compatibility, Trusted Types)
 ├── platform/   (storage, cache, cookies, announcers, page meta, config)
@@ -192,14 +193,14 @@ const profile = useFetch('/api/profile');
 ### 3.3 Component Module (`@component`)
 
 ```ts
-import { component, html } from '@bquery/bquery/component';
+import { bool, component, html } from '@bquery/bquery/component';
 
 component('user-card', {
   props: {
     username: { type: String, required: true },
   },
   render({ props }) {
-    return html`<div>Hello ${props.username}</div>`;
+    return html`<button ${bool('disabled', !props.username)}>Hello ${props.username}</button>`;
   },
 });
 ```
@@ -208,9 +209,13 @@ component('user-card', {
 
 - `connected` → runs when the element mounts.
 - `disconnected` → runs on teardown.
-- `updated` → runs after reactive props change.
+- `updated` → runs after reactive props/state/signal changes and can receive attribute-change metadata.
 
-#### 3.3.2 Default Component Library
+#### 3.3.2 Typed State & Signals
+
+Components may declare explicit typed state and a `signals` map for external reactive inputs. This keeps `render()`, lifecycle hooks, and `getState()` / `setState()` strongly typed while avoiding accidental subscriptions to undeclared reactive reads.
+
+#### 3.3.3 Default Component Library
 
 ```ts
 import { registerDefaultComponents } from '@bquery/bquery/component';
@@ -218,6 +223,21 @@ import { registerDefaultComponents } from '@bquery/bquery/component';
 const tags = registerDefaultComponents({ prefix: 'ui' });
 console.log(tags.button); // ui-button
 ```
+
+#### 3.3.4 Storybook Helpers
+
+```ts
+import { storyHtml, when } from '@bquery/bquery/storybook';
+
+const story = storyHtml`
+  <ui-card>
+    <ui-button ?disabled=${false}>Save</ui-button>
+    ${when(true, '<small>Ready</small>')}
+  </ui-card>
+`;
+```
+
+`storyHtml()` preserves custom elements, sanitizes interpolated markup, and supports Storybook-friendly boolean attribute shorthand.
 
 ---
 
@@ -242,9 +262,12 @@ await transition({
 ### 3.5 Security Module (`@security`)
 
 ```ts
-import { sanitize } from '@bquery/bquery/security';
+import { sanitize, sanitizeHtml, trusted } from '@bquery/bquery/security';
+import { safeHtml } from '@bquery/bquery/component';
 
-const safeHtml = sanitize(userInput);
+const safeMarkup = sanitize(userInput);
+const trustedBadge = trusted(sanitizeHtml('<strong>Safe</strong>'));
+const button = safeHtml`<button>${trustedBadge}</button>`;
 ```
 
 ---
@@ -428,9 +451,9 @@ This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.

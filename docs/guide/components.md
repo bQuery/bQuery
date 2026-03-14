@@ -4,7 +4,7 @@ Components are lightweight Web Components with typed props, optional state, and 
 Internally, the component module is now split into focused submodules (types, props coercion, render helpers), with no breaking API changes.
 
 ```ts
-import { component, safeHtml } from '@bquery/bquery/component';
+import { bool, component, safeHtml } from '@bquery/bquery/component';
 import { sanitizeHtml, trusted } from '@bquery/bquery/security';
 
 const activeBadge = trusted(sanitizeHtml('<em>Active</em>'));
@@ -23,17 +23,17 @@ component('user-card', {
   connected() {
     console.log('mounted');
   },
-  updated() {
-    console.log('updated');
+  updated(change) {
+    console.log('updated because of', change?.name ?? 'state/signal change');
   },
   render({ props, state }) {
     return safeHtml`
-      <div class="card ${props.active ? 'active' : ''}">
+      <button class="card ${props.active ? 'active' : ''}" ${bool('disabled', !props.active)}>
         <img src="${props.avatar}" alt="${props.username}" />
         <strong>${props.username}</strong>
         ${props.active ? activeBadge : ''}
-        <div>Clicks: ${state.clicks}</div>
-      </div>
+        <span>Clicks: ${state.clicks}</span>
+      </button>
     `;
   },
 });
@@ -155,12 +155,59 @@ const el = document.querySelector('user-card') as HTMLElement & {
 el.setState('clicks', 1);
 ```
 
+If you provide an explicit state generic, state reads and writes stay strongly typed across `render()`, lifecycle hooks, and the returned element class.
+
+```ts
+import { component, html } from '@bquery/bquery/component';
+
+type Props = { label: string };
+type State = { count: number; ready: boolean };
+
+component<Props, State>('typed-counter', {
+  props: {
+    label: { type: String, required: true },
+  },
+  state: {
+    count: 0,
+    ready: false,
+  },
+  connected() {
+    this.setState('count', this.getState('count') + 1);
+  },
+  render({ props, state }) {
+    return html`<div>${props.label}: ${state.count} (${state.ready})</div>`;
+  },
+});
+```
+
+## Signals
+
+Declare external reactive inputs via `signals` when a component should re-render in response to signals or computed values.
+
+```ts
+import { component, html } from '@bquery/bquery/component';
+import { computed, signal } from '@bquery/bquery/reactive';
+
+const theme = signal<'light' | 'dark'>('light');
+const themeClass = computed(() => `theme-${theme.value}`);
+
+component('theme-badge', {
+  props: {},
+  signals: { themeClass },
+  render({ signals }) {
+    return html`<span class="${signals.themeClass.value}">Theme</span>`;
+  },
+});
+```
+
+Only declared signals trigger re-renders, which keeps component updates predictable and avoids accidental subscriptions to unrelated reactive reads.
+
 ## Lifecycle hooks
 
 - `beforeMount()` – runs before the element renders (can modify initial state)
 - `connected()` – runs when the element mounts
 - `beforeUpdate(newProps, oldProps)` – runs before re-render; return `false` to prevent update
-- `updated()` – runs after re-render on prop changes
+- `updated(change?)` – runs after re-render; receives attribute-change metadata for prop-driven updates and `undefined` for state/signal updates
 - `disconnected()` – runs on teardown
 - `onError(error)` – handles errors during lifecycle/render
 
@@ -243,3 +290,24 @@ render({ emit }) {
   return html`<div>...</div>`;
 }
 ```
+
+## Storybook helpers
+
+For Storybook string renderers, use `@bquery/bquery/storybook` to keep stories declarative and sanitized.
+
+```ts
+import { storyHtml, when } from '@bquery/bquery/storybook';
+
+export const ButtonStory = {
+  args: { disabled: false, label: 'Save' },
+  render: ({ disabled, label }: { disabled: boolean; label: string }) =>
+    storyHtml`
+      <ui-card>
+        <ui-button ?disabled=${disabled}>${label}</ui-button>
+        ${when(disabled, '<small>Unavailable</small>', '<small>Ready</small>')}
+      </ui-card>
+    `,
+};
+```
+
+`storyHtml()` sanitizes interpolated markup and understands Storybook-style boolean attribute shorthand such as `?disabled=${true}`.
