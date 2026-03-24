@@ -39,6 +39,7 @@
 // Core Module: Selectors, DOM operations, events, utilities
 // ============================================================================
 export { $, $$, BQueryCollection, BQueryElement, utils } from './core/index';
+export type { BQueryUtils } from './core/index';
 
 // ============================================================================
 // Reactive Module: Signals, computed values, effects, batching

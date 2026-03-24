@@ -130,7 +130,7 @@ export const detectNestedMutations = <S extends Record<string, unknown>>(
 };
 
 /** @internal Flag to enable/disable development warnings */
-export const isDev = (() => {
+export const isDev: boolean = (() => {
   try {
     const globalProcess = (globalThis as { process?: { env?: { NODE_ENV?: string } } }).process;
     // Default to dev mode unless explicitly set to production
