@@ -1,5 +1,52 @@
 import { describe, expect, it } from 'bun:test';
 import { isPrototypePollutionKey, utils } from '../src/core/utils';
+import type { BQueryUtils } from '../src/core/utils';
+
+describe('utils/BQueryUtils type', () => {
+  it('utils satisfies BQueryUtils interface', () => {
+    // Verify the utils object conforms to the BQueryUtils interface at runtime
+    const typed: BQueryUtils = utils;
+    expect(typeof typed.clone).toBe('function');
+    expect(typeof typed.merge).toBe('function');
+    expect(typeof typed.pick).toBe('function');
+    expect(typeof typed.omit).toBe('function');
+    expect(typeof typed.hasOwn).toBe('function');
+    expect(typeof typed.debounce).toBe('function');
+    expect(typeof typed.throttle).toBe('function');
+    expect(typeof typed.once).toBe('function');
+    expect(typeof typed.noop).toBe('function');
+    expect(typeof typed.uid).toBe('function');
+    expect(typeof typed.isElement).toBe('function');
+    expect(typeof typed.isCollection).toBe('function');
+    expect(typeof typed.isEmpty).toBe('function');
+    expect(typeof typed.isPlainObject).toBe('function');
+    expect(typeof typed.isFunction).toBe('function');
+    expect(typeof typed.isString).toBe('function');
+    expect(typeof typed.isNumber).toBe('function');
+    expect(typeof typed.isBoolean).toBe('function');
+    expect(typeof typed.isArray).toBe('function');
+    expect(typeof typed.isDate).toBe('function');
+    expect(typeof typed.isPromise).toBe('function');
+    expect(typeof typed.isObject).toBe('function');
+    expect(typeof typed.parseJson).toBe('function');
+    expect(typeof typed.sleep).toBe('function');
+    expect(typeof typed.randomInt).toBe('function');
+    expect(typeof typed.clamp).toBe('function');
+    expect(typeof typed.inRange).toBe('function');
+    expect(typeof typed.toNumber).toBe('function');
+    expect(typeof typed.capitalize).toBe('function');
+    expect(typeof typed.toKebabCase).toBe('function');
+    expect(typeof typed.toCamelCase).toBe('function');
+    expect(typeof typed.truncate).toBe('function');
+    expect(typeof typed.slugify).toBe('function');
+    expect(typeof typed.escapeRegExp).toBe('function');
+    expect(typeof typed.ensureArray).toBe('function');
+    expect(typeof typed.unique).toBe('function');
+    expect(typeof typed.chunk).toBe('function');
+    expect(typeof typed.compact).toBe('function');
+    expect(typeof typed.flatten).toBe('function');
+  });
+});
 
 describe('utils/merge', () => {
   it('merges objects deeply', () => {

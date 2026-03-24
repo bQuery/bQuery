@@ -3,6 +3,7 @@ export { BQueryElement } from './element';
 export { $, $$ } from './selector';
 // Re-export the utils namespace for backward compatibility
 export { utils } from './utils';
+export type { BQueryUtils } from './utils';
 // Export individual utilities (except internal helpers)
 export {
   chunk,
