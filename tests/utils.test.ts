@@ -6,9 +6,7 @@ describe('utils/BQueryUtils type', () => {
   it('utils satisfies BQueryUtils interface', () => {
     // Compile-time check: `utils` must be assignable to `BQueryUtils`.
     const typed: BQueryUtils = utils;
-
-    // Minimal runtime sanity check.
-    expect(typed).toBe(utils);
+    void typed;
   });
 });
 
