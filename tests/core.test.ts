@@ -768,6 +768,18 @@ describe('core/BQueryElement - new methods', () => {
     div.remove();
   });
 
+  it('layout parity helpers return safe defaults for non-HTML elements', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const wrapped = new BQueryElement(svg);
+
+    expect(wrapped.offsetParent()).toBeNull();
+    expect(wrapped.position()).toEqual({ top: 0, left: 0 });
+    expect(wrapped.outerWidth()).toBe(0);
+    expect(wrapped.outerHeight(true)).toBe(0);
+
+    svg.remove();
+  });
+
   it('scrollTo calls scrollIntoView', () => {
     const div = document.createElement('div');
     let scrollCalled = false;
@@ -1000,6 +1012,20 @@ describe('core/BQueryCollection parity getters', () => {
     expect(collection.position()).toEqual({ top: 0, left: 0 });
     expect(collection.outerWidth()).toBe(0);
     expect(collection.outerHeight(true)).toBe(0);
+  });
+
+  it('non-HTMLElement first elements use the same safe defaults', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const div = document.createElement('div');
+    const collection = new BQueryCollection([svg, div]);
+
+    expect(collection.offsetParent()).toBeNull();
+    expect(collection.position()).toEqual({ top: 0, left: 0 });
+    expect(collection.outerWidth()).toBe(0);
+    expect(collection.outerHeight(true)).toBe(0);
+
+    svg.remove();
+    div.remove();
   });
 });
 

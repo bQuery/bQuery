@@ -1,5 +1,5 @@
 import { createElementFromHtml, insertContent, setHtml } from './dom';
-import { getOuterSize } from './shared';
+import { getOuterSize, isHTMLElement } from './shared';
 
 /**
  * Wrapper for a single DOM element.
@@ -368,7 +368,7 @@ export class BQueryElement {
    * ```
    */
   offsetParent(): Element | null {
-    return (this.element as HTMLElement).offsetParent;
+    return isHTMLElement(this.element) ? this.element.offsetParent : null;
   }
 
   /**
@@ -382,7 +382,11 @@ export class BQueryElement {
    * ```
    */
   position(): { top: number; left: number } {
-    const el = this.element as HTMLElement;
+    if (!isHTMLElement(this.element)) {
+      return { top: 0, left: 0 };
+    }
+
+    const el = this.element;
     return {
       top: el.offsetTop,
       left: el.offsetLeft,
@@ -402,7 +406,7 @@ export class BQueryElement {
    * ```
    */
   outerWidth(includeMargin: boolean = false): number {
-    return getOuterSize(this.element as HTMLElement, 'width', includeMargin);
+    return getOuterSize(this.element, 'width', includeMargin);
   }
 
   /**
@@ -418,7 +422,7 @@ export class BQueryElement {
    * ```
    */
   outerHeight(includeMargin: boolean = false): number {
-    return getOuterSize(this.element as HTMLElement, 'height', includeMargin);
+    return getOuterSize(this.element, 'height', includeMargin);
   }
 
   /**

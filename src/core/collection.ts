@@ -5,7 +5,7 @@ import {
   type InsertableContent,
 } from './dom';
 import { BQueryElement } from './element';
-import { applyAll, getOuterSize, toElementList } from './shared';
+import { applyAll, getOuterSize, isHTMLElement, toElementList } from './shared';
 
 /** Handler signature for delegated events */
 type DelegatedHandler = (event: Event, target: Element) => void;
@@ -420,7 +420,8 @@ export class BQueryCollection {
    * @returns Offset parent element, or null when unavailable
    */
   offsetParent(): Element | null {
-    return ((this.first() as HTMLElement | undefined)?.offsetParent as Element | null | undefined) ?? null;
+    const first = this.first();
+    return isHTMLElement(first) ? first.offsetParent : null;
   }
 
   /**
@@ -429,10 +430,14 @@ export class BQueryCollection {
    * @returns Position object with top and left coordinates
    */
   position(): { top: number; left: number } {
-    const first = this.first() as HTMLElement | undefined;
+    const first = this.first();
+    if (!isHTMLElement(first)) {
+      return { top: 0, left: 0 };
+    }
+
     return {
-      top: first?.offsetTop ?? 0,
-      left: first?.offsetLeft ?? 0,
+      top: first.offsetTop,
+      left: first.offsetLeft,
     };
   }
 
@@ -443,8 +448,7 @@ export class BQueryCollection {
    * @returns Outer width in pixels
    */
   outerWidth(includeMargin: boolean = false): number {
-    const first = this.first() as HTMLElement | undefined;
-    return first ? getOuterSize(first, 'width', includeMargin) : 0;
+    return getOuterSize(this.first(), 'width', includeMargin);
   }
 
   /**
@@ -454,8 +458,7 @@ export class BQueryCollection {
    * @returns Outer height in pixels
    */
   outerHeight(includeMargin: boolean = false): number {
-    const first = this.first() as HTMLElement | undefined;
-    return first ? getOuterSize(first, 'height', includeMargin) : 0;
+    return getOuterSize(this.first(), 'height', includeMargin);
   }
 
   /**
