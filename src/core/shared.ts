@@ -57,5 +57,8 @@ export const getOuterSize = (
     computedStyle.getPropertyValue(dimension === 'width' ? 'margin-right' : 'margin-bottom')
   );
 
-  return size + (Number.isNaN(startMargin) ? 0 : startMargin) + (Number.isNaN(endMargin) ? 0 : endMargin);
+  const safeStartMargin = Number.isNaN(startMargin) ? 0 : startMargin;
+  const safeEndMargin = Number.isNaN(endMargin) ? 0 : endMargin;
+
+  return size + safeStartMargin + safeEndMargin;
 };

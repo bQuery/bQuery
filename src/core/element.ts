@@ -316,13 +316,12 @@ export class BQueryElement {
    *
    * @example
    * ```ts
-   * const item = $('#item').detach();
-   * document.body.appendChild(item.raw);
-   * ```
-   */
+  * const item = $('#item').detach();
+  * document.body.appendChild(item.raw);
+  * ```
+  */
   detach(): this {
-    this.element.remove();
-    return this;
+    return this.remove();
   }
 
   /**
