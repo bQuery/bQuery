@@ -3,10 +3,13 @@ import { isPrototypePollutionKey, utils } from '../src/core/utils';
 import type { BQueryUtils } from '../src/core/utils';
 
 describe('utils/BQueryUtils type', () => {
-  it('utils satisfies BQueryUtils interface', () => {
+  it('utils satisfies BQueryUtils interface (compile-time guard)', () => {
     // Compile-time check: `utils` must be assignable to `BQueryUtils`.
     const typed: BQueryUtils = utils;
     void typed;
+
+    // Runtime sanity check so this test is not vacuous under `bun test`.
+    expect(utils).toBeDefined();
   });
 });
 
