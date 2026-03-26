@@ -1924,6 +1924,14 @@ describe('Router', () => {
       await router.push('/a');
       expect(currentRoute.value.path).toBe('/c');
     });
+
+    it('should fail fast on redirect loops', async () => {
+      router = createRouter({
+        routes: [{ path: '/a', redirectTo: '/a' }],
+      });
+
+      await expect(router.push('/a')).rejects.toThrow(/redirect loop/i);
+    });
   });
 
   // ============================================================================
@@ -2242,6 +2250,32 @@ describe('Router', () => {
           Object.defineProperty(window, 'scrollY', originalScrollY);
         }
       }
+    });
+
+    it('should preserve the scroll restoration key when popstate navigation is canceled', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        scrollRestoration: true,
+      });
+
+      router.beforeEach((to) => {
+        if (to.path === '/') return false;
+      });
+
+      await router.push('/page');
+      const pageEntry = mockHistory.getStack()[mockHistory.getCurrentIndex()];
+      expect(pageEntry.state).toHaveProperty('__bqScrollKey');
+
+      router.back();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const restoredEntry = mockHistory.getStack()[mockHistory.getCurrentIndex()];
+      expect(restoredEntry.url).toBe('/page');
+      expect(restoredEntry.state).toHaveProperty('__bqScrollKey');
+      expect(typeof (restoredEntry.state as Record<string, unknown>).__bqScrollKey).toBe('string');
     });
   });
 

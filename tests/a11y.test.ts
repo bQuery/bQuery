@@ -434,6 +434,20 @@ describe('a11y/rovingTabIndex', () => {
     }
   });
 
+  it('should restore pre-existing tabindex values on destroy', () => {
+    const toolbar = container.querySelector('#toolbar') as HTMLElement;
+    const buttons = toolbar.querySelectorAll('button');
+    buttons[0].setAttribute('tabindex', '5');
+    buttons[2].setAttribute('tabindex', '2');
+
+    const handle = rovingTabIndex(toolbar, 'button');
+    handle.destroy();
+
+    expect(buttons[0].getAttribute('tabindex')).toBe('5');
+    expect(buttons[1].hasAttribute('tabindex')).toBe(false);
+    expect(buttons[2].getAttribute('tabindex')).toBe('2');
+  });
+
   it('should handle empty container gracefully', () => {
     const emptyContainer = createContainer('<div id="empty"></div>');
     const toolbar = emptyContainer.querySelector('#empty') as HTMLElement;

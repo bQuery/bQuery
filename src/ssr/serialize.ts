@@ -36,6 +36,18 @@ const escapeForScript = (str: string): string => {
 };
 
 /**
+ * Escapes a string for safe embedding in an HTML attribute value.
+ * @internal
+ */
+const escapeForHtmlAttribute = (str: string): string => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+};
+
+/**
  * Serializes the state of registered stores into a JSON string and
  * a `<script>` tag suitable for embedding in server-rendered HTML.
  *
@@ -87,7 +99,8 @@ export const serializeStoreState = (options: SerializeOptions = {}): SerializeRe
   const stateJson = serialize(stateMap);
   const escapedJson = escapeForScript(stateJson);
   const escapedGlobalKey = escapeForScript(JSON.stringify(globalKey));
-  const scriptTag = `<script id="${scriptId}">window[${escapedGlobalKey}]=${escapedJson}</script>`;
+  const escapedScriptId = escapeForHtmlAttribute(scriptId);
+  const scriptTag = `<script id="${escapedScriptId}">window[${escapedGlobalKey}]=${escapedJson}</script>`;
 
   return { stateJson, scriptTag };
 };

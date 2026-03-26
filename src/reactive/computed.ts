@@ -80,6 +80,15 @@ export class Computed<T> implements ReactiveSource {
   unsubscribe(observer: () => void): void {
     this.subscribers.delete(observer);
   }
+
+  /**
+   * Disposes the computed value by unsubscribing its internal observer
+   * from all upstream dependencies and clearing subscribers.
+   */
+  dispose(): void {
+    clearDependencies(this.markDirty);
+    this.subscribers.clear();
+  }
 }
 
 /**

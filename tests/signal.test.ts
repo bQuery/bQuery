@@ -145,6 +145,23 @@ describe('computed', () => {
     expect(doubled.peek()).toBe(6);
     expect(computeCount).toBe(2);
   });
+
+  it('dispose unsubscribes the computed from upstream dependencies', () => {
+    let computeCount = 0;
+    const count = signal(1);
+    const doubled = computed(() => {
+      computeCount++;
+      return count.value * 2;
+    });
+
+    expect(doubled.value).toBe(2);
+    expect(computeCount).toBe(1);
+
+    doubled.dispose();
+    count.value = 2;
+
+    expect(computeCount).toBe(1);
+  });
 });
 
 describe('effect', () => {

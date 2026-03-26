@@ -145,20 +145,8 @@ export function useComputed<T>(fn: () => T): Computed<T> {
       'bQuery component: useComputed() must be called inside a component lifecycle hook or render function'
     );
   }
-  // Computed has no explicit dispose() method, so we wrap it in an effect
-  // that reads its value. Disposing the wrapping effect causes
-  // clearDependencies() to unsubscribe the computed's internal markDirty
-  // observer from all upstream sources, preventing stale updates.
   const c = computed(fn);
-
-  // We track the computed by reading it inside an effect so that the
-  // effect's dependencies include the computed's sources. When we dispose
-  // the effect, the computed's markDirty callback gets unsubscribed.
-  const cleanup = effect(() => {
-    void c.value;
-  });
-  scope.addDisposer(cleanup);
-
+  scope.addDisposer(() => c.dispose());
   return c;
 }
 

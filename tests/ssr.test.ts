@@ -375,6 +375,18 @@ describe('serializeStoreState', () => {
     expect(result.scriptTag).toContain('MY_STATE');
   });
 
+  it('escapes custom scriptId values for attribute context', () => {
+    createStore({ id: 'serialize-safe-id', state: () => ({ z: 2 }) });
+
+    const result = serializeStoreState({
+      storeIds: ['serialize-safe-id'],
+      scriptId: 'bad" onclick="alert(1)',
+    });
+
+    expect(result.scriptTag).not.toContain('id="bad" onclick="alert(1)"');
+    expect(result.scriptTag).toContain('&quot;');
+  });
+
   it('supports custom globalKey values that are not valid identifiers', () => {
     createStore({ id: 'serialize-custom-key', state: () => ({ z: 1 }) });
 

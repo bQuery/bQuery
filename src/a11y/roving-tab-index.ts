@@ -44,14 +44,24 @@ export const rovingTabIndex = (
   const { wrap = true, orientation = 'vertical', onActivate } = options;
 
   let currentIndex = 0;
+  const originalTabIndexes = new Map<HTMLElement, string | null>();
 
   const getItems = (): HTMLElement[] => {
     return Array.from(container.querySelectorAll(itemSelector)) as HTMLElement[];
   };
 
+  const trackItems = (items: HTMLElement[]): void => {
+    for (const item of items) {
+      if (!originalTabIndexes.has(item)) {
+        originalTabIndexes.set(item, item.getAttribute('tabindex'));
+      }
+    }
+  };
+
   const setActiveItem = (index: number): void => {
     const items = getItems();
     if (items.length === 0) return;
+    trackItems(items);
 
     // Clamp index
     const clampedIndex = Math.max(0, Math.min(index, items.length - 1));
@@ -127,6 +137,7 @@ export const rovingTabIndex = (
 
   // Initialize: set tabindex on all items
   const items = getItems();
+  trackItems(items);
   for (let i = 0; i < items.length; i++) {
     items[i].setAttribute('tabindex', i === 0 ? '0' : '-1');
   }
@@ -136,11 +147,17 @@ export const rovingTabIndex = (
   return {
     destroy: () => {
       container.removeEventListener('keydown', handleKeyDown);
-      // Restore original tabindex (remove our attributes)
+      // Restore original tabindex values
       const allItems = getItems();
       for (const item of allItems) {
-        item.removeAttribute('tabindex');
+        const originalTabIndex = originalTabIndexes.get(item);
+        if (originalTabIndex === null || originalTabIndex === undefined) {
+          item.removeAttribute('tabindex');
+        } else {
+          item.setAttribute('tabindex', originalTabIndex);
+        }
       }
+      originalTabIndexes.clear();
     },
 
     focusItem: (index: number) => {

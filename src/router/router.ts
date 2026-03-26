@@ -110,6 +110,24 @@ export const createRouter = (options: RouterOptions): Router => {
   };
 
   /**
+   * Builds history state for canceled navigations without dropping
+   * the scroll restoration key for the current entry.
+   * @internal
+   */
+  const getRestoreHistoryState = (): Record<string, unknown> => {
+    const state =
+      history.state && typeof history.state === 'object'
+        ? { ...(history.state as Record<string, unknown>) }
+        : {};
+
+    if (scrollRestoration) {
+      state.__bqScrollKey = currentScrollKey;
+    }
+
+    return state;
+  };
+
+  /**
    * Gets the current path from the URL.
    */
   const getCurrentPath = (): { pathname: string; search: string; hash: string } => {
@@ -153,19 +171,25 @@ export const createRouter = (options: RouterOptions): Router => {
    */
   const performNavigation = async (
     path: string,
-    method: 'pushState' | 'replaceState'
+    method: 'pushState' | 'replaceState',
+    visitedPaths: Set<string> = new Set()
   ): Promise<void> => {
     const { pathname, search, hash } = getCurrentPath();
     const from = createRoute(pathname, search, hash, flatRoutes);
 
     // Parse the target path
     const url = new URL(path, window.location.origin);
+    const resolvedPath = `${url.pathname}${url.search}${url.hash}`;
+    if (visitedPaths.has(resolvedPath)) {
+      throw new Error(`bQuery router: redirect loop detected for path "${resolvedPath}"`);
+    }
+    visitedPaths.add(resolvedPath);
     const to = createRoute(url.pathname, url.search, url.hash, flatRoutes);
 
     // Check for redirectTo on the matched route
     if (to.matched?.redirectTo) {
       // Navigate to the redirect target instead
-      await performNavigation(to.matched.redirectTo, method);
+      await performNavigation(to.matched.redirectTo, method, visitedPaths);
       return;
     }
 
@@ -238,7 +262,7 @@ export const createRouter = (options: RouterOptions): Router => {
         const restorePath = useHash
           ? `#${from.path}${searchStr}${hashStr}`
           : `${base}${from.path}${searchStr}${hashStr}`;
-        history.replaceState({}, '', restorePath);
+        history.replaceState(getRestoreHistoryState(), '', restorePath);
         return;
       }
     }
@@ -258,7 +282,7 @@ export const createRouter = (options: RouterOptions): Router => {
         const restorePath = useHash
           ? `#${from.path}${search}${hash}`
           : `${base}${from.path}${search}${hash}`;
-        history.replaceState({}, '', restorePath);
+        history.replaceState(getRestoreHistoryState(), '', restorePath);
         return;
       }
     }

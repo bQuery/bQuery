@@ -111,7 +111,8 @@ export const createPersistedStore = <
         if (version !== undefined && migrate) {
           const versionKey = key + VERSION_SUFFIX;
           const rawVersion = storage.getItem(versionKey);
-          const oldVersion = rawVersion !== null ? Number(rawVersion) : 0;
+          const parsedVersion = rawVersion !== null ? Number(rawVersion) : 0;
+          const oldVersion = Number.isFinite(parsedVersion) ? parsedVersion : 0;
 
           if (oldVersion !== version) {
             const migrated = migrate(persisted, oldVersion);

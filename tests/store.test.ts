@@ -1036,6 +1036,28 @@ describe('Store', () => {
       expect(store.val).toBe('default');
     });
 
+    it('should treat invalid persisted version metadata as version 0 during migration', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-invalid-version', JSON.stringify({ val: 'persisted' }));
+      mem.store.set('bquery-store-invalid-version__version', 'not-a-number');
+
+      let receivedVersion = -1;
+      const store = createPersistedStore(
+        { id: 'invalid-version', state: () => ({ val: 'default' }) },
+        {
+          storage: mem,
+          version: 2,
+          migrate: (old, version) => {
+            receivedVersion = version;
+            return old;
+          },
+        }
+      );
+
+      expect(receivedVersion).toBe(0);
+      expect(store.val).toBe('persisted');
+    });
+
     it('should handle corrupt data in storage gracefully', () => {
       const mem = createMemoryStorage();
       mem.store.set('bquery-store-corrupt', 'NOT_JSON!!!');
