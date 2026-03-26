@@ -26,10 +26,12 @@ import { flattenRoutes } from './utils';
  *   routes: [
  *     { path: '/', component: () => import('./pages/Home') },
  *     { path: '/about', component: () => import('./pages/About') },
- *     { path: '/user/:id', component: () => import('./pages/User') },
+ *     { path: '/user/:id(\\d+)', component: () => import('./pages/User') },
+ *     { path: '/old-page', redirectTo: '/new-page' },
  *     { path: '*', component: () => import('./pages/NotFound') },
  *   ],
  *   base: '/app',
+ *   scrollRestoration: true,
  * });
  *
  * router.beforeEach((to, from) => {
@@ -46,7 +48,7 @@ export const createRouter = (options: RouterOptions): Router => {
     existingRouter.destroy();
   }
 
-  const { routes, base = '', hash: useHash = false } = options;
+  const { routes, base = '', hash: useHash = false, scrollRestoration = false } = options;
 
   // Instance-specific guards and hooks (not shared globally)
   const beforeGuards: NavigationGuard[] = [];
@@ -54,6 +56,48 @@ export const createRouter = (options: RouterOptions): Router => {
 
   // Flatten nested routes (base-relative, not including the base path)
   const flatRoutes = flattenRoutes(routes);
+
+  // Scroll position storage keyed by history state id
+  const scrollPositions = new Map<string, { x: number; y: number }>();
+  let currentScrollKey = '0';
+
+  // Enable manual scroll restoration if scrollRestoration is configured
+  if (scrollRestoration && typeof history !== 'undefined' && 'scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+  }
+
+  /**
+   * Generates a unique key for the current history entry.
+   * @internal
+   */
+  const getScrollKey = (): string => {
+    return (history.state && history.state.__bqScrollKey) || currentScrollKey;
+  };
+
+  /**
+   * Saves current scroll position for the current history entry.
+   * @internal
+   */
+  const saveScrollPosition = (): void => {
+    if (!scrollRestoration) return;
+    const key = getScrollKey();
+    scrollPositions.set(key, { x: window.scrollX, y: window.scrollY });
+  };
+
+  /**
+   * Restores scroll position for the current history entry.
+   * @internal
+   */
+  const restoreScrollPosition = (): void => {
+    if (!scrollRestoration) return;
+    const key = getScrollKey();
+    const pos = scrollPositions.get(key);
+    if (pos) {
+      window.scrollTo(pos.x, pos.y);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  };
 
   /**
    * Gets the current path from the URL.
@@ -108,6 +152,21 @@ export const createRouter = (options: RouterOptions): Router => {
     const url = new URL(path, window.location.origin);
     const to = createRoute(url.pathname, url.search, url.hash, flatRoutes);
 
+    // Check for redirectTo on the matched route
+    if (to.matched?.redirectTo) {
+      // Navigate to the redirect target instead
+      await performNavigation(to.matched.redirectTo, method);
+      return;
+    }
+
+    // Run route-level beforeEnter guard
+    if (to.matched?.beforeEnter) {
+      const result = await to.matched.beforeEnter(to, from);
+      if (result === false) {
+        return; // Cancel navigation
+      }
+    }
+
     // Run beforeEach guards
     for (const guard of beforeGuards) {
       const result = await guard(to, from);
@@ -116,12 +175,23 @@ export const createRouter = (options: RouterOptions): Router => {
       }
     }
 
+    // Save scroll position before navigation
+    saveScrollPosition();
+
     // Update browser history
+    const scrollKey = String(Date.now());
     const fullPath = useHash ? `#${path}` : `${base}${path}`;
-    history[method]({}, '', fullPath);
+    const state = scrollRestoration ? { __bqScrollKey: scrollKey } : {};
+    history[method](state, '', fullPath);
+    currentScrollKey = scrollKey;
 
     // Update route signal
     syncRoute();
+
+    // Scroll to top on push navigation
+    if (scrollRestoration && method === 'pushState') {
+      window.scrollTo(0, 0);
+    }
 
     // Run afterEach hooks
     for (const hook of afterHooks) {
@@ -136,6 +206,32 @@ export const createRouter = (options: RouterOptions): Router => {
     const { pathname, search, hash } = getCurrentPath();
     const from = routeSignal.value;
     const to = createRoute(pathname, search, hash, flatRoutes);
+
+    // Check for redirectTo on the matched route
+    if (to.matched?.redirectTo) {
+      await performNavigation(to.matched.redirectTo, 'replaceState');
+      return;
+    }
+
+    // Run route-level beforeEnter guard
+    if (to.matched?.beforeEnter) {
+      const result = await to.matched.beforeEnter(to, from);
+      if (result === false) {
+        // Restore previous state with full URL (including query/hash)
+        const queryString = new URLSearchParams(
+          Object.entries(from.query).flatMap(([key, value]) =>
+            Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
+          )
+        ).toString();
+        const searchStr = queryString ? `?${queryString}` : '';
+        const hashStr = from.hash ? `#${from.hash}` : '';
+        const restorePath = useHash
+          ? `#${from.path}${searchStr}${hashStr}`
+          : `${base}${from.path}${searchStr}${hashStr}`;
+        history.replaceState({}, '', restorePath);
+        return;
+      }
+    }
 
     // Run beforeEach guards (supports async guards)
     for (const guard of beforeGuards) {
@@ -157,7 +253,16 @@ export const createRouter = (options: RouterOptions): Router => {
       }
     }
 
+    // Save scroll position of the page we're leaving
+    saveScrollPosition();
+
+    // Update scroll key from history state
+    currentScrollKey = getScrollKey();
+
     syncRoute();
+
+    // Restore scroll position for the entry we're navigating to
+    restoreScrollPosition();
 
     for (const hook of afterHooks) {
       hook(routeSignal.value, from);
@@ -202,6 +307,11 @@ export const createRouter = (options: RouterOptions): Router => {
       window.removeEventListener('popstate', handlePopState);
       beforeGuards.length = 0;
       afterHooks.length = 0;
+      scrollPositions.clear();
+      // Restore auto scroll restoration on destroy
+      if (scrollRestoration && typeof history !== 'undefined' && 'scrollRestoration' in history) {
+        history.scrollRestoration = 'auto';
+      }
       setActiveRouter(null);
     },
   };

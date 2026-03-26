@@ -4,29 +4,35 @@
  * This module provides a lightweight, signal-based router for single-page
  * applications. Features include:
  * - History API navigation
- * - Route matching with params and wildcards
+ * - Route matching with params, wildcards, and regex constraints
  * - Lazy route loading
- * - Navigation guards (beforeEach, afterEach)
+ * - Navigation guards (beforeEach, afterEach, per-route beforeEnter)
  * - Reactive current route via signals
+ * - `useRoute()` composable for fine-grained reactive access
+ * - Route redirects via `redirectTo`
+ * - Scroll position restoration on back/forward
  * - Multi-value query params (e.g., `?tag=a&tag=b` → `{ tag: ['a', 'b'] }`)
  *
  * @module bquery/router
  *
  * @example
  * ```ts
- * import { createRouter, navigate, currentRoute } from 'bquery/router';
+ * import { createRouter, navigate, currentRoute, useRoute } from 'bquery/router';
  * import { effect } from 'bquery/reactive';
  *
  * const router = createRouter({
  *   routes: [
  *     { path: '/', component: () => import('./Home') },
- *     { path: '/user/:id', component: () => import('./User') },
+ *     { path: '/user/:id(\\d+)', component: () => import('./User') },
+ *     { path: '/old', redirectTo: '/new' },
  *     { path: '*', component: () => import('./NotFound') },
  *   ],
+ *   scrollRestoration: true,
  * });
  *
+ * const { path, params } = useRoute();
  * effect(() => {
- *   console.log('Route changed:', currentRoute.value);
+ *   console.log('Route changed:', path.value, params.value);
  * });
  *
  * navigate('/user/42');
@@ -38,4 +44,5 @@ export { back, forward, navigate } from './navigation';
 export { createRouter } from './router';
 export { currentRoute } from './state';
 export type { NavigationGuard, Route, RouteDefinition, Router, RouterOptions } from './types';
+export { useRoute, type UseRouteReturn } from './use-route';
 export { isActive, isActiveSignal, resolve } from './utils';

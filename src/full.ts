@@ -219,6 +219,7 @@ export {
   link,
   navigate,
   resolve,
+  useRoute,
 } from './router/index';
 export type {
   NavigationGuard,
@@ -226,6 +227,7 @@ export type {
   RouteDefinition,
   Router,
   RouterOptions,
+  UseRouteReturn,
 } from './router/index';
 
 // ============================================================================

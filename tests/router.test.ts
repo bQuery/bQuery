@@ -1754,4 +1754,450 @@ describe('Router', () => {
       expect(currentRoute.value.hash).toBe('section');
     });
   });
+
+  // ============================================================================
+  // Route Params with Type Coercion (Regex Constraints)
+  // ============================================================================
+
+  describe('route params with regex constraints', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+    });
+
+    it('should match params with \\d+ constraint', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/user/:id(\\d+)', component: () => null },
+          { path: '*', component: () => null },
+        ],
+      });
+
+      await router.push('/user/42');
+      expect(currentRoute.value.path).toBe('/user/42');
+      expect(currentRoute.value.params).toEqual({ id: '42' });
+      expect(currentRoute.value.matched?.path).toBe('/user/:id(\\d+)');
+    });
+
+    it('should not match when constraint fails', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/user/:id(\\d+)', component: () => null },
+          { path: '*', component: () => null },
+        ],
+      });
+
+      await router.push('/user/abc');
+      // Should NOT match the constrained route
+      expect(currentRoute.value.matched?.path).toBe('*');
+    });
+
+    it('should support [a-z-]+ constraint', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/post/:slug([a-z-]+)', component: () => null },
+          { path: '*', component: () => null },
+        ],
+      });
+
+      await router.push('/post/hello-world');
+      expect(currentRoute.value.params).toEqual({ slug: 'hello-world' });
+      expect(currentRoute.value.matched?.path).toBe('/post/:slug([a-z-]+)');
+
+      await router.push('/post/ABC');
+      expect(currentRoute.value.matched?.path).toBe('*');
+    });
+
+    it('should support multiple constrained params', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/date/:year(\\d{4})/:month(\\d{2})', component: () => null },
+          { path: '*', component: () => null },
+        ],
+      });
+
+      await router.push('/date/2026/03');
+      expect(currentRoute.value.params).toEqual({ year: '2026', month: '03' });
+
+      await router.push('/date/26/3');
+      // 26 doesn't match \d{4}, 3 doesn't match \d{2}
+      expect(currentRoute.value.matched?.path).toBe('*');
+    });
+
+    it('should mix constrained and unconstrained params', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/user/:id(\\d+)/:action', component: () => null },
+        ],
+      });
+
+      await router.push('/user/42/edit');
+      expect(currentRoute.value.params).toEqual({ id: '42', action: 'edit' });
+    });
+
+    it('should still support basic params without constraints', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/user/:id', component: () => null },
+        ],
+      });
+
+      await router.push('/user/anything-works');
+      expect(currentRoute.value.params).toEqual({ id: 'anything-works' });
+    });
+  });
+
+  // ============================================================================
+  // redirectTo
+  // ============================================================================
+
+  describe('redirectTo', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+    });
+
+    it('should redirect to specified path on push', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/old-page', redirectTo: '/new-page' },
+          { path: '/new-page', component: () => null },
+        ],
+      });
+
+      await router.push('/old-page');
+      expect(currentRoute.value.path).toBe('/new-page');
+      expect(currentRoute.value.matched?.path).toBe('/new-page');
+    });
+
+    it('should redirect to specified path on replace', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/legacy', redirectTo: '/modern' },
+          { path: '/modern', component: () => null },
+        ],
+      });
+
+      await router.replace('/legacy');
+      expect(currentRoute.value.path).toBe('/modern');
+    });
+
+    it('should not require component on redirect routes', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/redirect-only', redirectTo: '/' },
+        ],
+      });
+
+      await router.push('/redirect-only');
+      expect(currentRoute.value.path).toBe('/');
+    });
+
+    it('should handle chained redirects', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/a', redirectTo: '/b' },
+          { path: '/b', redirectTo: '/c' },
+          { path: '/c', component: () => null },
+        ],
+      });
+
+      await router.push('/a');
+      expect(currentRoute.value.path).toBe('/c');
+    });
+  });
+
+  // ============================================================================
+  // beforeEnter (route-level guards)
+  // ============================================================================
+
+  describe('beforeEnter guards', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+    });
+
+    it('should execute beforeEnter guard before navigation', async () => {
+      const calls: string[] = [];
+
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          {
+            path: '/guarded',
+            component: () => null,
+            beforeEnter: (to, from) => {
+              calls.push(`beforeEnter:${from.path}->${to.path}`);
+            },
+          },
+        ],
+      });
+
+      await router.push('/guarded');
+      expect(calls).toEqual(['beforeEnter:/->/guarded']);
+      expect(currentRoute.value.path).toBe('/guarded');
+    });
+
+    it('should cancel navigation when beforeEnter returns false', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          {
+            path: '/blocked',
+            component: () => null,
+            beforeEnter: () => false,
+          },
+        ],
+      });
+
+      await router.push('/blocked');
+      expect(currentRoute.value.path).toBe('/');
+    });
+
+    it('should support async beforeEnter guards', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          {
+            path: '/async',
+            component: () => null,
+            beforeEnter: async () => {
+              await new Promise((r) => setTimeout(r, 10));
+              // Allow navigation
+            },
+          },
+        ],
+      });
+
+      await router.push('/async');
+      expect(currentRoute.value.path).toBe('/async');
+    });
+
+    it('should run beforeEnter BEFORE global beforeEach', async () => {
+      const calls: string[] = [];
+
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          {
+            path: '/page',
+            component: () => null,
+            beforeEnter: () => {
+              calls.push('beforeEnter');
+            },
+          },
+        ],
+      });
+
+      router.beforeEach(() => {
+        calls.push('beforeEach');
+      });
+
+      await router.push('/page');
+      expect(calls).toEqual(['beforeEnter', 'beforeEach']);
+    });
+
+    it('should not run global beforeEach if beforeEnter blocks', async () => {
+      const calls: string[] = [];
+
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          {
+            path: '/blocked',
+            component: () => null,
+            beforeEnter: () => {
+              calls.push('beforeEnter');
+              return false;
+            },
+          },
+        ],
+      });
+
+      router.beforeEach(() => {
+        calls.push('beforeEach');
+      });
+
+      await router.push('/blocked');
+      expect(calls).toEqual(['beforeEnter']);
+      expect(currentRoute.value.path).toBe('/');
+    });
+  });
+
+  // ============================================================================
+  // useRoute composable
+  // ============================================================================
+
+  describe('useRoute', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+    });
+
+    it('should export useRoute function', async () => {
+      const mod = await import('../src/router/index');
+      expect(typeof mod.useRoute).toBe('function');
+    });
+
+    it('should return reactive path, params, query, hash, matched', async () => {
+      const { useRoute } = await import('../src/router/index');
+
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/user/:id', component: () => null },
+        ],
+      });
+
+      const { path, params, query, hash, matched, route } = useRoute();
+
+      expect(path.value).toBe('/');
+      expect(params.value).toEqual({});
+      expect(query.value).toEqual({});
+      expect(hash.value).toBe('');
+      expect(route.value.path).toBe('/');
+
+      await router.push('/user/99?tab=profile#top');
+
+      expect(path.value).toBe('/user/99');
+      expect(params.value).toEqual({ id: '99' });
+      expect(query.value).toEqual({ tab: 'profile' });
+      expect(hash.value).toBe('top');
+      expect(matched.value?.path).toBe('/user/:id');
+    });
+
+    it('should update when route changes', async () => {
+      const { useRoute } = await import('../src/router/index');
+
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/a', component: () => null },
+          { path: '/b', component: () => null },
+        ],
+      });
+
+      const { path } = useRoute();
+      expect(path.value).toBe('/');
+
+      await router.push('/a');
+      expect(path.value).toBe('/a');
+
+      await router.push('/b');
+      expect(path.value).toBe('/b');
+    });
+  });
+
+  // ============================================================================
+  // Scroll position restoration
+  // ============================================================================
+
+  describe('scroll restoration', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+    let scrollToSpy: ReturnType<typeof spyOn>;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+      scrollToSpy = spyOn(window, 'scrollTo').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+      scrollToSpy.mockRestore();
+    });
+
+    it('should scroll to top on push navigation when enabled', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        scrollRestoration: true,
+      });
+
+      await router.push('/page');
+      expect(scrollToSpy).toHaveBeenCalledWith(0, 0);
+    });
+
+    it('should not scroll when scrollRestoration is disabled', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        scrollRestoration: false,
+      });
+
+      await router.push('/page');
+      expect(scrollToSpy).not.toHaveBeenCalled();
+    });
+
+    it('should set history.scrollRestoration to manual when enabled', () => {
+      router = createRouter({
+        routes: [{ path: '/', component: () => null }],
+        scrollRestoration: true,
+      });
+
+      expect(history.scrollRestoration).toBe('manual');
+    });
+
+    it('should restore history.scrollRestoration to auto on destroy', () => {
+      router = createRouter({
+        routes: [{ path: '/', component: () => null }],
+        scrollRestoration: true,
+      });
+
+      router.destroy();
+      expect(history.scrollRestoration).toBe('auto');
+    });
+
+    it('should store scroll key in history state', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/page', component: () => null },
+        ],
+        scrollRestoration: true,
+      });
+
+      await router.push('/page');
+      const stack = mockHistory.getStack();
+      const lastEntry = stack[stack.length - 1];
+      expect(lastEntry.state).toHaveProperty('__bqScrollKey');
+      expect(typeof (lastEntry.state as Record<string, unknown>).__bqScrollKey).toBe('string');
+    });
+  });
 });
