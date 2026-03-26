@@ -101,8 +101,12 @@ export const createPersistedStore = <
             try {
               storage.setItem(key, serializer.serialize(persisted));
               storage.setItem(versionKey, String(version));
-            } catch {
-              // Ignore quota errors during migration write-back
+            } catch (e) {
+              // Migration will re-run on next load, but state is still usable
+              console.warn(
+                `[bQuery store "${definition.id}"] Failed to persist migrated state:`,
+                e
+              );
             }
           }
         }
