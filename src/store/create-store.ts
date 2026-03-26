@@ -13,7 +13,13 @@ import {
 import { notifyDevtoolsStateChange, registerDevtoolsStore } from './devtools';
 import { applyPlugins } from './plugins';
 import { getStore, hasStore, registerStore } from './registry';
-import type { Getters, Store, StoreDefinition, StoreSubscriber } from './types';
+import type {
+  Getters,
+  OnActionCallback,
+  Store,
+  StoreDefinition,
+  StoreSubscriber,
+} from './types';
 import { deepClone, detectNestedMutations, isDev } from './utils';
 
 /**
@@ -52,6 +58,9 @@ export const createStore = <
 
   // Subscribers for $subscribe
   const subscribers: Array<StoreSubscriber<S>> = [];
+
+  // Action lifecycle hooks for $onAction
+  const actionListeners: Array<OnActionCallback> = [];
 
   /**
    * Gets the current state.
@@ -172,12 +181,13 @@ export const createStore = <
     });
   }
 
-  // Bind actions to the store context
+  // Bind actions to the store context, with $onAction lifecycle support
   for (const key of Object.keys(actions) as Array<keyof A>) {
     const actionFn = actions[key];
+    const actionName = key as string;
 
-    // Wrap action to enable 'this' binding
-    (store as Record<string, unknown>)[key as string] = function (...args: unknown[]) {
+    // Wrap action to enable 'this' binding and $onAction hooks
+    (store as Record<string, unknown>)[actionName] = function (...args: unknown[]) {
       // Create a context that allows 'this.property' access
       const context = new Proxy(store, {
         get: (target, prop) => {
@@ -198,7 +208,58 @@ export const createStore = <
         },
       });
 
-      return actionFn.apply(context, args);
+      // Run $onAction hooks if any listeners are registered
+      if (actionListeners.length === 0) {
+        return actionFn.apply(context, args);
+      }
+
+      const afterHooks: Array<(result: unknown) => void> = [];
+      const errorHooks: Array<(error: unknown) => void> = [];
+
+      // Notify all action listeners (before phase)
+      for (const listener of actionListeners) {
+        listener({
+          name: actionName,
+          store,
+          args,
+          after: (cb) => afterHooks.push(cb),
+          onError: (cb) => errorHooks.push(cb),
+        });
+      }
+
+      let result: unknown;
+      try {
+        result = actionFn.apply(context, args);
+      } catch (error) {
+        for (const hook of errorHooks) {
+          hook(error);
+        }
+        throw error;
+      }
+
+      // Handle async actions (promises)
+      if (result instanceof Promise) {
+        return result.then(
+          (resolved) => {
+            for (const hook of afterHooks) {
+              hook(resolved);
+            }
+            return resolved;
+          },
+          (error) => {
+            for (const hook of errorHooks) {
+              hook(error);
+            }
+            throw error;
+          }
+        );
+      }
+
+      // Sync action — run after hooks immediately
+      for (const hook of afterHooks) {
+        hook(result);
+      }
+      return result;
     };
   }
 
@@ -228,6 +289,17 @@ export const createStore = <
         return () => {
           const index = subscribers.indexOf(callback);
           if (index > -1) subscribers.splice(index, 1);
+        };
+      },
+      writable: false,
+      enumerable: false,
+    },
+    $onAction: {
+      value: (callback: OnActionCallback) => {
+        actionListeners.push(callback);
+        return () => {
+          const index = actionListeners.indexOf(callback);
+          if (index > -1) actionListeners.splice(index, 1);
         };
       },
       writable: false,

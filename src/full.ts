@@ -232,7 +232,17 @@ export {
   mapState,
   registerPlugin,
 } from './store/index';
-export type { StateFactory, Store, StoreDefinition, StorePlugin } from './store/index';
+export type {
+  ActionContext,
+  OnActionCallback,
+  PersistedStoreOptions,
+  StateFactory,
+  StorageBackend,
+  Store,
+  StoreDefinition,
+  StorePlugin,
+  StoreSerializer,
+} from './store/index';
 
 // ============================================================================
 // View Module: Declarative DOM bindings without compiler

@@ -4,6 +4,7 @@
 
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { effect } from '../src/reactive/index';
+import type { StorageBackend } from '../src/store/index';
 import {
   createPersistedStore,
   createStore,
@@ -629,6 +630,423 @@ describe('Store', () => {
       });
 
       expect(states).toEqual([42]);
+    });
+  });
+
+  describe('$onAction', () => {
+    it('should call the listener before each action', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void; add(n: number): void }
+      >({
+        id: 'on-action-before',
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+          },
+          add(n: number) {
+            (this as { count: number }).count += n;
+          },
+        },
+      });
+
+      const calls: Array<{ name: string; args: unknown[] }> = [];
+      store.$onAction(({ name, args }) => {
+        calls.push({ name, args });
+      });
+
+      store.increment();
+      store.add(5);
+
+      expect(calls).toEqual([
+        { name: 'increment', args: [] },
+        { name: 'add', args: [5] },
+      ]);
+    });
+
+    it('should run after hooks when sync action succeeds', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): number }
+      >({
+        id: 'on-action-after',
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+            return (this as { count: number }).count;
+          },
+        },
+      });
+
+      const results: unknown[] = [];
+      store.$onAction(({ after }) => {
+        after((result) => results.push(result));
+      });
+
+      store.increment();
+      store.increment();
+
+      expect(results).toEqual([1, 2]);
+    });
+
+    it('should run onError hooks when sync action throws', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { fail(): void }
+      >({
+        id: 'on-action-error',
+        state: () => ({ count: 0 }),
+        actions: {
+          fail() {
+            throw new Error('boom');
+          },
+        },
+      });
+
+      const errors: unknown[] = [];
+      store.$onAction(({ onError }) => {
+        onError((e) => errors.push(e));
+      });
+
+      expect(() => store.fail()).toThrow('boom');
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as Error).message).toBe('boom');
+    });
+
+    it('should run after hooks when async action resolves', async () => {
+      const store = createStore<
+        { data: string },
+        Record<string, never>,
+        { fetchData(): Promise<string> }
+      >({
+        id: 'on-action-async-ok',
+        state: () => ({ data: '' }),
+        actions: {
+          async fetchData() {
+            await new Promise((r) => setTimeout(r, 5));
+            (this as { data: string }).data = 'loaded';
+            return 'loaded';
+          },
+        },
+      });
+
+      const results: unknown[] = [];
+      store.$onAction(({ after }) => {
+        after((result) => results.push(result));
+      });
+
+      await store.fetchData();
+      expect(results).toEqual(['loaded']);
+    });
+
+    it('should run onError hooks when async action rejects', async () => {
+      const store = createStore<
+        { data: string },
+        Record<string, never>,
+        { failAsync(): Promise<void> }
+      >({
+        id: 'on-action-async-err',
+        state: () => ({ data: '' }),
+        actions: {
+          async failAsync() {
+            throw new Error('async boom');
+          },
+        },
+      });
+
+      const errors: unknown[] = [];
+      store.$onAction(({ onError }) => {
+        onError((e) => errors.push(e));
+      });
+
+      await expect(store.failAsync()).rejects.toThrow('async boom');
+      expect(errors).toHaveLength(1);
+      expect((errors[0] as Error).message).toBe('async boom');
+    });
+
+    it('should allow unsubscribing', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void }
+      >({
+        id: 'on-action-unsub',
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+          },
+        },
+      });
+
+      const calls: string[] = [];
+      const unsub = store.$onAction(({ name }) => {
+        calls.push(name);
+      });
+
+      store.increment();
+      unsub();
+      store.increment();
+
+      expect(calls).toEqual(['increment']);
+    });
+
+    it('should provide store reference in context', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void }
+      >({
+        id: 'on-action-ctx',
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+          },
+        },
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let capturedStore: any;
+      store.$onAction(({ store: s }) => {
+        capturedStore = s;
+      });
+
+      store.increment();
+      expect(capturedStore).toBe(store);
+    });
+
+    it('should not affect action behavior when no listeners are registered', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void }
+      >({
+        id: 'on-action-none',
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+          },
+        },
+      });
+
+      // No $onAction registered — fast path
+      store.increment();
+      expect(store.count).toBe(1);
+    });
+
+    it('should support multiple listeners', () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): void }
+      >({
+        id: 'on-action-multi',
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+          },
+        },
+      });
+
+      const callsA: string[] = [];
+      const callsB: string[] = [];
+      store.$onAction(({ name }) => callsA.push(name));
+      store.$onAction(({ name }) => callsB.push(name));
+
+      store.increment();
+
+      expect(callsA).toEqual(['increment']);
+      expect(callsB).toEqual(['increment']);
+    });
+  });
+
+  describe('createPersistedStore advanced options', () => {
+    const hasLocalStorage = (() => {
+      try {
+        return typeof localStorage !== 'undefined';
+      } catch {
+        return false;
+      }
+    })();
+
+    /** In-memory storage backend for tests. */
+    const createMemoryStorage = (): StorageBackend & { store: Map<string, string> } => {
+      const store = new Map<string, string>();
+      return {
+        store,
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => store.set(key, value),
+        removeItem: (key: string) => store.delete(key),
+      };
+    };
+
+    it('should accept a custom storage backend', () => {
+      const mem = createMemoryStorage();
+
+      const store = createPersistedStore(
+        { id: 'mem-store', state: () => ({ value: 'hello' }) },
+        { storage: mem }
+      );
+
+      store.value = 'world';
+      expect(mem.store.get('bquery-store-mem-store')).toBe('{"value":"world"}');
+    });
+
+    it('should accept a custom serializer', () => {
+      const mem = createMemoryStorage();
+      const customSerializer = {
+        serialize: (state: unknown) => `CUSTOM:${JSON.stringify(state)}`,
+        deserialize: (raw: string) => JSON.parse(raw.replace('CUSTOM:', '')),
+      };
+
+      const store = createPersistedStore(
+        { id: 'ser-store', state: () => ({ x: 1 }) },
+        { storage: mem, serializer: customSerializer }
+      );
+
+      store.x = 42;
+      expect(mem.store.get('bquery-store-ser-store')).toBe('CUSTOM:{"x":42}');
+    });
+
+    it('should restore from custom storage backend', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-restore-test', '{"restored":true}');
+
+      const store = createPersistedStore(
+        { id: 'restore-test', state: () => ({ restored: false }) },
+        { storage: mem }
+      );
+
+      expect(store.restored).toBe(true);
+    });
+
+    it('should accept a custom key', () => {
+      const mem = createMemoryStorage();
+
+      const store = createPersistedStore(
+        { id: 'key-test', state: () => ({ val: 0 }) },
+        { key: 'my-custom-key', storage: mem }
+      );
+
+      store.val = 99;
+      expect(mem.store.get('my-custom-key')).toBe('{"val":99}');
+    });
+
+    it('should run migration when version changes', () => {
+      const mem = createMemoryStorage();
+      // Simulate previously persisted v1 data
+      mem.store.set('bquery-store-migrate', '{"name":"Alice"}');
+      mem.store.set('bquery-store-migrate__version', '1');
+
+      const store = createPersistedStore(
+        { id: 'migrate', state: () => ({ name: '', theme: 'dark' }) },
+        {
+          storage: mem,
+          version: 2,
+          migrate: (old, v) => {
+            if (v < 2) return { ...old, theme: 'auto' };
+            return old;
+          },
+        }
+      );
+
+      expect(store.name).toBe('Alice');
+      expect(store.theme).toBe('auto');
+      // Version should be updated
+      expect(mem.store.get('bquery-store-migrate__version')).toBe('2');
+    });
+
+    it('should not run migration when version matches', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-no-mig', '{"val":42}');
+      mem.store.set('bquery-store-no-mig__version', '3');
+
+      let migrateCalled = false;
+      const store = createPersistedStore(
+        { id: 'no-mig', state: () => ({ val: 0 }) },
+        {
+          storage: mem,
+          version: 3,
+          migrate: () => {
+            migrateCalled = true;
+            return {};
+          },
+        }
+      );
+
+      expect(migrateCalled).toBe(false);
+      expect(store.val).toBe(42);
+    });
+
+    it('should treat missing version as 0 for migration', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-zero-ver', '{"old":true}');
+      // No version key — should default to 0
+
+      let receivedVersion: number | undefined;
+      createPersistedStore(
+        { id: 'zero-ver', state: () => ({ old: false, newField: '' }) },
+        {
+          storage: mem,
+          version: 1,
+          migrate: (old, v) => {
+            receivedVersion = v;
+            return { ...old, newField: 'migrated' };
+          },
+        }
+      );
+
+      expect(receivedVersion).toBe(0);
+    });
+
+    it.skipIf(!hasLocalStorage)(
+      'should remain backward compatible with string key argument',
+      () => {
+        localStorage.removeItem('compat-key');
+
+        const store = createPersistedStore(
+          { id: 'compat', state: () => ({ val: 1 }) },
+          'compat-key'
+        );
+
+        store.val = 2;
+        expect(localStorage.getItem('compat-key')).toBe('{"val":2}');
+
+        localStorage.removeItem('compat-key');
+      }
+    );
+
+    it('should handle empty/missing storage gracefully', () => {
+      const mem = createMemoryStorage();
+      // No pre-existing data
+
+      const store = createPersistedStore(
+        { id: 'empty-store', state: () => ({ val: 'default' }) },
+        { storage: mem }
+      );
+
+      expect(store.val).toBe('default');
+    });
+
+    it('should handle corrupt data in storage gracefully', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-corrupt', 'NOT_JSON!!!');
+
+      const store = createPersistedStore(
+        { id: 'corrupt', state: () => ({ val: 'fallback' }) },
+        { storage: mem }
+      );
+
+      // Should fall back to default state
+      expect(store.val).toBe('fallback');
     });
   });
 });

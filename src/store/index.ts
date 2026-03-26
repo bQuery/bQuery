@@ -3,13 +3,18 @@
  */
 
 export type {
+  ActionContext,
   Actions,
   Getters,
+  OnActionCallback,
+  PersistedStoreOptions,
   StateFactory,
+  StorageBackend,
   Store,
   StoreDefinition,
   StorePatch,
   StorePlugin,
+  StoreSerializer,
   StoreSubscriber,
 } from './types';
 
