@@ -2,7 +2,7 @@
  * Tests for the bQuery media module.
  */
 
-import { describe, it, expect } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
 import { mediaQuery } from '../src/media/media-query';
 import { breakpoints } from '../src/media/breakpoints';
 import { useViewport } from '../src/media/viewport';
@@ -11,6 +11,15 @@ import { useBattery } from '../src/media/battery';
 import { useGeolocation } from '../src/media/geolocation';
 import { useDeviceMotion, useDeviceOrientation } from '../src/media/device-sensors';
 import { clipboard } from '../src/media/clipboard';
+
+const originalInnerWidth = window.innerWidth;
+const originalInnerHeight = window.innerHeight;
+
+afterEach(() => {
+  Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, configurable: true });
+  Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, configurable: true });
+  window.dispatchEvent(new Event('resize'));
+});
 
 // ─── mediaQuery ──────────────────────────────────────────────────────────────
 
@@ -133,6 +142,18 @@ describe('media/useViewport', () => {
     expect(() => {
       (vp as { value: unknown }).value = { width: 100, height: 100, orientation: 'portrait' };
     }).toThrow();
+  });
+
+  it('removes the resize listener when destroyed', () => {
+    const vp = useViewport();
+    vp.destroy();
+
+    Object.defineProperty(window, 'innerWidth', { value: 777, configurable: true });
+    Object.defineProperty(window, 'innerHeight', { value: 333, configurable: true });
+    window.dispatchEvent(new Event('resize'));
+
+    expect(vp.value.width).not.toBe(777);
+    expect(vp.value.height).not.toBe(333);
   });
 });
 
@@ -267,6 +288,39 @@ describe('media/useGeolocation', () => {
     expect(() => {
       (geo as { value: unknown }).value = {};
     }).toThrow();
+  });
+
+  it('clears an active geolocation watch when destroyed', () => {
+    const originalGeolocation = navigator.geolocation;
+    let clearedWatchId: number | null = null;
+
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        watchPosition: () => 42,
+        clearWatch: (id: number) => {
+          clearedWatchId = id;
+        },
+        getCurrentPosition: () => {
+          throw new Error('getCurrentPosition should not be called in watch mode');
+        },
+      } satisfies Partial<Geolocation>,
+    });
+
+    try {
+      const geo = useGeolocation({ watch: true });
+      geo.destroy();
+      if (clearedWatchId === null) {
+        throw new Error('Expected clearWatch to be called');
+      }
+      const finalWatchId: number = clearedWatchId;
+      expect(finalWatchId).toBe(42);
+    } finally {
+      Object.defineProperty(navigator, 'geolocation', {
+        configurable: true,
+        value: originalGeolocation,
+      });
+    }
   });
 });
 

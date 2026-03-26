@@ -8,8 +8,7 @@
  */
 
 import { signal, readonly } from '../reactive/index';
-import type { ReadonlySignal } from '../reactive/index';
-import type { ViewportState } from './types';
+import type { ViewportSignal, ViewportState } from './types';
 
 /**
  * Computes orientation from width and height.
@@ -25,6 +24,7 @@ const getOrientation = (w: number, h: number): 'portrait' | 'landscape' =>
  * and `window.innerHeight` under the hood.
  *
  * @returns A readonly reactive signal with `{ width, height, orientation }`
+ * and a `destroy()` method to remove the resize listener
  *
  * @example
  * ```ts
@@ -38,7 +38,7 @@ const getOrientation = (w: number, h: number): 'portrait' | 'landscape' =>
  * });
  * ```
  */
-export const useViewport = (): ReadonlySignal<ViewportState> => {
+export const useViewport = (): ViewportSignal => {
   const initial: ViewportState = {
     width: typeof window !== 'undefined' ? window.innerWidth : 0,
     height: typeof window !== 'undefined' ? window.innerHeight : 0,
@@ -50,6 +50,8 @@ export const useViewport = (): ReadonlySignal<ViewportState> => {
 
   const s = signal<ViewportState>(initial);
 
+  let cleanup: (() => void) | undefined;
+
   if (typeof window !== 'undefined') {
     const handler = (): void => {
       s.value = {
@@ -60,7 +62,19 @@ export const useViewport = (): ReadonlySignal<ViewportState> => {
     };
 
     window.addEventListener('resize', handler);
+    cleanup = () => {
+      window.removeEventListener('resize', handler);
+    };
   }
 
-  return readonly(s);
+  const ro = readonly(s) as ViewportSignal;
+  let destroyed = false;
+  ro.destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    cleanup?.();
+    s.dispose();
+  };
+
+  return ro;
 };

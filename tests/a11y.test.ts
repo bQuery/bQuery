@@ -186,6 +186,17 @@ describe('a11y/getFocusableElements', () => {
     expect(focusable).toEqual([]);
     container.remove();
   });
+
+  it('should include visible fixed-position elements', () => {
+    const container = createContainer('<button id="fixed">Fixed</button>');
+    const fixed = container.querySelector('#fixed') as HTMLElement;
+    fixed.style.position = 'fixed';
+
+    const focusable = getFocusableElements(container);
+    expect(focusable).toContain(fixed);
+
+    container.remove();
+  });
 });
 
 describe('a11y/releaseFocus', () => {

@@ -1,9 +1,9 @@
 /**
  * `<bq-link>` custom element for declarative SPA navigation.
  *
- * Renders an accessible `<a>` tag that intercepts clicks for client-side
- * routing. Automatically toggles an active class when the target path
- * matches the current route.
+ * Exposes an accessible custom element that behaves like a link for
+ * client-side routing. Automatically toggles an active class when the
+ * target path matches the current route.
  *
  * @module bquery/router
  *
@@ -34,8 +34,10 @@ const DEFAULT_ACTIVE_CLASS = 'active';
  * - `exact` — If present, the active class is only applied on an exact path match.
  * - `active-class` — CSS class added when the route is active (default: `'active'`).
  *
- * The element renders a shadow `<a>` tag with a `<slot>` for content,
- * ensuring accessibility (focusable, keyboard-navigable, screen-reader-friendly).
+ * The custom element itself acts as the interactive link target using
+ * `role="link"` and keyboard handling. It does not render a native `<a>`,
+ * so browser-native link affordances like context-menu "open in new tab"
+ * are not provided automatically.
  *
  * @example
  * ```ts

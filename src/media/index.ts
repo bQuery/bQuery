@@ -63,7 +63,10 @@ export type {
   DeviceMotionState,
   DeviceOrientationState,
   GeolocationOptions,
+  GeolocationSignal,
   GeolocationState,
+  MediaSignalHandle,
   NetworkState,
+  ViewportSignal,
   ViewportState,
 } from './types';

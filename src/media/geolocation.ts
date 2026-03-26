@@ -8,8 +8,7 @@
  */
 
 import { signal, readonly } from '../reactive/index';
-import type { ReadonlySignal } from '../reactive/index';
-import type { GeolocationOptions, GeolocationState } from './types';
+import type { GeolocationOptions, GeolocationSignal, GeolocationState } from './types';
 
 /** Default geolocation state. */
 const DEFAULT_GEO_STATE: GeolocationState = {
@@ -33,7 +32,8 @@ const DEFAULT_GEO_STATE: GeolocationState = {
  * Can operate in one-shot mode (default) or continuous watch mode.
  *
  * @param options - Configuration for the geolocation request
- * @returns A readonly reactive signal with position data and loading/error state
+ * @returns A readonly reactive signal with position data and loading/error state,
+ * plus a `destroy()` method to stop an active watcher
  *
  * @example
  * ```ts
@@ -52,9 +52,7 @@ const DEFAULT_GEO_STATE: GeolocationState = {
  * const geoWatch = useGeolocation({ watch: true, enableHighAccuracy: true });
  * ```
  */
-export const useGeolocation = (
-  options: GeolocationOptions = {}
-): ReadonlySignal<GeolocationState> => {
+export const useGeolocation = (options: GeolocationOptions = {}): GeolocationSignal => {
   const {
     enableHighAccuracy = false,
     maximumAge = 0,
@@ -63,6 +61,8 @@ export const useGeolocation = (
   } = options;
 
   const s = signal<GeolocationState>({ ...DEFAULT_GEO_STATE });
+
+  let destroyWatcher: (() => void) | undefined;
 
   if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
     s.value = { ...DEFAULT_GEO_STATE, supported: true, loading: true };
@@ -98,11 +98,23 @@ export const useGeolocation = (
     };
 
     if (watch) {
-      navigator.geolocation.watchPosition(onSuccess, onError, posOptions);
+      const watchId = navigator.geolocation.watchPosition(onSuccess, onError, posOptions);
+      destroyWatcher = () => {
+        navigator.geolocation.clearWatch(watchId);
+      };
     } else {
       navigator.geolocation.getCurrentPosition(onSuccess, onError, posOptions);
     }
   }
 
-  return readonly(s);
+  const ro = readonly(s) as GeolocationSignal;
+  let destroyed = false;
+  ro.destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    destroyWatcher?.();
+    s.dispose();
+  };
+
+  return ro;
 };

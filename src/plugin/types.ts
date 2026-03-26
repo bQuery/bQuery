@@ -1,8 +1,8 @@
 /**
  * Public types for the bQuery plugin system.
  *
- * Plugins extend bQuery by registering custom directives, Web Components,
- * store plugins, and router middleware through a single unified interface.
+ * Plugins extend bQuery by registering custom directives and Web Components
+ * through a single unified interface.
  *
  * @module bquery/plugin
  */

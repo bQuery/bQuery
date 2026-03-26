@@ -33,7 +33,7 @@ const FOCUSABLE_SELECTOR = [
 export const getFocusableElements = (container: Element): HTMLElement[] => {
   const elements = Array.from(container.querySelectorAll(FOCUSABLE_SELECTOR)) as HTMLElement[];
   return elements.filter(
-    (el) => !el.hasAttribute('disabled') && el.offsetParent !== null && el.tabIndex !== -1
+    (el) => !el.hasAttribute('disabled') && el.tabIndex !== -1 && el.getClientRects().length > 0
   );
 };
 

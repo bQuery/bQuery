@@ -119,11 +119,15 @@ const createComponentClass = <
     private signalEffectCleanup?: CleanupFn;
     /** Component-scoped reactive resource tracker */
     private scope?: ComponentScope;
+    /** Render target for open/closed shadow roots or the host element when shadow DOM is disabled */
+    private readonly renderRootNode: HTMLElement | ShadowRoot;
 
     constructor() {
       super();
       if (shadowMode !== false) {
-        this.attachShadow({ mode: shadowMode });
+        this.renderRootNode = this.attachShadow({ mode: shadowMode });
+      } else {
+        this.renderRootNode = this;
       }
       this.syncProps();
     }
@@ -412,11 +416,7 @@ const createComponentClass = <
           this.dispatchEvent(new CustomEvent(event, { detail, bubbles: true, composed: true }));
         };
 
-        // Determine render target: shadow root or the host element itself
-        const renderRoot: HTMLElement | ShadowRoot | null =
-          shadowMode !== false ? this.shadowRoot : this;
-
-        if (!renderRoot) return;
+        const renderRoot = this.renderRootNode;
 
         const markup = definition.render({
           props: this.props,

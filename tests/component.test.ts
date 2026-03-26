@@ -166,6 +166,45 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('renders into closed shadow roots', () => {
+    const tagName = `test-closed-shadow-${Date.now()}`;
+    let capturedShadowRoot: ShadowRoot | undefined;
+    const originalAttachShadow = HTMLElement.prototype.attachShadow;
+
+    HTMLElement.prototype.attachShadow = function (
+      this: HTMLElement,
+      init: ShadowRootInit
+    ): ShadowRoot {
+      const root = originalAttachShadow.call(this, init);
+      if (this.tagName.toLowerCase() === tagName) {
+        capturedShadowRoot = root;
+      }
+      return root;
+    };
+
+    try {
+      component(tagName, {
+        shadow: 'closed',
+        props: {},
+        render: () => html`<div>Closed Shadow Content</div>`,
+      });
+
+      const el = document.createElement(tagName);
+      document.body.appendChild(el);
+
+      expect(el.shadowRoot).toBeNull();
+      expect(capturedShadowRoot).toBeDefined();
+      if (!capturedShadowRoot) {
+        throw new Error('Expected closed shadow root to be captured');
+      }
+      expect(capturedShadowRoot.textContent).toContain('Closed Shadow Content');
+
+      el.remove();
+    } finally {
+      HTMLElement.prototype.attachShadow = originalAttachShadow;
+    }
+  });
+
   it('preserves typed state generics in component definitions', () => {
     type Props = { label: string };
     type State = { count: number; ready: boolean };

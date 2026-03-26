@@ -4,6 +4,20 @@
  * @module bquery/media
  */
 
+import type { ReadonlySignal } from '../reactive/index';
+
+/**
+ * Readonly media signal with an explicit cleanup hook.
+ *
+ * Some media utilities subscribe to browser APIs such as resize events or
+ * geolocation watchers. Call `destroy()` when the signal is no longer needed
+ * to release those underlying subscriptions.
+ */
+export interface MediaSignalHandle<T> extends ReadonlySignal<T> {
+  /** Releases any underlying browser listeners or observers. Safe to call multiple times. */
+  destroy(): void;
+}
+
 /**
  * Viewport information returned by {@link useViewport}.
  */
@@ -15,6 +29,11 @@ export interface ViewportState {
   /** Current orientation: `'portrait'` or `'landscape'`. */
   orientation: 'portrait' | 'landscape';
 }
+
+/**
+ * Viewport signal handle returned by {@link useViewport}.
+ */
+export type ViewportSignal = MediaSignalHandle<ViewportState>;
 
 /**
  * Network connection information returned by {@link useNetworkStatus}.
@@ -73,6 +92,11 @@ export interface GeolocationState {
   /** Error message, or `null` if no error. */
   error: string | null;
 }
+
+/**
+ * Geolocation signal handle returned by {@link useGeolocation}.
+ */
+export type GeolocationSignal = MediaSignalHandle<GeolocationState>;
 
 /**
  * Options for {@link useGeolocation}.

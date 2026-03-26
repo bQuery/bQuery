@@ -89,7 +89,6 @@ export const serializeStoreState = (options: SerializeOptions = {}): SerializeRe
   const stateMap: Record<string, Record<string, unknown>> = {};
 
   for (const id of ids) {
-     
     const store = getStore<{ $state: Record<string, unknown> }>(id);
     if (store) {
       stateMap[id] = store.$state;

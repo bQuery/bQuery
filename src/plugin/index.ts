@@ -1,6 +1,6 @@
 /**
  * bQuery Plugin System — register plugins that extend bQuery with custom
- * directives, components, store plugins, and router middleware.
+ * directives and components.
  *
  * @module bquery/plugin
  *
