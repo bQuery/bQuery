@@ -77,3 +77,6 @@ export * from './dnd/index';
 
 // Media module: reactive browser and device API signals
 export * from './media/index';
+
+// Plugin module: global plugin registration system
+export * from './plugin/index';

@@ -32,6 +32,7 @@ const entries = {
   a11y: resolve(__dirname, 'src/a11y/index.ts'),
   dnd: resolve(__dirname, 'src/dnd/index.ts'),
   media: resolve(__dirname, 'src/media/index.ts'),
+  plugin: resolve(__dirname, 'src/plugin/index.ts'),
 };
 
 /**
@@ -83,6 +84,7 @@ export default defineConfig({
       'bquery/a11y': resolve(__dirname, 'src/a11y/index.ts'),
       'bquery/dnd': resolve(__dirname, 'src/dnd/index.ts'),
       'bquery/media': resolve(__dirname, 'src/media/index.ts'),
+      'bquery/plugin': resolve(__dirname, 'src/plugin/index.ts'),
     },
   },
 });

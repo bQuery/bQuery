@@ -1,0 +1,194 @@
+/**
+ * Global plugin registry for bQuery.
+ *
+ * Provides `use()` to register plugins and query helpers consumed by
+ * other modules (e.g. the view module reads custom directives from here).
+ *
+ * @module bquery/plugin
+ */
+
+import type {
+  BQueryPlugin,
+  CustomDirective,
+  CustomDirectiveHandler,
+  PluginInstallContext,
+} from './types';
+
+// ---------------------------------------------------------------------------
+// Internal registries
+// ---------------------------------------------------------------------------
+
+/** Set of installed plugin names — prevents double-install. */
+const installedPlugins = new Set<string>();
+
+/** Custom directives contributed by plugins. */
+const customDirectives = new Map<string, CustomDirectiveHandler>();
+
+// ---------------------------------------------------------------------------
+// Install context factory
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the `PluginInstallContext` handed to each plugin's `install()`.
+ * @internal
+ */
+const createInstallContext = (): PluginInstallContext => ({
+  directive(name: string, handler: CustomDirectiveHandler): void {
+    if (typeof name !== 'string' || name.length === 0) {
+      throw new Error('[bq] directive name must be a non-empty string');
+    }
+    if (typeof handler !== 'function') {
+      throw new Error(`[bq] directive handler for "${name}" must be a function`);
+    }
+    customDirectives.set(name, handler);
+  },
+
+  component(
+    tagName: string,
+    constructor: CustomElementConstructor,
+    options?: ElementDefinitionOptions
+  ): void {
+    if (typeof tagName !== 'string' || tagName.length === 0) {
+      throw new Error('[bq] component tagName must be a non-empty string');
+    }
+    if (typeof constructor !== 'function') {
+      throw new Error(`[bq] component constructor for "${tagName}" must be a function`);
+    }
+    // Idempotent — skip if already defined
+    if (!customElements.get(tagName)) {
+      customElements.define(tagName, constructor, options);
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
+/**
+ * Register a bQuery plugin.
+ *
+ * Plugins are installed at most once (identified by `plugin.name`).
+ * Duplicate calls with the same name are silently ignored.
+ *
+ * @param plugin - The plugin object implementing `{ name, install }`.
+ * @param options - Optional configuration forwarded to `plugin.install()`.
+ * @throws If `plugin` is not a valid plugin object.
+ *
+ * @example
+ * ```ts
+ * import { use } from '@bquery/bquery/plugin';
+ *
+ * use({
+ *   name: 'highlight',
+ *   install(ctx) {
+ *     ctx.directive('highlight', (el, expr) => {
+ *       (el as HTMLElement).style.background = String(expr);
+ *     });
+ *   },
+ * });
+ * ```
+ */
+export const use = <TOptions = unknown>(
+  plugin: BQueryPlugin<TOptions>,
+  options?: TOptions
+): void => {
+  if (!plugin || typeof plugin !== 'object') {
+    throw new Error('[bq] use() expects a plugin object with { name, install }');
+  }
+  if (typeof plugin.name !== 'string' || plugin.name.length === 0) {
+    throw new Error('[bq] plugin must have a non-empty "name" property');
+  }
+  if (typeof plugin.install !== 'function') {
+    throw new Error(`[bq] plugin "${plugin.name}" must have an "install" function`);
+  }
+
+  // Deduplicate
+  if (installedPlugins.has(plugin.name)) return;
+
+  installedPlugins.add(plugin.name);
+  const ctx = createInstallContext();
+  plugin.install(ctx, options);
+};
+
+/**
+ * Check whether a plugin with the given name has been installed.
+ *
+ * @param name - The plugin name to check.
+ * @returns `true` if the plugin was previously installed via `use()`.
+ *
+ * @example
+ * ```ts
+ * import { isInstalled } from '@bquery/bquery/plugin';
+ *
+ * if (!isInstalled('my-plugin')) {
+ *   use(myPlugin);
+ * }
+ * ```
+ */
+export const isInstalled = (name: string): boolean => installedPlugins.has(name);
+
+/**
+ * Return a read-only snapshot of all installed plugin names.
+ *
+ * @returns Array of plugin name strings.
+ *
+ * @example
+ * ```ts
+ * import { getInstalledPlugins } from '@bquery/bquery/plugin';
+ * console.log(getInstalledPlugins()); // ['my-plugin', 'other-plugin']
+ * ```
+ */
+export const getInstalledPlugins = (): readonly string[] => [...installedPlugins];
+
+/**
+ * Retrieve the handler for a custom directive registered by a plugin.
+ *
+ * This is used internally by the view module's `processElement` to
+ * resolve directives that aren't built-in.
+ *
+ * @param name - Directive name **without** prefix (e.g. `'tooltip'`).
+ * @returns The handler, or `undefined` if none is registered.
+ *
+ * @example
+ * ```ts
+ * import { getCustomDirective } from '@bquery/bquery/plugin';
+ * const handler = getCustomDirective('tooltip');
+ * ```
+ */
+export const getCustomDirective = (name: string): CustomDirectiveHandler | undefined =>
+  customDirectives.get(name);
+
+/**
+ * Return a read-only snapshot of all registered custom directives.
+ *
+ * @returns Array of `{ name, handler }` descriptors.
+ *
+ * @example
+ * ```ts
+ * import { getCustomDirectives } from '@bquery/bquery/plugin';
+ * for (const { name, handler } of getCustomDirectives()) {
+ *   console.log(`Directive: bq-${name}`);
+ * }
+ * ```
+ */
+export const getCustomDirectives = (): readonly CustomDirective[] =>
+  [...customDirectives.entries()].map(([name, handler]) => ({ name, handler }));
+
+/**
+ * Reset all plugin registrations.
+ *
+ * **For testing only.** Clears installed plugins and custom directives.
+ *
+ * @example
+ * ```ts
+ * import { resetPlugins } from '@bquery/bquery/plugin';
+ * afterEach(() => resetPlugins());
+ * ```
+ *
+ * @internal
+ */
+export const resetPlugins = (): void => {
+  installedPlugins.clear();
+  customDirectives.clear();
+};

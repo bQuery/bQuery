@@ -1,4 +1,5 @@
 import type { CleanupFn } from '../reactive/index';
+import { getCustomDirective } from '../plugin/registry';
 import type { BindingContext, DirectiveHandler } from './types';
 
 export type DirectiveHandlers = {
@@ -64,6 +65,12 @@ export const processElement = (
     } else if (directive.startsWith('on:')) {
       const eventName = directive.slice(3);
       handlers.on(eventName)(el, value, context, cleanups);
+    } else {
+      // Check for custom directives registered via plugins
+      const customHandler = getCustomDirective(directive);
+      if (customHandler) {
+        customHandler(el, value, context, cleanups);
+      }
     }
   }
 };
