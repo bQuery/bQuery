@@ -744,6 +744,35 @@ describe('Store', () => {
       expect(results).toEqual(['loaded']);
     });
 
+    it('should treat thenable action results as async for after hooks', async () => {
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { incrementAsync(): Promise<number> }
+      >({
+        id: 'on-action-thenable-ok',
+        state: () => ({ count: 0 }),
+        actions: {
+          incrementAsync() {
+            return {
+              then: (resolve: (value: number) => void) => {
+                (this as { count: number }).count++;
+                resolve((this as { count: number }).count);
+              },
+            } as Promise<number>;
+          },
+        },
+      });
+
+      const results: unknown[] = [];
+      store.$onAction(({ after }) => {
+        after((result) => results.push(result));
+      });
+
+      await store.incrementAsync();
+      expect(results).toEqual([1]);
+    });
+
     it('should run onError hooks when async action rejects', async () => {
       const store = createStore<
         { data: string },

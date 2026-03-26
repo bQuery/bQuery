@@ -114,19 +114,19 @@ describe('Plugin System', () => {
 
     it('should throw for null/undefined plugin', () => {
       expect(() => use(null as unknown as BQueryPlugin)).toThrow(
-        '[bq] use() expects a plugin object'
+        'bQuery plugin: use() expects a plugin object'
       );
       expect(() => use(undefined as unknown as BQueryPlugin)).toThrow(
-        '[bq] use() expects a plugin object'
+        'bQuery plugin: use() expects a plugin object'
       );
     });
 
     it('should throw for non-object plugin', () => {
       expect(() => use('bad' as unknown as BQueryPlugin)).toThrow(
-        '[bq] use() expects a plugin object'
+        'bQuery plugin: use() expects a plugin object'
       );
       expect(() => use(42 as unknown as BQueryPlugin)).toThrow(
-        '[bq] use() expects a plugin object'
+        'bQuery plugin: use() expects a plugin object'
       );
     });
 

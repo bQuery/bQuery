@@ -8,8 +8,7 @@
  */
 
 import { signal, readonly } from '../reactive/index';
-import type { ReadonlySignal } from '../reactive/index';
-import type { BatteryState } from './types';
+import type { BatterySignal, BatteryState } from './types';
 
 /**
  * BatteryManager interface for the Battery Status API.
@@ -38,7 +37,8 @@ const DEFAULT_BATTERY_STATE: BatteryState = {
  * Falls back gracefully to a default state with `supported: false` when
  * the API is not available.
  *
- * @returns A readonly reactive signal with battery state
+ * @returns A readonly reactive signal with battery state and a `destroy()` method
+ * to remove Battery Status API listeners
  *
  * @example
  * ```ts
@@ -54,8 +54,10 @@ const DEFAULT_BATTERY_STATE: BatteryState = {
  * });
  * ```
  */
-export const useBattery = (): ReadonlySignal<BatteryState> => {
+export const useBattery = (): BatterySignal => {
   const s = signal<BatteryState>({ ...DEFAULT_BATTERY_STATE });
+  let cleanup: (() => void) | undefined;
+  let destroyed = false;
 
   if (
     typeof navigator !== 'undefined' &&
@@ -65,6 +67,8 @@ export const useBattery = (): ReadonlySignal<BatteryState> => {
     const nav = navigator as Navigator & { getBattery: () => Promise<BatteryManager> };
 
     nav.getBattery().then((battery) => {
+      if (destroyed) return;
+
       const update = (): void => {
         s.value = {
           supported: true,
@@ -81,10 +85,24 @@ export const useBattery = (): ReadonlySignal<BatteryState> => {
       battery.addEventListener('chargingtimechange', update);
       battery.addEventListener('dischargingtimechange', update);
       battery.addEventListener('levelchange', update);
+      cleanup = () => {
+        battery.removeEventListener('chargingchange', update);
+        battery.removeEventListener('chargingtimechange', update);
+        battery.removeEventListener('dischargingtimechange', update);
+        battery.removeEventListener('levelchange', update);
+      };
     }).catch(() => {
       // Battery API rejected — keep default state
     });
   }
 
-  return readonly(s);
+  const ro = readonly(s) as BatterySignal;
+  ro.destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    cleanup?.();
+    s.dispose();
+  };
+
+  return ro;
 };

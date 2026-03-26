@@ -35,10 +35,10 @@ const customDirectives = new Map<string, CustomDirectiveHandler>();
 const createInstallContext = (): PluginInstallContext => ({
   directive(name: string, handler: CustomDirectiveHandler): void {
     if (typeof name !== 'string' || name.length === 0) {
-      throw new Error('[bq] directive name must be a non-empty string');
+      throw new Error('bQuery plugin directive: name must be a non-empty string');
     }
     if (typeof handler !== 'function') {
-      throw new Error(`[bq] directive handler for "${name}" must be a function`);
+      throw new Error(`bQuery plugin directive: handler for "${name}" must be a function`);
     }
     customDirectives.set(name, handler);
   },
@@ -49,13 +49,13 @@ const createInstallContext = (): PluginInstallContext => ({
     options?: ElementDefinitionOptions
   ): void {
     if (typeof tagName !== 'string' || tagName.length === 0) {
-      throw new Error('[bq] component tagName must be a non-empty string');
+      throw new Error('bQuery plugin component: tagName must be a non-empty string');
     }
     if (typeof constructor !== 'function') {
-      throw new Error(`[bq] component constructor for "${tagName}" must be a function`);
+      throw new Error(`bQuery plugin component: constructor for "${tagName}" must be a function`);
     }
     if (typeof customElements === 'undefined') {
-      throw new Error('[bq] customElements is not available in this environment');
+      throw new Error('bQuery plugin component: customElements is not available in this environment');
     }
     // Idempotent — skip if already defined
     if (!customElements.get(tagName)) {
@@ -97,13 +97,13 @@ export const use = <TOptions = unknown>(
   options?: TOptions
 ): void => {
   if (!plugin || typeof plugin !== 'object') {
-    throw new Error('[bq] use() expects a plugin object with { name, install }');
+    throw new Error('bQuery plugin: use() expects a plugin object with { name, install }');
   }
   if (typeof plugin.name !== 'string' || plugin.name.length === 0) {
-    throw new Error('[bq] plugin must have a non-empty "name" property');
+    throw new Error('bQuery plugin: plugin must have a non-empty "name" property');
   }
   if (typeof plugin.install !== 'function') {
-    throw new Error(`[bq] plugin "${plugin.name}" must have an "install" function`);
+    throw new Error(`bQuery plugin: plugin "${plugin.name}" must have an "install" function`);
   }
 
   // Deduplicate

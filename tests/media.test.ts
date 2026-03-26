@@ -342,6 +342,52 @@ describe('media/useBattery', () => {
       (battery as { value: unknown }).value = { supported: true, charging: true, level: 0.5, chargingTime: 100, dischargingTime: 200 };
     }).toThrow();
   });
+
+  it('removes battery listeners when destroyed', async () => {
+    const originalGetBattery = (navigator as Navigator & { getBattery?: unknown }).getBattery;
+    const handlers = new Map<string, EventListener>();
+    const removed = new Set<string>();
+
+    const batteryManager = {
+      charging: true,
+      chargingTime: 10,
+      dischargingTime: 20,
+      level: 0.5,
+      addEventListener: (type: string, handler: EventListener) => {
+        handlers.set(type, handler);
+      },
+      removeEventListener: (type: string, handler: EventListener) => {
+        if (handlers.get(type) === handler) {
+          removed.add(type);
+        }
+      },
+      dispatchEvent: () => true,
+    } as unknown as EventTarget & {
+      charging: boolean;
+      chargingTime: number;
+      dischargingTime: number;
+      level: number;
+    };
+
+    Object.defineProperty(navigator, 'getBattery', {
+      configurable: true,
+      value: () => Promise.resolve(batteryManager),
+    });
+
+    try {
+      const battery = useBattery();
+      await Promise.resolve();
+      battery.destroy();
+      expect(removed).toEqual(
+        new Set(['chargingchange', 'chargingtimechange', 'dischargingtimechange', 'levelchange'])
+      );
+    } finally {
+      Object.defineProperty(navigator, 'getBattery', {
+        configurable: true,
+        value: originalGetBattery,
+      });
+    }
+  });
 });
 
 // ─── useGeolocation ──────────────────────────────────────────────────────────
@@ -456,6 +502,30 @@ describe('media/useDeviceMotion', () => {
       (motion as { value: unknown }).value = {};
     }).toThrow();
   });
+
+  it('removes the devicemotion listener when destroyed', () => {
+    let addedHandler: EventListener | undefined;
+    let removedHandler: EventListener | undefined;
+    const addSpy = spyOn(window, 'addEventListener').mockImplementation((type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'devicemotion' && typeof listener === 'function') {
+        addedHandler = listener;
+      }
+    });
+    const removeSpy = spyOn(window, 'removeEventListener').mockImplementation((type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'devicemotion' && typeof listener === 'function') {
+        removedHandler = listener;
+      }
+    });
+
+    try {
+      const motion = useDeviceMotion();
+      motion.destroy();
+      expect(removedHandler).toBe(addedHandler);
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
+  });
 });
 
 // ─── useDeviceOrientation ────────────────────────────────────────────────────
@@ -475,6 +545,30 @@ describe('media/useDeviceOrientation', () => {
     expect(() => {
       (orientation as { value: unknown }).value = {};
     }).toThrow();
+  });
+
+  it('removes the deviceorientation listener when destroyed', () => {
+    let addedHandler: EventListener | undefined;
+    let removedHandler: EventListener | undefined;
+    const addSpy = spyOn(window, 'addEventListener').mockImplementation((type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'deviceorientation' && typeof listener === 'function') {
+        addedHandler = listener;
+      }
+    });
+    const removeSpy = spyOn(window, 'removeEventListener').mockImplementation((type: string, listener: EventListenerOrEventListenerObject) => {
+      if (type === 'deviceorientation' && typeof listener === 'function') {
+        removedHandler = listener;
+      }
+    });
+
+    try {
+      const orientation = useDeviceOrientation();
+      orientation.destroy();
+      expect(removedHandler).toBe(addedHandler);
+    } finally {
+      addSpy.mockRestore();
+      removeSpy.mockRestore();
+    }
   });
 });
 

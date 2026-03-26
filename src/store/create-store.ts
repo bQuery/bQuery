@@ -10,6 +10,7 @@ import {
   type ReadonlySignal,
   type Signal,
 } from '../reactive/index';
+import { isPromise } from '../core/utils/type-guards';
 import { notifyDevtoolsStateChange, registerDevtoolsStore } from './devtools';
 import { applyPlugins } from './plugins';
 import { getStore, hasStore, registerStore } from './registry';
@@ -238,7 +239,7 @@ export const createStore = <
       }
 
       // Handle async actions (promises)
-      if (result instanceof Promise) {
+      if (isPromise(result)) {
         return result.then(
           (resolved) => {
             for (const hook of afterHooks) {

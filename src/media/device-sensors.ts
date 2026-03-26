@@ -8,8 +8,7 @@
  */
 
 import { signal, readonly } from '../reactive/index';
-import type { ReadonlySignal } from '../reactive/index';
-import type { DeviceMotionState, DeviceOrientationState } from './types';
+import type { DeviceMotionSignal, DeviceMotionState, DeviceOrientationSignal, DeviceOrientationState } from './types';
 
 /** Default device motion state. */
 const DEFAULT_MOTION_STATE: DeviceMotionState = {
@@ -33,7 +32,8 @@ const DEFAULT_ORIENTATION_STATE: DeviceOrientationState = {
  * Uses the `devicemotion` event to provide acceleration, acceleration
  * including gravity, and rotation rate data.
  *
- * @returns A readonly reactive signal with motion sensor data
+ * @returns A readonly reactive signal with motion sensor data and a `destroy()`
+ * method to remove the underlying event listener
  *
  * @example
  * ```ts
@@ -47,8 +47,9 @@ const DEFAULT_ORIENTATION_STATE: DeviceOrientationState = {
  * });
  * ```
  */
-export const useDeviceMotion = (): ReadonlySignal<DeviceMotionState> => {
+export const useDeviceMotion = (): DeviceMotionSignal => {
   const s = signal<DeviceMotionState>({ ...DEFAULT_MOTION_STATE });
+  let cleanup: (() => void) | undefined;
 
   if (typeof window !== 'undefined') {
     const handler = (e: DeviceMotionEvent): void => {
@@ -73,9 +74,21 @@ export const useDeviceMotion = (): ReadonlySignal<DeviceMotionState> => {
     };
 
     window.addEventListener('devicemotion', handler);
+    cleanup = () => {
+      window.removeEventListener('devicemotion', handler);
+    };
   }
 
-  return readonly(s);
+  const ro = readonly(s) as DeviceMotionSignal;
+  let destroyed = false;
+  ro.destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    cleanup?.();
+    s.dispose();
+  };
+
+  return ro;
 };
 
 /**
@@ -84,7 +97,8 @@ export const useDeviceMotion = (): ReadonlySignal<DeviceMotionState> => {
  * Uses the `deviceorientation` event to provide alpha (compass heading),
  * beta (front-to-back tilt), and gamma (left-to-right tilt) data.
  *
- * @returns A readonly reactive signal with orientation data
+ * @returns A readonly reactive signal with orientation data and a `destroy()`
+ * method to remove the underlying event listener
  *
  * @example
  * ```ts
@@ -98,8 +112,9 @@ export const useDeviceMotion = (): ReadonlySignal<DeviceMotionState> => {
  * });
  * ```
  */
-export const useDeviceOrientation = (): ReadonlySignal<DeviceOrientationState> => {
+export const useDeviceOrientation = (): DeviceOrientationSignal => {
   const s = signal<DeviceOrientationState>({ ...DEFAULT_ORIENTATION_STATE });
+  let cleanup: (() => void) | undefined;
 
   if (typeof window !== 'undefined') {
     const handler = (e: DeviceOrientationEvent): void => {
@@ -112,7 +127,19 @@ export const useDeviceOrientation = (): ReadonlySignal<DeviceOrientationState> =
     };
 
     window.addEventListener('deviceorientation', handler);
+    cleanup = () => {
+      window.removeEventListener('deviceorientation', handler);
+    };
   }
 
-  return readonly(s);
+  const ro = readonly(s) as DeviceOrientationSignal;
+  let destroyed = false;
+  ro.destroy = (): void => {
+    if (destroyed) return;
+    destroyed = true;
+    cleanup?.();
+    s.dispose();
+  };
+
+  return ro;
 };

@@ -57,10 +57,13 @@ export { clipboard } from './clipboard';
 
 // Types
 export type {
+  BatterySignal,
   BatteryState,
   BreakpointMap,
   ClipboardAPI,
+  DeviceMotionSignal,
   DeviceMotionState,
+  DeviceOrientationSignal,
   DeviceOrientationState,
   GeolocationOptions,
   GeolocationSignal,

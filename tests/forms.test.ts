@@ -428,6 +428,31 @@ describe('forms/createForm', () => {
       expect(form.fields.username.error.value).toBe('');
     });
 
+    it('handles thenable validators like async validators', async () => {
+      const form = createForm({
+        fields: {
+          username: {
+            initialValue: 'taken',
+            validators: [
+              ((value: string) =>
+                ({
+                  then: (resolve: (result: string | true) => void) => {
+                    resolve(value === 'taken' ? 'Already taken' : true);
+                  },
+                }) as Promise<string | true>) as never,
+            ],
+          },
+        },
+      });
+
+      await form.validateField('username');
+      expect(form.fields.username.error.value).toBe('Already taken');
+
+      form.fields.username.value.value = 'available';
+      await form.validateField('username');
+      expect(form.fields.username.error.value).toBe('');
+    });
+
     it('handles field without validators', async () => {
       const form = createForm({
         fields: { name: { initialValue: '' } },

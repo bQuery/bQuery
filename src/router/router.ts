@@ -60,6 +60,7 @@ export const createRouter = (options: RouterOptions): Router => {
   // Scroll position storage keyed by history state id
   const scrollPositions = new Map<string, { x: number; y: number }>();
   let currentScrollKey = '0';
+  let scrollKeyCounter = 0;
 
   // Enable manual scroll restoration if scrollRestoration is configured
   if (scrollRestoration && typeof history !== 'undefined' && 'scrollRestoration' in history) {
@@ -85,6 +86,12 @@ export const createRouter = (options: RouterOptions): Router => {
   const getScrollKey = (): string => {
     return (history.state && history.state.__bqScrollKey) || currentScrollKey;
   };
+
+  /**
+   * Generates a unique key for a new history entry.
+   * @internal
+   */
+  const createScrollKey = (): string => `${Date.now()}-${scrollKeyCounter++}`;
 
   /**
    * Saves current scroll position for the current history entry.
@@ -215,7 +222,7 @@ export const createRouter = (options: RouterOptions): Router => {
     // Update browser history
     const existingScrollKey = scrollRestoration ? getScrollKey() : undefined;
     const scrollKey =
-      method === 'replaceState' && existingScrollKey ? existingScrollKey : String(Date.now());
+      method === 'replaceState' && existingScrollKey ? existingScrollKey : createScrollKey();
     const fullPath = useHash ? `#${path}` : `${base}${path}`;
     const state = scrollRestoration ? { __bqScrollKey: scrollKey } : {};
     history[method](state, '', fullPath);

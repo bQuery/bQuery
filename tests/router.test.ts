@@ -2246,6 +2246,34 @@ describe('Router', () => {
       expect(keyAfterReplace).toBe(keyAfterPush);
     });
 
+    it('should generate unique scroll keys for push navigations within the same millisecond', async () => {
+      const nowSpy = spyOn(Date, 'now').mockReturnValue(1234567890);
+
+      try {
+        router = createRouter({
+          routes: [
+            { path: '/', component: () => null },
+            { path: '/page1', component: () => null },
+            { path: '/page2', component: () => null },
+          ],
+          scrollRestoration: true,
+        });
+
+        await router.push('/page1');
+        await router.push('/page2');
+
+        const stack = mockHistory.getStack();
+        const page1Key =
+          (stack[1].state as Record<string, unknown>).__bqScrollKey;
+        const page2Key =
+          (stack[2].state as Record<string, unknown>).__bqScrollKey;
+
+        expect(page1Key).not.toBe(page2Key);
+      } finally {
+        nowSpy.mockRestore();
+      }
+    });
+
     it('should save scroll for the entry being left on popstate and restore the destination entry', async () => {
       const originalScrollX = Object.getOwnPropertyDescriptor(window, 'scrollX');
       const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');

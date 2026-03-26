@@ -71,6 +71,11 @@ export interface BatteryState {
 }
 
 /**
+ * Battery signal handle returned by {@link useBattery}.
+ */
+export type BatterySignal = MediaSignalHandle<BatteryState>;
+
+/**
  * Geolocation state returned by {@link useGeolocation}.
  */
 export interface GeolocationState {
@@ -132,6 +137,11 @@ export interface DeviceMotionState {
 }
 
 /**
+ * Device motion signal handle returned by {@link useDeviceMotion}.
+ */
+export type DeviceMotionSignal = MediaSignalHandle<DeviceMotionState>;
+
+/**
  * Device orientation state returned by {@link useDeviceOrientation}.
  */
 export interface DeviceOrientationState {
@@ -144,6 +154,11 @@ export interface DeviceOrientationState {
   /** Whether the orientation is absolute. */
   absolute: boolean;
 }
+
+/**
+ * Device orientation signal handle returned by {@link useDeviceOrientation}.
+ */
+export type DeviceOrientationSignal = MediaSignalHandle<DeviceOrientationState>;
 
 /**
  * Breakpoint definition map.

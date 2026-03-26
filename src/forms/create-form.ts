@@ -6,6 +6,7 @@
 
 import { signal } from '../reactive/core';
 import { computed } from '../reactive/computed';
+import { isPromise } from '../core/utils/type-guards';
 import type {
   CrossFieldValidator,
   FieldConfig,
@@ -34,7 +35,7 @@ const runValidator = async <T>(
   value: T
 ): Promise<string | undefined> => {
   const result = validator(value);
-  const resolved = result instanceof Promise ? await result : result;
+  const resolved = isPromise(result) ? await result : result;
   return isValid(resolved) ? undefined : (resolved as string);
 };
 
@@ -127,7 +128,7 @@ const validateSingleField = async <T>(
  * });
  *
  * // Read reactive state
- * console.log(form.isValid.value);          // false (initially)
+ * console.log(form.isValid.value);          // true (initially, before validation runs)
  * console.log(form.fields.name.value.value); // ''
  *
  * // Update a field
