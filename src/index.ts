@@ -71,3 +71,6 @@ export type {
   SkipLinkOptions,
   TrapFocusOptions,
 } from './a11y/index';
+
+// DnD module: drag-and-drop, drop zones, sortable lists
+export * from './dnd/index';

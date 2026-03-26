@@ -30,6 +30,7 @@ const entries = {
   forms: resolve(__dirname, 'src/forms/index.ts'),
   i18n: resolve(__dirname, 'src/i18n/index.ts'),
   a11y: resolve(__dirname, 'src/a11y/index.ts'),
+  dnd: resolve(__dirname, 'src/dnd/index.ts'),
 };
 
 /**
@@ -79,6 +80,7 @@ export default defineConfig({
       'bquery/forms': resolve(__dirname, 'src/forms/index.ts'),
       'bquery/i18n': resolve(__dirname, 'src/i18n/index.ts'),
       'bquery/a11y': resolve(__dirname, 'src/a11y/index.ts'),
+      'bquery/dnd': resolve(__dirname, 'src/dnd/index.ts'),
     },
   },
 });

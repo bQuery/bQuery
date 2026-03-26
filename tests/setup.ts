@@ -84,6 +84,47 @@ if (typeof globalThis.crypto === 'undefined') {
 (globalThis as unknown as { HTMLAnchorElement: typeof HTMLAnchorElement }).HTMLAnchorElement =
   window.HTMLAnchorElement as unknown as typeof HTMLAnchorElement;
 
+// Register PointerEvent for dnd tests
+if (typeof globalThis.PointerEvent === 'undefined') {
+  class PointerEventPolyfill extends MouseEvent {
+    readonly pointerId: number;
+    readonly width: number;
+    readonly height: number;
+    readonly pressure: number;
+    readonly tangentialPressure: number;
+    readonly tiltX: number;
+    readonly tiltY: number;
+    readonly twist: number;
+    readonly pointerType: string;
+    readonly isPrimary: boolean;
+
+    constructor(type: string, params: PointerEventInit = {}) {
+      super(type, params);
+      this.pointerId = params.pointerId ?? 0;
+      this.width = params.width ?? 1;
+      this.height = params.height ?? 1;
+      this.pressure = params.pressure ?? 0;
+      this.tangentialPressure = params.tangentialPressure ?? 0;
+      this.tiltX = params.tiltX ?? 0;
+      this.tiltY = params.tiltY ?? 0;
+      this.twist = params.twist ?? 0;
+      this.pointerType = params.pointerType ?? 'mouse';
+      this.isPrimary = params.isPrimary ?? false;
+    }
+
+    getCoalescedEvents(): PointerEvent[] {
+      return [];
+    }
+
+    getPredictedEvents(): PointerEvent[] {
+      return [];
+    }
+  }
+
+  (globalThis as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent =
+    PointerEventPolyfill as unknown as typeof PointerEvent;
+}
+
 // Register getComputedStyle for CSS getter tests
 const boundGetComputedStyle = window.getComputedStyle.bind(window) as unknown as typeof getComputedStyle;
 (globalThis as unknown as { getComputedStyle: typeof getComputedStyle }).getComputedStyle =

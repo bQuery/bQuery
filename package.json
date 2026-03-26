@@ -70,6 +70,10 @@
     "./a11y": {
       "import": "./dist/a11y.es.mjs",
       "types": "./dist/a11y/index.d.ts"
+    },
+    "./dnd": {
+      "import": "./dist/dnd.es.mjs",
+      "types": "./dist/dnd/index.d.ts"
     }
   },
   "files": [

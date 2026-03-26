@@ -339,3 +339,25 @@ export type {
   SkipLinkOptions,
   TrapFocusOptions,
 } from './a11y/index';
+
+// ============================================================================
+// DnD Module: Drag-and-drop, drop zones, sortable lists
+// ============================================================================
+export { draggable } from './dnd/index';
+export { droppable } from './dnd/index';
+export { sortable } from './dnd/index';
+export type {
+  BoundsRect,
+  DragAxis,
+  DragBounds,
+  DragEventData,
+  DragPosition,
+  DraggableHandle,
+  DraggableOptions,
+  DropEventData,
+  DroppableHandle,
+  DroppableOptions,
+  SortEventData,
+  SortableHandle,
+  SortableOptions,
+} from './dnd/index';
