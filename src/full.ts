@@ -361,3 +361,26 @@ export type {
   SortableHandle,
   SortableOptions,
 } from './dnd/index';
+
+// ============================================================================
+// Media Module: Reactive browser and device API signals
+// ============================================================================
+export { mediaQuery } from './media/index';
+export { breakpoints } from './media/index';
+export { useViewport } from './media/index';
+export { useNetworkStatus } from './media/index';
+export { useBattery } from './media/index';
+export { useGeolocation } from './media/index';
+export { useDeviceMotion, useDeviceOrientation } from './media/index';
+export { clipboard } from './media/index';
+export type {
+  BatteryState,
+  BreakpointMap,
+  ClipboardAPI,
+  DeviceMotionState,
+  DeviceOrientationState,
+  GeolocationOptions,
+  GeolocationState,
+  NetworkState,
+  ViewportState,
+} from './media/index';

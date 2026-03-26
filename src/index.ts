@@ -74,3 +74,6 @@ export type {
 
 // DnD module: drag-and-drop, drop zones, sortable lists
 export * from './dnd/index';
+
+// Media module: reactive browser and device API signals
+export * from './media/index';
