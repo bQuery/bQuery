@@ -28,6 +28,18 @@ const normalizeConstraintCaptures = (constraint: string): string => {
     const char = constraint[i];
 
     if (char === '\\' && i + 1 < constraint.length) {
+      if (constraint[i + 1] >= '1' && constraint[i + 1] <= '9') {
+        throw new Error(
+          'bQuery router: Route constraints cannot use backreferences.'
+        );
+      }
+
+      if (constraint[i + 1] === 'k' && constraint[i + 2] === '<') {
+        throw new Error(
+          'bQuery router: Route constraints cannot use backreferences.'
+        );
+      }
+
       normalized += char + constraint[i + 1];
       i++;
       continue;

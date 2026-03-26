@@ -1889,6 +1889,14 @@ describe('Router', () => {
       expect(currentRoute.value.matched?.path).toBe('/item/:slug((?<prefix>foo|bar)-\\d+)');
     });
 
+    it('should reject constraints that use backreferences', () => {
+      expect(() =>
+        createRouter({
+          routes: [{ path: '/item/:slug((foo|bar)-\\1)', component: () => null }],
+        })
+      ).toThrow('bQuery router: Route constraints cannot use backreferences.');
+    });
+
     it('should mix constrained and unconstrained params', async () => {
       router = createRouter({
         routes: [

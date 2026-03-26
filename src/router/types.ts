@@ -36,6 +36,7 @@ type BaseRouteDefinition = {
   /**
    * Path pattern (e.g., '/user/:id', '/posts/*').
    * Supports regex constraints on params: `/user/:id(\\d+)`.
+   * Constraint backreferences are not supported.
    */
   path: string;
   /** Optional route name for programmatic navigation */

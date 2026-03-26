@@ -10,6 +10,9 @@
 import { getStore, listStores } from '../store/index';
 import type { DeserializedStoreState, SerializeOptions } from './types';
 
+const isStoreStateObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
 /**
  * Result of store state serialization.
  */
@@ -133,7 +136,7 @@ export const deserializeStoreState = (
   }
 
   const state = (window as unknown as Record<string, unknown>)[globalKey];
-  if (!state || typeof state !== 'object') {
+  if (!state) {
     return {};
   }
 
@@ -149,6 +152,16 @@ export const deserializeStoreState = (
   const scriptEl = document.getElementById(scriptId);
   if (scriptEl) {
     scriptEl.remove();
+  }
+
+  if (!isStoreStateObject(state)) {
+    return {};
+  }
+
+  for (const value of Object.values(state)) {
+    if (!isStoreStateObject(value)) {
+      return {};
+    }
   }
 
   return state as DeserializedStoreState;

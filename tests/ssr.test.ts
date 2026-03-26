@@ -502,6 +502,21 @@ describe('deserializeStoreState', () => {
     const state = deserializeStoreState();
     expect(state).toEqual({});
   });
+
+  it('returns empty object for array state values', () => {
+    (window as unknown as Record<string, unknown>).__BQUERY_INITIAL_STATE__ = [];
+    const state = deserializeStoreState();
+    expect(state).toEqual({});
+  });
+
+  it('returns empty object when a store entry is not an object', () => {
+    (window as unknown as Record<string, unknown>).__BQUERY_INITIAL_STATE__ = {
+      myStore: 'invalid',
+    };
+
+    const state = deserializeStoreState();
+    expect(state).toEqual({});
+  });
 });
 
 // ============================================================================
