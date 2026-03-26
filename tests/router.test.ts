@@ -2718,7 +2718,7 @@ describe('Router', () => {
       el.remove();
     });
 
-    it('should not navigate on ctrl+click', async () => {
+    it('should navigate on ctrl+click because bq-link has no native browser fallback', async () => {
       router = createRouter({
         routes: [
           { path: '/', component: () => null },
@@ -2739,12 +2739,12 @@ describe('Router', () => {
 
       await new Promise((r) => setTimeout(r, 50));
 
-      expect(currentRoute.value.path).toBe('/');
+      expect(currentRoute.value.path).toBe('/about');
 
       el.remove();
     });
 
-    it('should not navigate on meta+click', async () => {
+    it('should navigate on meta+click because bq-link has no native browser fallback', async () => {
       router = createRouter({
         routes: [
           { path: '/', component: () => null },
@@ -2765,7 +2765,7 @@ describe('Router', () => {
 
       await new Promise((r) => setTimeout(r, 50));
 
-      expect(currentRoute.value.path).toBe('/');
+      expect(currentRoute.value.path).toBe('/about');
 
       el.remove();
     });

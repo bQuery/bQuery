@@ -196,9 +196,11 @@ describe('renderToString', () => {
   it('renders bq-html', () => {
     const result = renderToString(
       '<div><span bq-html="content"></span></div>',
-      { content: '<strong>Bold</strong>' }
+      { content: '<strong onclick="alert(1)">Bold</strong><script>alert(1)</script>' }
     );
     expect(result.html).toContain('<strong>Bold</strong>');
+    expect(result.html).not.toContain('onclick=');
+    expect(result.html).not.toContain('<script');
   });
 
   it('strips directive attributes when stripDirectives is true', () => {
@@ -227,6 +229,26 @@ describe('renderToString', () => {
       { prefix: 'x' }
     );
     expect(result.html).toContain('Custom');
+  });
+
+  it('throws a clear error when DOMParser is unavailable', () => {
+    const originalDOMParser = globalThis.DOMParser;
+
+    try {
+      Object.defineProperty(globalThis, 'DOMParser', {
+        value: undefined,
+        configurable: true,
+        writable: true,
+      });
+
+      expect(() => renderToString('<div></div>', {})).toThrow('DOMParser is not available');
+    } finally {
+      Object.defineProperty(globalThis, 'DOMParser', {
+        value: originalDOMParser,
+        configurable: true,
+        writable: true,
+      });
+    }
   });
 
   it('renders nested elements correctly', () => {

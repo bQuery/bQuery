@@ -9,7 +9,7 @@
  * ## Features
  *
  * - **`renderToString(template, data)`** — Server-side render a bQuery
- *   template to a static HTML string with directive evaluation.
+ *   template to an `SSRResult` containing an `html` string with directive evaluation.
  * - **`hydrateMount(selector, context, { hydrate: true })`** — Reuse
  *   existing server-rendered DOM and attach reactive bindings.
  * - **`serializeStoreState(options?)`** — Serialize store state into a

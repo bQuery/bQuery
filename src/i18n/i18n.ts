@@ -5,6 +5,7 @@
 
 import { signal } from '../reactive/core';
 import { computed } from '../reactive/computed';
+import { clone } from '../core/utils/object';
 import { formatDate, formatNumber } from './formatting';
 import { deepMerge, translate } from './translate';
 import type {
@@ -65,7 +66,7 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
   // Deep-clone initial messages to prevent external mutation
   const messages: Messages = {};
   for (const [loc, msgs] of Object.entries(initialMessages)) {
-    messages[loc] = structuredClone(msgs);
+    messages[loc] = clone(msgs);
   }
 
   // Reactive locale signal
@@ -105,7 +106,7 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
     const loaded = await loader();
     // Handle both default exports and direct objects
     const msgs = (loaded as { default?: LocaleMessages }).default ?? loaded as LocaleMessages;
-    messages[loc] = msgs;
+    messages[loc] = clone(msgs);
     loadedLocales.add(loc);
   };
 

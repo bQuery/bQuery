@@ -105,6 +105,42 @@ describe('i18n/createI18n', () => {
       const i18n = createTestI18n();
       expect(i18n.t('welcome', { name: 42 })).toBe('Welcome, 42!');
     });
+
+    it('should work when structuredClone is unavailable', () => {
+      const originalStructuredClone = globalThis.structuredClone;
+      const input = {
+        en: {
+          nested: {
+            message: 'Hello',
+          },
+        },
+      };
+
+      try {
+        // Simulate older runtimes that lack structuredClone
+        Object.defineProperty(globalThis, 'structuredClone', {
+          value: undefined,
+          configurable: true,
+          writable: true,
+        });
+
+        const i18n = createI18n({
+          locale: 'en',
+          fallbackLocale: 'en',
+          messages: input,
+        });
+
+        input.en.nested.message = 'Mutated externally';
+
+        expect(i18n.t('nested.message')).toBe('Hello');
+      } finally {
+        Object.defineProperty(globalThis, 'structuredClone', {
+          value: originalStructuredClone,
+          configurable: true,
+          writable: true,
+        });
+      }
+    });
   });
 
   describe('pluralization', () => {

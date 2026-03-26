@@ -9,6 +9,7 @@
  */
 
 import { isComputed, isSignal, type Signal } from '../reactive/index';
+import { sanitizeHtml } from '../security/sanitize';
 import type { BindingContext } from '../view/types';
 import type { RenderOptions, SSRResult } from './types';
 import { serializeStoreState } from './serialize';
@@ -145,11 +146,11 @@ const processSSRElement = (
     el.textContent = String(value ?? '');
   }
 
-  // Handle bq-html: set inner HTML (sanitized by default in client)
+  // Handle bq-html: sanitize to match client-side default behavior
   const htmlExpr = el.getAttribute(`${prefix}-html`);
   if (htmlExpr !== null) {
     const value = evaluateSSR(htmlExpr, context);
-    el.innerHTML = String(value ?? '');
+    el.innerHTML = String(sanitizeHtml(String(value ?? '')));
   }
 
   // Handle bq-class: add classes
@@ -374,8 +375,13 @@ export const renderToString = (
     throw new Error('bQuery SSR: template must be a non-empty string.');
   }
 
+  if (typeof DOMParser === 'undefined') {
+    throw new Error(
+      'bQuery SSR: DOMParser is not available in this environment. Provide a DOMParser-compatible implementation before calling renderToString().'
+    );
+  }
+
   // Create a DOM document for processing
-  // Use globalThis.document if available, otherwise DOMParser
   const parser = new DOMParser();
   const doc = parser.parseFromString(template.trim(), 'text/html');
   const body = doc.body || doc.documentElement;

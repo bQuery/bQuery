@@ -181,15 +181,16 @@ export const getCustomDirectives = (): readonly CustomDirective[] =>
 /**
  * Reset all plugin registrations.
  *
- * **For testing only.** Clears installed plugins and custom directives.
+ * Clears all installed plugins and custom directives.
+ *
+ * This utility is primarily intended for tests and other isolated environments
+ * that need to reinitialize plugin state between runs.
  *
  * @example
  * ```ts
  * import { resetPlugins } from '@bquery/bquery/plugin';
  * afterEach(() => resetPlugins());
  * ```
- *
- * @internal
  */
 export const resetPlugins = (): void => {
   installedPlugins.clear();

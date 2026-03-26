@@ -189,10 +189,8 @@ export class BqLinkElement extends HTMLElement {
    * @internal
    */
   private _handleClick = (e: Event): void => {
-    // Allow modifier keys for native browser behavior (new tab, etc.)
     if (e instanceof MouseEvent) {
       if (e.button !== 0) return; // Only left clicks
-      if (e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
     }
 
     e.preventDefault();
