@@ -102,3 +102,6 @@ export type {
   RenderResult,
   WaitForOptions,
 } from './testing/index';
+
+// SSR module: server-side rendering, hydration, store state serialization
+export * from './ssr/index';

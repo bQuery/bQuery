@@ -445,3 +445,24 @@ export type {
   WaitForOptions,
 } from './testing/index';
 export type { Route as TestRoute } from './testing/types';
+
+// ---------------------------------------------------------------------------
+// SSR module
+// ---------------------------------------------------------------------------
+export {
+  renderToString,
+  hydrateMount,
+  serializeStoreState,
+  deserializeStoreState,
+  hydrateStore,
+  hydrateStores,
+} from './ssr/index';
+export type {
+  DeserializedStoreState,
+  HydrateMountOptions,
+  HydrationOptions,
+  RenderOptions,
+  SSRResult,
+  SerializeOptions,
+  SerializeResult,
+} from './ssr/index';

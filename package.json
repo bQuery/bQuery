@@ -90,6 +90,10 @@
     "./testing": {
       "import": "./dist/testing.es.mjs",
       "types": "./dist/testing/index.d.ts"
+    },
+    "./ssr": {
+      "import": "./dist/ssr.es.mjs",
+      "types": "./dist/ssr/index.d.ts"
     }
   },
   "files": [
