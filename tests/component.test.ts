@@ -2173,11 +2173,12 @@ describe('component/useSignal', () => {
     expect(createdSignal).toBeDefined();
     expect(createdSignal!.value).toBe(0);
 
-    // Disconnect the element - should dispose the signal
+    // Disconnect the element - triggers scope disposal which calls signal.dispose()
     el.remove();
 
-    // After disposal, the signal should still be readable but subscribers should be cleared
-    // We verify disposal by checking the signal doesn't throw
+    // After disposal, the signal value is still readable via peek() (no subscribers
+    // to clear since none were registered). The important side effect is that
+    // all subscribers are removed, preventing memory leaks.
     expect(createdSignal!.peek()).toBe(0);
   });
 });
