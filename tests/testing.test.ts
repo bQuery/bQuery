@@ -8,8 +8,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
 import { signal } from '../src/reactive/core';
 import { effect } from '../src/reactive/effect';
 import { batch } from '../src/reactive/batch';
-import { computed } from '../src/reactive/computed';
-import { component, defineComponent } from '../src/component/index';
+import { component } from '../src/component/index';
 import {
   renderComponent,
   flushEffects,
@@ -19,13 +18,7 @@ import {
   waitFor,
 } from '../src/testing/index';
 import type {
-  MockSignal,
   MockRouter,
-  RenderResult,
-  FireEventOptions,
-  MockRouterOptions,
-  RenderComponentOptions,
-  WaitForOptions,
 } from '../src/testing/types';
 
 // ============================================================================
@@ -228,11 +221,10 @@ describe('mockSignal', () => {
     const s = mockSignal(42);
     // initialValue is defined with writable: false — in strict mode
     // (which TypeScript/Bun uses), assigning to it throws a TypeError
-    let threw = false;
     try {
-      (s as Record<string, unknown>).initialValue = 999;
+      (s as unknown as Record<string, unknown>).initialValue = 999;
     } catch {
-      threw = true;
+      // Ignore runtime errors - the invariant we care about is the value staying unchanged.
     }
     // Whether it throws or silently ignores, the value must remain unchanged
     expect(s.initialValue).toBe(42);

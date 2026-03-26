@@ -12,6 +12,20 @@ import type {
   CustomDirectiveHandler,
   PluginInstallContext,
 } from '../src/plugin/index';
+import {
+  createForHandler,
+  handleBind,
+  handleClass,
+  handleHtml,
+  handleIf,
+  handleModel,
+  handleOn,
+  handleRef,
+  handleShow,
+  handleStyle,
+  handleText,
+} from '../src/view/directives/index';
+import { processChildren, processElement } from '../src/view/process';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -30,6 +44,26 @@ const makePlugin = (
 ): BQueryPlugin => ({
   name,
   install: installFn ?? (() => {}),
+});
+
+const createDirectiveHandlers = () => ({
+  text: handleText,
+  html: handleHtml(true),
+  if: handleIf,
+  show: handleShow,
+  class: handleClass,
+  style: handleStyle,
+  model: handleModel,
+  ref: handleRef,
+  for: createForHandler({
+    prefix: 'bq',
+    processElement: (el, context, prefix, cleanups) =>
+      processElement(el, context, prefix, cleanups, createDirectiveHandlers()),
+    processChildren: (el, context, prefix, cleanups) =>
+      processChildren(el, context, prefix, cleanups, createDirectiveHandlers()),
+  }),
+  bind: (attrName: string) => handleBind(attrName),
+  on: (eventName: string) => handleOn(eventName),
 });
 
 // ============================================================================
@@ -79,29 +113,43 @@ describe('Plugin System', () => {
     });
 
     it('should throw for null/undefined plugin', () => {
-      expect(() => use(null as any)).toThrow('[bq] use() expects a plugin object');
-      expect(() => use(undefined as any)).toThrow('[bq] use() expects a plugin object');
+      expect(() => use(null as unknown as BQueryPlugin)).toThrow(
+        '[bq] use() expects a plugin object'
+      );
+      expect(() => use(undefined as unknown as BQueryPlugin)).toThrow(
+        '[bq] use() expects a plugin object'
+      );
     });
 
     it('should throw for non-object plugin', () => {
-      expect(() => use('bad' as any)).toThrow('[bq] use() expects a plugin object');
-      expect(() => use(42 as any)).toThrow('[bq] use() expects a plugin object');
+      expect(() => use('bad' as unknown as BQueryPlugin)).toThrow(
+        '[bq] use() expects a plugin object'
+      );
+      expect(() => use(42 as unknown as BQueryPlugin)).toThrow(
+        '[bq] use() expects a plugin object'
+      );
     });
 
     it('should throw for plugin without name', () => {
-      expect(() => use({ install() {} } as any)).toThrow('non-empty "name"');
+      expect(() => use({ install() {} } as unknown as BQueryPlugin)).toThrow('non-empty "name"');
     });
 
     it('should throw for plugin with empty name', () => {
-      expect(() => use({ name: '', install() {} } as any)).toThrow('non-empty "name"');
+      expect(() => use({ name: '', install() {} } as unknown as BQueryPlugin)).toThrow(
+        'non-empty "name"'
+      );
     });
 
     it('should throw for plugin without install function', () => {
-      expect(() => use({ name: 'no-install' } as any)).toThrow('"install" function');
+      expect(() => use({ name: 'no-install' } as unknown as BQueryPlugin)).toThrow(
+        '"install" function'
+      );
     });
 
     it('should throw for plugin with non-function install', () => {
-      expect(() => use({ name: 'bad-install', install: 'not-fn' } as any)).toThrow(
+      expect(() =>
+        use({ name: 'bad-install', install: 'not-fn' } as unknown as BQueryPlugin)
+      ).toThrow(
         '"install" function'
       );
     });
@@ -223,7 +271,7 @@ describe('Plugin System', () => {
         use({
           name: 'bad-handler',
           install(ctx) {
-            ctx.directive('test', 'not-a-fn' as any);
+            ctx.directive('test', 'not-a-fn' as unknown as CustomDirectiveHandler);
           },
         });
       }).toThrow('must be a function');
@@ -290,7 +338,7 @@ describe('Plugin System', () => {
         use({
           name: 'bad-ctor',
           install(ctx) {
-            ctx.component('bq-bad-ctor', 'not-a-class' as any);
+            ctx.component('bq-bad-ctor', 'not-a-class' as unknown as CustomElementConstructor);
           },
         });
       }).toThrow('must be a function');
@@ -303,22 +351,6 @@ describe('Plugin System', () => {
 
   describe('view integration', () => {
     it('should invoke custom directive handler when processing DOM elements', () => {
-      // Import processElement and handlers from view module
-      const {
-        handleText,
-        handleHtml,
-        handleIf,
-        handleShow,
-        handleClass,
-        handleStyle,
-        handleModel,
-        handleRef,
-        createForHandler,
-        handleBind,
-        handleOn,
-      } = require('../src/view/directives/index');
-      const { processElement } = require('../src/view/process');
-
       const calls: Array<{ el: Element; expr: string }> = [];
 
       // Register a custom directive
@@ -335,19 +367,7 @@ describe('Plugin System', () => {
       const el = document.createElement('div');
       el.setAttribute('bq-highlight', 'yellow');
 
-      const handlers = {
-        text: handleText,
-        html: handleHtml,
-        if: handleIf,
-        show: handleShow,
-        class: handleClass,
-        style: handleStyle,
-        model: handleModel,
-        ref: handleRef,
-        for: createForHandler(processElement, () => {}),
-        bind: (attrName: string) => handleBind.bind(null, attrName),
-        on: (eventName: string) => handleOn.bind(null, eventName),
-      };
+      const handlers = createDirectiveHandlers();
 
       const cleanups: Array<() => void> = [];
       processElement(el, {}, 'bq', cleanups, handlers);
@@ -358,37 +378,10 @@ describe('Plugin System', () => {
     });
 
     it('should not invoke anything for unknown directives when no plugin registers them', () => {
-      const { processElement } = require('../src/view/process');
-      const {
-        handleText,
-        handleHtml,
-        handleIf,
-        handleShow,
-        handleClass,
-        handleStyle,
-        handleModel,
-        handleRef,
-        createForHandler,
-        handleBind,
-        handleOn,
-      } = require('../src/view/directives/index');
-
       const el = document.createElement('div');
       el.setAttribute('bq-unknown', 'test');
 
-      const handlers = {
-        text: handleText,
-        html: handleHtml,
-        if: handleIf,
-        show: handleShow,
-        class: handleClass,
-        style: handleStyle,
-        model: handleModel,
-        ref: handleRef,
-        for: createForHandler(processElement, () => {}),
-        bind: (attrName: string) => handleBind.bind(null, attrName),
-        on: (eventName: string) => handleOn.bind(null, eventName),
-      };
+      const handlers = createDirectiveHandlers();
 
       const cleanups: Array<() => void> = [];
       // Should not throw
@@ -396,21 +389,6 @@ describe('Plugin System', () => {
     });
 
     it('should pass cleanups to custom directive handler', () => {
-      const { processElement } = require('../src/view/process');
-      const {
-        handleText,
-        handleHtml,
-        handleIf,
-        handleShow,
-        handleClass,
-        handleStyle,
-        handleModel,
-        handleRef,
-        createForHandler,
-        handleBind,
-        handleOn,
-      } = require('../src/view/directives/index');
-
       let cleanedUp = false;
 
       use({
@@ -427,19 +405,7 @@ describe('Plugin System', () => {
       const el = document.createElement('div');
       el.setAttribute('bq-autoclean', 'test');
 
-      const handlers = {
-        text: handleText,
-        html: handleHtml,
-        if: handleIf,
-        show: handleShow,
-        class: handleClass,
-        style: handleStyle,
-        model: handleModel,
-        ref: handleRef,
-        for: createForHandler(processElement, () => {}),
-        bind: (attrName: string) => handleBind.bind(null, attrName),
-        on: (eventName: string) => handleOn.bind(null, eventName),
-      };
+      const handlers = createDirectiveHandlers();
 
       const cleanups: Array<() => void> = [];
       processElement(el, {}, 'bq', cleanups, handlers);
@@ -450,21 +416,6 @@ describe('Plugin System', () => {
     });
 
     it('should pass the binding context to custom directive handler', () => {
-      const { processElement } = require('../src/view/process');
-      const {
-        handleText,
-        handleHtml,
-        handleIf,
-        handleShow,
-        handleClass,
-        handleStyle,
-        handleModel,
-        handleRef,
-        createForHandler,
-        handleBind,
-        handleOn,
-      } = require('../src/view/directives/index');
-
       let receivedContext: Record<string, unknown> | undefined;
 
       use({
@@ -481,19 +432,7 @@ describe('Plugin System', () => {
 
       const myContext = { foo: 'bar', count: 42 };
 
-      const handlers = {
-        text: handleText,
-        html: handleHtml,
-        if: handleIf,
-        show: handleShow,
-        class: handleClass,
-        style: handleStyle,
-        model: handleModel,
-        ref: handleRef,
-        for: createForHandler(processElement, () => {}),
-        bind: (attrName: string) => handleBind.bind(null, attrName),
-        on: (eventName: string) => handleOn.bind(null, eventName),
-      };
+      const handlers = createDirectiveHandlers();
 
       processElement(el, myContext, 'bq', [], handlers);
 

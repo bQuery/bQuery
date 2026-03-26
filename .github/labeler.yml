@@ -25,6 +25,36 @@ store:
 view:
   - 'src/view/**'
 
+forms:
+  - 'src/forms/**'
+
+i18n:
+  - 'src/i18n/**'
+
+a11y:
+  - 'src/a11y/**'
+
+dnd:
+  - 'src/dnd/**'
+
+media:
+  - 'src/media/**'
+
+plugin:
+  - 'src/plugin/**'
+
+devtools:
+  - 'src/devtools/**'
+
+testing:
+  - 'src/testing/**'
+
+ssr:
+  - 'src/ssr/**'
+
+storybook:
+  - 'src/storybook/**'
+
 docs:
   - 'docs/**'
   - '*.md'

@@ -21,7 +21,6 @@ import type {
   SignalSnapshot,
   StoreSnapshot,
   ComponentSnapshot,
-  TimelineEntry,
   DevtoolsState,
   TimelineEventType,
 } from '../src/devtools/index';

@@ -267,7 +267,7 @@ export const recordEvent = (type: TimelineEventType, detail: string): void => {
   _timeline.push(entry);
 
   if (_options.logToConsole) {
-    // eslint-disable-next-line no-console
+     
     console.log(`[bq:devtools] ${type} — ${detail}`);
   }
 };
@@ -338,11 +338,11 @@ export const getDevtoolsState = (): DevtoolsState => ({
 export const logSignals = (): void => {
   const signals = inspectSignals();
   if (signals.length === 0) {
-    // eslint-disable-next-line no-console
+     
     console.log('[bq:devtools] No tracked signals.');
     return;
   }
-  // eslint-disable-next-line no-console
+   
   console.table(signals);
 };
 
@@ -358,11 +358,11 @@ export const logSignals = (): void => {
 export const logStores = (): void => {
   const stores = inspectStores();
   if (stores.length === 0) {
-    // eslint-disable-next-line no-console
+     
     console.log('[bq:devtools] No stores registered.');
     return;
   }
-  // eslint-disable-next-line no-console
+   
   console.table(stores.map((s) => ({ id: s.id, state: JSON.stringify(s.state) })));
 };
 
@@ -378,11 +378,11 @@ export const logStores = (): void => {
 export const logComponents = (): void => {
   const components = inspectComponents();
   if (components.length === 0) {
-    // eslint-disable-next-line no-console
+     
     console.log('[bq:devtools] No custom elements found.');
     return;
   }
-  // eslint-disable-next-line no-console
+   
   console.table(components);
 };
 
@@ -400,11 +400,11 @@ export const logComponents = (): void => {
 export const logTimeline = (last?: number): void => {
   const entries = typeof last === 'number' && last > 0 ? _timeline.slice(-last) : _timeline;
   if (entries.length === 0) {
-    // eslint-disable-next-line no-console
+     
     console.log('[bq:devtools] Timeline is empty.');
     return;
   }
-  // eslint-disable-next-line no-console
+   
   console.table(
     entries.map((e) => ({
       time: new Date(e.timestamp).toISOString(),

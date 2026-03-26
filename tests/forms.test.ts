@@ -580,7 +580,7 @@ describe('forms/createForm', () => {
     });
 
     it('calls onSubmit when form is valid', async () => {
-      let received: Record<string, unknown> | null = null;
+      let received: unknown = null;
 
       const form = createForm({
         fields: {
@@ -592,6 +592,7 @@ describe('forms/createForm', () => {
       });
 
       await form.handleSubmit();
+      expect(received).not.toBeNull();
       expect(received).toEqual({ name: 'Ada' });
     });
 

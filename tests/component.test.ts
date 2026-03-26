@@ -16,7 +16,6 @@ import type {
   ComponentDefinition,
   ComponentRenderContext,
   ComponentSignalLike,
-  ShadowMode,
 } from '../src/component/index';
 
 const expectType = <T>(_value: T): void => {};
@@ -2156,7 +2155,6 @@ describe('component/useSignal', () => {
 
   it('auto-disposes signal when component disconnects', () => {
     const tagName = `test-use-signal-dispose-${Date.now()}`;
-    let disposed = false;
     let createdSignal: ReturnType<typeof useSignal<number>> | undefined;
 
     component(tagName, {

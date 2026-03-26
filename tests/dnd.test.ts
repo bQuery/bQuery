@@ -376,12 +376,9 @@ describe('dnd/droppable', () => {
     box.classList.add('bq-dragging');
     container.appendChild(box);
 
-    let enterCalled = false;
     const handle = droppable(zone, {
       accept: (el) => el.id === 'test-box',
-      onDragEnter: () => {
-        enterCalled = true;
-      },
+      onDragEnter: () => undefined,
     });
 
     // Simulate pointer inside zone bounds
@@ -403,11 +400,8 @@ describe('dnd/droppable', () => {
     box.classList.add('bq-dragging');
     container.appendChild(box);
 
-    let dropped = false;
     const handle = droppable(zone, {
-      onDrop: () => {
-        dropped = true;
-      },
+      onDrop: () => undefined,
     });
 
     // In happy-dom, getBoundingClientRect returns zeros, so we test the wiring

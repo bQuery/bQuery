@@ -2,7 +2,7 @@
  * Tests for the bQuery media module.
  */
 
-import { describe, it, expect, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import { mediaQuery } from '../src/media/media-query';
 import { breakpoints } from '../src/media/breakpoints';
 import { useViewport } from '../src/media/viewport';

@@ -284,7 +284,7 @@ describe('renderToString', () => {
   });
 
   it('includes store state when includeStoreState is true', () => {
-    const store = createStore({
+    createStore({
       id: 'ssr-render-test',
       state: () => ({ count: 99 }),
     });
@@ -303,8 +303,8 @@ describe('renderToString', () => {
   });
 
   it('includes only specified store IDs when includeStoreState is array', () => {
-    const store1 = createStore({ id: 'ssr-a', state: () => ({ x: 1 }) });
-    const store2 = createStore({ id: 'ssr-b', state: () => ({ y: 2 }) });
+    createStore({ id: 'ssr-a', state: () => ({ x: 1 }) });
+    createStore({ id: 'ssr-b', state: () => ({ y: 2 }) });
     try {
       const result = renderToString(
         '<div></div>',
@@ -334,8 +334,8 @@ describe('serializeStoreState', () => {
   });
 
   it('serializes all stores by default', () => {
-    const s1 = createStore({ id: 'serialize-a', state: () => ({ val: 'hello' }) });
-    const s2 = createStore({ id: 'serialize-b', state: () => ({ num: 42 }) });
+    createStore({ id: 'serialize-a', state: () => ({ val: 'hello' }) });
+    createStore({ id: 'serialize-b', state: () => ({ num: 42 }) });
 
     const result = serializeStoreState();
     const parsed = JSON.parse(result.stateJson);
@@ -676,7 +676,7 @@ describe('SSR → Hydration integration', () => {
       state: () => ({ count: 42 }),
     });
 
-    const { html } = renderToString(
+    renderToString(
       '<div><span bq-text="count"></span></div>',
       { count: serverStore.count }
     );
