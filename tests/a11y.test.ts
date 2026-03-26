@@ -552,9 +552,16 @@ describe('a11y/skipLink', () => {
   });
 
   it('should prepend # when targetSelector lacks it', () => {
+    const target = document.createElement('div');
+    target.id = 'main-section';
+    document.body.appendChild(target);
+
     const handle = skipLink('main-section');
     expect(handle.element.href).toContain('#main-section');
+    handle.element.click();
+    expect(target.getAttribute('tabindex')).toBe('-1');
     handle.destroy();
+    target.remove();
   });
 });
 

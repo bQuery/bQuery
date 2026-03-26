@@ -40,7 +40,27 @@ const normalizeConstraintCaptures = (constraint: string): string => {
     }
 
     if (char === '(') {
-      normalized += i + 1 < constraint.length && constraint[i + 1] === '?' ? '(' : '(?:';
+      if (i + 1 < constraint.length && constraint[i + 1] === '?') {
+        if (constraint[i + 2] === '<') {
+          if (constraint[i + 3] === '=' || constraint[i + 3] === '!') {
+            normalized += '(';
+            continue;
+          }
+
+          const namedCaptureEnd = constraint.indexOf('>', i + 3);
+          if (namedCaptureEnd === -1) {
+            throw new Error('bQuery router: Invalid route constraint named capture group.');
+          }
+          normalized += '(?:';
+          i = namedCaptureEnd;
+          continue;
+        }
+
+        normalized += '(';
+        continue;
+      }
+
+      normalized += '(?:';
       continue;
     }
 

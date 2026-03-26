@@ -61,9 +61,10 @@ export const skipLink = (
   options: SkipLinkOptions = {}
 ): SkipLinkHandle => {
   const { text = 'Skip to main content', className = 'bq-skip-link' } = options;
+  const normalizedTargetSelector = targetSelector.startsWith('#') ? targetSelector : `#${targetSelector}`;
 
   const link = document.createElement('a');
-  link.href = targetSelector.startsWith('#') ? targetSelector : `#${targetSelector}`;
+  link.href = normalizedTargetSelector;
   link.textContent = text;
   link.className = className;
   link.setAttribute('style', DEFAULT_STYLES);
@@ -78,7 +79,7 @@ export const skipLink = (
 
   link.addEventListener('click', (e) => {
     e.preventDefault();
-    const target = document.querySelector(targetSelector) as HTMLElement | null;
+    const target = document.querySelector(normalizedTargetSelector) as HTMLElement | null;
     if (target) {
       // Make the target focusable if it isn't already
       if (!target.hasAttribute('tabindex')) {

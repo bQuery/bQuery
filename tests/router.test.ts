@@ -970,6 +970,22 @@ describe('Router', () => {
       expect(resolve('search', { query: 'hello world' })).toBe('/search/hello%20world');
     });
 
+    it('should strip param constraints when resolving named routes', () => {
+      router = createRouter({
+        routes: [{ path: '/user/:id(\\d+)', component: () => null, name: 'user' }],
+      });
+
+      expect(resolve('user', { id: '42' })).toBe('/user/42');
+    });
+
+    it('should throw error when a required param is missing', () => {
+      router = createRouter({
+        routes: [{ path: '/user/:id(\\d+)', component: () => null, name: 'user' }],
+      });
+
+      expect(() => resolve('user')).toThrow('Missing required param "id" for route "user"');
+    });
+
     it('should throw error for unknown route name', () => {
       router = createRouter({
         routes: [{ path: '/', component: () => null, name: 'home' }],
@@ -1844,6 +1860,19 @@ describe('Router', () => {
       await router.push('/item/foo-42');
       expect(currentRoute.value.params).toEqual({ slug: 'foo-42' });
       expect(currentRoute.value.matched?.path).toBe('/item/:slug((foo|bar)-\\d+)');
+    });
+
+    it('should ignore named capturing groups inside param constraints when extracting params', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/item/:slug((?<prefix>foo|bar)-\\d+)', component: () => null },
+          { path: '*', component: () => null },
+        ],
+      });
+
+      await router.push('/item/bar-42');
+      expect(currentRoute.value.params).toEqual({ slug: 'bar-42' });
+      expect(currentRoute.value.matched?.path).toBe('/item/:slug((?<prefix>foo|bar)-\\d+)');
     });
 
     it('should mix constrained and unconstrained params', async () => {
