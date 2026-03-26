@@ -80,3 +80,6 @@ export * from './media/index';
 
 // Plugin module: global plugin registration system
 export * from './plugin/index';
+
+// DevTools module: runtime debugging utilities
+export * from './devtools/index';

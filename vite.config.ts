@@ -33,6 +33,7 @@ const entries = {
   dnd: resolve(__dirname, 'src/dnd/index.ts'),
   media: resolve(__dirname, 'src/media/index.ts'),
   plugin: resolve(__dirname, 'src/plugin/index.ts'),
+  devtools: resolve(__dirname, 'src/devtools/index.ts'),
 };
 
 /**
@@ -85,6 +86,7 @@ export default defineConfig({
       'bquery/dnd': resolve(__dirname, 'src/dnd/index.ts'),
       'bquery/media': resolve(__dirname, 'src/media/index.ts'),
       'bquery/plugin': resolve(__dirname, 'src/plugin/index.ts'),
+      'bquery/devtools': resolve(__dirname, 'src/devtools/index.ts'),
     },
   },
 });

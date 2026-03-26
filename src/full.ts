@@ -392,3 +392,34 @@ export type {
 // ---------------------------------------------------------------------------
 export { use, isInstalled, getInstalledPlugins, getCustomDirective, getCustomDirectives, resetPlugins } from './plugin/index';
 export type { BQueryPlugin, CustomDirective, CustomDirectiveHandler, PluginInstallContext } from './plugin/index';
+
+// ---------------------------------------------------------------------------
+// DevTools module
+// ---------------------------------------------------------------------------
+export {
+  enableDevtools,
+  isDevtoolsEnabled,
+  trackSignal,
+  untrackSignal,
+  generateSignalLabel,
+  inspectSignals,
+  inspectStores,
+  inspectComponents,
+  recordEvent,
+  getTimeline,
+  clearTimeline,
+  getDevtoolsState,
+  logSignals,
+  logStores,
+  logComponents,
+  logTimeline,
+} from './devtools/index';
+export type {
+  ComponentSnapshot,
+  DevtoolsOptions,
+  DevtoolsState,
+  SignalSnapshot,
+  StoreSnapshot,
+  TimelineEntry,
+  TimelineEventType,
+} from './devtools/index';

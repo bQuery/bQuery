@@ -82,6 +82,10 @@
     "./plugin": {
       "import": "./dist/plugin.es.mjs",
       "types": "./dist/plugin/index.d.ts"
+    },
+    "./devtools": {
+      "import": "./dist/devtools.es.mjs",
+      "types": "./dist/devtools/index.d.ts"
     }
   },
   "files": [
