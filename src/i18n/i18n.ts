@@ -158,7 +158,7 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
       messages[loc] = {};
       loadedLocales.add(loc);
     }
-    deepMerge(messages[loc], newMessages);
+    messages[loc] = deepMerge(messages[loc], newMessages);
   };
 
   /**

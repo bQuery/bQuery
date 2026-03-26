@@ -313,6 +313,15 @@ describe('i18n/createI18n', () => {
       i18n.$locale.value = 'ja';
       expect(i18n.t('greeting')).toBe('こんにちは');
     });
+
+    it('should not allow prototype pollution keys during merge', () => {
+      const i18n = createTestI18n();
+      i18n.mergeMessages('en', JSON.parse('{\"__proto__\":{\"polluted\":\"yes\"},\"safe\":\"ok\"}'));
+
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      expect(i18n.t('safe')).toBe('ok');
+      expect(Object.getPrototypeOf(i18n.getMessages('en'))).toBeNull();
+    });
   });
 
   describe('getMessages', () => {

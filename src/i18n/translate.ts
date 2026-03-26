@@ -159,6 +159,8 @@ export const deepMerge = (target: LocaleMessages, source: LocaleMessages): Local
     source as Record<string, unknown>
   ) as LocaleMessages;
 
-  Object.assign(target, merged);
-  return target;
+  const safeResult = Object.create(null) as LocaleMessages;
+  Object.assign(safeResult, merged);
+
+  return safeResult;
 };
