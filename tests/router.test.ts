@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import {
   back,
+  BqLinkElement,
   createRouter,
   currentRoute,
   forward,
@@ -16,6 +17,7 @@ import {
   isActiveSignal,
   link,
   navigate,
+  registerBqLink,
   resolve,
   type Route,
   type RouteDefinition,
@@ -2198,6 +2200,496 @@ describe('Router', () => {
       const lastEntry = stack[stack.length - 1];
       expect(lastEntry.state).toHaveProperty('__bqScrollKey');
       expect(typeof (lastEntry.state as Record<string, unknown>).__bqScrollKey).toBe('string');
+    });
+  });
+
+  // ==========================================================================
+  // <bq-link> Custom Element
+  // ==========================================================================
+  describe('bq-link custom element', () => {
+    let mockHistory: ReturnType<typeof setupMockHistory>;
+    let router: Router;
+
+    beforeEach(() => {
+      mockHistory = setupMockHistory();
+      registerBqLink();
+    });
+
+    afterEach(() => {
+      router?.destroy();
+      mockHistory.restore();
+    });
+
+    it('should export BqLinkElement and registerBqLink', () => {
+      expect(BqLinkElement).toBeDefined();
+      expect(typeof registerBqLink).toBe('function');
+    });
+
+    it('should register the custom element idempotently', () => {
+      registerBqLink();
+      // Second call should not throw
+      registerBqLink();
+      expect(customElements.get('bq-link')).toBe(BqLinkElement);
+    });
+
+    it('should create a bq-link element with default attributes', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      document.body.appendChild(el);
+
+      expect(el.to).toBe('/');
+      expect(el.replace).toBe(false);
+      expect(el.exact).toBe(false);
+      expect(el.activeClass).toBe('active');
+
+      el.remove();
+    });
+
+    it('should set and get the "to" attribute', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      expect(el.to).toBe('/about');
+      expect(el.getAttribute('to')).toBe('/about');
+
+      el.remove();
+    });
+
+    it('should set and get the "replace" attribute', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      document.body.appendChild(el);
+
+      expect(el.replace).toBe(false);
+
+      el.replace = true;
+      expect(el.hasAttribute('replace')).toBe(true);
+
+      el.replace = false;
+      expect(el.hasAttribute('replace')).toBe(false);
+
+      el.remove();
+    });
+
+    it('should set and get the "exact" attribute', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      document.body.appendChild(el);
+
+      expect(el.exact).toBe(false);
+
+      el.exact = true;
+      expect(el.hasAttribute('exact')).toBe(true);
+
+      el.exact = false;
+      expect(el.hasAttribute('exact')).toBe(false);
+
+      el.remove();
+    });
+
+    it('should set and get the "activeClass" attribute', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      document.body.appendChild(el);
+
+      expect(el.activeClass).toBe('active');
+
+      el.activeClass = 'selected';
+      expect(el.getAttribute('active-class')).toBe('selected');
+      expect(el.activeClass).toBe('selected');
+
+      el.remove();
+    });
+
+    it('should set role="link" and tabindex on connect', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      document.body.appendChild(el);
+
+      expect(el.getAttribute('role')).toBe('link');
+      expect(el.getAttribute('tabindex')).toBe('0');
+
+      el.remove();
+    });
+
+    it('should not override existing role attribute', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.setAttribute('role', 'button');
+      document.body.appendChild(el);
+
+      expect(el.getAttribute('role')).toBe('button');
+
+      el.remove();
+    });
+
+    it('should not override existing tabindex', () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.setAttribute('tabindex', '-1');
+      document.body.appendChild(el);
+
+      expect(el.getAttribute('tabindex')).toBe('-1');
+
+      el.remove();
+    });
+
+    it('should apply active class when path matches', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/';
+      document.body.appendChild(el);
+
+      // Wait for effect to run
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(el.classList.contains('active')).toBe(true);
+      expect(el.getAttribute('aria-current')).toBe('page');
+
+      el.remove();
+    });
+
+    it('should remove active class when path does not match', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/nonexistent-path-xyz';
+      el.exact = true;
+      document.body.appendChild(el);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(el.classList.contains('active')).toBe(false);
+      expect(el.getAttribute('aria-current')).toBeNull();
+
+      el.remove();
+    });
+
+    it('should apply custom active class', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/';
+      el.activeClass = 'selected';
+      document.body.appendChild(el);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(el.classList.contains('selected')).toBe(true);
+      expect(el.classList.contains('active')).toBe(false);
+
+      el.remove();
+    });
+
+    it('should match with startsWith by default (not exact)', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      await router.push('/about');
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/';
+      document.body.appendChild(el);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      // '/about'.startsWith('/') is true
+      expect(el.classList.contains('active')).toBe(true);
+
+      el.remove();
+    });
+
+    it('should not match prefix when exact is set', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      await router.push('/about');
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/';
+      el.exact = true;
+      document.body.appendChild(el);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      // '/about' !== '/' with exact
+      expect(el.classList.contains('active')).toBe(false);
+
+      el.remove();
+    });
+
+    it('should navigate on click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      const event = new MouseEvent('click', { button: 0, bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/about');
+
+      el.remove();
+    });
+
+    it('should navigate on Enter keypress', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/about');
+
+      el.remove();
+    });
+
+    it('should navigate on Space keypress', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+          { path: '/contact', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/contact';
+      document.body.appendChild(el);
+
+      const event = new KeyboardEvent('keydown', { key: ' ', bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/contact');
+
+      el.remove();
+    });
+
+    it('should not navigate on non-left click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      // Middle-click (button 1)
+      const event = new MouseEvent('click', { button: 1, bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/');
+
+      el.remove();
+    });
+
+    it('should not navigate on ctrl+click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      const event = new MouseEvent('click', {
+        button: 0,
+        ctrlKey: true,
+        bubbles: true,
+      });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/');
+
+      el.remove();
+    });
+
+    it('should not navigate on meta+click', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      const event = new MouseEvent('click', {
+        button: 0,
+        metaKey: true,
+        bubbles: true,
+      });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/');
+
+      el.remove();
+    });
+
+    it('should use replace navigation when replace attribute is set', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      el.replace = true;
+      document.body.appendChild(el);
+
+      const initialLength = mockHistory.getStack().length;
+
+      const event = new MouseEvent('click', { button: 0, bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/about');
+      // Replace should not increase history length
+      expect(mockHistory.getStack().length).toBe(initialLength);
+
+      el.remove();
+    });
+
+    it('should cleanup effect on disconnect', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/';
+      document.body.appendChild(el);
+
+      await new Promise((r) => setTimeout(r, 10));
+
+      expect(el.classList.contains('active')).toBe(true);
+
+      // Disconnect
+      el.remove();
+
+      // Should not throw after disconnect
+      await router.push('/about');
+      await new Promise((r) => setTimeout(r, 10));
+    });
+
+    it('should update active class when "to" attribute changes', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+          { path: '/contact', component: () => null },
+        ],
+      });
+
+      await router.push('/about');
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      el.exact = true;
+      document.body.appendChild(el);
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(el.classList.contains('active')).toBe(true);
+
+      // Change target path
+      el.to = '/contact';
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(el.classList.contains('active')).toBe(false);
+
+      el.remove();
+    });
+
+    it('should handle empty "to" attribute gracefully', async () => {
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.setAttribute('to', '');
+      document.body.appendChild(el);
+
+      // Should not throw (no router but we catch errors)
+      const event = new MouseEvent('click', { button: 0, bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      el.remove();
+    });
+
+    it('should not navigate on non-Enter/Space key', async () => {
+      router = createRouter({
+        routes: [
+          { path: '/', component: () => null },
+          { path: '/about', component: () => null },
+        ],
+      });
+
+      const el = document.createElement('bq-link') as BqLinkElement;
+      el.to = '/about';
+      document.body.appendChild(el);
+
+      const event = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true });
+      el.dispatchEvent(event);
+
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(currentRoute.value.path).toBe('/');
+
+      el.remove();
     });
   });
 });

@@ -39,6 +39,7 @@
  * ```
  */
 
+export { BqLinkElement, registerBqLink } from './bq-link';
 export { interceptLinks, link } from './links';
 export { back, forward, navigate } from './navigation';
 export { createRouter } from './router';

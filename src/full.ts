@@ -210,6 +210,7 @@ export type {
 // ============================================================================
 export {
   back,
+  BqLinkElement,
   createRouter,
   currentRoute,
   forward,
@@ -218,6 +219,7 @@ export {
   isActiveSignal,
   link,
   navigate,
+  registerBqLink,
   resolve,
   useRoute,
 } from './router/index';
