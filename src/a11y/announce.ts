@@ -13,6 +13,15 @@ import type { AnnouncePriority } from './types';
 const liveRegions = new Map<AnnouncePriority, HTMLElement>();
 
 /**
+ * Delay in milliseconds before updating the live region text.
+ * This ensures screen readers detect the content change even when
+ * the same message is announced consecutively — clearing first and
+ * setting after a microtask forces a new live-region mutation event.
+ * @internal
+ */
+const ANNOUNCEMENT_DELAY_MS = 50;
+
+/**
  * Gets or creates a visually-hidden ARIA live region for the given priority.
  *
  * @param priority - The aria-live priority level
@@ -84,7 +93,7 @@ export const announceToScreenReader = (
   // Use setTimeout to ensure the DOM update triggers a live region change event
   setTimeout(() => {
     region.textContent = message;
-  }, 50);
+  }, ANNOUNCEMENT_DELAY_MS);
 };
 
 /**
