@@ -47,9 +47,7 @@ const pathToRegex = (path: string): RegExp => {
   // Step 4: Restore param capture groups with their constraints
   for (let i = 0; i < paramPlaceholders.length; i++) {
     const marker = `\u0000P${i}\u0000`;
-    // The marker may have been partially escaped, so match the escaped version too
-    const escapedMarker = marker.replace(/\u0000/g, '\u0000');
-    pattern = pattern.replace(escapedMarker, `(${paramPlaceholders[i]})`);
+    pattern = pattern.replace(marker, `(${paramPlaceholders[i]})`);
   }
 
   // Step 5: Restore wildcards as .*
