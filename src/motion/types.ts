@@ -266,6 +266,6 @@ export interface TypewriterOptions {
 export interface TypewriterControls {
   /** Stop the animation and clean up */
   stop(): void;
-  /** Promise that resolves when the animation finishes (or after first loop iteration) */
+  /** Promise that resolves when the animation finishes, or when a looping animation is stopped */
   done: Promise<void>;
 }

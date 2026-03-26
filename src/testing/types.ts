@@ -4,7 +4,17 @@
  */
 
 import type { Signal } from '../reactive/core';
-import type { RouteDefinition } from '../router/types';
+// ---------------------------------------------------------------------------
+// renderComponent
+// ---------------------------------------------------------------------------
+
+/**
+ * Minimal route shape accepted by the testing mock router.
+ */
+export interface MockRouteDefinition {
+  path: string;
+  [key: string]: unknown;
+}
 
 // ---------------------------------------------------------------------------
 // renderComponent
@@ -93,7 +103,7 @@ export interface MockSignal<T> extends Signal<T> {
  */
 export interface MockRouterOptions {
   /** Route definitions. Defaults to a single catch-all route. */
-  routes?: RouteDefinition[];
+  routes?: MockRouteDefinition[];
   /** Initial path. Defaults to '/'. */
   initialPath?: string;
   /** Base path. Defaults to ''. */
@@ -111,7 +121,7 @@ export interface MockRouter {
   /** The current route (reactive signal). */
   readonly currentRoute: Signal<Route>;
   /** Registered routes. */
-  readonly routes: RouteDefinition[];
+  readonly routes: MockRouteDefinition[];
   /** Destroy and clean up. */
   destroy(): void;
 }
@@ -123,7 +133,7 @@ export interface Route {
   path: string;
   params: Record<string, string>;
   query: Record<string, string | string[]>;
-  matched: RouteDefinition | null;
+  matched: MockRouteDefinition | null;
   hash: string;
 }
 

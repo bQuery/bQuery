@@ -12,6 +12,7 @@ import { Signal, signal } from '../reactive/core';
 import { batch } from '../reactive/batch';
 import type {
   FireEventOptions,
+  MockRouteDefinition,
   MockRouter,
   MockRouterOptions,
   MockSignal,
@@ -20,7 +21,6 @@ import type {
   Route,
   WaitForOptions,
 } from './types';
-import type { RouteDefinition } from '../router/types';
 
 // ============================================================================
 // renderComponent
@@ -283,8 +283,8 @@ function parsePath(fullPath: string, base: string): { path: string; query: Recor
  */
 function matchRoute(
   path: string,
-  routes: RouteDefinition[]
-): { matched: RouteDefinition | null; params: Record<string, string> } {
+  routes: MockRouteDefinition[]
+): { matched: MockRouteDefinition | null; params: Record<string, string> } {
   for (const route of routes) {
     const { regex, paramNames } = buildRouteRegex(route.path);
     const match = path.match(regex);
@@ -400,7 +400,7 @@ export function mockRouter(options: MockRouterOptions = {}): MockRouter {
     get currentRoute(): Signal<Route> {
       return routeSignal;
     },
-    get routes(): RouteDefinition[] {
+    get routes(): MockRouteDefinition[] {
       return routes;
     },
     destroy(): void {

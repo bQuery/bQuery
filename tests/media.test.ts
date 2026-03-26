@@ -262,6 +262,33 @@ describe('media/useNetworkStatus', () => {
     }).toThrow();
   });
 
+  it('does not require navigator to exist when window is available', () => {
+    const originalNavigator = globalThis.navigator;
+    const hadNavigator = Object.prototype.hasOwnProperty.call(globalThis, 'navigator');
+
+    try {
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: undefined,
+      });
+
+      const net = useNetworkStatus();
+      expect(net.value.online).toBe(true);
+      expect(net.value.effectiveType).toBe('unknown');
+      expect(() => net.destroy()).not.toThrow();
+    } finally {
+      if (hadNavigator) {
+        Object.defineProperty(globalThis, 'navigator', {
+          configurable: true,
+          value: originalNavigator,
+        });
+      } else {
+        // @ts-expect-error cleanup for test-only global mutation
+        delete globalThis.navigator;
+      }
+    }
+  });
+
   it('removes network listeners when destroyed', () => {
     let onlineHandler: (() => void) | undefined;
     let offlineHandler: (() => void) | undefined;

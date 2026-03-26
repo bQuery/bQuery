@@ -63,8 +63,15 @@ export const createStore = <
   // Action lifecycle hooks for $onAction
   const actionListeners: Array<OnActionCallback> = [];
 
-  const reportOnActionError = (phase: 'listener' | 'after' | 'onError', error: unknown): void => {
-    console.error(`bQuery store: Error in $onAction ${phase}`, error);
+  const reportOnActionError = (
+    phase: 'listener' | 'after' | 'onError',
+    actionName: string,
+    error: unknown
+  ): void => {
+    console.error(
+      `bQuery store: Error in $onAction ${phase} for store "${id}" action "${actionName}"`,
+      error
+    );
   };
 
   /**
@@ -232,7 +239,7 @@ export const createStore = <
             onError: (cb) => errorHooks.push(cb),
           });
         } catch (error) {
-          reportOnActionError('listener', error);
+          reportOnActionError('listener', actionName, error);
         }
       }
 
@@ -244,7 +251,7 @@ export const createStore = <
           try {
             hook(error);
           } catch (hookError) {
-            reportOnActionError('onError', hookError);
+            reportOnActionError('onError', actionName, hookError);
           }
         }
         throw error;
@@ -258,7 +265,7 @@ export const createStore = <
               try {
                 hook(resolved);
               } catch (hookError) {
-                reportOnActionError('after', hookError);
+                reportOnActionError('after', actionName, hookError);
               }
             }
             return resolved;
@@ -268,7 +275,7 @@ export const createStore = <
               try {
                 hook(error);
               } catch (hookError) {
-                reportOnActionError('onError', hookError);
+                reportOnActionError('onError', actionName, hookError);
               }
             }
             throw error;
@@ -281,7 +288,7 @@ export const createStore = <
         try {
           hook(result);
         } catch (hookError) {
-          reportOnActionError('after', hookError);
+          reportOnActionError('after', actionName, hookError);
         }
       }
       return result;

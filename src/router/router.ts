@@ -12,6 +12,8 @@ import { flattenRoutes } from './utils';
 // Router Creation
 // ============================================================================
 
+const MAX_SCROLL_POSITION_ENTRIES = 100;
+
 /**
  * Creates and initializes a router instance.
  *
@@ -99,7 +101,17 @@ export const createRouter = (options: RouterOptions): Router => {
    */
   const saveScrollPosition = (key = getScrollKey()): void => {
     if (!scrollRestoration) return;
+    if (scrollPositions.has(key)) {
+      scrollPositions.delete(key);
+    }
     scrollPositions.set(key, { x: window.scrollX, y: window.scrollY });
+    while (scrollPositions.size > MAX_SCROLL_POSITION_ENTRIES) {
+      const oldestKey = scrollPositions.keys().next().value as string | undefined;
+      if (oldestKey === undefined) {
+        break;
+      }
+      scrollPositions.delete(oldestKey);
+    }
   };
 
   /**

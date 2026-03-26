@@ -87,15 +87,18 @@ export const useNetworkStatus = (): NetworkSignal => {
     window.addEventListener('online', update);
     window.addEventListener('offline', update);
 
-    const nav = navigator as NavigatorWithConnection;
-    if (nav.connection) {
+    const nav =
+      typeof navigator !== 'undefined'
+        ? (navigator as NavigatorWithConnection)
+        : undefined;
+    if (nav?.connection) {
       nav.connection.addEventListener('change', update);
     }
 
     cleanup = () => {
       window.removeEventListener('online', update);
       window.removeEventListener('offline', update);
-      nav.connection?.removeEventListener('change', update);
+      nav?.connection?.removeEventListener('change', update);
     };
   }
 

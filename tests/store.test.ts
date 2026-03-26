@@ -2,7 +2,7 @@
  * Store module tests
  */
 
-import { beforeEach, describe, expect, it } from 'bun:test';
+import { beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { effect } from '../src/reactive/index';
 import type { StorageBackend } from '../src/store/index';
 import {
@@ -914,19 +914,33 @@ describe('Store', () => {
           },
         },
       });
+      const consoleErrorSpy = spyOn(console, 'error').mockImplementation(() => {});
 
-      store.$onAction(({ after, onError }) => {
-        after(() => {
-          throw new Error('after hook boom');
+      try {
+        store.$onAction(({ after, onError }) => {
+          after(() => {
+            throw new Error('after hook boom');
+          });
+          onError(() => {
+            throw new Error('error hook boom');
+          });
+          throw new Error('listener boom');
         });
-        onError(() => {
-          throw new Error('error hook boom');
-        });
-        throw new Error('listener boom');
-      });
 
-      expect(store.increment()).toBe(1);
-      await expect(store.failAsync()).rejects.toThrow('async boom');
+        expect(store.increment()).toBe(1);
+        await expect(store.failAsync()).rejects.toThrow('async boom');
+
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('store "on-action-safe-hooks" action "increment"'),
+          expect.any(Error)
+        );
+        expect(consoleErrorSpy).toHaveBeenCalledWith(
+          expect.stringContaining('store "on-action-safe-hooks" action "failAsync"'),
+          expect.any(Error)
+        );
+      } finally {
+        consoleErrorSpy.mockRestore();
+      }
     });
   });
 

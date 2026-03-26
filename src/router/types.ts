@@ -32,30 +32,18 @@ export type Route = {
 /**
  * Route definition for configuration.
  */
-export type RouteDefinition = {
+type BaseRouteDefinition = {
   /**
    * Path pattern (e.g., '/user/:id', '/posts/*').
    * Supports regex constraints on params: `/user/:id(\\d+)`.
    */
   path: string;
-  /** Component loader (sync or async) */
-  component?: () => unknown | Promise<unknown>;
   /** Optional route name for programmatic navigation */
   name?: string;
   /** Optional metadata */
   meta?: Record<string, unknown>;
   /** Nested child routes */
   children?: RouteDefinition[];
-  /**
-   * Redirect target path. When the route is matched, the router
-   * automatically navigates to this path instead.
-   *
-   * @example
-   * ```ts
-   * { path: '/old-page', redirectTo: '/new-page' }
-   * ```
-   */
-  redirectTo?: string;
   /**
    * Per-route navigation guard. Called before entering this route.
    * Return `false` to cancel navigation.
@@ -71,6 +59,28 @@ export type RouteDefinition = {
    */
   beforeEnter?: NavigationGuard;
 };
+
+type ComponentRouteDefinition = BaseRouteDefinition & {
+  /** Component loader (sync or async) */
+  component: () => unknown | Promise<unknown>;
+  redirectTo?: never;
+};
+
+type RedirectRouteDefinition = BaseRouteDefinition & {
+  /**
+   * Redirect target path. When the route is matched, the router
+   * automatically navigates to this path instead.
+   *
+   * @example
+   * ```ts
+   * { path: '/old-page', redirectTo: '/new-page' }
+   * ```
+   */
+  redirectTo: string;
+  component?: never;
+};
+
+export type RouteDefinition = ComponentRouteDefinition | RedirectRouteDefinition;
 
 /**
  * Router configuration options.

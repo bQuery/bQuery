@@ -29,6 +29,7 @@ import {
 // ============================================================================
 
 const TEST_ORIGIN = 'http://localhost';
+const expectType = <T>(_value: T): void => {};
 
 /**
  * Helper to setup mocked window.location and history for router tests.
@@ -999,6 +1000,21 @@ describe('Router', () => {
       router.destroy();
 
       expect(() => resolve('any')).toThrow('No router initialized');
+    });
+
+    it('should require routes to define either a component or a redirect target', () => {
+      const validRoutes: RouteDefinition[] = [
+        { path: '/', component: () => null },
+        { path: '/old', redirectTo: '/' },
+      ];
+
+      expectType<RouteDefinition[]>(validRoutes);
+
+      // @ts-expect-error route definitions must provide a component or redirectTo
+      const invalidRoute: RouteDefinition = { path: '/broken' };
+
+      void invalidRoute;
+      expect(validRoutes).toHaveLength(2);
     });
   });
 
@@ -2273,6 +2289,30 @@ describe('Router', () => {
         (stackAfterReplace[mockHistory.getCurrentIndex()].state as Record<string, unknown>).__bqScrollKey;
 
       expect(keyAfterReplace).toBe(keyAfterPush);
+    });
+
+    it('should prune old scroll position entries after many navigations', async () => {
+      const deleteSpy = spyOn(Map.prototype, 'delete');
+      const routes: RouteDefinition[] = [{ path: '/', component: () => null }];
+
+      for (let i = 0; i < 105; i++) {
+        routes.push({ path: `/page-${i}`, component: () => null });
+      }
+
+      try {
+        router = createRouter({
+          routes,
+          scrollRestoration: true,
+        });
+
+        for (let i = 0; i < 105; i++) {
+          await router.push(`/page-${i}`);
+        }
+
+        expect(deleteSpy).toHaveBeenCalled();
+      } finally {
+        deleteSpy.mockRestore();
+      }
     });
 
     it('should generate unique scroll keys for push navigations within the same millisecond', async () => {

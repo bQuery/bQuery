@@ -4,6 +4,7 @@
  */
 
 import { parseQuery } from './query';
+import { isParamChar, isParamStart, readConstraint } from './path-pattern';
 import type { Route, RouteDefinition } from './types';
 
 // ============================================================================
@@ -11,13 +12,6 @@ import type { Route, RouteDefinition } from './types';
 // ============================================================================
 
 const REGEX_META_CHARS = new Set(['\\', '^', '$', '.', '*', '+', '?', '(', ')', '[', ']', '{', '}', '|']);
-
-const isParamStart = (char: string | undefined): boolean =>
-  char !== undefined &&
-  ((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || char === '_');
-
-const isParamChar = (char: string | undefined): boolean =>
-  isParamStart(char) || (char !== undefined && char >= '0' && char <= '9');
 
 const escapeRegexLiteral = (value: string): string => {
   let escaped = '';
@@ -68,39 +62,6 @@ const normalizeConstraintCaptures = (constraint: string): string => {
   }
 
   return normalized;
-};
-
-const readConstraint = (
-  path: string,
-  startIndex: number
-): { constraint: string; endIndex: number } | null => {
-  let depth = 1;
-  let constraint = '';
-  let i = startIndex + 1;
-
-  while (i < path.length) {
-    const char = path[i];
-
-    if (char === '\\' && i + 1 < path.length) {
-      constraint += char + path[i + 1];
-      i += 2;
-      continue;
-    }
-
-    if (char === '(') {
-      depth++;
-    } else if (char === ')') {
-      depth--;
-      if (depth === 0) {
-        return { constraint, endIndex: i + 1 };
-      }
-    }
-
-    constraint += char;
-    i++;
-  }
-
-  return null;
 };
 
 /**
