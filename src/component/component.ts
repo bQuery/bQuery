@@ -8,6 +8,7 @@ import { sanitizeHtml } from '../security/sanitize';
 import { effect, untrack } from '../reactive/signal';
 import type { CleanupFn } from '../reactive/signal';
 import { coercePropValue } from './props';
+import { createComponentScope, setCurrentScope, type ComponentScope } from './scope';
 import type {
   AttributeChange,
   ComponentClass,
@@ -16,6 +17,7 @@ import type {
   ComponentSignals,
   ComponentStateShape,
   PropDefinition,
+  ShadowMode,
 } from './types';
 
 /**
@@ -80,6 +82,28 @@ const createComponentClass = <
   ];
   const signalSources = Object.values(definition.signals ?? {}) as ComponentSignalLike<unknown>[];
 
+  /** Resolve the Shadow DOM mode from the `shadow` option. */
+  const resolveShadowMode = (
+    option: ShadowMode | undefined
+  ): 'open' | 'closed' | false => {
+    if (option === false) return false;
+    if (option === 'closed') return 'closed';
+    // true, 'open', or undefined all resolve to 'open'
+    return 'open';
+  };
+  const shadowMode = resolveShadowMode(definition.shadow);
+
+  /**
+   * Merges prop-derived observed attributes with any extra attributes from
+   * `observeAttributes`, deduplicating to avoid redundant callbacks.
+   */
+  const observedAttrs = Array.from(
+    new Set([
+      ...Object.keys(definition.props ?? {}),
+      ...(definition.observeAttributes ?? []),
+    ])
+  );
+
   class BQueryComponent extends HTMLElement {
     /** Internal state object for the component */
     private readonly state: ComponentStateShape<TState> = {
@@ -93,10 +117,14 @@ const createComponentClass = <
     private hasMounted = false;
     /** Cleanup for external signal subscriptions */
     private signalEffectCleanup?: CleanupFn;
+    /** Component-scoped reactive resource tracker */
+    private scope?: ComponentScope;
 
     constructor() {
       super();
-      this.attachShadow({ mode: 'open' });
+      if (shadowMode !== false) {
+        this.attachShadow({ mode: shadowMode });
+      }
       this.syncProps();
     }
 
@@ -104,7 +132,7 @@ const createComponentClass = <
      * Returns the list of attributes to observe for changes.
      */
     static get observedAttributes(): string[] {
-      return Object.keys(definition.props ?? {});
+      return observedAttrs;
     }
 
     /**
@@ -121,10 +149,15 @@ const createComponentClass = <
           return;
         }
         if (this.hasMounted) {
+          // Recreate scope for reconnected component
+          this.scope = createComponentScope();
+          setCurrentScope(this.scope);
           try {
             definition.connected?.call(this);
           } catch (error) {
             this.handleError(error as Error);
+          } finally {
+            setCurrentScope(undefined);
           }
           this.setupSignalSubscriptions(true);
           return;
@@ -142,8 +175,14 @@ const createComponentClass = <
      */
     private mount(): void {
       if (this.hasMounted) return;
-      definition.beforeMount?.call(this);
-      definition.connected?.call(this);
+      this.scope = createComponentScope();
+      setCurrentScope(this.scope);
+      try {
+        definition.beforeMount?.call(this);
+        definition.connected?.call(this);
+      } finally {
+        setCurrentScope(undefined);
+      }
       this.render();
       this.setupSignalSubscriptions();
       this.hasMounted = true;
@@ -156,6 +195,9 @@ const createComponentClass = <
       try {
         this.signalEffectCleanup?.();
         this.signalEffectCleanup = undefined;
+        // Dispose all scoped reactive resources (useSignal, useComputed, useEffect)
+        this.scope?.dispose();
+        this.scope = undefined;
         definition.disconnected?.call(this);
       } catch (error) {
         this.handleError(error as Error);
@@ -174,6 +216,11 @@ const createComponentClass = <
         const previousProps = this.cloneProps();
         this.syncProps();
 
+        // Fire the user-facing onAttributeChanged hook for every observed attribute change
+        if (definition.onAttributeChanged) {
+          definition.onAttributeChanged.call(this, name, oldValue, newValue);
+        }
+
         if (this.hasMounted) {
           // Component already mounted - trigger update render
           this.render(true, previousProps, { name, oldValue, newValue });
@@ -182,6 +229,17 @@ const createComponentClass = <
           // Trigger the deferred initial mount
           this.mount();
         }
+      } catch (error) {
+        this.handleError(error as Error);
+      }
+    }
+
+    /**
+     * Called when the element is moved to a new document (e.g. via `document.adoptNode`).
+     */
+    adoptedCallback(): void {
+      try {
+        definition.onAdopted?.call(this);
       } catch (error) {
         this.handleError(error as Error);
       }
@@ -324,7 +382,7 @@ const createComponentClass = <
     }
 
     /**
-     * Renders the component to its shadow root.
+     * Renders the component to its shadow root or host element.
      * @internal
      */
     private render(): void;
@@ -354,7 +412,11 @@ const createComponentClass = <
           this.dispatchEvent(new CustomEvent(event, { detail, bubbles: true, composed: true }));
         };
 
-        if (!this.shadowRoot) return;
+        // Determine render target: shadow root or the host element itself
+        const renderRoot: HTMLElement | ShadowRoot | null =
+          shadowMode !== false ? this.shadowRoot : this;
+
+        if (!renderRoot) return;
 
         const markup = definition.render({
           props: this.props,
@@ -373,12 +435,12 @@ const createComponentClass = <
         });
         let existingStyleElement: HTMLStyleElement | null = null;
         if (definition.styles) {
-          existingStyleElement = this.shadowRoot.querySelector<HTMLStyleElement>(
+          existingStyleElement = renderRoot.querySelector<HTMLStyleElement>(
             'style[data-bquery-component-style]'
           );
         }
 
-        this.shadowRoot.innerHTML = sanitizedMarkup;
+        renderRoot.innerHTML = sanitizedMarkup;
 
         if (definition.styles) {
           const styleElement = existingStyleElement ?? document.createElement('style');
@@ -386,7 +448,7 @@ const createComponentClass = <
             styleElement.setAttribute('data-bquery-component-style', '');
           }
           styleElement.textContent = definition.styles;
-          this.shadowRoot.prepend(styleElement);
+          renderRoot.prepend(styleElement);
         }
 
         if (triggerUpdated) {

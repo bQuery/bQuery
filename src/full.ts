@@ -78,7 +78,17 @@ export type {
 // ============================================================================
 // Component Module: Web Components helper with Shadow DOM
 // ============================================================================
-export { bool, component, html, registerDefaultComponents, safeHtml } from './component/index';
+export {
+  bool,
+  component,
+  defineComponent,
+  html,
+  registerDefaultComponents,
+  safeHtml,
+  useComputed,
+  useEffect,
+  useSignal,
+} from './component/index';
 export type {
   AttributeChange,
   ComponentDefinition,
@@ -89,6 +99,7 @@ export type {
   DefaultComponentLibraryOptions,
   PropDefinition,
   RegisteredDefaultComponents,
+  ShadowMode,
 } from './component/index';
 
 // ============================================================================

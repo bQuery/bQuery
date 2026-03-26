@@ -38,6 +38,7 @@
 export { component, defineComponent } from './component';
 export { bool, html, safeHtml } from './html';
 export { registerDefaultComponents } from './library';
+export { useComputed, useEffect, useSignal } from './scope';
 export type { DefaultComponentLibraryOptions, RegisteredDefaultComponents } from './library';
 export type {
   AttributeChange,
@@ -47,4 +48,5 @@ export type {
   ComponentSignalLike,
   ComponentSignals,
   PropDefinition,
+  ShadowMode,
 } from './types';

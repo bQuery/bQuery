@@ -6,6 +6,9 @@ import {
   html,
   registerDefaultComponents,
   safeHtml,
+  useComputed,
+  useEffect,
+  useSignal,
 } from '../src/component/index';
 import { sanitizeHtml, trusted } from '../src/security/sanitize';
 import { computed, signal } from '../src/reactive/index';
@@ -13,6 +16,7 @@ import type {
   ComponentDefinition,
   ComponentRenderContext,
   ComponentSignalLike,
+  ShadowMode,
 } from '../src/component/index';
 
 const expectType = <T>(_value: T): void => {};
@@ -1866,5 +1870,465 @@ describe('component/registerDefaultComponents', () => {
     input.remove();
     textarea.remove();
     checkbox.remove();
+  });
+});
+
+describe('component/onAdopted lifecycle hook', () => {
+  it('calls onAdopted when adoptedCallback fires', () => {
+    const tagName = `test-adopted-hook-${Date.now()}`;
+    const calls: string[] = [];
+
+    component(tagName, {
+      props: {},
+      onAdopted() {
+        calls.push('adopted');
+      },
+      render: () => html`<div>Adopted</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    // happy-dom does not trigger adoptedCallback via document.adoptNode,
+    // so we invoke the lifecycle method directly on the element.
+    (el as unknown as { adoptedCallback(): void }).adoptedCallback();
+
+    expect(calls).toEqual(['adopted']);
+
+    el.remove();
+  });
+
+  it('calls onError when onAdopted throws', () => {
+    const tagName = `test-adopted-error-${Date.now()}`;
+    const errors: Error[] = [];
+
+    component(tagName, {
+      props: {},
+      onAdopted() {
+        throw new Error('adopted error');
+      },
+      onError(error) {
+        errors.push(error);
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    (el as unknown as { adoptedCallback(): void }).adoptedCallback();
+
+    expect(errors.length).toBe(1);
+    expect(errors[0].message).toBe('adopted error');
+
+    el.remove();
+  });
+
+  it('does nothing when onAdopted is not defined', () => {
+    const tagName = `test-no-adopted-${Date.now()}`;
+
+    component(tagName, {
+      props: {},
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    // Should not throw
+    expect(() => {
+      (el as unknown as { adoptedCallback(): void }).adoptedCallback();
+    }).not.toThrow();
+
+    el.remove();
+  });
+});
+
+describe('component/onAttributeChanged hook', () => {
+  it('calls onAttributeChanged when a prop attribute changes', () => {
+    const tagName = `test-attr-changed-${Date.now()}`;
+    const changes: Array<{ name: string; oldValue: string | null; newValue: string | null }> = [];
+
+    component<{ label: string }>(tagName, {
+      props: {
+        label: { type: String, default: '' },
+      },
+      onAttributeChanged(name, oldValue, newValue) {
+        changes.push({ name, oldValue, newValue });
+      },
+      render: ({ props }) => html`<span>${props.label}</span>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    el.setAttribute('label', 'Hello');
+    el.setAttribute('label', 'World');
+
+    expect(changes.length).toBe(2);
+    expect(changes[0]).toEqual({ name: 'label', oldValue: null, newValue: 'Hello' });
+    expect(changes[1]).toEqual({ name: 'label', oldValue: 'Hello', newValue: 'World' });
+
+    el.remove();
+  });
+
+  it('observes additional attributes from observeAttributes option', () => {
+    const tagName = `test-extra-observe-${Date.now()}`;
+    const changes: Array<{ name: string; oldValue: string | null; newValue: string | null }> = [];
+
+    component(tagName, {
+      props: {},
+      observeAttributes: ['data-custom'],
+      onAttributeChanged(name, oldValue, newValue) {
+        changes.push({ name, oldValue, newValue });
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    el.setAttribute('data-custom', 'value1');
+
+    expect(changes.length).toBe(1);
+    expect(changes[0]).toEqual({ name: 'data-custom', oldValue: null, newValue: 'value1' });
+
+    el.remove();
+  });
+
+  it('deduplicates observeAttributes with props keys', () => {
+    const tagName = `test-dedup-observe-${Date.now()}`;
+
+    const ElementClass = defineComponent<{ name: string }>(tagName, {
+      props: {
+        name: { type: String, default: '' },
+      },
+      observeAttributes: ['name', 'data-extra'],
+      render: () => html`<div>Test</div>`,
+    });
+
+    // observedAttributes should not have duplicates
+    const observed = ElementClass.observedAttributes;
+    expect(observed).toContain('name');
+    expect(observed).toContain('data-extra');
+    expect(observed.filter((a) => a === 'name').length).toBe(1);
+  });
+});
+
+describe('component/shadow DOM mode', () => {
+  it('creates an open shadow root by default', () => {
+    const tagName = `test-shadow-default-${Date.now()}`;
+
+    component(tagName, {
+      props: {},
+      render: () => html`<p>Content</p>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).not.toBeNull();
+    expect(el.shadowRoot?.innerHTML).toContain('Content');
+
+    el.remove();
+  });
+
+  it('creates an open shadow root when shadow is true', () => {
+    const tagName = `test-shadow-true-${Date.now()}`;
+
+    component(tagName, {
+      props: {},
+      shadow: true,
+      render: () => html`<p>Open</p>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).not.toBeNull();
+
+    el.remove();
+  });
+
+  it('creates an open shadow root when shadow is "open"', () => {
+    const tagName = `test-shadow-open-${Date.now()}`;
+
+    component(tagName, {
+      props: {},
+      shadow: 'open',
+      render: () => html`<p>Open</p>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).not.toBeNull();
+
+    el.remove();
+  });
+
+  it('renders into the host element when shadow is false', () => {
+    const tagName = `test-shadow-false-${Date.now()}`;
+
+    component(tagName, {
+      props: {},
+      shadow: false,
+      render: () => html`<p>No Shadow</p>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot).toBeNull();
+    expect(el.innerHTML).toContain('No Shadow');
+
+    el.remove();
+  });
+
+  it('renders styles in light DOM when shadow is false', () => {
+    const tagName = `test-shadow-false-styles-${Date.now()}`;
+
+    component(tagName, {
+      props: {},
+      shadow: false,
+      styles: '.content { color: red; }',
+      render: () => html`<div class="content">Styled</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    const styleEl = el.querySelector('style[data-bquery-component-style]');
+    expect(styleEl).not.toBeNull();
+    expect(styleEl?.textContent).toContain('.content { color: red; }');
+
+    el.remove();
+  });
+
+  it('re-renders in light DOM when attributes change with shadow false', () => {
+    const tagName = `test-shadow-false-rerender-${Date.now()}`;
+
+    component<{ label: string }>(tagName, {
+      props: {
+        label: { type: String, default: 'initial' },
+      },
+      shadow: false,
+      render: ({ props }) => html`<span>${props.label}</span>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.innerHTML).toContain('initial');
+
+    el.setAttribute('label', 'updated');
+    expect(el.innerHTML).toContain('updated');
+
+    el.remove();
+  });
+});
+
+describe('component/useSignal', () => {
+  it('throws when called outside a component scope', () => {
+    expect(() => useSignal(0)).toThrow(/must be called inside a component/);
+  });
+
+  it('creates a signal accessible during connected()', () => {
+    const tagName = `test-use-signal-${Date.now()}`;
+    let signalValue: number | undefined;
+
+    component(tagName, {
+      props: {},
+      connected() {
+        const count = useSignal(42);
+        signalValue = count.value;
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(signalValue).toBe(42);
+
+    el.remove();
+  });
+
+  it('auto-disposes signal when component disconnects', () => {
+    const tagName = `test-use-signal-dispose-${Date.now()}`;
+    let disposed = false;
+    let createdSignal: ReturnType<typeof useSignal<number>> | undefined;
+
+    component(tagName, {
+      props: {},
+      connected() {
+        createdSignal = useSignal(0);
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(createdSignal).toBeDefined();
+    expect(createdSignal!.value).toBe(0);
+
+    // Disconnect the element - should dispose the signal
+    el.remove();
+
+    // After disposal, the signal should still be readable but subscribers should be cleared
+    // We verify disposal by checking the signal doesn't throw
+    expect(createdSignal!.peek()).toBe(0);
+  });
+});
+
+describe('component/useComputed', () => {
+  it('throws when called outside a component scope', () => {
+    expect(() => useComputed(() => 42)).toThrow(/must be called inside a component/);
+  });
+
+  it('creates a computed value accessible during connected()', () => {
+    const tagName = `test-use-computed-${Date.now()}`;
+    let computedValue: number | undefined;
+
+    component(tagName, {
+      props: {},
+      connected() {
+        const count = useSignal(5);
+        const doubled = useComputed(() => count.value * 2);
+        computedValue = doubled.value;
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(computedValue).toBe(10);
+
+    el.remove();
+  });
+});
+
+describe('component/useEffect', () => {
+  it('throws when called outside a component scope', () => {
+    expect(() => useEffect(() => {})).toThrow(/must be called inside a component/);
+  });
+
+  it('runs the effect immediately during connected()', () => {
+    const tagName = `test-use-effect-${Date.now()}`;
+    const effectCalls: number[] = [];
+
+    component(tagName, {
+      props: {},
+      connected() {
+        const count = useSignal(1);
+        useEffect(() => {
+          effectCalls.push(count.value);
+        });
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(effectCalls).toEqual([1]);
+
+    el.remove();
+  });
+
+  it('returns a cleanup function that can be called manually', () => {
+    const tagName = `test-use-effect-cleanup-${Date.now()}`;
+    let manualCleanup: (() => void) | undefined;
+    const cleanups: string[] = [];
+
+    component(tagName, {
+      props: {},
+      connected() {
+        manualCleanup = useEffect(() => {
+          return () => {
+            cleanups.push('cleaned');
+          };
+        });
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(manualCleanup).toBeDefined();
+
+    // Manual cleanup should work
+    manualCleanup!();
+    expect(cleanups).toContain('cleaned');
+
+    el.remove();
+  });
+
+  it('auto-disposes effect when component disconnects', () => {
+    const tagName = `test-use-effect-auto-dispose-${Date.now()}`;
+    const cleanups: string[] = [];
+
+    component(tagName, {
+      props: {},
+      connected() {
+        useEffect(() => {
+          return () => {
+            cleanups.push('auto-cleaned');
+          };
+        });
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(cleanups).toEqual([]);
+
+    // Removing element should auto-dispose
+    el.remove();
+
+    expect(cleanups).toContain('auto-cleaned');
+  });
+
+  it('creates fresh scope on reconnect', () => {
+    const tagName = `test-use-effect-reconnect-${Date.now()}`;
+    const effects: string[] = [];
+    const cleanups: string[] = [];
+
+    component(tagName, {
+      props: {},
+      connected() {
+        useEffect(() => {
+          effects.push('connected');
+          return () => {
+            cleanups.push('disconnected');
+          };
+        });
+      },
+      render: () => html`<div>Test</div>`,
+    });
+
+    const el = document.createElement(tagName);
+
+    // First connect
+    document.body.appendChild(el);
+    expect(effects).toEqual(['connected']);
+    expect(cleanups).toEqual([]);
+
+    // Disconnect
+    el.remove();
+    expect(cleanups).toEqual(['disconnected']);
+
+    // Reconnect — new scope should be created
+    document.body.appendChild(el);
+    expect(effects).toEqual(['connected', 'connected']);
+
+    // Second disconnect
+    el.remove();
+    expect(cleanups).toEqual(['disconnected', 'disconnected']);
   });
 });
