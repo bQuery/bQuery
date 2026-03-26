@@ -166,10 +166,12 @@ export class BqLinkElement extends HTMLElement {
 
     this._cleanup = effect(() => {
       const current = routeSignal.value.path;
-      const isMatch = targetPath === '/' || exactMatch
+      const isMatch = exactMatch
         ? current === targetPath
-        : current === targetPath ||
-          current.startsWith(targetPath.endsWith('/') ? targetPath : targetPath + '/');
+        : targetPath === '/'
+          ? current === '/'
+          : current === targetPath ||
+            current.startsWith(targetPath.endsWith('/') ? targetPath : targetPath + '/');
 
       this.classList.toggle(cssClass, isMatch);
 
