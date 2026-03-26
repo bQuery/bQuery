@@ -40,7 +40,7 @@ const normalizeConstraintCaptures = (constraint: string): string => {
     }
 
     if (char === '(') {
-      normalized += constraint[i + 1] === '?' ? '(' : '(?:';
+      normalized += i + 1 < constraint.length && constraint[i + 1] === '?' ? '(' : '(?:';
       continue;
     }
 

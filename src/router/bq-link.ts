@@ -166,7 +166,7 @@ export class BqLinkElement extends HTMLElement {
 
     this._cleanup = effect(() => {
       const current = routeSignal.value.path;
-      const isMatch = exactMatch || targetPath === '/'
+      const isMatch = targetPath === '/' || exactMatch
         ? current === targetPath
         : current === targetPath ||
           current.startsWith(targetPath.endsWith('/') ? targetPath : targetPath + '/');
