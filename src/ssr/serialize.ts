@@ -100,6 +100,7 @@ export const serializeStoreState = (options: SerializeOptions = {}): SerializeRe
  * variable are cleaned up automatically.
  *
  * @param globalKey - The global variable name where state was serialized
+ * @param scriptId - The ID of the SSR script tag to remove after hydration
  * @returns The deserialized state map, or an empty object if not found
  *
  * @example
@@ -112,7 +113,8 @@ export const serializeStoreState = (options: SerializeOptions = {}): SerializeRe
  * ```
  */
 export const deserializeStoreState = (
-  globalKey = '__BQUERY_INITIAL_STATE__'
+  globalKey = '__BQUERY_INITIAL_STATE__',
+  scriptId = '__BQUERY_STORE_STATE__'
 ): DeserializedStoreState => {
   if (typeof window === 'undefined') {
     return {};
@@ -132,7 +134,7 @@ export const deserializeStoreState = (
   }
 
   // Clean up script tag
-  const scriptEl = document.getElementById('__BQUERY_STORE_STATE__');
+  const scriptEl = document.getElementById(scriptId);
   if (scriptEl) {
     scriptEl.remove();
   }

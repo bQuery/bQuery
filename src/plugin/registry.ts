@@ -54,6 +54,9 @@ const createInstallContext = (): PluginInstallContext => ({
     if (typeof constructor !== 'function') {
       throw new Error(`[bq] component constructor for "${tagName}" must be a function`);
     }
+    if (typeof customElements === 'undefined') {
+      throw new Error('[bq] customElements is not available in this environment');
+    }
     // Idempotent — skip if already defined
     if (!customElements.get(tagName)) {
       customElements.define(tagName, constructor, options);

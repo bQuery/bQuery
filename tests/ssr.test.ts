@@ -448,6 +448,21 @@ describe('deserializeStoreState', () => {
     ).toBeUndefined();
   });
 
+  it('removes a custom scriptId during cleanup', () => {
+    (window as unknown as Record<string, unknown>).CUSTOM_STATE = {
+      myStore: { count: 1 },
+    };
+
+    const script = document.createElement('script');
+    script.id = 'custom-ssr-state';
+    document.body.appendChild(script);
+
+    const state = deserializeStoreState('CUSTOM_STATE', 'custom-ssr-state');
+
+    expect(state).toEqual({ myStore: { count: 1 } });
+    expect(document.getElementById('custom-ssr-state')).toBeNull();
+  });
+
   it('returns empty object for non-object values', () => {
     (window as unknown as Record<string, unknown>).__BQUERY_INITIAL_STATE__ = 'not an object';
     const state = deserializeStoreState();

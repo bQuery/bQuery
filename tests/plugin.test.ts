@@ -343,6 +343,30 @@ describe('Plugin System', () => {
         });
       }).toThrow('must be a function');
     });
+
+    it('should throw a clear error when customElements is unavailable', () => {
+      const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'customElements');
+
+      Object.defineProperty(globalThis, 'customElements', {
+        value: undefined,
+        configurable: true,
+      });
+
+      try {
+        expect(() => {
+          use({
+            name: 'missing-custom-elements',
+            install(ctx) {
+              ctx.component('bq-missing-ce', class extends HTMLElement {});
+            },
+          });
+        }).toThrow('customElements is not available');
+      } finally {
+        if (originalDescriptor) {
+          Object.defineProperty(globalThis, 'customElements', originalDescriptor);
+        }
+      }
+    });
   });
 
   // ==========================================================================

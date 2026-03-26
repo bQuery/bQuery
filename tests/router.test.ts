@@ -2201,6 +2201,48 @@ describe('Router', () => {
       expect(lastEntry.state).toHaveProperty('__bqScrollKey');
       expect(typeof (lastEntry.state as Record<string, unknown>).__bqScrollKey).toBe('string');
     });
+
+    it('should save scroll for the entry being left on popstate and restore the destination entry', async () => {
+      const originalScrollX = Object.getOwnPropertyDescriptor(window, 'scrollX');
+      const originalScrollY = Object.getOwnPropertyDescriptor(window, 'scrollY');
+      const setScrollPosition = (x: number, y: number) => {
+        Object.defineProperty(window, 'scrollX', { value: x, configurable: true });
+        Object.defineProperty(window, 'scrollY', { value: y, configurable: true });
+      };
+
+      try {
+        router = createRouter({
+          routes: [
+            { path: '/', component: () => null },
+            { path: '/page', component: () => null },
+          ],
+          scrollRestoration: true,
+        });
+
+        setScrollPosition(10, 20);
+        await router.push('/page');
+
+        setScrollPosition(30, 40);
+        scrollToSpy.mockClear();
+        router.back();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(scrollToSpy).toHaveBeenLastCalledWith(10, 20);
+
+        scrollToSpy.mockClear();
+        router.forward();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(scrollToSpy).toHaveBeenLastCalledWith(30, 40);
+      } finally {
+        if (originalScrollX) {
+          Object.defineProperty(window, 'scrollX', originalScrollX);
+        }
+        if (originalScrollY) {
+          Object.defineProperty(window, 'scrollY', originalScrollY);
+        }
+      }
+    });
   });
 
   // ==========================================================================

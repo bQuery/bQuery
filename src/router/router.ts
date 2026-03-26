@@ -64,6 +64,18 @@ export const createRouter = (options: RouterOptions): Router => {
   // Enable manual scroll restoration if scrollRestoration is configured
   if (scrollRestoration && typeof history !== 'undefined' && 'scrollRestoration' in history) {
     history.scrollRestoration = 'manual';
+
+    const state =
+      history.state && typeof history.state === 'object'
+        ? (history.state as Record<string, unknown>)
+        : {};
+
+    if (typeof state.__bqScrollKey !== 'string') {
+      const currentUrl = useHash
+        ? window.location.hash || '#/'
+        : `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      history.replaceState({ ...state, __bqScrollKey: currentScrollKey }, '', currentUrl);
+    }
   }
 
   /**
@@ -78,9 +90,8 @@ export const createRouter = (options: RouterOptions): Router => {
    * Saves current scroll position for the current history entry.
    * @internal
    */
-  const saveScrollPosition = (): void => {
+  const saveScrollPosition = (key = getScrollKey()): void => {
     if (!scrollRestoration) return;
-    const key = getScrollKey();
     scrollPositions.set(key, { x: window.scrollX, y: window.scrollY });
   };
 
@@ -88,9 +99,8 @@ export const createRouter = (options: RouterOptions): Router => {
    * Restores scroll position for the current history entry.
    * @internal
    */
-  const restoreScrollPosition = (): void => {
+  const restoreScrollPosition = (key = getScrollKey()): void => {
     if (!scrollRestoration) return;
-    const key = getScrollKey();
     const pos = scrollPositions.get(key);
     if (pos) {
       window.scrollTo(pos.x, pos.y);
@@ -202,7 +212,7 @@ export const createRouter = (options: RouterOptions): Router => {
   /**
    * Handle popstate events (back/forward).
    */
-  const handlePopState = async (): Promise<void> => {
+  const handlePopState = async (event: PopStateEvent): Promise<void> => {
     const { pathname, search, hash } = getCurrentPath();
     const from = routeSignal.value;
     const to = createRoute(pathname, search, hash, flatRoutes);
@@ -254,15 +264,16 @@ export const createRouter = (options: RouterOptions): Router => {
     }
 
     // Save scroll position of the page we're leaving
-    saveScrollPosition();
+    saveScrollPosition(currentScrollKey);
 
     // Update scroll key from history state
-    currentScrollKey = getScrollKey();
+    currentScrollKey =
+      (event.state as { __bqScrollKey?: string } | null)?.__bqScrollKey ?? getScrollKey();
 
     syncRoute();
 
     // Restore scroll position for the entry we're navigating to
-    restoreScrollPosition();
+    restoreScrollPosition(currentScrollKey);
 
     for (const hook of afterHooks) {
       hook(routeSignal.value, from);

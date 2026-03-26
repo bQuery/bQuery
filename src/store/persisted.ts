@@ -14,6 +14,15 @@ const defaultSerializer = {
   deserialize: (raw: string) => JSON.parse(raw) as unknown,
 };
 
+/** @internal Resolve the default storage backend safely. */
+const getDefaultStorage = (): Storage | undefined => {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+};
+
 /**
  * Creates a store with automatic persistence.
  *
@@ -69,7 +78,7 @@ export const createPersistedStore = <
     typeof options === 'string' ? { key: options } : (options ?? {});
 
   const key = opts.key ?? `bquery-store-${definition.id}`;
-  const storage = opts.storage ?? (typeof window !== 'undefined' ? localStorage : undefined);
+  const storage = opts.storage ?? (typeof window !== 'undefined' ? getDefaultStorage() : undefined);
   const serializer = opts.serializer ?? defaultSerializer;
   const version = opts.version;
   const migrate = opts.migrate;

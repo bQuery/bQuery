@@ -1048,5 +1048,31 @@ describe('Store', () => {
       // Should fall back to default state
       expect(store.val).toBe('fallback');
     });
+
+    it('should fall back gracefully when default localStorage access throws', () => {
+      const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+
+      Object.defineProperty(globalThis, 'localStorage', {
+        get: () => {
+          throw new Error('denied');
+        },
+        configurable: true,
+      });
+
+      try {
+        const store = createPersistedStore({
+          id: 'locked-storage',
+          state: () => ({ val: 'default' }),
+        });
+
+        expect(store.val).toBe('default');
+        store.val = 'changed';
+        expect(store.val).toBe('changed');
+      } finally {
+        if (originalDescriptor) {
+          Object.defineProperty(globalThis, 'localStorage', originalDescriptor);
+        }
+      }
+    });
   });
 });

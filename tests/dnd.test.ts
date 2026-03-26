@@ -410,6 +410,41 @@ describe('dnd/droppable', () => {
     handle.destroy();
     box.remove();
   });
+
+  it('should detect active drags when draggable uses a custom draggingClass', () => {
+    let entered = false;
+    const box = createBox('registry-dragged-item');
+    container.appendChild(box);
+    zone.getBoundingClientRect = () =>
+      ({
+        left: 0,
+        top: 0,
+        right: 200,
+        bottom: 200,
+        width: 200,
+        height: 200,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+
+    const dragHandle = draggable(box, { draggingClass: 'custom-dragging' });
+    const dropHandle = droppable(zone, {
+      onDragEnter: () => {
+        entered = true;
+      },
+    });
+
+    firePointerEvent(box, 'pointerdown', { clientX: 50, clientY: 50 });
+    firePointerEvent(document, 'pointermove', { clientX: 50, clientY: 50 });
+
+    expect(entered).toBe(true);
+
+    firePointerEvent(document, 'pointerup', { clientX: 50, clientY: 50 });
+    dropHandle.destroy();
+    dragHandle.destroy();
+    box.remove();
+  });
 });
 
 // ─── sortable() ──────────────────────────────────────────────────────────────

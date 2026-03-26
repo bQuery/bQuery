@@ -8,6 +8,7 @@
  */
 
 import type { DropEventData, DroppableHandle, DroppableOptions } from './types';
+import { getActiveDrag } from './draggable';
 
 /**
  * Checks whether a dragged element is accepted by the drop zone.
@@ -83,8 +84,8 @@ export const droppable = (
       e.clientY >= rect.top &&
       e.clientY <= rect.bottom;
 
-    // Find the dragged element from the event (look for bq-dragging class)
-    const dragged = document.querySelector('.bq-dragging') as HTMLElement | null;
+    // Resolve the current dragged element via the shared drag registry.
+    const dragged = getActiveDrag()?.element ?? null;
     if (!dragged || dragged === el) return;
 
     if (!isAccepted(dragged, accept)) return;
