@@ -38,7 +38,10 @@ export type SSRResult = {
   /** The rendered HTML string */
   html: string;
 
-  /** Serialized store state JSON string, if `includeStoreState` was enabled */
+  /**
+   * Serialized store state string, typically the `<script>` tag payload
+   * produced when `includeStoreState` is enabled.
+   */
   storeState?: string;
 };
 

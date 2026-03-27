@@ -157,9 +157,9 @@ export const trapFocus = (
 };
 
 /**
- * Releases all active focus traps.
+ * Releases a focus trap handle.
  * This is a convenience function — in most cases, use the `release()`
- * method on the individual trap handle.
+ * method on the individual trap handle directly.
  *
  * @deprecated Prefer using the handle returned by `trapFocus()` directly.
  */

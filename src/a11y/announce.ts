@@ -17,7 +17,7 @@ const pendingAnnouncements = new Map<AnnouncePriority, ReturnType<typeof setTime
  * Delay in milliseconds before updating the live region text.
  * This ensures screen readers detect the content change even when
  * the same message is announced consecutively — clearing first and
- * setting after a microtask forces a new live-region mutation event.
+ * setting after a short timer delay forces a new live-region mutation event.
  * @internal
  */
 const ANNOUNCEMENT_DELAY_MS = 50;
@@ -91,7 +91,7 @@ export const announceToScreenReader = (
     clearTimeout(pendingTimeout);
   }
 
-  // Clear first, then set after a microtask to ensure screen readers
+  // Clear first, then set after a short timer delay to ensure screen readers
   // detect the change even if the same message is announced twice.
   region.textContent = '';
 

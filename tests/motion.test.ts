@@ -782,6 +782,77 @@ describe('motion/morphElement', () => {
     expect(to.style.opacity).toBe('1');
   });
 
+  it('forces a measurable display when destination is hidden via computed styles', async () => {
+    const from = createPositionedElement({ top: 0, left: 0, width: 100, height: 100 });
+    const to = document.createElement('div');
+    const hiddenRect: DOMRect = {
+      top: 0,
+      left: 0,
+      width: 0,
+      height: 0,
+      bottom: 0,
+      right: 0,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    };
+    const visibleRect: DOMRect = {
+      top: 50,
+      left: 50,
+      width: 200,
+      height: 200,
+      bottom: 250,
+      right: 250,
+      x: 50,
+      y: 50,
+      toJSON: () => ({}),
+    };
+    to.getBoundingClientRect = () => (to.style.display === 'block' ? visibleRect : hiddenRect);
+
+    const mockAnim = createMockAnimation();
+    let capturedKeyframes: Keyframe[] | undefined;
+    const animateMock = mock((keyframes: Keyframe[]) => {
+      capturedKeyframes = keyframes;
+      return mockAnim;
+    });
+    to.animate = animateMock as unknown as Element['animate'];
+
+    const originalGetComputedStyle = globalThis.getComputedStyle.bind(globalThis);
+    const mockGetComputedStyle = ((element: Element) => {
+      const style = originalGetComputedStyle(element);
+      if (element === to && (to as HTMLElement).style.display === '') {
+        return {
+          ...style,
+          display: 'none',
+        } as CSSStyleDeclaration;
+      }
+      return style;
+    }) as typeof globalThis.getComputedStyle;
+    window.getComputedStyle = mockGetComputedStyle;
+    globalThis.getComputedStyle = mockGetComputedStyle;
+
+    try {
+      const promise = morphElement(from, to);
+      mockAnim.onfinish?.();
+      await promise;
+    } finally {
+      window.getComputedStyle = originalGetComputedStyle;
+      globalThis.getComputedStyle = originalGetComputedStyle;
+    }
+
+    expect(capturedKeyframes).toEqual([
+      {
+        transform: 'translate(-50px, -50px) scale(0.5, 0.5)',
+        opacity: '0.5',
+      },
+      {
+        transform: 'translate(0, 0) scale(1, 1)',
+        opacity: '1',
+      },
+    ]);
+    expect((to as HTMLElement).style.display).toBe('block');
+  });
+
   it('resolves immediately when no position change', async () => {
     const from = createPositionedElement({ top: 10, left: 20, width: 100, height: 100 });
     const to = createPositionedElement({ top: 10, left: 20, width: 100, height: 100 });

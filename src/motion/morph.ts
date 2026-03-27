@@ -48,8 +48,11 @@ export const morphElement = (
   // Ensure destination is visible so we can measure it
   const previousDisplay = toEl.style.display;
   const previousVisibility = toEl.style.visibility;
+  const computedDisplay =
+    typeof getComputedStyle === 'function' ? getComputedStyle(toEl).display : '';
+  const forcedDisplay = computedDisplay === 'none' ? 'block' : previousDisplay || '';
   toEl.style.visibility = 'hidden';
-  toEl.style.display = '';
+  toEl.style.display = forcedDisplay;
 
   // Capture LAST position of destination element
   const lastRect = to.getBoundingClientRect();
@@ -59,7 +62,8 @@ export const morphElement = (
 
   // Hide source, show destination
   fromEl.style.display = 'none';
-  toEl.style.display = previousDisplay === 'none' ? '' : previousDisplay;
+  toEl.style.display =
+    computedDisplay === 'none' ? forcedDisplay : previousDisplay === 'none' ? '' : previousDisplay;
 
   // If reduced motion is preferred, skip the animation
   if (respectReducedMotion && prefersReducedMotion()) {

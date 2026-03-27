@@ -7,9 +7,7 @@
  * @module bquery/a11y
  */
 
-import { signal } from '../reactive/index';
-import { readonly } from '../reactive/index';
-import type { ReadonlySignal } from '../reactive/index';
+import { readonly, signal, type ReadonlySignal } from '../reactive/index';
 import type { ColorScheme, ContrastPreference, MediaPreferenceSignal } from './types';
 
 const withDestroy = <T>(
