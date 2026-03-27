@@ -56,7 +56,7 @@ const isUnsafeUrlAttribute = (name: string): boolean => {
   );
 };
 
-const normalizeUrl = (value: string): string =>
+const sanitizeUrlForProtocolCheck = (value: string): string =>
   value
     .trim()
     .replace(/[\u0000-\u001F\u007F]+/g, '')
@@ -66,7 +66,7 @@ const normalizeUrl = (value: string): string =>
     .toLowerCase();
 
 const isUnsafeUrlValue = (value: string): boolean => {
-  const normalized = normalizeUrl(value);
+  const normalized = sanitizeUrlForProtocolCheck(value);
   return DANGEROUS_PROTOCOLS.some((protocol) => normalized.startsWith(protocol));
 };
 
