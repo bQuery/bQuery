@@ -237,10 +237,6 @@ export const sortable = (
       draggedItem.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
 
       let finalized = false;
-      const timeoutId = window.setTimeout(() => {
-        finalize();
-      }, animationDuration + 50);
-
       const finalize = (): void => {
         if (finalized) return;
         finalized = true;
@@ -248,6 +244,9 @@ export const sortable = (
         resetDragItem();
         onSortEnd?.(createEventData(draggedItem, startIndex, newIndex));
       };
+      const timeoutId = window.setTimeout(() => {
+        finalize();
+      }, animationDuration + 50);
 
       draggedItem.addEventListener('transitionend', finalize, { once: true });
     } else {
