@@ -811,6 +811,7 @@ export class BQueryElement {
 
     for (const [key, value] of formData.entries()) {
       if (typeof value !== 'string') continue; // Skip File objects
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
 
       if (key in result) {
         // Handle multiple values (e.g., checkboxes)

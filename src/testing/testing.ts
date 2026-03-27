@@ -8,8 +8,9 @@
  * @module bquery/testing
  */
 
-import { Signal, signal } from '../reactive/core';
 import { batch } from '../reactive/batch';
+import { Signal, signal } from '../reactive/core';
+import { getNormalizedRouteConstraint } from '../router/constraints';
 import type {
   FireEventOptions,
   MockRouteDefinition,
@@ -69,13 +70,14 @@ const readRouteConstraint = (
 const routeConstraintRegexCache = new Map<string, RegExp>();
 
 const getRouteConstraintRegex = (constraint: string): RegExp => {
-  const cached = routeConstraintRegexCache.get(constraint);
+  const normalized = getNormalizedRouteConstraint(constraint);
+  const cached = routeConstraintRegexCache.get(normalized);
   if (cached) {
     return cached;
   }
 
-  const compiled = new RegExp(`^(?:${constraint})$`);
-  routeConstraintRegexCache.set(constraint, compiled);
+  const compiled = new RegExp(`^(?:${normalized})$`);
+  routeConstraintRegexCache.set(normalized, compiled);
   return compiled;
 };
 
@@ -135,7 +137,12 @@ export function renderComponent(
         if (slotName === 'default') {
           parts.push(html);
         } else {
-          parts.push(`<div slot="${slotName}">${html}</div>`);
+          const safeSlotName = slotName
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          parts.push(`<div slot="${safeSlotName}">${html}</div>`);
         }
       }
       el.innerHTML = parts.join('');

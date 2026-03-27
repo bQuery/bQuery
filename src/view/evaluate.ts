@@ -281,6 +281,7 @@ export const parseObjectExpression = (expression: string): Record<string, string
         .slice(0, colonIndex)
         .trim()
         .replace(/^['"]|['"]$/g, '');
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
       const value = part.slice(colonIndex + 1).trim();
       result[key] = value;
     }

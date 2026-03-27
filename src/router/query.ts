@@ -3,6 +3,8 @@
  * @module bquery/router
  */
 
+import { isPrototypePollutionKey } from '../core/utils/object';
+
 /**
  * Parses query string into an object.
  * Single values are stored as strings, duplicate keys become arrays.
@@ -18,6 +20,7 @@ export const parseQuery = (search: string): Record<string, string | string[]> =>
   const params = new URLSearchParams(search);
 
   params.forEach((value, key) => {
+    if (isPrototypePollutionKey(key)) return;
     const existing = query[key];
     if (existing === undefined) {
       // First occurrence: store as string

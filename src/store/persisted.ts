@@ -198,7 +198,7 @@ export const createPersistedStore = <
   const store = createStore(wrappedDefinition);
 
   // Persist the version number on first creation
-  if (shouldPersistInitialVersion) {
+  if (shouldPersistInitialVersion && storage) {
     try {
       storage.setItem(versionKey, String(version));
     } catch {

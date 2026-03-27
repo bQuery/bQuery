@@ -17,7 +17,7 @@
 
 import { effect, type CleanupFn } from '../reactive/index';
 import { navigate } from './navigation';
-import { routeSignal } from './state';
+import { getActiveRouter, routeSignal } from './state';
 
 /**
  * Default CSS class applied when the link's target path is active.
@@ -216,6 +216,7 @@ export class BqLinkElement extends BQ_LINK_BASE {
   private _navigate(): void {
     const targetPath = this.to;
     if (!targetPath) return;
+    if (!getActiveRouter()) return;
 
     void navigate(targetPath, { replace: this.replace }).catch((err) => {
       console.error('bq-link: Navigation failed:', err);

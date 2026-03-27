@@ -6,6 +6,59 @@
 const normalizedConstraintCache = new Map<string, string>();
 const compiledConstraintRegexCache = new Map<string, RegExp>();
 
+/**
+ * Detects potentially super-linear (ReDoS) patterns such as nested quantifiers.
+ * Rejects constraints like `(a+)+`, `(a*)*`, or `(a|a)*` that can cause
+ * catastrophic backtracking.
+ * @internal
+ */
+const hasNestedQuantifier = (pattern: string): boolean => {
+  let groupDepth = 0;
+  let hasInnerQuantifier = false;
+  let inCharClass = false;
+
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+
+    if (ch === '\\' && i + 1 < pattern.length) {
+      i++;
+      continue;
+    }
+
+    if (ch === '[' && !inCharClass) {
+      inCharClass = true;
+      continue;
+    }
+    if (ch === ']' && inCharClass) {
+      inCharClass = false;
+      continue;
+    }
+    if (inCharClass) continue;
+
+    if (ch === '(') {
+      groupDepth++;
+      hasInnerQuantifier = false;
+      continue;
+    }
+
+    if (ch === ')') {
+      groupDepth--;
+      // Check if the closing paren is followed by a quantifier
+      const next = pattern[i + 1];
+      if (hasInnerQuantifier && (next === '+' || next === '*' || next === '{')) {
+        return true;
+      }
+      continue;
+    }
+
+    if (groupDepth > 0 && (ch === '+' || ch === '*' || ch === '{')) {
+      hasInnerQuantifier = true;
+    }
+  }
+
+  return false;
+};
+
 const normalizeConstraintCaptures = (constraint: string): string => {
   let normalized = '';
   let inCharacterClass = false;
@@ -86,6 +139,12 @@ export const getRouteConstraintRegex = (constraint: string): RegExp => {
   const cached = compiledConstraintRegexCache.get(normalizedConstraint);
   if (cached) {
     return cached;
+  }
+
+  if (hasNestedQuantifier(normalizedConstraint)) {
+    throw new Error(
+      'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+    );
   }
 
   const compiled = new RegExp(`^(?:${normalizedConstraint})$`);
