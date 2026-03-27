@@ -175,7 +175,7 @@ const matchPathPattern = (
             return null;
           }
         : (callback: (candidateEnd: number) => Record<string, string> | null) => {
-            for (let candidateEnd = actualPath.length; candidateEnd > pathIndex; candidateEnd--) {
+            for (let candidateEnd = actualPath.length; candidateEnd >= pathIndex; candidateEnd--) {
               const result = callback(candidateEnd);
               if (result) {
                 return result;
