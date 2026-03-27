@@ -58,19 +58,23 @@ const resolveBounds = (
 
   const rect = target.getBoundingClientRect();
   const elRect = el.getBoundingClientRect();
+  const rawLeft = parseFloat(el.style.left || '0');
+  const rawTop = parseFloat(el.style.top || '0');
+  const leftOffset = Number.isNaN(rawLeft) ? 0 : rawLeft;
+  const topOffset = Number.isNaN(rawTop) ? 0 : rawTop;
 
   return {
-    left: rect.left - elRect.left + parseFloat(el.style.left || '0'),
-    top: rect.top - elRect.top + parseFloat(el.style.top || '0'),
+    left: rect.left - elRect.left + leftOffset,
+    top: rect.top - elRect.top + topOffset,
     right:
       rect.right -
       elRect.right +
-      parseFloat(el.style.left || '0') +
+      leftOffset +
       (rect.width - elRect.width),
     bottom:
       rect.bottom -
       elRect.bottom +
-      parseFloat(el.style.top || '0') +
+      topOffset +
       (rect.height - elRect.height),
   };
 };
@@ -144,6 +148,8 @@ export const draggable = (
   let previousPosition: DragPosition = { x: 0, y: 0 };
   let ghostEl: HTMLElement | null = null;
   let ghostStartPosition: DragPosition | null = null;
+  const previousTouchAction = el.style.touchAction;
+  const previousUserSelect = el.style.userSelect;
 
   const createEventData = (event: PointerEvent): DragEventData => ({
     element: el,
@@ -295,8 +301,8 @@ export const draggable = (
       el.removeEventListener('pointercancel', onPointerUp);
       removeGhost();
       activeDrags.delete(el);
-      el.style.touchAction = '';
-      el.style.userSelect = '';
+      el.style.touchAction = previousTouchAction;
+      el.style.userSelect = previousUserSelect;
       el.classList.remove(draggingClass);
     },
     disable: () => {

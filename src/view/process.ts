@@ -1,5 +1,5 @@
 import type { CleanupFn } from '../reactive/index';
-import { getCustomDirective } from '../plugin/registry';
+import { getCustomDirective } from './custom-directives';
 import type { BindingContext, DirectiveHandler } from './types';
 
 export type DirectiveHandlers = {

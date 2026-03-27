@@ -135,6 +135,8 @@ if (typeof globalThis.PointerEvent === 'undefined') {
 
   (globalThis as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent =
     PointerEventPolyfill as unknown as typeof PointerEvent;
+  (window as unknown as { PointerEvent: typeof PointerEvent }).PointerEvent =
+    PointerEventPolyfill as unknown as typeof PointerEvent;
 }
 
 // Register getComputedStyle for CSS getter tests

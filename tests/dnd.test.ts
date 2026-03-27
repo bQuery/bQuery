@@ -105,6 +105,21 @@ describe('dnd/draggable', () => {
     expect(box.style.userSelect).toBe('');
   });
 
+  it('should restore existing inline styles on destroy', () => {
+    box.style.touchAction = 'pan-x';
+    box.style.userSelect = 'text';
+
+    const handle = draggable(box);
+
+    expect(box.style.touchAction).toBe('none');
+    expect(box.style.userSelect).toBe('none');
+
+    handle.destroy();
+
+    expect(box.style.touchAction).toBe('pan-x');
+    expect(box.style.userSelect).toBe('text');
+  });
+
   it('should add dragging class on pointerdown', () => {
     const handle = draggable(box, { draggingClass: 'my-drag' });
     firePointerEvent(box, 'pointerdown', { clientX: 50, clientY: 50 });
@@ -352,6 +367,31 @@ describe('dnd/draggable', () => {
     // Should be clamped to bounds
     expect(lastPos!.x).toBeLessThanOrEqual(50);
     expect(lastPos!.y).toBeLessThanOrEqual(50);
+    firePointerEvent(box, 'pointerup', { clientX: 200, clientY: 200 });
+    handle.destroy();
+  });
+
+  it('should treat non-numeric inline bounds offsets as zero', () => {
+    box.style.left = 'auto';
+    box.style.top = 'auto';
+
+    let lastPos: { x: number; y: number } | null = null;
+    const handle = draggable(box, {
+      bounds: { left: 0, top: 0, right: 50, bottom: 50 },
+      onDrag: (data) => {
+        lastPos = { x: data.position.x, y: data.position.y };
+      },
+    });
+
+    firePointerEvent(box, 'pointerdown', { clientX: 50, clientY: 50 });
+    firePointerEvent(box, 'pointermove', { clientX: 200, clientY: 200 });
+
+    expect(lastPos).not.toBeNull();
+    expect(Number.isNaN(lastPos!.x)).toBe(false);
+    expect(Number.isNaN(lastPos!.y)).toBe(false);
+    expect(lastPos!.x).toBeLessThanOrEqual(50);
+    expect(lastPos!.y).toBeLessThanOrEqual(50);
+
     firePointerEvent(box, 'pointerup', { clientX: 200, clientY: 200 });
     handle.destroy();
   });

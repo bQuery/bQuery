@@ -980,6 +980,16 @@ describe('Router', () => {
       expect(resolve('user', { id: '42' })).toBe('/user/42');
     });
 
+    it('should validate resolved params against route constraints', () => {
+      router = createRouter({
+        routes: [{ path: '/user/:id(\\d+)', component: () => null, name: 'user' }],
+      });
+
+      expect(() => resolve('user', { id: 'abc' })).toThrow(
+        'Param "id" with value "abc" does not satisfy the route constraint for route "user"'
+      );
+    });
+
     it('should throw error when a required param is missing', () => {
       router = createRouter({
         routes: [{ path: '/user/:id(\\d+)', component: () => null, name: 'user' }],

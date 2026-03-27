@@ -13,6 +13,7 @@ import type {
   CustomDirectiveHandler,
   PluginInstallContext,
 } from './types';
+import { registerCustomDirectiveResolver } from '../view/custom-directives';
 
 // ---------------------------------------------------------------------------
 // Internal registries
@@ -23,6 +24,8 @@ const installedPlugins = new Set<string>();
 
 /** Custom directives contributed by plugins. */
 const customDirectives = new Map<string, CustomDirectiveHandler>();
+
+registerCustomDirectiveResolver((name) => customDirectives.get(name));
 
 // ---------------------------------------------------------------------------
 // Install context factory

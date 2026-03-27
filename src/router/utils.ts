@@ -4,6 +4,7 @@
  */
 
 import { computed, type ReadonlySignal } from '../reactive/index';
+import { routeConstraintMatches } from './constraints';
 import { isParamChar, isParamStart, readConstraint } from './path-pattern';
 import { getActiveRouter, routeSignal } from './state';
 import type { RouteDefinition } from './types';
@@ -73,6 +74,7 @@ export const resolve = (name: string, params: Record<string, string> = {}): stri
       }
 
       let nextIndex = nameEnd;
+      let constraint: string | null = null;
       if (route.path[nameEnd] === '(') {
         const parsedConstraint = readConstraint(route.path, nameEnd);
         if (!parsedConstraint) {
@@ -80,6 +82,7 @@ export const resolve = (name: string, params: Record<string, string> = {}): stri
             `bQuery router: Invalid constraint syntax in path "${route.path}" for route "${name}".`
           );
         }
+        constraint = parsedConstraint.constraint;
         nextIndex = parsedConstraint.endIndex;
       }
 
@@ -87,6 +90,11 @@ export const resolve = (name: string, params: Record<string, string> = {}): stri
       const value = params[key];
       if (value === undefined) {
         throw new Error(`bQuery router: Missing required param "${key}" for route "${name}".`);
+      }
+      if (constraint && !routeConstraintMatches(constraint, value)) {
+        throw new Error(
+          `bQuery router: Param "${key}" with value "${value}" does not satisfy the route constraint for route "${name}".`
+        );
       }
 
       path += encodeURIComponent(value);
