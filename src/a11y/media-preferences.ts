@@ -10,6 +10,33 @@
 import { readonly, signal, type ReadonlySignal } from '../reactive/index';
 import type { ColorScheme, ContrastPreference, MediaPreferenceSignal } from './types';
 
+type LegacyMediaQueryList = MediaQueryList & {
+  addListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
+  removeListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
+};
+
+const bindMediaQueryListener = (
+  mql: MediaQueryList,
+  handler: (event: MediaQueryListEvent | MediaQueryList) => void
+): (() => void) | undefined => {
+  if (typeof mql.addEventListener === 'function') {
+    mql.addEventListener('change', handler);
+    return (): void => {
+      mql.removeEventListener('change', handler);
+    };
+  }
+
+  const legacyMql = mql as LegacyMediaQueryList;
+  if (typeof legacyMql.addListener === 'function') {
+    legacyMql.addListener(handler);
+    return (): void => {
+      legacyMql.removeListener?.(handler);
+    };
+  }
+
+  return undefined;
+};
+
 const withDestroy = <T>(
   signalHandle: ReadonlySignal<T>,
   cleanup: () => void
@@ -51,15 +78,17 @@ const createMediaSignal = (
       const mql = window.matchMedia(query);
       s.value = mql.matches;
 
-      const handler = (e: MediaQueryListEvent): void => {
+      const handler = (e: MediaQueryListEvent | MediaQueryList): void => {
         s.value = e.matches;
       };
 
-      mql.addEventListener('change', handler);
-      destroy = (): void => {
-        mql.removeEventListener('change', handler);
-        s.dispose();
-      };
+      const cleanupMql = bindMediaQueryListener(mql, handler);
+      if (cleanupMql) {
+        destroy = (): void => {
+          cleanupMql();
+          s.dispose();
+        };
+      }
     } catch {
       // matchMedia may throw in non-browser environments
     }
@@ -123,15 +152,17 @@ export const prefersColorScheme = (): MediaPreferenceSignal<ColorScheme> => {
       const mql = window.matchMedia('(prefers-color-scheme: dark)');
       s.value = mql.matches ? 'dark' : 'light';
 
-      const handler = (e: MediaQueryListEvent): void => {
+      const handler = (e: MediaQueryListEvent | MediaQueryList): void => {
         s.value = e.matches ? 'dark' : 'light';
       };
 
-      mql.addEventListener('change', handler);
-      destroy = (): void => {
-        mql.removeEventListener('change', handler);
-        s.dispose();
-      };
+      const cleanupMql = bindMediaQueryListener(mql, handler);
+      if (cleanupMql) {
+        destroy = (): void => {
+          cleanupMql();
+          s.dispose();
+        };
+      }
     } catch {
       // matchMedia may throw in non-browser environments
     }
@@ -192,19 +223,24 @@ export const prefersContrast = (): MediaPreferenceSignal<ContrastPreference> => 
     // Listen for changes on the contrast preference variants
     try {
       const mql = window.matchMedia('(prefers-contrast: more)');
-      mql.addEventListener('change', update);
-
       const mqlLess = window.matchMedia('(prefers-contrast: less)');
-      mqlLess.addEventListener('change', update);
-
       const mqlCustom = window.matchMedia('(prefers-contrast: custom)');
-      mqlCustom.addEventListener('change', update);
-      destroy = (): void => {
-        mql.removeEventListener('change', update);
-        mqlLess.removeEventListener('change', update);
-        mqlCustom.removeEventListener('change', update);
-        s.dispose();
-      };
+      const cleanupFns = [mql, mqlLess, mqlCustom]
+        .map((entry) =>
+          bindMediaQueryListener(entry, () => {
+            update();
+          })
+        )
+        .filter((cleanup): cleanup is () => void => cleanup !== undefined);
+
+      if (cleanupFns.length > 0) {
+        destroy = (): void => {
+          for (const cleanup of cleanupFns) {
+            cleanup();
+          }
+          s.dispose();
+        };
+      }
     } catch {
       // matchMedia may throw in non-browser environments
     }

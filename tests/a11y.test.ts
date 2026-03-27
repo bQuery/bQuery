@@ -685,6 +685,16 @@ describe('a11y/skipLink', () => {
       }
     }
   });
+
+  it('should allow default anchor navigation when no target can be resolved', () => {
+    const handle = skipLink('#missing-main');
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    expect(getSkipLinkElement(handle).dispatchEvent(clickEvent)).toBe(true);
+    expect(clickEvent.defaultPrevented).toBe(false);
+
+    handle.destroy();
+  });
 });
 
 // ─── prefersReducedMotion ────────────────────────────────────────────────────
@@ -725,6 +735,39 @@ describe('a11y/prefersReducedMotion', () => {
 
     try {
       const sig = prefersReducedMotion();
+      sig.destroy();
+      expect(removedHandler).toBe(registeredHandler);
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('should fall back to legacy media-query listeners when needed', () => {
+    let registeredHandler: ((event: MediaQueryListEvent | MediaQueryList) => void) | undefined;
+    let removedHandler: ((event: MediaQueryListEvent | MediaQueryList) => void) | undefined;
+    const originalMatchMedia = window.matchMedia;
+
+    window.matchMedia = (() =>
+      ({
+        matches: true,
+        media: '(prefers-reduced-motion: reduce)',
+        onchange: null,
+        addEventListener: undefined,
+        removeEventListener: undefined,
+        addListener: (handler: (event: MediaQueryListEvent | MediaQueryList) => void) => {
+          registeredHandler = handler;
+        },
+        removeListener: (handler: (event: MediaQueryListEvent | MediaQueryList) => void) => {
+          removedHandler = handler;
+        },
+        dispatchEvent: () => true,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      const sig = prefersReducedMotion();
+
+      expect(sig.value).toBe(true);
+
       sig.destroy();
       expect(removedHandler).toBe(registeredHandler);
     } finally {
@@ -868,6 +911,60 @@ describe('a11y/prefersContrast', () => {
 
       expect(sig.value).toBe('custom');
       sig.destroy();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('should fall back to legacy listeners for contrast preference changes', () => {
+    const registeredHandlers = new Map<
+      string,
+      (event: MediaQueryListEvent | MediaQueryList) => void
+    >();
+    const removedQueries = new Set<string>();
+    const states = new Map<string, boolean>([
+      ['(prefers-contrast: more)', false],
+      ['(prefers-contrast: less)', false],
+      ['(prefers-contrast: custom)', false],
+    ]);
+    const originalMatchMedia = window.matchMedia;
+
+    window.matchMedia = ((query: string) =>
+      ({
+        get matches() {
+          return states.get(query) ?? false;
+        },
+        media: query,
+        onchange: null,
+        addEventListener: undefined,
+        removeEventListener: undefined,
+        addListener: (handler: (event: MediaQueryListEvent | MediaQueryList) => void) => {
+          registeredHandlers.set(query, handler);
+        },
+        removeListener: (handler: (event: MediaQueryListEvent | MediaQueryList) => void) => {
+          if (registeredHandlers.get(query) === handler) {
+            removedQueries.add(query);
+          }
+        },
+        dispatchEvent: () => true,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      const sig = prefersContrast();
+
+      states.set('(prefers-contrast: less)', true);
+      registeredHandlers.get('(prefers-contrast: less)')?.({ matches: true } as MediaQueryList);
+
+      expect(sig.value).toBe('less');
+
+      sig.destroy();
+      expect(removedQueries).toEqual(
+        new Set([
+          '(prefers-contrast: more)',
+          '(prefers-contrast: less)',
+          '(prefers-contrast: custom)',
+        ])
+      );
     } finally {
       window.matchMedia = originalMatchMedia;
     }

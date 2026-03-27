@@ -2374,21 +2374,27 @@ describe('component/useSignal', () => {
     expect(createdSignal!.peek()).toBe(0);
   });
 
-  it('keeps the component scope active during render()', () => {
+  it('does not expose scoped primitives during render()', () => {
     const tagName = `test-use-signal-render-${Date.now()}`;
+    const capturedErrors: Error[] = [];
 
     component(tagName, {
       props: {},
+      onError(error) {
+        capturedErrors.push(error);
+      },
       render() {
-        const count = useSignal(7);
-        return html`<div>${count.value}</div>`;
+        useSignal(7);
+        return html`<div>unreachable</div>`;
       },
     });
 
     const el = document.createElement(tagName);
     document.body.appendChild(el);
 
-    expect(el.shadowRoot?.textContent).toContain('7');
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+    expect(el.shadowRoot?.textContent ?? '').not.toContain('unreachable');
 
     el.remove();
   });

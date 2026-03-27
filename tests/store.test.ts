@@ -1436,6 +1436,31 @@ describe('Store', () => {
       }
     });
 
+    it('should fall back to defaults when migration returns an invalid persisted shape', () => {
+      const invalidMigratedValues: unknown[] = [null, [], 'invalid'];
+
+      for (const invalidValue of invalidMigratedValues) {
+        const mem = createMemoryStorage();
+        mem.store.set('bquery-store-invalid-migrated-shape', JSON.stringify({ val: 'persisted' }));
+        mem.store.set('bquery-store-invalid-migrated-shape__version', '1');
+
+        const store = createPersistedStore(
+          { id: 'invalid-migrated-shape', state: () => ({ val: 'fallback', migrated: false }) },
+          {
+            storage: mem,
+            version: 2,
+            migrate: () => invalidValue as Record<string, unknown>,
+          }
+        );
+
+        expect(store.val).toBe('fallback');
+        expect(store.migrated).toBe(false);
+        expect(mem.store.get('bquery-store-invalid-migrated-shape__version')).toBe('1');
+
+        destroyStore('invalid-migrated-shape');
+      }
+    });
+
     it('should ignore prototype-pollution keys from persisted state', () => {
       const mem = createMemoryStorage();
       mem.store.set('bquery-store-safe-persisted', '{"val":"persisted"}');

@@ -7,7 +7,7 @@
  * @module bquery/media
  */
 
-import { signal, readonly } from '../reactive/index';
+import { readonly, signal } from '../reactive/index';
 import type { BreakpointMap, MediaSignalHandle } from './types';
 
 /**
@@ -47,6 +47,11 @@ export const breakpoints = <T extends BreakpointMap>(
   const signals = {} as { [K in keyof T]: MediaSignalHandle<boolean> };
   const destroyers: Array<() => void> = [];
 
+  type LegacyMediaQueryList = MediaQueryList & {
+    addListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
+    removeListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
+  };
+
   for (const key of Object.keys(bp) as Array<keyof T>) {
     const width = bp[key];
     const s = signal(false);
@@ -57,14 +62,24 @@ export const breakpoints = <T extends BreakpointMap>(
         const mql = window.matchMedia(`(min-width: ${width}px)`);
         s.value = mql.matches;
 
-        const handler = (e: MediaQueryListEvent): void => {
+        const handler = (e: MediaQueryListEvent | MediaQueryList): void => {
           s.value = e.matches;
         };
 
-        mql.addEventListener('change', handler);
-        cleanup = () => {
-          mql.removeEventListener('change', handler);
-        };
+        if (typeof mql.addEventListener === 'function') {
+          mql.addEventListener('change', handler);
+          cleanup = () => {
+            mql.removeEventListener('change', handler);
+          };
+        } else {
+          const legacyMql = mql as LegacyMediaQueryList;
+          if (typeof legacyMql.addListener === 'function') {
+            legacyMql.addListener(handler);
+            cleanup = () => {
+              legacyMql.removeListener?.(handler);
+            };
+          }
+        }
       } catch {
         // matchMedia may throw in non-browser environments
       }

@@ -187,6 +187,42 @@ describe('media/breakpoints', () => {
       window.matchMedia = originalMatchMedia;
     }
   });
+
+  it('falls back to legacy addListener/removeListener for breakpoint signals', () => {
+    const handlers = new Map<string, (event: MediaQueryListEvent | MediaQueryList) => void>();
+    const removed = new Set<string>();
+    const originalMatchMedia = window.matchMedia;
+
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query === '(min-width: 640px)',
+        media: query,
+        onchange: null,
+        addEventListener: undefined,
+        removeEventListener: undefined,
+        addListener: (handler: (event: MediaQueryListEvent | MediaQueryList) => void) => {
+          handlers.set(query, handler);
+        },
+        removeListener: (handler: (event: MediaQueryListEvent | MediaQueryList) => void) => {
+          if (handlers.get(query) === handler) {
+            removed.add(query);
+          }
+        },
+        dispatchEvent: () => true,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      const bp = breakpoints({ sm: 640, lg: 1024 });
+
+      expect(bp.sm.value).toBe(true);
+      expect(bp.lg.value).toBe(false);
+
+      bp.destroy();
+      expect(removed).toEqual(new Set(['(min-width: 640px)', '(min-width: 1024px)']));
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
 });
 
 // ─── useViewport ─────────────────────────────────────────────────────────────
