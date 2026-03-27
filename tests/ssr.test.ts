@@ -897,8 +897,16 @@ describe('SSR → Hydration integration', () => {
       { title: 'SSR Title', body: 'SSR Body' }
     );
 
-    // Transfer to client (simulate by setting innerHTML)
-    container.innerHTML = serverResult.html;
+    // Transfer to client (simulate server-rendered HTML insertion without direct innerHTML)
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(serverResult.html, 'text/html');
+    const parsedBody = doc.body || doc.documentElement;
+    container.textContent = '';
+    if (parsedBody) {
+      while (parsedBody.firstChild) {
+        container.appendChild(parsedBody.firstChild);
+      }
+    }
 
     // Client side hydration
     const title = signal('SSR Title');
