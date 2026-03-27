@@ -16,15 +16,15 @@ const withDestroy = <T>(
   signalHandle: ReadonlySignal<T>,
   cleanup: () => void
 ): MediaPreferenceSignal<T> => {
-  let destroy = cleanup;
+  let destroyImpl = cleanup;
   const handle = signalHandle as MediaPreferenceSignal<T>;
   Object.defineProperty(handle, 'destroy', {
     configurable: true,
     enumerable: false,
     value: (): void => {
-      const currentDestroy = destroy;
+      const currentDestroy = destroyImpl;
       // Make cleanup idempotent so repeated destroy() calls are safe.
-      destroy = (): void => {};
+      destroyImpl = (): void => {};
       currentDestroy();
     },
   });

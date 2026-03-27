@@ -45,7 +45,7 @@ const firePointerEvent = (
 
 // Shared droppable pointer tracking is flushed through requestAnimationFrame,
 // so tests wait slightly longer than one frame before asserting queued updates.
-const POINTER_TRACKING_FLUSH_MS = 20;
+const POINTER_TRACKING_FLUSH_BUFFER_MS = 20;
 
 const setZoneRect = (
   target: HTMLElement,
@@ -63,7 +63,7 @@ const setZoneRect = (
 };
 
 const flushPointerTracking = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, POINTER_TRACKING_FLUSH_MS));
+  await new Promise((resolve) => setTimeout(resolve, POINTER_TRACKING_FLUSH_BUFFER_MS));
 };
 
 // ─── draggable() ─────────────────────────────────────────────────────────────
