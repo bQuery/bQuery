@@ -188,7 +188,11 @@ const createComponentClass = <
       } finally {
         setCurrentScope(previousScope);
       }
-      if (hookError) return;
+      if (hookError) {
+        this.scope?.dispose();
+        this.scope = undefined;
+        return;
+      }
       this.render();
       this.setupSignalSubscriptions();
       this.hasMounted = true;

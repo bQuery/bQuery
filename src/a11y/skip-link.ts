@@ -33,8 +33,6 @@ const FOCUSED_STYLES = `
 
 let skipTargetIdCounter = 0;
 const generatedSkipTargetRefs = new Map<string, { count: number; target: HTMLElement }>();
-/** Matches a bare element id value (not a general CSS selector). */
-const BARE_ID_SELECTOR_RE = /^[A-Za-z][\w-]*$/;
 
 const hasSkipLinkEnvironment = (): boolean => {
   if (typeof document === 'undefined') {
@@ -90,7 +88,13 @@ export const skipLink = (targetSelector: string, options: SkipLinkOptions = {}):
   let trackedFocusTarget:
     | { target: HTMLElement; hadTabIndex: boolean; previousTabIndex: string | null }
     | undefined;
-  const isBareIdSelector = BARE_ID_SELECTOR_RE.test(targetSelector);
+  const safeQuerySelector = (selector: string): HTMLElement | null => {
+    try {
+      return document.querySelector(selector) as HTMLElement | null;
+    } catch {
+      return null;
+    }
+  };
   const releaseTrackedGeneratedTargetId = (): void => {
     if (!trackedGeneratedTargetId) return;
 
@@ -159,13 +163,21 @@ export const skipLink = (targetSelector: string, options: SkipLinkOptions = {}):
   };
   const resolveTarget = (): HTMLElement | null => {
     if (targetSelector.startsWith('#')) {
-      return document.querySelector(targetSelector) as HTMLElement | null;
+      const id = targetSelector.slice(1);
+      const byId = id ? (document.getElementById(id) as HTMLElement | null) : null;
+      if (byId) {
+        return byId;
+      }
+
+      return safeQuerySelector(targetSelector);
     }
 
-    return (
-      (isBareIdSelector ? document.getElementById(targetSelector) : null) ??
-      (document.querySelector(targetSelector) as HTMLElement | null)
-    );
+    const byId = document.getElementById(targetSelector) as HTMLElement | null;
+    if (byId) {
+      return byId;
+    }
+
+    return safeQuerySelector(targetSelector);
   };
 
   const ensureTargetId = (target: HTMLElement): string => {

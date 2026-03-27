@@ -914,6 +914,49 @@ describe('component/component', () => {
     el.remove();
   });
 
+  it('disposes failed mount scopes before a later retry', () => {
+    const tagName = `test-before-mount-scope-cleanup-${Date.now()}`;
+    const source = signal('initial');
+    const seenValues: string[] = [];
+    let shouldThrow = true;
+
+    component(tagName, {
+      props: {},
+      beforeMount() {
+        useEffect(() => {
+          seenValues.push(source.value);
+        });
+
+        if (shouldThrow) {
+          shouldThrow = false;
+          throw new Error('BeforeMount retry error');
+        }
+      },
+      onError() {},
+      render: () => html`<div>Recovered</div>`,
+    });
+
+    const el = document.createElement(tagName);
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.textContent ?? '').not.toContain('Recovered');
+    expect(seenValues).toEqual(['initial']);
+
+    source.value = 'after-failure';
+    expect(seenValues).toEqual(['initial']);
+
+    el.remove();
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.textContent).toContain('Recovered');
+    expect(seenValues).toEqual(['initial', 'after-failure']);
+
+    source.value = 'after-retry';
+    expect(seenValues).toEqual(['initial', 'after-failure', 'after-retry']);
+
+    el.remove();
+  });
+
   it('calls onError when render throws', () => {
     const tagName = `test-on-error-render-${Date.now()}`;
     const capturedErrors: Error[] = [];

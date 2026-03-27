@@ -167,13 +167,13 @@ export class BqLinkElement extends BQ_LINK_BASE {
    * @internal
    */
   private _setupActiveTracking(): void {
-    this._clearTrackedActiveClasses();
-
     // Clean up previous effect
     if (this._cleanup) {
       this._cleanup();
       this._cleanup = null;
     }
+
+    this._clearTrackedActiveClasses();
 
     const targetPath = this.to;
     const exactMatch = this.exact;

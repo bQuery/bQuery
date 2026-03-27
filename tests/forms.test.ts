@@ -209,6 +209,13 @@ describe('forms/validators', () => {
     it('coerces non-number values before comparison', () => {
       expect(min(5)('6')).toBe(true);
     });
+
+    it('treats empty-ish values as valid so required() handles presence', () => {
+      expect(validate('')).toBe(true);
+      expect(validate('   ')).toBe(true);
+      expect(validate(null)).toBe(true);
+      expect(validate(undefined)).toBe(true);
+    });
   });
 
   describe('max', () => {
@@ -233,6 +240,13 @@ describe('forms/validators', () => {
 
     it('coerces non-number values before comparison', () => {
       expect(max(10)('9')).toBe(true);
+    });
+
+    it('treats empty-ish values as valid so required() handles presence', () => {
+      expect(validate('')).toBe(true);
+      expect(validate('   ')).toBe(true);
+      expect(validate(null)).toBe(true);
+      expect(validate(undefined)).toBe(true);
     });
   });
 

@@ -621,6 +621,20 @@ describe('a11y/skipLink', () => {
     target.remove();
   });
 
+  it('should resolve hash targets whose ids are not valid CSS identifier starts', () => {
+    const target = document.createElement('div');
+    target.id = '123main';
+    document.body.appendChild(target);
+
+    const handle = skipLink('#123main');
+    getSkipLinkElement(handle).click();
+
+    expect(document.activeElement).toBe(target);
+
+    handle.destroy();
+    target.remove();
+  });
+
   it('should support general selectors without forcing them into ids', () => {
     const main = document.createElement('main');
     const section = document.createElement('section');
@@ -710,6 +724,16 @@ describe('a11y/skipLink', () => {
     const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
 
     expect(getSkipLinkElement(handle).dispatchEvent(clickEvent)).toBe(true);
+    expect(clickEvent.defaultPrevented).toBe(false);
+
+    handle.destroy();
+  });
+
+  it('should ignore invalid selector syntax when resolving a target', () => {
+    const handle = skipLink('123main>>');
+    const clickEvent = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    expect(() => getSkipLinkElement(handle).dispatchEvent(clickEvent)).not.toThrow();
     expect(clickEvent.defaultPrevented).toBe(false);
 
     handle.destroy();

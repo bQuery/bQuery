@@ -187,6 +187,8 @@ export const url = (message = 'Invalid URL'): SyncValidator<unknown> => {
 export const min = (limit: number, message?: string): SyncValidator<unknown> => {
   const msg = message ?? `Must be at least ${limit}`;
   return (value: unknown) => {
+    if (value == null) return true;
+    if (typeof value === 'string' && value.trim() === '') return true;
     const num = typeof value === 'number' ? value : Number(value);
     return num >= limit ? true : msg;
   };
@@ -210,6 +212,8 @@ export const min = (limit: number, message?: string): SyncValidator<unknown> => 
 export const max = (limit: number, message?: string): SyncValidator<unknown> => {
   const msg = message ?? `Must be at most ${limit}`;
   return (value: unknown) => {
+    if (value == null) return true;
+    if (typeof value === 'string' && value.trim() === '') return true;
     const num = typeof value === 'number' ? value : Number(value);
     return num <= limit ? true : msg;
   };
