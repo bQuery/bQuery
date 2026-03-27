@@ -43,6 +43,8 @@ const firePointerEvent = (
   target.dispatchEvent(event);
 };
 
+// Shared droppable pointer tracking is flushed through requestAnimationFrame,
+// so tests wait slightly longer than one frame before asserting queued updates.
 const POINTER_TRACKING_FLUSH_MS = 20;
 
 const setZoneRect = (
