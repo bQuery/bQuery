@@ -52,6 +52,8 @@ export const morphElement = (
     typeof getComputedStyle === 'function'
       ? getComputedStyle(toEl).display
       : previousDisplay || 'block';
+  // Prefer an explicit inline display, otherwise fall back to the current computed
+  // display, and finally to `block` so hidden destinations remain measurable.
   const forcedDisplay =
     computedDisplay === 'none' ? 'block' : previousDisplay || computedDisplay || 'block';
   toEl.style.visibility = 'hidden';
