@@ -864,6 +864,35 @@ describe('motion/parallax', () => {
     expect(el.style.transform).toBe('');
   });
 
+  it('cancels queued animation work on cleanup', () => {
+    const el = document.createElement('div');
+    const originalRaf = globalThis.requestAnimationFrame;
+    const originalCancelRaf = globalThis.cancelAnimationFrame;
+    let queuedFrame: FrameRequestCallback | undefined;
+    let cancelledFrame: number | undefined;
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      queuedFrame = callback;
+      return 123;
+    }) as typeof globalThis.requestAnimationFrame;
+    globalThis.cancelAnimationFrame = ((id: number) => {
+      cancelledFrame = id;
+    }) as typeof globalThis.cancelAnimationFrame;
+
+    try {
+      const cleanup = parallax(el, { speed: 0.3 });
+      window.dispatchEvent(new Event('scroll'));
+      cleanup();
+
+      expect(cancelledFrame).toBe(123);
+      queuedFrame?.(0);
+      expect(el.style.transform).toBe('');
+    } finally {
+      globalThis.requestAnimationFrame = originalRaf;
+      globalThis.cancelAnimationFrame = originalCancelRaf;
+    }
+  });
+
   it('supports horizontal direction', () => {
     const el = document.createElement('div');
     const cleanup = parallax(el, { speed: 0.5, direction: 'horizontal' });

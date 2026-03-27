@@ -75,9 +75,12 @@ export const resolve = (name: string, params: Record<string, string> = {}): stri
       let nextIndex = nameEnd;
       if (route.path[nameEnd] === '(') {
         const parsedConstraint = readConstraint(route.path, nameEnd);
-        if (parsedConstraint) {
-          nextIndex = parsedConstraint.endIndex;
+        if (!parsedConstraint) {
+          throw new Error(
+            `bQuery router: Invalid constraint syntax in path "${route.path}" for route "${name}".`
+          );
         }
+        nextIndex = parsedConstraint.endIndex;
       }
 
       const key = route.path.slice(i + 1, nameEnd);

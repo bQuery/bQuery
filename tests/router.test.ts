@@ -987,6 +987,16 @@ describe('Router', () => {
       expect(() => resolve('user')).toThrow('Missing required param "id" for route "user"');
     });
 
+    it('should throw error for invalid param constraint syntax when resolving', () => {
+      router = createRouter({
+        routes: [{ path: '/user/:id(\\d+', component: () => null, name: 'user' }],
+      });
+
+      expect(() => resolve('user', { id: '42' })).toThrow(
+        'Invalid constraint syntax in path "/user/:id(\\d+" for route "user"'
+      );
+    });
+
     it('should throw error for unknown route name', () => {
       router = createRouter({
         routes: [{ path: '/', component: () => null, name: 'home' }],

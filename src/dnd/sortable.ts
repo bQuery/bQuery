@@ -220,33 +220,39 @@ export const sortable = (
     if (!isDragging || !dragItem || !placeholder) return;
 
     isDragging = false;
+    const draggedItem = dragItem;
 
     // Get final index
     const newIndex = Array.from(container.children).indexOf(placeholder);
 
     // Animate the item back to the placeholder position
     const placeholderRect = placeholder.getBoundingClientRect();
-    const itemRect = dragItem.getBoundingClientRect();
+    const itemRect = draggedItem.getBoundingClientRect();
 
     if (animationDuration > 0) {
       const deltaX = placeholderRect.left - itemRect.left;
       const deltaY = placeholderRect.top - itemRect.top;
 
-      dragItem.style.transition = `transform ${animationDuration}ms ease`;
-      dragItem.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      draggedItem.style.transition = `transform ${animationDuration}ms ease`;
+      draggedItem.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+
+      let finalized = false;
+      const timeoutId = window.setTimeout(() => {
+        finalize();
+      }, animationDuration + 50);
 
       const finalize = (): void => {
+        if (finalized) return;
+        finalized = true;
+        window.clearTimeout(timeoutId);
         resetDragItem();
-        onSortEnd?.(createEventData(dragItem!, startIndex, newIndex));
+        onSortEnd?.(createEventData(draggedItem, startIndex, newIndex));
       };
 
-      dragItem.addEventListener('transitionend', finalize, { once: true });
-
-      // Fallback timeout in case transition doesn't fire
-      setTimeout(finalize, animationDuration + 50);
+      draggedItem.addEventListener('transitionend', finalize, { once: true });
     } else {
       resetDragItem();
-      onSortEnd?.(createEventData(dragItem, startIndex, newIndex));
+      onSortEnd?.(createEventData(draggedItem, startIndex, newIndex));
     }
 
     container.releasePointerCapture(e.pointerId);

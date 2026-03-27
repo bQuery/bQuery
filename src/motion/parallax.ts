@@ -47,8 +47,12 @@ export const parallax = (
   }
 
   let ticking = false;
+  let destroyed = false;
+  let frameId: number | null = null;
 
   const updatePosition = () => {
+    if (destroyed) return;
+
     // Re-check reduced motion on each frame (in case toggle changed)
     if (respectReducedMotion && prefersReducedMotion()) {
       el.style.transform = '';
@@ -74,7 +78,8 @@ export const parallax = (
   const onScroll = () => {
     if (!ticking) {
       ticking = true;
-      requestAnimationFrame(() => {
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
         updatePosition();
         ticking = false;
       });
@@ -88,7 +93,13 @@ export const parallax = (
   window.addEventListener('scroll', onScroll, { passive: true });
 
   return () => {
+    destroyed = true;
     window.removeEventListener('scroll', onScroll);
+    if (frameId !== null) {
+      cancelAnimationFrame(frameId);
+      frameId = null;
+    }
+    ticking = false;
     el.style.transform = '';
   };
 };

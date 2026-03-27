@@ -32,7 +32,7 @@ const FOCUSED_STYLES = `
 `;
 
 let skipTargetIdCounter = 0;
-const generatedSkipTargetRefs = new Map<string, number>();
+const generatedSkipTargetRefs = new Map<string, { count: number; target: HTMLElement }>();
 /** Matches a bare element id value (not a general CSS selector). */
 const BARE_ID_SELECTOR_RE = /^[A-Za-z][\w-]*$/;
 
@@ -71,23 +71,30 @@ export const skipLink = (
   const releaseTrackedGeneratedTargetId = (): void => {
     if (!trackedGeneratedTargetId) return;
 
-    const remainingRefs = (generatedSkipTargetRefs.get(trackedGeneratedTargetId) ?? 0) - 1;
+    const entry = generatedSkipTargetRefs.get(trackedGeneratedTargetId);
+    const remainingRefs = (entry?.count ?? 0) - 1;
     if (remainingRefs <= 0) {
       generatedSkipTargetRefs.delete(trackedGeneratedTargetId);
-      const target = document.getElementById(trackedGeneratedTargetId);
-      if (target) {
-        target.removeAttribute('id');
+      if (entry?.target.id === trackedGeneratedTargetId) {
+        entry.target.removeAttribute('id');
       }
     } else {
-      generatedSkipTargetRefs.set(trackedGeneratedTargetId, remainingRefs);
+      generatedSkipTargetRefs.set(trackedGeneratedTargetId, {
+        count: remainingRefs,
+        target: entry!.target,
+      });
     }
 
     trackedGeneratedTargetId = undefined;
   };
-  const trackGeneratedTargetId = (id: string): void => {
+  const trackGeneratedTargetId = (target: HTMLElement, id: string): void => {
     if (trackedGeneratedTargetId === id) return;
     releaseTrackedGeneratedTargetId();
-    generatedSkipTargetRefs.set(id, (generatedSkipTargetRefs.get(id) ?? 0) + 1);
+    const entry = generatedSkipTargetRefs.get(id);
+    generatedSkipTargetRefs.set(id, {
+      count: (entry?.count ?? 0) + 1,
+      target,
+    });
     trackedGeneratedTargetId = id;
   };
   const resolveTarget = (): HTMLElement | null => {
@@ -103,8 +110,9 @@ export const skipLink = (
 
   const ensureTargetId = (target: HTMLElement): string => {
     if (target.id) {
-      if (generatedSkipTargetRefs.has(target.id)) {
-        trackGeneratedTargetId(target.id);
+      const generatedTarget = generatedSkipTargetRefs.get(target.id);
+      if (generatedTarget?.target === target) {
+        trackGeneratedTargetId(target, target.id);
       }
       return target.id;
     }
@@ -112,7 +120,7 @@ export const skipLink = (
     skipTargetIdCounter += 1;
     const generatedTargetId = `bq-skip-target-${skipTargetIdCounter}`;
     target.id = generatedTargetId;
-    trackGeneratedTargetId(generatedTargetId);
+    trackGeneratedTargetId(target, generatedTargetId);
     return generatedTargetId;
   };
 

@@ -787,6 +787,33 @@ describe('dnd/sortable', () => {
     handle.destroy();
   });
 
+  it('should call onSortEnd after animated pointerup without losing dragged item data', () => {
+    const list = createSortableList();
+    container.appendChild(list);
+
+    let endData: { oldIndex: number; newIndex: number } | null = null;
+    const handle = sortable(list, {
+      items: 'li',
+      animationDuration: 50,
+      onSortEnd: (data) => {
+        endData = { oldIndex: data.oldIndex, newIndex: data.newIndex };
+      },
+    });
+
+    const firstItem = list.querySelector('li')!;
+    firePointerEvent(firstItem, 'pointerdown', {
+      clientX: 50,
+      clientY: 20,
+    });
+    firePointerEvent(list, 'pointerup', { clientX: 50, clientY: 100 });
+
+    firstItem.dispatchEvent(new Event('transitionend'));
+
+    expect(endData).not.toBeNull();
+    expect(endData!.oldIndex).toBe(0);
+    handle.destroy();
+  });
+
   it('should respect handle option', () => {
     const list = createSortableList();
     container.appendChild(list);

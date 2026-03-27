@@ -596,6 +596,27 @@ describe('a11y/skipLink', () => {
     main.remove();
     section.remove();
   });
+
+  it('should only remove an auto-generated id from the original tracked target', () => {
+    const main = document.createElement('main');
+    document.body.appendChild(main);
+
+    const handle = skipLink('main');
+    const generatedId = handle.element.href.split('#')[1]!;
+
+    main.removeAttribute('id');
+
+    const replacement = document.createElement('div');
+    replacement.id = generatedId;
+    document.body.appendChild(replacement);
+
+    handle.destroy();
+
+    expect(replacement.id).toBe(generatedId);
+
+    main.remove();
+    replacement.remove();
+  });
 });
 
 // ─── prefersReducedMotion ────────────────────────────────────────────────────
