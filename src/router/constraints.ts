@@ -3,8 +3,26 @@
  * @internal
  */
 
+const MAX_ROUTE_CONSTRAINT_CACHE_SIZE = 128;
 const normalizedConstraintCache = new Map<string, string>();
 const compiledConstraintRegexCache = new Map<string, RegExp>();
+
+const setBoundedCacheEntry = <T>(cache: Map<string, T>, key: string, value: T): void => {
+  if (cache.has(key)) {
+    cache.delete(key);
+  }
+
+  cache.set(key, value);
+
+  if (cache.size <= MAX_ROUTE_CONSTRAINT_CACHE_SIZE) {
+    return;
+  }
+
+  const oldestKey = cache.keys().next().value;
+  if (oldestKey !== undefined) {
+    cache.delete(oldestKey);
+  }
+};
 
 /**
  * Detects potentially super-linear (ReDoS) patterns such as nested quantifiers.
@@ -130,7 +148,7 @@ export const getNormalizedRouteConstraint = (constraint: string): string => {
   }
 
   const normalized = normalizeConstraintCaptures(constraint);
-  normalizedConstraintCache.set(constraint, normalized);
+  setBoundedCacheEntry(normalizedConstraintCache, constraint, normalized);
   return normalized;
 };
 
@@ -148,10 +166,15 @@ export const getRouteConstraintRegex = (constraint: string): RegExp => {
   }
 
   const compiled = new RegExp(`^(?:${normalizedConstraint})$`);
-  compiledConstraintRegexCache.set(normalizedConstraint, compiled);
+  setBoundedCacheEntry(compiledConstraintRegexCache, normalizedConstraint, compiled);
   return compiled;
 };
 
 export const routeConstraintMatches = (constraint: string, value: string): boolean => {
   return getRouteConstraintRegex(constraint).test(value);
+};
+
+export const clearRouteConstraintCache = (): void => {
+  normalizedConstraintCache.clear();
+  compiledConstraintRegexCache.clear();
 };

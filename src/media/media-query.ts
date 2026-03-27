@@ -6,7 +6,7 @@
  * @module bquery/media
  */
 
-import { signal, readonly } from '../reactive/index';
+import { readonly, signal } from '../reactive/index';
 import type { MediaSignalHandle } from './types';
 
 /**
@@ -48,10 +48,28 @@ export const mediaQuery = (query: string): MediaSignalHandle<boolean> => {
         s.value = e.matches;
       };
 
-      mql.addEventListener('change', handler);
-      cleanup = () => {
-        mql.removeEventListener('change', handler);
-      };
+      if (typeof mql.addEventListener === 'function') {
+        mql.addEventListener('change', handler);
+        cleanup = () => {
+          mql.removeEventListener('change', handler);
+        };
+      } else if (
+        typeof (
+          mql as MediaQueryList & {
+            addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
+            removeListener?: (listener: (event: MediaQueryListEvent) => void) => void;
+          }
+        ).addListener === 'function'
+      ) {
+        const legacyMql = mql as MediaQueryList & {
+          addListener: (listener: (event: MediaQueryListEvent) => void) => void;
+          removeListener: (listener: (event: MediaQueryListEvent) => void) => void;
+        };
+        legacyMql.addListener(handler);
+        cleanup = () => {
+          legacyMql.removeListener(handler);
+        };
+      }
     } catch {
       // matchMedia may throw in non-browser environments
     }

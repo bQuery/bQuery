@@ -421,7 +421,9 @@ const createComponentClass = <
       change?: AttributeChange,
       runBeforeUpdate = true
     ): void {
-      const previousScope = setCurrentScope(this.scope);
+      const renderScope = this.scope ?? createComponentScope();
+      const shouldDisposeRenderScope = this.scope === undefined;
+      const previousScope = setCurrentScope(renderScope);
       try {
         if (triggerUpdated && runBeforeUpdate && definition.beforeUpdate) {
           if (!oldProps) {
@@ -477,6 +479,9 @@ const createComponentClass = <
         this.handleError(error as Error);
       } finally {
         setCurrentScope(previousScope);
+        if (shouldDisposeRenderScope) {
+          renderScope.dispose();
+        }
       }
     }
   }

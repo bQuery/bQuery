@@ -3,14 +3,14 @@
  */
 
 import { afterEach, describe, expect, it, spyOn } from 'bun:test';
-import { mediaQuery } from '../src/media/media-query';
-import { breakpoints } from '../src/media/breakpoints';
-import { useViewport } from '../src/media/viewport';
-import { useNetworkStatus } from '../src/media/network';
 import { useBattery } from '../src/media/battery';
-import { useGeolocation } from '../src/media/geolocation';
-import { useDeviceMotion, useDeviceOrientation } from '../src/media/device-sensors';
+import { breakpoints } from '../src/media/breakpoints';
 import { clipboard } from '../src/media/clipboard';
+import { useDeviceMotion, useDeviceOrientation } from '../src/media/device-sensors';
+import { useGeolocation } from '../src/media/geolocation';
+import { mediaQuery } from '../src/media/media-query';
+import { useNetworkStatus } from '../src/media/network';
+import { useViewport } from '../src/media/viewport';
 
 const originalInnerWidth = window.innerWidth;
 const originalInnerHeight = window.innerHeight;
@@ -77,6 +77,37 @@ describe('media/mediaQuery', () => {
 
     try {
       const sig = mediaQuery('(min-width: 768px)');
+      sig.destroy();
+      expect(removedHandler).toBe(registeredHandler);
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('falls back to legacy addListener/removeListener when addEventListener is unavailable', () => {
+    let registeredHandler: ((event: MediaQueryListEvent) => void) | undefined;
+    let removedHandler: ((event: MediaQueryListEvent) => void) | undefined;
+    const originalMatchMedia = window.matchMedia;
+
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: query === '(min-width: 768px)',
+        media: query,
+        onchange: null,
+        addEventListener: undefined,
+        removeEventListener: undefined,
+        addListener: (handler: (event: MediaQueryListEvent) => void) => {
+          registeredHandler = handler;
+        },
+        removeListener: (handler: (event: MediaQueryListEvent) => void) => {
+          removedHandler = handler;
+        },
+        dispatchEvent: () => true,
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      const sig = mediaQuery('(min-width: 768px)');
+      expect(sig.value).toBe(true);
       sig.destroy();
       expect(removedHandler).toBe(registeredHandler);
     } finally {

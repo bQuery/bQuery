@@ -8,8 +8,8 @@
  * @internal
  */
 
-import { Signal, signal } from '../reactive/core';
 import { Computed, computed } from '../reactive/computed';
+import { Signal, signal } from '../reactive/core';
 import { effect } from '../reactive/effect';
 import type { CleanupFn } from '../reactive/internals';
 
@@ -76,8 +76,11 @@ export function createComponentScope(): ComponentScope {
  * The signal is automatically disposed when the component disconnects
  * from the DOM, removing all subscribers and preventing memory leaks.
  *
- * Must be called during a component lifecycle hook (`connected`,
- * `beforeMount`) or inside `render()`.
+ * Must be called during a component lifecycle hook such as `connected`,
+ * `beforeMount`, `onAdopted`, or `onAttributeChanged`.
+ *
+ * Do not create scoped primitives from `render()`. Repeated renders can
+ * accumulate render-scoped resources until disconnect; prefer lifecycle hooks.
  *
  * @template T - The type of the signal value
  * @param initialValue - The initial value of the signal
@@ -103,7 +106,7 @@ export function useSignal<T>(initialValue: T): Signal<T> {
   const scope = currentScope;
   if (!scope) {
     throw new Error(
-      'bQuery component: useSignal() must be called inside a component lifecycle hook or render function'
+      'bQuery component: useSignal() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
     );
   }
   const s = signal(initialValue);
@@ -117,8 +120,11 @@ export function useSignal<T>(initialValue: T): Signal<T> {
  * The computed value's internal effect is automatically cleaned up
  * when the component disconnects from the DOM.
  *
- * Must be called during a component lifecycle hook (`connected`,
- * `beforeMount`) or inside `render()`.
+ * Must be called during a component lifecycle hook such as `connected`,
+ * `beforeMount`, `onAdopted`, or `onAttributeChanged`.
+ *
+ * Do not create scoped primitives from `render()`. Repeated renders can
+ * accumulate render-scoped resources until disconnect; prefer lifecycle hooks.
  *
  * @template T - The type of the computed value
  * @param fn - Derivation function that reads reactive sources
@@ -144,7 +150,7 @@ export function useComputed<T>(fn: () => T): Computed<T> {
   const scope = currentScope;
   if (!scope) {
     throw new Error(
-      'bQuery component: useComputed() must be called inside a component lifecycle hook or render function'
+      'bQuery component: useComputed() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
     );
   }
   const c = computed(fn);
@@ -159,8 +165,11 @@ export function useComputed<T>(fn: () => T): Computed<T> {
  * change. It is automatically disposed when the component disconnects
  * from the DOM.
  *
- * Must be called during a component lifecycle hook (`connected`,
- * `beforeMount`) or inside `render()`.
+ * Must be called during a component lifecycle hook such as `connected`,
+ * `beforeMount`, `onAdopted`, or `onAttributeChanged`.
+ *
+ * Do not create scoped primitives from `render()`. Repeated renders can
+ * accumulate render-scoped resources until disconnect; prefer lifecycle hooks.
  *
  * @param fn - The effect function; may return a cleanup function
  * @returns A cleanup function to manually stop the effect early
@@ -186,7 +195,7 @@ export function useEffect(fn: () => void | CleanupFn): CleanupFn {
   const scope = currentScope;
   if (!scope) {
     throw new Error(
-      'bQuery component: useEffect() must be called inside a component lifecycle hook or render function'
+      'bQuery component: useEffect() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
     );
   }
   const cleanup = effect(fn);

@@ -6,6 +6,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
+import { clearRouteConstraintCache, getRouteConstraintRegex } from '../src/router/constraints';
 import {
   back,
   BqLinkElement,
@@ -31,6 +32,10 @@ import { matchRoute } from '../src/router/match';
 
 const TEST_ORIGIN = 'http://localhost';
 const expectType = <T>(_value: T): void => {};
+
+afterEach(() => {
+  clearRouteConstraintCache();
+});
 
 /**
  * Helper to setup mocked window.location and history for router tests.
@@ -171,6 +176,31 @@ const setupMockHistory = () => {
 // ============================================================================
 
 describe('Router', () => {
+  describe('route constraint cache', () => {
+    it('clears cached compiled regexes on demand', () => {
+      const first = getRouteConstraintRegex('\\d+');
+      const second = getRouteConstraintRegex('\\d+');
+
+      expect(second).toBe(first);
+
+      clearRouteConstraintCache();
+
+      const third = getRouteConstraintRegex('\\d+');
+      expect(third).not.toBe(first);
+    });
+
+    it('evicts old constraint entries once the cache cap is exceeded', () => {
+      const first = getRouteConstraintRegex('value-0');
+
+      for (let i = 1; i <= 128; i++) {
+        getRouteConstraintRegex(`value-${i}`);
+      }
+
+      const afterEviction = getRouteConstraintRegex('value-0');
+      expect(afterEviction).not.toBe(first);
+    });
+  });
+
   describe('module exports', () => {
     it('should export createRouter', async () => {
       const mod = await import('../src/router/index');
