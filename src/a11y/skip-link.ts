@@ -42,7 +42,8 @@ const assertSkipLinkEnvironment = (): void => {
     typeof document.createElement !== 'function' ||
     typeof document.querySelector !== 'function' ||
     typeof document.getElementById !== 'function' ||
-    document.body == null
+    document.body === null ||
+    document.body === undefined
   ) {
     throw new Error('bQuery a11y: skipLink() requires a browser document.');
   }
