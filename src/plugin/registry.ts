@@ -76,9 +76,12 @@ const createInstallContext = (
       throw new Error(`bQuery plugin component: constructor for "${tagName}" must be a function`);
     }
     if (typeof customElements === 'undefined') {
-      throw new Error(
-        'bQuery plugin component: customElements is not available in this environment'
-      );
+      if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+        console.warn(
+          `[bQuery] plugin component "${tagName}" was not registered because customElements is not available in this environment.`
+        );
+      }
+      return;
     }
     // Idempotent — skip if already defined or already staged during this install
     if (

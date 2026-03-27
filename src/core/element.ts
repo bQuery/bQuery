@@ -871,7 +871,7 @@ export class BQueryElement {
       return {};
     }
 
-    const result: Record<string, string | string[]> = {};
+    const result = Object.create(null) as Record<string, string | string[]>;
 
     for (const [key, value] of collectFormEntries(form)) {
       if (Object.prototype.hasOwnProperty.call(result, key)) {

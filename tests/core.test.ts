@@ -833,6 +833,7 @@ describe('core/BQueryElement - new methods', () => {
 
     const data = new BQueryElement(form).serialize();
 
+    expect(Object.getPrototypeOf(data)).toBeNull();
     expect(data.email).toBe('test@example.com');
     expect(Object.prototype.hasOwnProperty.call(data, '__proto__')).toBe(false);
     expect(Object.keys(data)).not.toContain('__proto__');

@@ -7,7 +7,7 @@
  * @module bquery/media
  */
 
-import { signal, readonly } from '../reactive/index';
+import { readonly, signal } from '../reactive/index';
 import type { ViewportSignal, ViewportState } from './types';
 
 /**
@@ -69,12 +69,15 @@ export const useViewport = (): ViewportSignal => {
 
   const ro = readonly(s) as ViewportSignal;
   let destroyed = false;
-  ro.destroy = (): void => {
-    if (destroyed) return;
-    destroyed = true;
-    cleanup?.();
-    s.dispose();
-  };
+  Object.defineProperty(ro, 'destroy', {
+    enumerable: false,
+    value: (): void => {
+      if (destroyed) return;
+      destroyed = true;
+      cleanup?.();
+      s.dispose();
+    },
+  });
 
   return ro;
 };

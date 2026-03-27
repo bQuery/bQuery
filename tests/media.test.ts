@@ -284,6 +284,13 @@ describe('media/useViewport', () => {
     expect(vp.value.width).not.toBe(777);
     expect(vp.value.height).not.toBe(333);
   });
+
+  it('defines destroy as a non-enumerable handle method', () => {
+    const vp = useViewport();
+
+    expect(Object.keys(vp)).not.toContain('destroy');
+    expect(Object.getOwnPropertyDescriptor(vp, 'destroy')?.enumerable ?? true).toBe(false);
+  });
 });
 
 // ─── useNetworkStatus ────────────────────────────────────────────────────────

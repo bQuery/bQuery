@@ -14,7 +14,14 @@ import {
 import { notifyDevtoolsStateChange, registerDevtoolsStore } from './devtools';
 import { applyPlugins } from './plugins';
 import { getStore, hasStore, registerStore } from './registry';
-import type { Getters, OnActionCallback, Store, StoreDefinition, StoreSubscriber } from './types';
+import type {
+  ActionContext,
+  Getters,
+  OnActionCallback,
+  Store,
+  StoreDefinition,
+  StoreSubscriber,
+} from './types';
 import { deepClone, detectNestedMutations, isDev } from './utils';
 
 /**
@@ -55,7 +62,7 @@ export const createStore = <
   const subscribers: Array<StoreSubscriber<S>> = [];
 
   // Action lifecycle hooks for $onAction
-  const actionListeners: Array<OnActionCallback> = [];
+  const actionListeners: Array<OnActionCallback<S, G, A>> = [];
 
   const reportOnActionError = (
     phase: 'listener' | 'after' | 'onError',
@@ -214,7 +221,7 @@ export const createStore = <
   // Bind actions to the store context, with $onAction lifecycle support
   for (const key of Object.keys(actions) as Array<keyof A>) {
     const actionFn = actions[key];
-    const actionName = key as string;
+    const actionName = key as keyof A & string;
 
     // Wrap action to enable 'this' binding and $onAction hooks
     (store as Record<string, unknown>)[actionName] = function (...args: unknown[]) {
@@ -247,17 +254,23 @@ export const createStore = <
       const errorHooks: Array<(error: unknown) => void> = [];
       const listenerSnapshot = [...actionListeners];
 
+      const listenerContext = {
+        name: actionName,
+        store,
+        args: args as Parameters<A[typeof actionName]>,
+        after: (callback: (result: Awaited<ReturnType<A[typeof actionName]>>) => void) => {
+          afterHooks.push((result) =>
+            callback(result as Awaited<ReturnType<A[typeof actionName]>>)
+          );
+        },
+        onError: (callback: (error: unknown) => void) => {
+          errorHooks.push(callback);
+        },
+      } satisfies ActionContext<S, G, A, typeof actionName>;
+
       // Notify all action listeners (before phase)
       for (const listener of listenerSnapshot) {
-        runOnActionCallback('listener', actionName, () =>
-          listener({
-            name: actionName,
-            store,
-            args,
-            after: (cb) => afterHooks.push(cb),
-            onError: (cb) => errorHooks.push(cb),
-          })
-        );
+        runOnActionCallback('listener', actionName, () => listener(listenerContext));
       }
 
       let result: unknown;
@@ -328,7 +341,7 @@ export const createStore = <
       enumerable: false,
     },
     $onAction: {
-      value: (callback: OnActionCallback) => {
+      value: (callback: OnActionCallback<S, G, A>) => {
         actionListeners.push(callback);
         return () => {
           const index = actionListeners.indexOf(callback);

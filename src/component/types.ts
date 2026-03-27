@@ -244,7 +244,14 @@ export type ComponentDefinition<
   ComponentSignalsDefinition<TSignals> & {
     /** Prop definitions with types and defaults */
     props?: Record<keyof TProps, PropDefinition>;
-    /** CSS styles scoped to the component's shadow DOM */
+    /**
+     * CSS styles injected for the component.
+     *
+     * When `shadow` uses a shadow root (`true`, `'open'`, or `'closed'`), these
+     * styles are scoped to that shadow tree. When `shadow` is `false`, the
+     * generated `<style>` element is rendered into the host's light DOM and may
+     * therefore affect surrounding markup according to normal CSS cascade rules.
+     */
     styles?: string;
     /**
      * Controls Shadow DOM mode.

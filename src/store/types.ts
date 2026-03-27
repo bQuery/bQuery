@@ -53,6 +53,16 @@ export type StoreSubscriber<S> = (state: S) => void;
 export type StorePatch<S> = Partial<S> | ((state: S) => void);
 
 /**
+ * Action function record used by store definitions and lifecycle hooks.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StoreActionRecord = Record<string, (...args: any[]) => any>;
+
+type ActionName<A extends StoreActionRecord> = keyof A & string;
+type ActionArgs<A extends StoreActionRecord, K extends ActionName<A>> = Parameters<A[K]>;
+type ActionResult<A extends StoreActionRecord, K extends ActionName<A>> = Awaited<ReturnType<A[K]>>;
+
+/**
  * Context provided to `$onAction` callbacks.
  *
  * @example
@@ -64,19 +74,23 @@ export type StorePatch<S> = Partial<S> | ((state: S) => void);
  * });
  * ```
  */
-export type ActionContext = {
+export type ActionContext<
+  S extends Record<string, unknown>,
+  G extends Record<string, unknown>,
+  A extends StoreActionRecord,
+  K extends ActionName<A> = ActionName<A>,
+> = {
   /** The name of the action being called */
-  name: string;
+  name: K;
   /** The store instance */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  store: Store<any, any, any>;
+  store: Store<S, G, A>;
   /** The arguments passed to the action */
-  args: unknown[];
+  args: ActionArgs<A, K>;
   /**
    * Register a callback to run after the action completes successfully.
    * For async actions, runs after the returned promise resolves.
    */
-  after: (callback: (result: unknown) => void) => void;
+  after: (callback: (result: ActionResult<A, K>) => void) => void;
   /**
    * Register a callback to run if the action throws or the returned
    * promise rejects.
@@ -87,7 +101,11 @@ export type ActionContext = {
 /**
  * Callback for `$onAction`.
  */
-export type OnActionCallback = (context: ActionContext) => void;
+export type OnActionCallback<
+  S extends Record<string, unknown>,
+  G extends Record<string, unknown>,
+  A extends StoreActionRecord,
+> = <K extends ActionName<A>>(context: ActionContext<S, G, A, K>) => void;
 
 /**
  * The returned store instance with state, getters, and actions merged.
@@ -95,8 +113,7 @@ export type OnActionCallback = (context: ActionContext) => void;
 export type Store<
   S extends Record<string, unknown>,
   G extends Record<string, unknown>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  A extends Record<string, (...args: any[]) => any>,
+  A extends StoreActionRecord,
 > = S &
   G &
   A & {
@@ -132,7 +149,7 @@ export type Store<
      * });
      * ```
      */
-    $onAction: (callback: OnActionCallback) => () => void;
+    $onAction: (callback: OnActionCallback<S, G, A>) => () => void;
   };
 
 /**

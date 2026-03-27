@@ -427,24 +427,36 @@ describe('Plugin System', () => {
       }).toThrow('must be a function');
     });
 
-    it('should throw a clear error when customElements is unavailable', () => {
+    it('should warn and continue when customElements is unavailable', () => {
       const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'customElements');
+      const warnSpy = console.warn;
+      const warnings: string[] = [];
 
       Object.defineProperty(globalThis, 'customElements', {
         value: undefined,
         configurable: true,
       });
 
+      console.warn = ((message?: unknown) => {
+        warnings.push(String(message));
+      }) as typeof console.warn;
+
       try {
-        expect(() => {
-          use({
-            name: 'missing-custom-elements',
-            install(ctx) {
-              ctx.component('bq-missing-ce', class extends HTMLElement {});
-            },
-          });
-        }).toThrow('customElements is not available');
+        use({
+          name: 'missing-custom-elements',
+          install(ctx) {
+            ctx.directive('ssr-safe', () => {});
+            ctx.component('bq-missing-ce', class extends HTMLElement {});
+          },
+        });
+
+        expect(isInstalled('missing-custom-elements')).toBe(true);
+        expect(getCustomDirective('ssr-safe')).toBeDefined();
+        expect(warnings).toEqual([
+          '[bQuery] plugin component "bq-missing-ce" was not registered because customElements is not available in this environment.',
+        ]);
       } finally {
+        console.warn = warnSpy;
         if (originalDescriptor) {
           Object.defineProperty(globalThis, 'customElements', originalDescriptor);
         }
