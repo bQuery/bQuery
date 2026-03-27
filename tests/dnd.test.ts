@@ -43,6 +43,8 @@ const firePointerEvent = (
   target.dispatchEvent(event);
 };
 
+const POINTER_TRACKING_FLUSH_MS = 20;
+
 const setZoneRect = (
   target: HTMLElement,
   rect: { left: number; top: number; right: number; bottom: number }
@@ -59,7 +61,7 @@ const setZoneRect = (
 };
 
 const flushPointerTracking = async (): Promise<void> => {
-  await new Promise((resolve) => setTimeout(resolve, 20));
+  await new Promise((resolve) => setTimeout(resolve, POINTER_TRACKING_FLUSH_MS));
 };
 
 // ─── draggable() ─────────────────────────────────────────────────────────────
