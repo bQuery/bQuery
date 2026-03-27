@@ -31,7 +31,7 @@ import type { TypewriterControls, TypewriterOptions } from './types';
  * ```
  */
 export const typewriter = (
-  element: Element,
+  element: HTMLElement,
   text: string,
   options: TypewriterOptions = {}
 ): TypewriterControls => {
@@ -46,7 +46,14 @@ export const typewriter = (
     onComplete,
   } = options;
 
-  const el = element as HTMLElement;
+  if (typeof document === 'undefined') {
+    return {
+      stop: () => {},
+      done: Promise.resolve(),
+    };
+  }
+
+  const el = element;
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | null = null;
   let cursorEl: HTMLSpanElement | null = null;

@@ -131,19 +131,21 @@ export const serializeStoreState = (options: SerializeOptions = {}): SerializeRe
     );
   }
 
-  let parsedStateJson: unknown;
-  try {
-    parsedStateJson = JSON.parse(stateJson);
-  } catch {
-    throw new Error(
-      'serializeStoreState: custom serialize function returned invalid JSON.'
-    );
-  }
+  if (serialize !== JSON.stringify) {
+    let parsedStateJson: unknown;
+    try {
+      parsedStateJson = JSON.parse(stateJson);
+    } catch {
+      throw new Error(
+        'serializeStoreState: custom serialize function returned invalid JSON.'
+      );
+    }
 
-  if (!isStoreStateObject(parsedStateJson)) {
-    throw new Error(
-      'serializeStoreState: custom serialize function must return a JSON object string.'
-    );
+    if (!isStoreStateObject(parsedStateJson)) {
+      throw new Error(
+        'serializeStoreState: custom serialize function must return a JSON object string.'
+      );
+    }
   }
 
   const escapedJson = escapeForScript(stateJson);

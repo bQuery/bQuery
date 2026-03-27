@@ -981,6 +981,27 @@ describe('motion/parallax', () => {
     expect(el.style.transform).toBe('translate3d(0px, 0px, 0)');
     cleanup();
   });
+
+  it('returns a no-op cleanup when window is unavailable', () => {
+    const el = document.createElement('div');
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+    try {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+      const cleanup = parallax(el, { speed: 0.5 });
+      expect(typeof cleanup).toBe('function');
+      expect(el.style.transform).toBe('');
+      cleanup();
+    } finally {
+      if (originalWindowDescriptor) {
+        Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+      }
+    }
+  });
 });
 
 // ============================================================================
@@ -1074,5 +1095,28 @@ describe('motion/typewriter', () => {
     await tw.done;
     // Cursor should be removed after completion
     expect(el.querySelector('span[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('returns resolved controls when document is unavailable', async () => {
+    const el = document.createElement('div');
+    const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'document'
+    );
+
+    try {
+      Object.defineProperty(globalThis, 'document', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+      const tw = typewriter(el, 'Hi', { speed: 5, cursor: true });
+      await tw.done;
+      expect(el.textContent).toBe('');
+    } finally {
+      if (originalDocumentDescriptor) {
+        Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
+      }
+    }
   });
 });

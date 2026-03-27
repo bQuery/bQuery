@@ -162,6 +162,26 @@ describe('computed', () => {
 
     expect(computeCount).toBe(1);
   });
+
+  it('does not re-subscribe or recompute when read after dispose', () => {
+    let computeCount = 0;
+    const count = signal(1);
+    const doubled = computed(() => {
+      computeCount++;
+      return count.value * 2;
+    });
+
+    expect(doubled.value).toBe(2);
+    expect(computeCount).toBe(1);
+
+    doubled.dispose();
+
+    expect(doubled.value).toBe(2);
+    count.value = 3;
+
+    expect(doubled.value).toBe(2);
+    expect(computeCount).toBe(1);
+  });
 });
 
 describe('effect', () => {

@@ -21,9 +21,14 @@ import {
  */
 export class Computed<T> implements ReactiveSource {
   private cachedValue!: T;
+  private hasCachedValue = false;
   private dirty = true;
+  private disposed = false;
   private subscribers = new Set<() => void>();
   private readonly markDirty = () => {
+    if (this.disposed) {
+      return;
+    }
     this.dirty = true;
     // Create snapshot to avoid issues with subscribers modifying the set during iteration
     const subscribersSnapshot = Array.from(this.subscribers);
@@ -43,6 +48,14 @@ export class Computed<T> implements ReactiveSource {
    * During untrack calls, getCurrentObserver returns undefined, preventing dependency tracking.
    */
   get value(): T {
+    if (this.disposed) {
+      if (!this.hasCachedValue) {
+        this.cachedValue = this.compute();
+        this.hasCachedValue = true;
+      }
+      return this.cachedValue;
+    }
+
     const current = getCurrentObserver();
     if (current) {
       this.subscribers.add(current);
@@ -53,6 +66,7 @@ export class Computed<T> implements ReactiveSource {
       // Clear old dependencies before recomputing
       clearDependencies(this.markDirty);
       this.cachedValue = track(this.markDirty, this.compute);
+      this.hasCachedValue = true;
     }
     return this.cachedValue;
   }
@@ -64,11 +78,20 @@ export class Computed<T> implements ReactiveSource {
    * @returns The current cached value (recomputes if dirty)
    */
   peek(): T {
+    if (this.disposed) {
+      if (!this.hasCachedValue) {
+        this.cachedValue = this.compute();
+        this.hasCachedValue = true;
+      }
+      return this.cachedValue;
+    }
+
     if (this.dirty) {
       this.dirty = false;
       // Clear old dependencies before recomputing
       clearDependencies(this.markDirty);
       this.cachedValue = track(this.markDirty, this.compute);
+      this.hasCachedValue = true;
     }
     return this.cachedValue;
   }
@@ -86,6 +109,8 @@ export class Computed<T> implements ReactiveSource {
    * from all upstream dependencies and clearing subscribers.
    */
   dispose(): void {
+    this.disposed = true;
+    this.dirty = false;
     clearDependencies(this.markDirty);
     this.subscribers.clear();
   }

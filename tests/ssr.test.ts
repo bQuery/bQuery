@@ -458,6 +458,22 @@ describe('serializeStoreState', () => {
     ).toThrow('serializeStoreState: custom serialize function must return a JSON object string.');
   });
 
+  it('does not re-parse JSON when using the default serializer', () => {
+    createStore({ id: 'serialize-default-json', state: () => ({ ok: true }) });
+    const originalParse = JSON.parse;
+
+    JSON.parse = (() => {
+      throw new Error('default serializer should not re-parse');
+    }) as typeof JSON.parse;
+
+    try {
+      const result = serializeStoreState({ storeIds: ['serialize-default-json'] });
+      expect(result.stateJson).toBe('{"serialize-default-json":{"ok":true}}');
+    } finally {
+      JSON.parse = originalParse;
+    }
+  });
+
   it('escapes dangerous HTML characters in script tag', () => {
     createStore({
       id: 'serialize-xss',

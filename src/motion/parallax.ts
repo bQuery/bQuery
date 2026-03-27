@@ -33,6 +33,10 @@ export const parallax = (
   element: Element,
   options: ParallaxOptions = {}
 ): ParallaxCleanup => {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
   const {
     speed = 0.5,
     direction = 'vertical',
