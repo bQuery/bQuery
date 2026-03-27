@@ -56,6 +56,23 @@ const readParamDescriptor = (
   };
 };
 
+const validateRoutePathPattern = (path: string): void => {
+  for (let i = 0; i < path.length; ) {
+    const char = path[i];
+
+    if (char === ':' && isParamStart(path[i + 1])) {
+      const param = readParamDescriptor(path, i);
+      if (param?.constraint) {
+        getNormalizedRouteConstraint(param.constraint);
+      }
+      i = param?.nextIndex ?? i + 1;
+      continue;
+    }
+
+    i++;
+  }
+};
+
 const findSegmentBoundary = (value: string, startIndex: number): number => {
   const slashIndex = value.indexOf('/', startIndex);
   return slashIndex === -1 ? value.length : slashIndex;
@@ -99,6 +116,9 @@ const matchPathPattern = (
 
     const param = readParamDescriptor(routePath, routeIndex);
     if (param) {
+      const normalizedConstraint = param.constraint
+        ? getNormalizedRouteConstraint(param.constraint)
+        : undefined;
       const candidateLimit = param.constraint
         ? actualPath.length
         : findSegmentBoundary(actualPath, pathIndex);
@@ -106,8 +126,7 @@ const matchPathPattern = (
       for (let candidateEnd = candidateLimit; candidateEnd > pathIndex; candidateEnd--) {
         const candidateValue = actualPath.slice(pathIndex, candidateEnd);
 
-        if (param.constraint) {
-          const normalizedConstraint = getNormalizedRouteConstraint(param.constraint);
+        if (normalizedConstraint) {
           const constraintRegex = new RegExp(`^(?:${normalizedConstraint})$`);
           if (!constraintRegex.test(candidateValue)) {
             continue;
@@ -151,6 +170,7 @@ export const matchRoute = (
   routes: RouteDefinition[]
 ): { matched: RouteDefinition; params: Record<string, string> } | null => {
   for (const route of routes) {
+    validateRoutePathPattern(route.path);
     const params = matchPathPattern(route.path, path);
     if (params) {
       return { matched: route, params };
