@@ -75,7 +75,7 @@ export const skipLink = (
     const remainingRefs = (entry?.count ?? 0) - 1;
     if (remainingRefs <= 0) {
       generatedSkipTargetRefs.delete(trackedGeneratedTargetId);
-      if (entry?.target.id === trackedGeneratedTargetId) {
+      if (entry?.target.isConnected && entry.target.id === trackedGeneratedTargetId) {
         entry.target.removeAttribute('id');
       }
     } else {

@@ -237,11 +237,14 @@ export const sortable = (
       draggedItem.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
 
       let finalized = false;
-      let timeoutId = 0;
+      let timeoutId: number | null = null;
       const finalize = (): void => {
         if (finalized) return;
         finalized = true;
-        window.clearTimeout(timeoutId);
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+          timeoutId = null;
+        }
         resetDragItem();
         onSortEnd?.(createEventData(draggedItem, startIndex, newIndex));
       };
