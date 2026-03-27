@@ -667,6 +667,25 @@ describe('a11y/skipLink', () => {
     replacement.remove();
   });
 
+  it('should skip pre-existing generated ids when assigning a target id', () => {
+    const collision = document.createElement('div');
+    collision.id = 'bq-skip-target-1';
+    document.body.appendChild(collision);
+
+    const main = document.createElement('main');
+    document.body.appendChild(main);
+
+    const handle = skipLink('main');
+    const generatedId = getSkipLinkElement(handle).href.split('#')[1]!;
+
+    expect(generatedId).not.toBe('bq-skip-target-1');
+    expect(main.id).toBe(generatedId);
+
+    handle.destroy();
+    main.remove();
+    collision.remove();
+  });
+
   it('should return a no-op handle when document APIs are unavailable', () => {
     const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
 

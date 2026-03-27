@@ -7,13 +7,13 @@
  * @module bquery/plugin
  */
 
+import { registerCustomDirectiveResolver } from '../view/custom-directives';
 import type {
   BQueryPlugin,
   CustomDirective,
   CustomDirectiveHandler,
   PluginInstallContext,
 } from './types';
-import { registerCustomDirectiveResolver } from '../view/custom-directives';
 
 // ---------------------------------------------------------------------------
 // Internal registries
@@ -49,6 +49,9 @@ const createInstallContext = (): PluginInstallContext => ({
     }
     if (typeof handler !== 'function') {
       throw new Error(`bQuery plugin directive: handler for "${name}" must be a function`);
+    }
+    if (customDirectives.has(name)) {
+      throw new Error(`bQuery plugin directive: a directive named "${name}" is already registered`);
     }
     customDirectives.set(name, handler);
   },

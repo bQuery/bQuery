@@ -177,8 +177,12 @@ export const skipLink = (targetSelector: string, options: SkipLinkOptions = {}):
       return target.id;
     }
 
-    skipTargetIdCounter += 1;
-    const generatedTargetId = `bq-skip-target-${skipTargetIdCounter}`;
+    let generatedTargetId: string;
+    do {
+      skipTargetIdCounter += 1;
+      generatedTargetId = `bq-skip-target-${skipTargetIdCounter}`;
+    } while (document.getElementById(generatedTargetId) !== null);
+
     target.id = generatedTargetId;
     trackGeneratedTargetId(target, generatedTargetId);
     return generatedTargetId;

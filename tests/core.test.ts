@@ -819,6 +819,28 @@ describe('core/BQueryElement - new methods', () => {
     form.remove();
   });
 
+  it('serialize ignores prototype-pollution field names', () => {
+    const form = document.createElement('form');
+    const safeInput = document.createElement('input');
+    safeInput.name = 'email';
+    safeInput.value = 'test@example.com';
+    const dangerousInput = document.createElement('input');
+    dangerousInput.name = '__proto__';
+    dangerousInput.value = 'polluted';
+    form.appendChild(safeInput);
+    form.appendChild(dangerousInput);
+
+    const data = new BQueryElement(form).serialize();
+
+    if (Object.keys(data).length > 0) {
+      expect(data.email).toBe('test@example.com');
+    }
+    expect(Object.prototype.hasOwnProperty.call(data, '__proto__')).toBe(false);
+    expect(Object.keys(data)).not.toContain('__proto__');
+
+    form.remove();
+  });
+
   it('serializeString returns URL-encoded string', () => {
     const form = document.createElement('form');
     const input = document.createElement('input');

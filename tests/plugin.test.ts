@@ -1,16 +1,16 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import {
-  use,
-  isInstalled,
-  getInstalledPlugins,
-  getCustomDirective,
-  getCustomDirectives,
-  resetPlugins,
-} from '../src/plugin/index';
 import type {
   BQueryPlugin,
   CustomDirectiveHandler,
   PluginInstallContext,
+} from '../src/plugin/index';
+import {
+  getCustomDirective,
+  getCustomDirectives,
+  getInstalledPlugins,
+  isInstalled,
+  resetPlugins,
+  use,
 } from '../src/plugin/index';
 import {
   createForHandler,
@@ -253,24 +253,28 @@ describe('Plugin System', () => {
       expect(getCustomDirective('nonexistent')).toBeUndefined();
     });
 
-    it('should overwrite a directive if registered again', () => {
+    it('should throw when a directive name is registered twice', () => {
       const handler1: CustomDirectiveHandler = () => {};
       const handler2: CustomDirectiveHandler = () => {};
+
       use({
         name: 'p1',
         install(ctx) {
           ctx.directive('dup', handler1);
         },
       });
-      // Second plugin overwrites
-      resetPlugins(); // reset to allow re-install
-      use({
-        name: 'p2',
-        install(ctx) {
-          ctx.directive('dup', handler2);
-        },
-      });
-      expect(getCustomDirective('dup')).toBe(handler2);
+
+      expect(() => {
+        use({
+          name: 'p2',
+          install(ctx) {
+            ctx.directive('dup', handler2);
+          },
+        });
+      }).toThrow('a directive named "dup" is already registered');
+
+      expect(getCustomDirective('dup')).toBe(handler1);
+      expect(isInstalled('p2')).toBe(false);
     });
 
     it('should throw for empty directive name', () => {
