@@ -19,6 +19,16 @@ const droppableListeners = new Set<DroppableListener>();
 let queuedPointerMove: PointerEvent | null = null;
 let pointerMoveFrame: number | null = null;
 
+const hasDroppableEnvironment = (): boolean => {
+  return (
+    typeof document !== 'undefined' &&
+    typeof document.addEventListener === 'function' &&
+    typeof document.removeEventListener === 'function' &&
+    typeof requestAnimationFrame === 'function' &&
+    typeof cancelAnimationFrame === 'function'
+  );
+};
+
 const dispatchPointerMove = (event: PointerEvent): void => {
   for (const listener of droppableListeners) {
     listener.handlePointerMove(event);
@@ -122,11 +132,7 @@ export const droppable = (el: HTMLElement, options: DroppableOptions = {}): Drop
     onDrop,
   } = options;
 
-  if (
-    typeof document === 'undefined' ||
-    typeof requestAnimationFrame === 'undefined' ||
-    typeof cancelAnimationFrame === 'undefined'
-  ) {
+  if (!hasDroppableEnvironment()) {
     return {
       destroy: () => {},
     };

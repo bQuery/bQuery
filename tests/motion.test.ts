@@ -1072,6 +1072,41 @@ describe('motion/parallax', () => {
       }
     }
   });
+
+  it('returns a no-op cleanup when RAF APIs are unavailable', () => {
+    const el = document.createElement('div');
+    const originalRaf = globalThis.requestAnimationFrame;
+    const originalCancelRaf = globalThis.cancelAnimationFrame;
+
+    try {
+      Object.defineProperty(globalThis, 'requestAnimationFrame', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+      Object.defineProperty(globalThis, 'cancelAnimationFrame', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+
+      const cleanup = parallax(el, { speed: 0.5 });
+      expect(typeof cleanup).toBe('function');
+      expect(el.style.transform).toBe('');
+      cleanup();
+    } finally {
+      Object.defineProperty(globalThis, 'requestAnimationFrame', {
+        configurable: true,
+        writable: true,
+        value: originalRaf,
+      });
+      Object.defineProperty(globalThis, 'cancelAnimationFrame', {
+        configurable: true,
+        writable: true,
+        value: originalCancelRaf,
+      });
+    }
+  });
 });
 
 // ============================================================================

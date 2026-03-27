@@ -30,7 +30,13 @@ import type { ParallaxCleanup, ParallaxOptions } from './types';
  * ```
  */
 export const parallax = (element: Element, options: ParallaxOptions = {}): ParallaxCleanup => {
-  if (typeof window === 'undefined') {
+  if (
+    typeof window === 'undefined' ||
+    typeof window.addEventListener !== 'function' ||
+    typeof window.removeEventListener !== 'function' ||
+    typeof requestAnimationFrame !== 'function' ||
+    typeof cancelAnimationFrame !== 'function'
+  ) {
     return () => {};
   }
 

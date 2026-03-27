@@ -2,7 +2,7 @@
  * Tests for the bQuery Drag & Drop module.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { draggable } from '../src/dnd/draggable';
 import { droppable } from '../src/dnd/droppable';
 import { sortable } from '../src/dnd/sortable';
@@ -660,6 +660,39 @@ describe('dnd/droppable', () => {
       if (originalDocumentDescriptor) {
         Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
       }
+    }
+  });
+
+  it('returns a no-op handle when document listener APIs are unavailable', () => {
+    const originalAddEventListener = document.addEventListener;
+    const originalRemoveEventListener = document.removeEventListener;
+
+    try {
+      Object.defineProperty(document, 'addEventListener', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+      Object.defineProperty(document, 'removeEventListener', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+
+      const handle = droppable(zone);
+      expect(typeof handle.destroy).toBe('function');
+      expect(() => handle.destroy()).not.toThrow();
+    } finally {
+      Object.defineProperty(document, 'addEventListener', {
+        configurable: true,
+        writable: true,
+        value: originalAddEventListener,
+      });
+      Object.defineProperty(document, 'removeEventListener', {
+        configurable: true,
+        writable: true,
+        value: originalRemoveEventListener,
+      });
     }
   });
 });
