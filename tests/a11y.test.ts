@@ -2,19 +2,19 @@
  * Tests for the bQuery a11y (accessibility) module.
  */
 
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import {
-  trapFocus,
-  releaseFocus,
-  getFocusableElements,
   announceToScreenReader,
+  auditA11y,
   clearAnnouncements,
-  rovingTabIndex,
-  skipLink,
-  prefersReducedMotion,
+  getFocusableElements,
   prefersColorScheme,
   prefersContrast,
-  auditA11y,
+  prefersReducedMotion,
+  releaseFocus,
+  rovingTabIndex,
+  skipLink,
+  trapFocus,
 } from '../src/a11y/index';
 
 // ─── Test Helpers ────────────────────────────────────────────────────────────
@@ -526,6 +526,14 @@ describe('a11y/rovingTabIndex', () => {
 // ─── skipLink ────────────────────────────────────────────────────────────────
 
 describe('a11y/skipLink', () => {
+  const getSkipLinkElement = (handle: ReturnType<typeof skipLink>): HTMLAnchorElement => {
+    if (!handle.element) {
+      throw new Error('Expected skipLink() to return an anchor element in a DOM environment.');
+    }
+
+    return handle.element;
+  };
+
   afterEach(() => {
     // Clean up any remaining skip links
     document.querySelectorAll('.bq-skip-link').forEach((el) => el.remove());
@@ -533,33 +541,34 @@ describe('a11y/skipLink', () => {
 
   it('should create a skip link element', () => {
     const handle = skipLink('#main');
-    expect(handle.element).toBeInstanceOf(HTMLAnchorElement);
-    expect(handle.element.textContent).toBe('Skip to main content');
-    expect(handle.element.href).toContain('#main');
+    const element = getSkipLinkElement(handle);
+    expect(element).toBeInstanceOf(HTMLAnchorElement);
+    expect(element.textContent).toBe('Skip to main content');
+    expect(element.href).toContain('#main');
     handle.destroy();
   });
 
   it('should insert as first child of body', () => {
     const handle = skipLink('#main');
-    expect(document.body.firstChild).toBe(handle.element);
+    expect(document.body.firstChild).toBe(getSkipLinkElement(handle));
     handle.destroy();
   });
 
   it('should use custom text', () => {
     const handle = skipLink('#content', { text: 'Jump to content' });
-    expect(handle.element.textContent).toBe('Jump to content');
+    expect(getSkipLinkElement(handle).textContent).toBe('Jump to content');
     handle.destroy();
   });
 
   it('should use custom className', () => {
     const handle = skipLink('#main', { className: 'my-skip' });
-    expect(handle.element.className).toBe('my-skip');
+    expect(getSkipLinkElement(handle).className).toBe('my-skip');
     handle.destroy();
   });
 
   it('should remove on destroy', () => {
     const handle = skipLink('#main');
-    const el = handle.element;
+    const el = getSkipLinkElement(handle);
     expect(el.isConnected).toBe(true);
     handle.destroy();
     expect(el.isConnected).toBe(false);
@@ -571,7 +580,7 @@ describe('a11y/skipLink', () => {
     document.body.appendChild(target);
 
     const handle = skipLink('#main-content');
-    handle.element.click();
+    getSkipLinkElement(handle).click();
 
     // Target should have been made focusable
     expect(target.getAttribute('tabindex')).toBe('-1');
@@ -585,8 +594,9 @@ describe('a11y/skipLink', () => {
     document.body.appendChild(target);
 
     const handle = skipLink('main-section');
-    expect(handle.element.href).toContain('#main-section');
-    handle.element.click();
+    const element = getSkipLinkElement(handle);
+    expect(element.href).toContain('#main-section');
+    element.click();
     expect(target.getAttribute('tabindex')).toBe('-1');
     handle.destroy();
     target.remove();
@@ -599,14 +609,16 @@ describe('a11y/skipLink', () => {
 
     const mainHandle = skipLink('main');
     const sectionHandle = skipLink('section');
+    const mainElement = getSkipLinkElement(mainHandle);
+    const sectionElement = getSkipLinkElement(sectionHandle);
 
-    expect(mainHandle.element.href).toMatch(/#bq-skip-target-\d+$/);
-    expect(sectionHandle.element.href).toMatch(/#bq-skip-target-\d+$/);
-    expect(mainHandle.element.href).not.toBe(sectionHandle.element.href);
+    expect(mainElement.href).toMatch(/#bq-skip-target-\d+$/);
+    expect(sectionElement.href).toMatch(/#bq-skip-target-\d+$/);
+    expect(mainElement.href).not.toBe(sectionElement.href);
 
-    mainHandle.element.click();
+    mainElement.click();
     expect(document.activeElement).toBe(main);
-    sectionHandle.element.click();
+    sectionElement.click();
     expect(document.activeElement).toBe(section);
 
     mainHandle.destroy();
@@ -620,7 +632,7 @@ describe('a11y/skipLink', () => {
     document.body.appendChild(main);
 
     const handle = skipLink('main');
-    const generatedId = handle.element.href.split('#')[1]!;
+    const generatedId = getSkipLinkElement(handle).href.split('#')[1]!;
 
     main.removeAttribute('id');
 
@@ -636,7 +648,7 @@ describe('a11y/skipLink', () => {
     replacement.remove();
   });
 
-  it('should throw a descriptive error when document APIs are unavailable', () => {
+  it('should return a no-op handle when document APIs are unavailable', () => {
     const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
 
     try {
@@ -645,9 +657,9 @@ describe('a11y/skipLink', () => {
         configurable: true,
       });
 
-      expect(() => skipLink('#main')).toThrow(
-        'bQuery a11y: skipLink() requires a browser document.'
-      );
+      const handle = skipLink('#main');
+      expect(handle.element).toBeNull();
+      expect(() => handle.destroy()).not.toThrow();
     } finally {
       if (originalDocumentDescriptor) {
         Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);

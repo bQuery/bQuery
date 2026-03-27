@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'bun:test';
+import type {
+  ComponentDefinition,
+  ComponentRenderContext,
+  ComponentSignalLike,
+} from '../src/component/index';
 import {
   bool,
   component,
@@ -10,13 +15,8 @@ import {
   useEffect,
   useSignal,
 } from '../src/component/index';
-import { sanitizeHtml, trusted } from '../src/security/sanitize';
 import { computed, signal } from '../src/reactive/index';
-import type {
-  ComponentDefinition,
-  ComponentRenderContext,
-  ComponentSignalLike,
-} from '../src/component/index';
+import { sanitizeHtml, trusted } from '../src/security/sanitize';
 
 const expectType = <T>(_value: T): void => {};
 
@@ -439,8 +439,11 @@ describe('component/component', () => {
   it('calls updated after re-renders', () => {
     const tagName = `test-updated-${Date.now()}`;
     const callOrder: string[] = [];
-    const receivedChanges: Array<{ name: string; oldValue: string | null; newValue: string | null }> =
-      [];
+    const receivedChanges: Array<{
+      name: string;
+      oldValue: string | null;
+      newValue: string | null;
+    }> = [];
 
     component<{ count: number }>(tagName, {
       props: {
@@ -2084,6 +2087,39 @@ describe('component/onAttributeChanged hook', () => {
 
     expect(seenValues).toEqual(['Hello']);
     expect(el.shadowRoot?.textContent).toContain('Hello');
+
+    el.remove();
+  });
+
+  it('keeps component-scoped primitives available before connectedCallback runs', () => {
+    const tagName = `test-attr-scope-pre-connect-${Date.now()}`;
+    const seenValues: string[] = [];
+    const errors: Error[] = [];
+
+    component<{ label: string }>(tagName, {
+      props: {
+        label: { type: String, default: '' },
+      },
+      onAttributeChanged(_name, _oldValue, newValue) {
+        const attrSignal = useSignal(newValue ?? '');
+        seenValues.push(attrSignal.value);
+      },
+      onError(error) {
+        errors.push(error);
+      },
+      render: ({ props }) => html`<span>${props.label}</span>`,
+    });
+
+    const el = document.createElement(tagName);
+
+    el.setAttribute('label', 'Hello before connect');
+
+    expect(errors).toEqual([]);
+    expect(seenValues).toEqual(['Hello before connect']);
+
+    document.body.appendChild(el);
+
+    expect(el.shadowRoot?.textContent).toContain('Hello before connect');
 
     el.remove();
   });

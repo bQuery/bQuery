@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'bun:test';
 import {
   createForm,
-  required,
-  minLength,
-  maxLength,
-  pattern,
-  email,
-  url,
-  min,
-  max,
   custom,
   customAsync,
+  email,
+  max,
+  maxLength,
+  min,
+  minLength,
+  pattern,
+  required,
+  url,
 } from '../src/forms/index';
 import { effect } from '../src/reactive/index';
 
@@ -82,7 +82,7 @@ describe('forms/validators', () => {
     });
 
     it('handles non-string values via coercion', () => {
-      expect((minLength(1) as (v: unknown) => unknown)(123)).toBe(true);
+      expect(minLength(1)(123)).toBe(true);
     });
   });
 
@@ -104,6 +104,10 @@ describe('forms/validators', () => {
     it('uses custom message', () => {
       const v = maxLength(3, 'Too long');
       expect(v('abcd')).toBe('Too long');
+    });
+
+    it('handles non-string values via coercion', () => {
+      expect(maxLength(4)(1234)).toBe(true);
     });
   });
 
@@ -129,6 +133,10 @@ describe('forms/validators', () => {
       expect(v('123')).toBe(true);
       expect(v('abc')).toBe('Numbers only');
       expect(v('123')).toBe(true);
+    });
+
+    it('coerces non-string values before testing the pattern', () => {
+      expect(pattern(/^\d+$/)(123)).toBe(true);
     });
   });
 
@@ -197,6 +205,10 @@ describe('forms/validators', () => {
       const v = min(1, 'Positive only');
       expect(v(0)).toBe('Positive only');
     });
+
+    it('coerces non-number values before comparison', () => {
+      expect(min(5)('6')).toBe(true);
+    });
   });
 
   describe('max', () => {
@@ -217,6 +229,10 @@ describe('forms/validators', () => {
     it('uses custom message', () => {
       const v = max(10, 'Too much');
       expect(v(11)).toBe('Too much');
+    });
+
+    it('coerces non-number values before comparison', () => {
+      expect(max(10)('9')).toBe(true);
     });
   });
 
@@ -414,10 +430,7 @@ describe('forms/createForm', () => {
     });
 
     it('handles async validators', async () => {
-      const asyncCheck = customAsync(
-        async (val: string) => val !== 'taken',
-        'Already taken'
-      );
+      const asyncCheck = customAsync(async (val: string) => val !== 'taken', 'Already taken');
 
       const form = createForm({
         fields: {

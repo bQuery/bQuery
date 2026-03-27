@@ -4,9 +4,9 @@
  * @module bquery/component
  */
 
-import { sanitizeHtml } from '../security/sanitize';
-import { effect, untrack } from '../reactive/signal';
 import type { CleanupFn } from '../reactive/signal';
+import { effect, untrack } from '../reactive/signal';
+import { sanitizeHtml } from '../security/sanitize';
 import { coercePropValue } from './props';
 import { createComponentScope, setCurrentScope, type ComponentScope } from './scope';
 import type {
@@ -75,7 +75,10 @@ const createComponentClass = <
   tagName: string,
   definition: ComponentDefinition<TProps, TState, TSignals>
 ): ComponentClass<TState> => {
-  const componentAllowedTags = [...COMPONENT_ALLOWED_TAGS, ...(definition.sanitize?.allowTags ?? [])];
+  const componentAllowedTags = [
+    ...COMPONENT_ALLOWED_TAGS,
+    ...(definition.sanitize?.allowTags ?? []),
+  ];
   const componentAllowedAttributes = [
     ...COMPONENT_ALLOWED_ATTRIBUTES,
     ...(definition.sanitize?.allowAttributes ?? []),
@@ -83,9 +86,7 @@ const createComponentClass = <
   const signalSources = Object.values(definition.signals ?? {}) as ComponentSignalLike<unknown>[];
 
   /** Resolve the Shadow DOM mode from the `shadow` option. */
-  const resolveShadowMode = (
-    option: ShadowMode | undefined
-  ): 'open' | 'closed' | false => {
+  const resolveShadowMode = (option: ShadowMode | undefined): 'open' | 'closed' | false => {
     if (option === false) return false;
     if (option === 'closed') return 'closed';
     // true, 'open', or undefined all resolve to 'open'
@@ -98,10 +99,7 @@ const createComponentClass = <
    * `observeAttributes`, deduplicating to avoid redundant callbacks.
    */
   const observedAttrs = Array.from(
-    new Set([
-      ...Object.keys(definition.props ?? {}),
-      ...(definition.observeAttributes ?? []),
-    ])
+    new Set([...Object.keys(definition.props ?? {}), ...(definition.observeAttributes ?? [])])
   );
 
   class BQueryComponent extends HTMLElement {
@@ -210,20 +208,14 @@ const createComponentClass = <
     /**
      * Called when an observed attribute changes.
      */
-    attributeChangedCallback(
-      name: string,
-      oldValue: string | null,
-      newValue: string | null
-    ): void {
+    attributeChangedCallback(name: string, oldValue: string | null, newValue: string | null): void {
       try {
         const previousProps = this.cloneProps();
         this.syncProps();
 
         // Fire the user-facing onAttributeChanged hook for every observed attribute change
         if (definition.onAttributeChanged) {
-          const previousScope = setCurrentScope(
-            this.isConnected && !this.hasMounted ? this.ensureScope() : this.scope
-          );
+          const previousScope = setCurrentScope(this.ensureScope());
           try {
             definition.onAttributeChanged.call(this, name, oldValue, newValue);
           } finally {
@@ -575,26 +567,17 @@ export function defineComponent<
 export function component<
   TProps extends Record<string, unknown>,
   TSignals extends ComponentSignals = Record<string, never>,
->(
-  tagName: string,
-  definition: ComponentDefinition<TProps, undefined, TSignals>
-): void;
+>(tagName: string, definition: ComponentDefinition<TProps, undefined, TSignals>): void;
 export function component<
   TProps extends Record<string, unknown>,
   TState extends Record<string, unknown>,
   TSignals extends ComponentSignals = Record<string, never>,
->(
-  tagName: string,
-  definition: ComponentDefinition<TProps, TState, TSignals>
-): void;
+>(tagName: string, definition: ComponentDefinition<TProps, TState, TSignals>): void;
 export function component<
   TProps extends Record<string, unknown>,
   TState extends Record<string, unknown> | undefined = undefined,
   TSignals extends ComponentSignals = Record<string, never>,
->(
-  tagName: string,
-  definition: ComponentDefinition<TProps, TState, TSignals>
-): void {
+>(tagName: string, definition: ComponentDefinition<TProps, TState, TSignals>): void {
   const elementClass = createComponentClass(tagName, definition);
 
   if (!customElements.get(tagName)) {

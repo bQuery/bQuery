@@ -7,7 +7,7 @@
  * @module bquery/forms
  */
 
-import type { SyncValidator, AsyncValidator } from './types';
+import type { AsyncValidator, SyncValidator } from './types';
 
 /**
  * Requires a non-empty value.
@@ -51,9 +51,9 @@ export const required = (message = 'This field is required'): SyncValidator => {
  * validate('abc'); // true
  * ```
  */
-export const minLength = (len: number, message?: string): SyncValidator<string> => {
+export const minLength = (len: number, message?: string): SyncValidator<unknown> => {
   const msg = message ?? `Must be at least ${len} characters`;
-  return (value: string) => {
+  return (value: unknown) => {
     const str = typeof value === 'string' ? value : String(value ?? '');
     return str.length >= len ? true : msg;
   };
@@ -61,6 +61,8 @@ export const minLength = (len: number, message?: string): SyncValidator<string> 
 
 /**
  * Requires a string to have at most `len` characters.
+ *
+ * Non-string values are coerced via `String()` before checking length.
  *
  * @param len - Maximum length
  * @param message - Custom error message
@@ -74,9 +76,9 @@ export const minLength = (len: number, message?: string): SyncValidator<string> 
  * validate('hello');         // true
  * ```
  */
-export const maxLength = (len: number, message?: string): SyncValidator<string> => {
+export const maxLength = (len: number, message?: string): SyncValidator<unknown> => {
   const msg = message ?? `Must be at most ${len} characters`;
-  return (value: string) => {
+  return (value: unknown) => {
     const str = typeof value === 'string' ? value : String(value ?? '');
     return str.length <= len ? true : msg;
   };
@@ -84,6 +86,8 @@ export const maxLength = (len: number, message?: string): SyncValidator<string> 
 
 /**
  * Requires a string to match a regular expression pattern.
+ *
+ * Non-string values are coerced via `String()` before testing.
  *
  * @param regex - Pattern to test against
  * @param message - Custom error message (default: `'Invalid format'`)
@@ -97,13 +101,13 @@ export const maxLength = (len: number, message?: string): SyncValidator<string> 
  * validate('123'); // true
  * ```
  */
-export const pattern = (regex: RegExp, message = 'Invalid format'): SyncValidator<string> => {
+export const pattern = (regex: RegExp, message = 'Invalid format'): SyncValidator<unknown> => {
   const safeRegex =
     regex.global || regex.sticky
       ? new RegExp(regex.source, regex.flags.replace(/[gy]/g, ''))
       : regex;
 
-  return (value: string) => {
+  return (value: unknown) => {
     const str = typeof value === 'string' ? value : String(value ?? '');
     safeRegex.lastIndex = 0;
     return safeRegex.test(str) ? true : message;
@@ -125,11 +129,11 @@ export const pattern = (regex: RegExp, message = 'Invalid format'): SyncValidato
  * validate('ada@love.co');  // true
  * ```
  */
-export const email = (message = 'Invalid email address'): SyncValidator<string> => {
+export const email = (message = 'Invalid email address'): SyncValidator<unknown> => {
   // Intentionally simple — covers the vast majority of valid addresses
   // without re-implementing the full RFC 5322 grammar.
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return (value: string) => {
+  return (value: unknown) => {
     const str = typeof value === 'string' ? value : String(value ?? '');
     if (str === '') return true; // empty is handled by `required`
     return re.test(str) ? true : message;
@@ -152,8 +156,8 @@ export const email = (message = 'Invalid email address'): SyncValidator<string> 
  * validate('https://example.com');      // true
  * ```
  */
-export const url = (message = 'Invalid URL'): SyncValidator<string> => {
-  return (value: string) => {
+export const url = (message = 'Invalid URL'): SyncValidator<unknown> => {
+  return (value: unknown) => {
     const str = typeof value === 'string' ? value : String(value ?? '');
     if (str === '') return true; // empty is handled by `required`
     try {
@@ -180,9 +184,9 @@ export const url = (message = 'Invalid URL'): SyncValidator<string> => {
  * validate(1); // true
  * ```
  */
-export const min = (limit: number, message?: string): SyncValidator<number> => {
+export const min = (limit: number, message?: string): SyncValidator<unknown> => {
   const msg = message ?? `Must be at least ${limit}`;
-  return (value: number) => {
+  return (value: unknown) => {
     const num = typeof value === 'number' ? value : Number(value);
     return num >= limit ? true : msg;
   };
@@ -203,9 +207,9 @@ export const min = (limit: number, message?: string): SyncValidator<number> => {
  * validate(100); // true
  * ```
  */
-export const max = (limit: number, message?: string): SyncValidator<number> => {
+export const max = (limit: number, message?: string): SyncValidator<unknown> => {
   const msg = message ?? `Must be at most ${limit}`;
-  return (value: number) => {
+  return (value: unknown) => {
     const num = typeof value === 'number' ? value : Number(value);
     return num <= limit ? true : msg;
   };

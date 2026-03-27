@@ -412,11 +412,7 @@ describe('Store', () => {
 
   describe('mapActions', () => {
     it('should map actions', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): void }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): void }>({
         id: 'counter',
         state: () => ({ count: 0 }),
         actions: {
@@ -667,11 +663,7 @@ describe('Store', () => {
     });
 
     it('should run after hooks when sync action succeeds', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): number }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): number }>({
         id: 'on-action-after',
         state: () => ({ count: 0 }),
         actions: {
@@ -694,11 +686,7 @@ describe('Store', () => {
     });
 
     it('should run onError hooks when sync action throws', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { fail(): void }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { fail(): void }>({
         id: 'on-action-error',
         state: () => ({ count: 0 }),
         actions: {
@@ -799,11 +787,7 @@ describe('Store', () => {
     });
 
     it('should allow unsubscribing', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): void }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): void }>({
         id: 'on-action-unsub',
         state: () => ({ count: 0 }),
         actions: {
@@ -826,11 +810,7 @@ describe('Store', () => {
     });
 
     it('should provide store reference in context', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): void }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): void }>({
         id: 'on-action-ctx',
         state: () => ({ count: 0 }),
         actions: {
@@ -851,11 +831,7 @@ describe('Store', () => {
     });
 
     it('should not affect action behavior when no listeners are registered', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): void }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): void }>({
         id: 'on-action-none',
         state: () => ({ count: 0 }),
         actions: {
@@ -871,11 +847,7 @@ describe('Store', () => {
     });
 
     it('should support multiple listeners', () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): void }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): void }>({
         id: 'on-action-multi',
         state: () => ({ count: 0 }),
         actions: {
@@ -964,11 +936,7 @@ describe('Store', () => {
     });
 
     it('should report async rejections from action listeners without affecting the action', async () => {
-      const store = createStore<
-        { count: number },
-        Record<string, never>,
-        { increment(): number }
-      >({
+      const store = createStore<{ count: number }, Record<string, never>, { increment(): number }>({
         id: 'on-action-async-listener-safe',
         state: () => ({ count: 0 }),
         actions: {
@@ -1092,6 +1060,29 @@ describe('Store', () => {
       expect(store.theme).toBe('auto');
       // Version should be updated
       expect(mem.store.get('bquery-store-migrate__version')).toBe('2');
+    });
+
+    it('should persist the migrated state payload and version together on successful migration', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-migrate-persist', '{"name":"Alice"}');
+      mem.store.set('bquery-store-migrate-persist__version', '1');
+
+      createPersistedStore(
+        { id: 'migrate-persist', state: () => ({ name: '', theme: 'dark' }) },
+        {
+          storage: mem,
+          version: 2,
+          migrate: (old, currentVersion) => {
+            expect(currentVersion).toBe(1);
+            return { ...old, theme: 'auto' };
+          },
+        }
+      );
+
+      expect(mem.store.get('bquery-store-migrate-persist')).toBe('{"name":"Alice","theme":"auto"}');
+      expect(mem.store.get('bquery-store-migrate-persist__version')).toBe('2');
+
+      destroyStore('migrate-persist');
     });
 
     it('should not run migration when version matches', () => {
@@ -1287,6 +1278,66 @@ describe('Store', () => {
       destroyStore('migration-persist-failure');
     });
 
+    it('should not advance the version key when writing migrated state fails', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-migration-write-failure', JSON.stringify({ val: 'persisted' }));
+      mem.store.set('bquery-store-migration-write-failure__version', '1');
+      const warnSpy = spyOn(console, 'warn').mockImplementation(() => {});
+      const failingStorage: StorageBackend = {
+        getItem: (key: string) => mem.getItem(key),
+        setItem: (key: string, value: string) => {
+          if (key === 'bquery-store-migration-write-failure') {
+            throw new Error('write failed');
+          }
+          mem.setItem(key, value);
+        },
+        removeItem: (key: string) => mem.removeItem(key),
+      };
+
+      try {
+        const store = createPersistedStore(
+          {
+            id: 'migration-write-failure',
+            state: () => ({ val: 'default', migrated: false }),
+          },
+          {
+            storage: failingStorage,
+            version: 2,
+            migrate: (old) => ({ ...old, migrated: true }),
+          }
+        );
+
+        expect(store.val).toBe('persisted');
+        expect(store.migrated).toBe(true);
+        expect(mem.store.get('bquery-store-migration-write-failure')).toBe(
+          JSON.stringify({ val: 'persisted' })
+        );
+        expect(mem.store.get('bquery-store-migration-write-failure__version')).toBe('1');
+        expect(warnSpy).toHaveBeenCalled();
+      } finally {
+        warnSpy.mockRestore();
+        destroyStore('migration-write-failure');
+      }
+    });
+
+    it('should fall back to defaults when deserialized persisted shapes are invalid', () => {
+      const invalidPayloads = ['[]', '"text"', '123', 'null'];
+
+      for (const rawPayload of invalidPayloads) {
+        const mem = createMemoryStorage();
+        mem.store.set('bquery-store-invalid-shape', rawPayload);
+
+        const store = createPersistedStore(
+          { id: 'invalid-shape', state: () => ({ val: 'fallback' }) },
+          { storage: mem }
+        );
+
+        expect(store.val).toBe('fallback');
+
+        destroyStore('invalid-shape');
+      }
+    });
+
     it('should ignore prototype-pollution keys from persisted state', () => {
       const mem = createMemoryStorage();
       mem.store.set('bquery-store-safe-persisted', '{"val":"persisted"}');
@@ -1313,9 +1364,7 @@ describe('Store', () => {
       );
 
       expect(store.val).toBe('persisted');
-      expect(Object.getPrototypeOf(store)).not.toEqual(
-        expect.objectContaining({ polluted: true })
-      );
+      expect(Object.getPrototypeOf(store)).not.toEqual(expect.objectContaining({ polluted: true }));
       expect(Object.prototype.hasOwnProperty.call(store, '__proto__')).toBe(false);
       expect(Object.prototype.hasOwnProperty.call(store, 'constructor')).toBe(false);
 

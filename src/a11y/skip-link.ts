@@ -36,18 +36,24 @@ const generatedSkipTargetRefs = new Map<string, { count: number; target: HTMLEle
 /** Matches a bare element id value (not a general CSS selector). */
 const BARE_ID_SELECTOR_RE = /^[A-Za-z][\w-]*$/;
 
-const assertSkipLinkEnvironment = (): void => {
-  if (
-    typeof document === 'undefined' ||
-    typeof document.createElement !== 'function' ||
-    typeof document.querySelector !== 'function' ||
-    typeof document.getElementById !== 'function' ||
-    document.body === null ||
-    document.body === undefined
-  ) {
-    throw new Error('bQuery a11y: skipLink() requires a browser document.');
+const hasSkipLinkEnvironment = (): boolean => {
+  if (typeof document === 'undefined') {
+    return false;
   }
+
+  return (
+    typeof document.createElement === 'function' &&
+    typeof document.querySelector === 'function' &&
+    typeof document.getElementById === 'function' &&
+    document.body !== null &&
+    document.body !== undefined
+  );
 };
+
+const createNoopSkipLinkHandle = (): SkipLinkHandle => ({
+  destroy: () => {},
+  element: null,
+});
 
 /**
  * Creates a skip navigation link that jumps to the specified target.
@@ -74,14 +80,16 @@ const assertSkipLinkEnvironment = (): void => {
  * handle.destroy();
  * ```
  */
-export const skipLink = (
-  targetSelector: string,
-  options: SkipLinkOptions = {}
-): SkipLinkHandle => {
-  assertSkipLinkEnvironment();
+export const skipLink = (targetSelector: string, options: SkipLinkOptions = {}): SkipLinkHandle => {
+  if (!hasSkipLinkEnvironment()) {
+    return createNoopSkipLinkHandle();
+  }
 
   const { text = 'Skip to main content', className = 'bq-skip-link' } = options;
   let trackedGeneratedTargetId: string | undefined;
+  let trackedFocusTarget:
+    | { target: HTMLElement; hadTabIndex: boolean; previousTabIndex: string | null }
+    | undefined;
   const isBareIdSelector = BARE_ID_SELECTOR_RE.test(targetSelector);
   const releaseTrackedGeneratedTargetId = (): void => {
     if (!trackedGeneratedTargetId) return;
@@ -101,6 +109,43 @@ export const skipLink = (
     }
 
     trackedGeneratedTargetId = undefined;
+  };
+  const restoreTrackedFocusTarget = (): void => {
+    if (!trackedFocusTarget) return;
+
+    const { target, hadTabIndex, previousTabIndex } = trackedFocusTarget;
+    if (target.isConnected) {
+      if (hadTabIndex) {
+        target.setAttribute('tabindex', previousTabIndex ?? '');
+      } else {
+        target.removeAttribute('tabindex');
+      }
+    }
+
+    trackedFocusTarget = undefined;
+  };
+  const ensureTargetFocusable = (target: HTMLElement): void => {
+    if (trackedFocusTarget?.target === target) {
+      return;
+    }
+
+    restoreTrackedFocusTarget();
+
+    if (target.hasAttribute('tabindex')) {
+      trackedFocusTarget = {
+        target,
+        hadTabIndex: true,
+        previousTabIndex: target.getAttribute('tabindex'),
+      };
+      return;
+    }
+
+    trackedFocusTarget = {
+      target,
+      hadTabIndex: false,
+      previousTabIndex: null,
+    };
+    target.setAttribute('tabindex', '-1');
   };
   const trackGeneratedTargetId = (target: HTMLElement, id: string): void => {
     if (trackedGeneratedTargetId === id) return;
@@ -164,9 +209,7 @@ export const skipLink = (
     if (target) {
       link.href = `#${ensureTargetId(target)}`;
       // Make the target focusable if it isn't already
-      if (!target.hasAttribute('tabindex')) {
-        target.setAttribute('tabindex', '-1');
-      }
+      ensureTargetFocusable(target);
       target.focus();
     }
   });
@@ -180,6 +223,7 @@ export const skipLink = (
 
   return {
     destroy: () => {
+      restoreTrackedFocusTarget();
       releaseTrackedGeneratedTargetId();
       link.remove();
     },

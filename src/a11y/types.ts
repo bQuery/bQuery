@@ -120,8 +120,11 @@ export interface SkipLinkOptions {
 export interface SkipLinkHandle {
   /** Remove the skip link from the DOM. */
   destroy: () => void;
-  /** The created skip link element. */
-  element: HTMLAnchorElement;
+  /**
+   * The created skip link element, or `null` when `skipLink()` is called in a
+   * non-DOM environment and returns a no-op handle.
+   */
+  element: HTMLAnchorElement | null;
 }
 
 // ─── Media Preferences ───────────────────────────────────────────────────────
