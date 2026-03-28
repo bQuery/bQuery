@@ -3,6 +3,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { signal, computed } from '../src/reactive/index';
+import type { HydrateMountOptions } from '../src/ssr/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 import {
   renderToString,
@@ -858,9 +859,9 @@ describe('hydrateMount', () => {
   it('throws when hydrate is explicitly set to false', () => {
     container.innerHTML = '<h1 bq-text="title">Server Title</h1>';
 
-    expect(() => hydrateMount(container, {}, { hydrate: false })).toThrow(
-      'bQuery ssr: hydrateMount() requires { hydrate: true } when options are provided.'
-    );
+    expect(() =>
+      hydrateMount(container, {}, { hydrate: false } as unknown as HydrateMountOptions)
+    ).toThrow('bQuery ssr: hydrateMount() requires { hydrate: true } when options are provided.');
   });
 });
 

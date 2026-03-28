@@ -16,13 +16,13 @@ import { mount } from '../view/mount';
  */
 export type HydrateMountOptions = MountOptions & {
   /**
-   * When `true`, the mount operation reuses existing DOM elements
+   * When present, must be `true` so the mount operation reuses existing DOM elements
    * instead of re-rendering them. Reactive bindings (effects) are
    * still attached so the DOM updates reactively from that point on.
    *
-   * @default false
+   * @default true
    */
-  hydrate?: boolean;
+  hydrate?: true;
 };
 
 /**

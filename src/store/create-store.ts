@@ -71,7 +71,7 @@ export const createStore = <
   ): void => {
     if (!isDev() || typeof console === 'undefined' || typeof console.error !== 'function') return;
     console.error(
-      `bQuery store: Error in $onAction ${phase} for store "${id}" action "${actionName}"`,
+      `[bQuery store "${id}"] Error in $onAction ${phase} for action "${actionName}"`,
       error
     );
   };

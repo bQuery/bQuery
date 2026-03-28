@@ -935,29 +935,37 @@ describe('Store', () => {
         await expect(store.failAsync()).rejects.toThrow('async boom');
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining('store "on-action-safe-hooks" action "increment"'),
+          expect.stringContaining('[bQuery store "on-action-safe-hooks"] Error in $onAction'),
           expect.any(Error)
         );
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining('store "on-action-safe-hooks" action "failAsync"'),
+          expect.stringContaining('[bQuery store "on-action-safe-hooks"] Error in $onAction'),
           expect.any(Error)
         );
         expect(consoleErrorSpy.mock.calls).toEqual(
           expect.arrayContaining([
             [
-              expect.stringContaining('store "on-action-safe-hooks" action "increment"'),
+              expect.stringContaining(
+                '[bQuery store "on-action-safe-hooks"] Error in $onAction listener for action "increment"'
+              ),
               expect.objectContaining({ message: 'listener boom' }),
             ],
             [
-              expect.stringContaining('store "on-action-safe-hooks" action "increment"'),
+              expect.stringContaining(
+                '[bQuery store "on-action-safe-hooks"] Error in $onAction after for action "increment"'
+              ),
               expect.objectContaining({ message: 'after hook boom' }),
             ],
             [
-              expect.stringContaining('store "on-action-safe-hooks" action "failAsync"'),
+              expect.stringContaining(
+                '[bQuery store "on-action-safe-hooks"] Error in $onAction listener for action "failAsync"'
+              ),
               expect.objectContaining({ message: 'listener boom' }),
             ],
             [
-              expect.stringContaining('store "on-action-safe-hooks" action "failAsync"'),
+              expect.stringContaining(
+                '[bQuery store "on-action-safe-hooks"] Error in $onAction onError for action "failAsync"'
+              ),
               expect.objectContaining({ message: 'error hook boom' }),
             ],
           ])
@@ -989,7 +997,9 @@ describe('Store', () => {
         await Promise.resolve();
 
         expect(consoleErrorSpy).toHaveBeenCalledWith(
-          expect.stringContaining('store "on-action-async-listener-safe" action "increment"'),
+          expect.stringContaining(
+            '[bQuery store "on-action-async-listener-safe"] Error in $onAction listener for action "increment"'
+          ),
           expect.objectContaining({ message: 'async listener boom' })
         );
       } finally {
@@ -1863,7 +1873,9 @@ describe('store/isDev', () => {
     delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
 
     try {
-      const { createStore } = await import(`../src/store/create-store.ts?late-dev-toggle=${Date.now()}`);
+      const { createStore } = (await import(
+        `../src/store/create-store.ts?late-dev-toggle=${Date.now()}`
+      )) as typeof import('../src/store/create-store');
       const store = createStore<
         { count: number },
         Record<string, never>,
@@ -1872,9 +1884,9 @@ describe('store/isDev', () => {
         id: `late-store-dev-toggle-${Date.now()}`,
         state: () => ({ count: 0 }),
         actions: {
-          increment() {
-            (this as { count: number }).count++;
-            return (this as { count: number }).count;
+          increment(this: { count: number }) {
+            this.count++;
+            return this.count;
           },
         },
       });
@@ -1890,7 +1902,9 @@ describe('store/isDev', () => {
 
       expect(store.increment()).toBe(2);
       expect(errorSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`store "${store.$id}" action "increment"`),
+        expect.stringContaining(
+          `[bQuery store "${store.$id}"] Error in $onAction listener for action "increment"`
+        ),
         expect.objectContaining({ message: 'listener boom' })
       );
     } finally {
