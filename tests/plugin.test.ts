@@ -46,8 +46,9 @@ const makePlugin = (
   install: installFn ?? (() => {}),
 });
 
-let customElementTestId = 0;
-const nextCustomElementTag = (suffix: string): string => `bq-${suffix}-${++customElementTestId}`;
+let uniqueElementIdCounter = 0;
+const generateUniqueCustomElementTag = (suffix: string): string =>
+  `bq-${suffix}-${++uniqueElementIdCounter}`;
 
 const createDirectiveHandlers = () => ({
   text: handleText,
@@ -158,7 +159,7 @@ describe('Plugin System', () => {
     });
 
     it('should not define staged custom elements when install throws', () => {
-      const tagName = nextCustomElementTag('rollback-widget');
+      const tagName = generateUniqueCustomElementTag('rollback-widget');
       class RollbackWidget extends HTMLElement {}
 
       expect(() => {
@@ -479,7 +480,7 @@ describe('Plugin System', () => {
 
     it('should roll back directives when customElements.define throws', () => {
       const originalDefine = customElements.define.bind(customElements);
-      const tagName = nextCustomElementTag('define-rollback');
+      const tagName = generateUniqueCustomElementTag('define-rollback');
       const directiveHandler: CustomDirectiveHandler = () => {};
       class DefineRollbackElement extends HTMLElement {}
 
