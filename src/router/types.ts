@@ -79,6 +79,8 @@ type RedirectRouteDefinition = BaseRouteDefinition & {
    */
   redirectTo: string;
   component?: never;
+  children?: never;
+  beforeEnter?: never;
 };
 
 export type RouteDefinition = ComponentRouteDefinition | RedirectRouteDefinition;
