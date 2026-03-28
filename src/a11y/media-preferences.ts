@@ -207,6 +207,8 @@ export const prefersContrast = (): MediaPreferenceSignal<ContrastPreference> => 
     let mqlCustom: MediaQueryList | undefined;
 
     const update = (): void => {
+      // Defensive guard for environments where matchMedia setup fails before
+      // listeners are attached; update() is only expected to run after init.
       if (!mql || !mqlLess || !mqlCustom) {
         return;
       }
