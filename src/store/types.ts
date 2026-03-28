@@ -56,7 +56,7 @@ export type StorePatch<S> = Partial<S> | ((state: S) => void);
  * Action function record used by store definitions and lifecycle hooks.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StoreActionRecord = Record<string, (...args: any[]) => any>;
+export type StoreActionRecord = Record<string, (...args: any[]) => any>;
 
 type ActionName<A extends StoreActionRecord> = keyof A & string;
 type ActionArgs<A extends StoreActionRecord, K extends ActionName<A>> = Parameters<A[K]>;
