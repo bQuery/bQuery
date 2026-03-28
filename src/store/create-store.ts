@@ -79,7 +79,7 @@ export const createStore = <
   const warnAsyncOnActionListener = (actionName: string): void => {
     if (!isDev() || typeof console === 'undefined' || typeof console.warn !== 'function') return;
     console.warn(
-      `[bQuery store "${id}"] $onAction listeners must register after()/onError() hooks synchronously; Promise-returning listeners cannot attach hooks after awaiting for action "${actionName}".`
+      `[bQuery store "${id}"] If an async $onAction listener awaits, register after()/onError() before the first await; late registrations will not affect the current action "${actionName}".`
     );
   };
 

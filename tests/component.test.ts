@@ -1893,6 +1893,31 @@ describe('component/registerDefaultComponents', () => {
     textarea.remove();
   });
 
+  it('re-renders textarea when the shadow label node has diverged during a value update', () => {
+    const prefix = `textarea-label-divergence${Date.now()}`;
+    const tags = registerDefaultComponents({ prefix });
+
+    const textarea = document.createElement(tags.textarea);
+    textarea.setAttribute('label', 'Notes');
+    document.body.appendChild(textarea);
+
+    const originalControl = textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null;
+    const labelEl = textarea.shadowRoot?.querySelector('.label');
+    expect(originalControl).not.toBeNull();
+    expect(labelEl).not.toBeNull();
+    labelEl?.remove();
+
+    textarea.setAttribute('value', 'Updated notes');
+
+    const nextControl = textarea.shadowRoot?.querySelector('textarea') as HTMLTextAreaElement | null;
+    expect(textarea.shadowRoot?.querySelector('.label')?.textContent).toBe('Notes');
+    expect(nextControl).not.toBeNull();
+    expect(nextControl).not.toBe(originalControl);
+    expect(nextControl?.value).toBe('Updated notes');
+
+    textarea.remove();
+  });
+
   it('re-renders input and textarea controls when non-value props change', () => {
     const prefix = `rerender${Date.now()}`;
     const tags = registerDefaultComponents({ prefix });

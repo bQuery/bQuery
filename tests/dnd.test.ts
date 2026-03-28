@@ -478,6 +478,31 @@ describe('dnd/droppable', () => {
     handle.destroy();
   });
 
+  it('should register the shared pointermove listener as passive', () => {
+    const originalAddEventListener = document.addEventListener;
+    let pointerMoveOptions: AddEventListenerOptions | boolean | undefined;
+
+    try {
+      document.addEventListener = (((
+        type: string,
+        listener: EventListenerOrEventListenerObject,
+        options?: AddEventListenerOptions | boolean
+      ) => {
+        if (type === 'pointermove') {
+          pointerMoveOptions = options;
+        }
+        return originalAddEventListener.call(document, type, listener, options);
+      }) as typeof document.addEventListener);
+
+      const handle = droppable(zone);
+      handle.destroy();
+
+      expect(pointerMoveOptions).toEqual({ passive: true });
+    } finally {
+      document.addEventListener = originalAddEventListener;
+    }
+  });
+
   it('should accept with custom accept function', () => {
     const box = createBox('test-box');
     box.classList.add('bq-dragging');

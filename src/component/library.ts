@@ -125,7 +125,7 @@ const canSkipInputRender = (
   if (!shadowRoot) return false;
 
   const labelEl = shadowRoot.querySelector('.label');
-  if (labelEl && labelEl.textContent !== newProps.label) return false;
+  if ((labelEl?.textContent ?? '') !== newProps.label) return false;
 
   const control = shadowRoot.querySelector('input.control') as HTMLInputElement | null;
   if (!control) return false;
@@ -180,7 +180,7 @@ const canSkipTextareaRender = (
   if (!shadowRoot) return false;
 
   const labelEl = shadowRoot.querySelector('.label');
-  if (labelEl && labelEl.textContent !== newProps.label) return false;
+  if ((labelEl?.textContent ?? '') !== newProps.label) return false;
 
   const control = shadowRoot.querySelector(
     'textarea.control'

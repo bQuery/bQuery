@@ -15,6 +15,8 @@ type DroppableListener = {
   handlePointerUp: (event: PointerEvent) => void;
 };
 
+const passivePointerMoveListenerOptions = { passive: true } as const;
+
 const droppableListeners = new Set<DroppableListener>();
 let queuedPointerMove: PointerEvent | null = null;
 let pointerMoveFrame: number | null = null;
@@ -64,7 +66,11 @@ const handleDocumentPointerUp = (event: PointerEvent): void => {
 
 const registerDroppableListener = (listener: DroppableListener): void => {
   if (droppableListeners.size === 0) {
-    document.addEventListener('pointermove', handleDocumentPointerMove);
+    document.addEventListener(
+      'pointermove',
+      handleDocumentPointerMove,
+      passivePointerMoveListenerOptions
+    );
     document.addEventListener('pointerup', handleDocumentPointerUp);
   }
 
