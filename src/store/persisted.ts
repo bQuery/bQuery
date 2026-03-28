@@ -2,7 +2,7 @@
  * Store persistence helpers.
  */
 
-import { isPrototypePollutionKey } from '../core/utils/object';
+import { isPlainObject, isPrototypePollutionKey } from '../core/utils/object';
 import { createStore } from './create-store';
 import type { PersistedStoreOptions, Store, StoreDefinition } from './types';
 
@@ -16,8 +16,12 @@ const defaultSerializer = {
 };
 
 /** @internal Check whether a value can be merged into store state. */
-const isPersistedStateObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+const isPersistedStateObject = (value: unknown): value is Record<string, unknown> => {
+  if (!isPlainObject(value)) return false;
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === null || Object.getPrototypeOf(prototype) === null;
+};
 
 /**
  * Applies persisted state onto the default state while ignoring dangerous
@@ -199,11 +203,7 @@ export const createPersistedStore = <
 
   // Persist the version number on first creation
   if (shouldPersistInitialVersion && storage) {
-    try {
-      storage.setItem(versionKey, String(version));
-    } catch {
-      // Ignore quota errors
-    }
+    tryPersistVersion();
   } else if (
     pendingVersionWrite &&
     canRetryPendingVersionAfterCreate &&

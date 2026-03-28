@@ -202,6 +202,28 @@ describe('computed', () => {
     expect(effectRuns).toBe(1);
     expect(derived.value).toBe(2);
   });
+
+  it('recomputes once after dispose when a dirty cached value would otherwise be stale', () => {
+    let computeCount = 0;
+    const count = signal(1);
+    const doubled = computed(() => {
+      computeCount++;
+      return count.value * 2;
+    });
+
+    expect(doubled.value).toBe(2);
+    expect(computeCount).toBe(1);
+
+    count.value = 3;
+    doubled.dispose();
+
+    expect(doubled.value).toBe(6);
+    expect(computeCount).toBe(2);
+
+    count.value = 4;
+    expect(doubled.value).toBe(6);
+    expect(computeCount).toBe(2);
+  });
 });
 
 describe('effect', () => {

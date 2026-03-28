@@ -361,6 +361,29 @@ describe('i18n/createI18n', () => {
       expect(i18n.t('safe')).toBe('ok');
       expect(Object.getPrototypeOf(i18n.getMessages('en'))).toBeNull();
     });
+
+    it('should ignore prototype-pollution locale identifiers', async () => {
+      const initialMessages = Object.create(null) as Record<string, typeof enMessages>;
+      initialMessages.en = enMessages;
+      Object.defineProperty(initialMessages, '__proto__', {
+        value: { greeting: 'polluted' },
+        enumerable: true,
+      });
+
+      const i18n = createI18n({
+        locale: 'en',
+        fallbackLocale: 'en',
+        messages: initialMessages,
+      });
+
+      i18n.mergeMessages('__proto__', { greeting: 'bad' });
+      i18n.loadLocale('constructor', async () => ({ greeting: 'bad' }));
+      await i18n.ensureLocale('constructor');
+
+      expect(i18n.availableLocales()).toEqual(['en']);
+      expect(i18n.getMessages('__proto__')).toBeUndefined();
+      expect(({} as Record<string, unknown>).greeting).toBeUndefined();
+    });
   });
 
   describe('getMessages', () => {

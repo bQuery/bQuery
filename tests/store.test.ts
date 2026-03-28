@@ -1623,6 +1623,29 @@ describe('Store', () => {
       }
     });
 
+    it('should fall back to defaults when a custom serializer returns a class instance', () => {
+      class PersistedShape {
+        constructor(public val: string) {}
+      }
+
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-instance-shape', '{"val":"persisted"}');
+
+      const store = createPersistedStore(
+        { id: 'instance-shape', state: () => ({ val: 'fallback' }) },
+        {
+          storage: mem,
+          serializer: {
+            serialize: (state: unknown) => JSON.stringify(state),
+            deserialize: () => new PersistedShape('persisted') as unknown,
+          },
+        }
+      );
+
+      expect(store.val).toBe('fallback');
+      destroyStore('instance-shape');
+    });
+
     it('should fall back to defaults when migration returns an invalid persisted shape', () => {
       const invalidMigratedValues: unknown[] = [null, [], 'invalid'];
 

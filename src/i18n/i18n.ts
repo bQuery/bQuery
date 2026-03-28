@@ -4,7 +4,7 @@
  */
 
 import { computed, signal } from '../reactive/index';
-import { clone } from '../core/utils/object';
+import { clone, isPrototypePollutionKey } from '../core/utils/object';
 import { formatDate, formatNumber } from './formatting';
 import { deepMerge, translate } from './translate';
 import type {
@@ -63,8 +63,11 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
   const { locale: initialLocale, messages: initialMessages, fallbackLocale } = config;
 
   // Deep-clone initial messages to prevent external mutation
-  const messages: Messages = {};
+  const messages = Object.create(null) as Messages;
   for (const [loc, msgs] of Object.entries(initialMessages)) {
+    if (isPrototypePollutionKey(loc)) {
+      continue;
+    }
     messages[loc] = clone(msgs);
   }
 
@@ -81,6 +84,9 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
    * Get messages for a locale, or undefined if not loaded.
    */
   const getMessages = (loc: string): LocaleMessages | undefined => {
+    if (isPrototypePollutionKey(loc)) {
+      return undefined;
+    }
     return messages[loc];
   };
 
@@ -88,6 +94,9 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
    * Register a lazy-loader for a locale.
    */
   const loadLocale = (loc: string, loader: LocaleLoader): void => {
+    if (isPrototypePollutionKey(loc)) {
+      return;
+    }
     loaders.set(loc, loader);
   };
 
@@ -95,6 +104,7 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
    * Ensure a locale's messages are loaded.
    */
   const ensureLocale = async (loc: string): Promise<void> => {
+    if (isPrototypePollutionKey(loc)) return;
     if (loadedLocales.has(loc)) return;
 
     const loader = loaders.get(loc);
@@ -154,8 +164,11 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
    * Merge additional messages into a locale.
    */
   const mergeMessages = (loc: string, newMessages: LocaleMessages): void => {
+    if (isPrototypePollutionKey(loc)) {
+      return;
+    }
     if (!messages[loc]) {
-      messages[loc] = {};
+      messages[loc] = Object.create(null) as LocaleMessages;
       loadedLocales.add(loc);
     }
     messages[loc] = deepMerge(messages[loc], newMessages);

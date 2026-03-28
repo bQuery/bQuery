@@ -111,6 +111,9 @@ export class Computed<T> implements ReactiveSource {
    */
   dispose(): void {
     this.disposed = true;
+    if (this.dirty) {
+      this.hasCachedValue = false;
+    }
     this.dirty = false;
     clearDependencies(this.markDirty);
     this.subscribers.clear();
