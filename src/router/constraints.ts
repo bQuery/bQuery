@@ -30,8 +30,7 @@ const setBoundedCacheEntry = <T>(cache: Map<string, T>, key: string, value: T): 
  * @internal
  */
 const hasNestedQuantifier = (pattern: string): boolean => {
-  let groupDepth = 0;
-  let hasInnerQuantifier = false;
+  const groupQuantifierStack: boolean[] = [];
   let inCharClass = false;
 
   for (let i = 0; i < pattern.length; i++) {
@@ -53,23 +52,25 @@ const hasNestedQuantifier = (pattern: string): boolean => {
     if (inCharClass) continue;
 
     if (ch === '(') {
-      groupDepth++;
-      hasInnerQuantifier = false;
+      groupQuantifierStack.push(false);
       continue;
     }
 
     if (ch === ')') {
-      groupDepth--;
+      const groupHasInnerQuantifier = groupQuantifierStack.pop() ?? false;
       // Check if the closing paren is followed by a quantifier
       const next = pattern[i + 1];
-      if (hasInnerQuantifier && (next === '+' || next === '*' || next === '{')) {
+      if (groupHasInnerQuantifier && (next === '+' || next === '*' || next === '{')) {
         return true;
+      }
+      if (groupHasInnerQuantifier && groupQuantifierStack.length > 0) {
+        groupQuantifierStack[groupQuantifierStack.length - 1] = true;
       }
       continue;
     }
 
-    if (groupDepth > 0 && (ch === '+' || ch === '*' || ch === '{')) {
-      hasInnerQuantifier = true;
+    if (groupQuantifierStack.length > 0 && (ch === '+' || ch === '*' || ch === '{')) {
+      groupQuantifierStack[groupQuantifierStack.length - 1] = true;
     }
   }
 

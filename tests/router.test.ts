@@ -1966,6 +1966,15 @@ describe('Router', () => {
       );
     });
 
+    it('should reject nested quantifiers even when later nested groups would previously clear state', () => {
+      expect(() => getRouteConstraintRegex('(a(b+)(c))+')).toThrow(
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+      );
+      expect(() => getRouteConstraintRegex('(ab(c+)(de{2}))+')).toThrow(
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+      );
+    });
+
     it('should allow safe constraints without nested quantifiers', () => {
       // Simple character class constraints should work
       expect(() => getRouteConstraintRegex('\\d+')).not.toThrow();
@@ -1973,6 +1982,7 @@ describe('Router', () => {
       expect(() => getRouteConstraintRegex('[a-zA-Z0-9_-]+')).not.toThrow();
       // Non-capturing groups without nesting are fine
       expect(() => getRouteConstraintRegex('(?:foo|bar)')).not.toThrow();
+      expect(() => getRouteConstraintRegex('(foo(bar|baz))')).not.toThrow();
     });
 
     it('should wrap invalid constraint regex syntax in a router-specific error', () => {

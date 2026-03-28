@@ -33,6 +33,15 @@ type PendingComponentRegistration = {
 
 registerCustomDirectiveResolver((name) => customDirectives.get(name));
 
+const restoreDirectiveSnapshot = (
+  directivesSnapshot: ReadonlyMap<string, CustomDirectiveHandler>
+): void => {
+  customDirectives.clear();
+  for (const [name, handler] of directivesSnapshot) {
+    customDirectives.set(name, handler);
+  }
+};
+
 // ---------------------------------------------------------------------------
 // Install context factory
 // ---------------------------------------------------------------------------
@@ -71,6 +80,11 @@ const createInstallContext = (
   ): void {
     if (typeof tagName !== 'string' || tagName.length === 0) {
       throw new Error('bQuery plugin component: tagName must be a non-empty string');
+    }
+    if (!tagName.includes('-')) {
+      throw new Error(
+        `bQuery plugin component: tagName "${tagName}" must be a valid custom element name containing a hyphen`
+      );
     }
     if (typeof constructor !== 'function') {
       throw new Error(`bQuery plugin component: constructor for "${tagName}" must be a function`);
@@ -145,17 +159,19 @@ export const use = <TOptions = unknown>(
   try {
     plugin.install(ctx, options);
   } catch (error) {
-    customDirectives.clear();
-    for (const [name, handler] of directivesSnapshot) {
-      customDirectives.set(name, handler);
-    }
+    restoreDirectiveSnapshot(directivesSnapshot);
     throw error;
   }
 
-  for (const entry of pendingComponents) {
-    if (!customElements.get(entry.tagName)) {
-      customElements.define(entry.tagName, entry.constructor, entry.options);
+  try {
+    for (const entry of pendingComponents) {
+      if (!customElements.get(entry.tagName)) {
+        customElements.define(entry.tagName, entry.constructor, entry.options);
+      }
     }
+  } catch (error) {
+    restoreDirectiveSnapshot(directivesSnapshot);
+    throw error;
   }
 
   installedPlugins.add(plugin.name);

@@ -416,6 +416,17 @@ describe('Plugin System', () => {
       }).toThrow('non-empty string');
     });
 
+    it('should throw for tag names without a hyphen', () => {
+      expect(() => {
+        use({
+          name: 'bad-custom-element-name',
+          install(ctx) {
+            ctx.component('widget', class extends HTMLElement {});
+          },
+        });
+      }).toThrow('must be a valid custom element name containing a hyphen');
+    });
+
     it('should throw for non-function constructor', () => {
       expect(() => {
         use({
@@ -461,6 +472,50 @@ describe('Plugin System', () => {
           Object.defineProperty(globalThis, 'customElements', originalDescriptor);
         }
       }
+    });
+
+    it('should roll back directives when customElements.define throws', () => {
+      const originalDefine = customElements.define.bind(customElements);
+      const tagName = `bq-define-rollback-${Date.now()}`;
+      const directiveHandler: CustomDirectiveHandler = () => {};
+      class DefineRollbackElement extends HTMLElement {}
+
+      customElements.define = ((name, constructor, options) => {
+        if (name === tagName) {
+          throw new Error('define failed');
+        }
+        return originalDefine(name, constructor, options);
+      }) as typeof customElements.define;
+
+      try {
+        expect(() => {
+          use({
+            name: 'define-rollback-plugin',
+            install(ctx) {
+              ctx.directive('define-rollback', directiveHandler);
+              ctx.component(tagName, DefineRollbackElement);
+            },
+          });
+        }).toThrow('define failed');
+
+        expect(isInstalled('define-rollback-plugin')).toBe(false);
+        expect(getCustomDirective('define-rollback')).toBeUndefined();
+        expect(customElements.get(tagName)).toBeUndefined();
+      } finally {
+        customElements.define = originalDefine as typeof customElements.define;
+      }
+
+      use({
+        name: 'define-rollback-plugin',
+        install(ctx) {
+          ctx.directive('define-rollback', directiveHandler);
+          ctx.component(tagName, DefineRollbackElement);
+        },
+      });
+
+      expect(isInstalled('define-rollback-plugin')).toBe(true);
+      expect(getCustomDirective('define-rollback')).toBe(directiveHandler);
+      expect(customElements.get(tagName)).toBe(DefineRollbackElement);
     });
   });
 
