@@ -69,7 +69,7 @@ export const createStore = <
     actionName: string,
     error: unknown
   ): void => {
-    if (!isDev) return;
+    if (!isDev() || typeof console === 'undefined' || typeof console.error !== 'function') return;
     console.error(
       `bQuery store: Error in $onAction ${phase} for store "${id}" action "${actionName}"`,
       error
@@ -357,8 +357,9 @@ export const createStore = <
         batch(() => {
           if (typeof partial === 'function') {
             // Capture state before mutation for nested mutation detection
-            const stateBefore = isDev ? deepClone(getCurrentState()) : null;
-            const signalValuesBefore = isDev
+            const devMode = isDev();
+            const stateBefore = devMode ? deepClone(getCurrentState()) : null;
+            const signalValuesBefore = devMode
               ? new Map(Array.from(stateSignals.entries()).map(([k, s]) => [k, s.value]))
               : null;
 
@@ -367,7 +368,7 @@ export const createStore = <
             partial(state);
 
             // Detect nested mutations in development mode
-            if (isDev && stateBefore && signalValuesBefore) {
+            if (devMode && stateBefore && signalValuesBefore) {
               const mutatedKeys = detectNestedMutations(stateBefore, state, signalValuesBefore);
               if (mutatedKeys.length > 0) {
                 console.warn(

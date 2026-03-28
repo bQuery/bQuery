@@ -13,8 +13,6 @@ import { Signal, signal } from '../reactive/core';
 import { effect } from '../reactive/effect';
 import type { CleanupFn } from '../reactive/index';
 
-const shouldLogScopeDisposalErrors = detectDevEnvironment();
-
 /**
  * Holds disposable resources created inside a component scope.
  * All registered disposers run when the component disconnects.
@@ -64,7 +62,11 @@ export function createComponentScope(): ComponentScope {
         try {
           fn();
         } catch (error) {
-          if (shouldLogScopeDisposalErrors) {
+          if (
+            detectDevEnvironment() &&
+            typeof console !== 'undefined' &&
+            typeof console.error === 'function'
+          ) {
             console.error('bQuery component: Error disposing scoped resource', error);
           }
         }

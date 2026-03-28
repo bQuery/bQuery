@@ -131,5 +131,5 @@ export const detectNestedMutations = <S extends Record<string, unknown>>(
   return mutatedKeys;
 };
 
-/** @internal Flag to enable/disable development warnings */
-export const isDev: boolean = detectDevEnvironment();
+/** @internal Returns whether development warnings should be enabled */
+export const isDev = (): boolean => detectDevEnvironment();

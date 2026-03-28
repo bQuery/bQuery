@@ -1770,7 +1770,34 @@ describe('Store', () => {
 });
 
 describe('store/isDev', () => {
-  it('defaults to development when process exists without NODE_ENV', async () => {
+  it('defaults to development for actual Node-like process objects without NODE_ENV', async () => {
+    const originalProcessDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'process');
+    const originalDevOverride = (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+
+    Object.defineProperty(globalThis, 'process', {
+      value: { env: {}, versions: { node: '22.0.0' } },
+      configurable: true,
+    });
+    delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+
+    try {
+      const { isDev } = await import(`../src/store/utils.ts?missing-node-env=${Date.now()}`);
+      expect(isDev()).toBe(true);
+    } finally {
+      if (originalProcessDescriptor) {
+        Object.defineProperty(globalThis, 'process', originalProcessDescriptor);
+      } else {
+        delete (globalThis as { process?: unknown }).process;
+      }
+      if (originalDevOverride === undefined) {
+        delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+      } else {
+        (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__ = originalDevOverride;
+      }
+    }
+  });
+
+  it('defaults to production for process shims without NODE_ENV or Node markers', async () => {
     const originalProcessDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'process');
     const originalDevOverride = (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
 
@@ -1781,8 +1808,8 @@ describe('store/isDev', () => {
     delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
 
     try {
-      const { isDev } = await import(`../src/store/utils.ts?missing-node-env=${Date.now()}`);
-      expect(isDev).toBe(true);
+      const { isDev } = await import(`../src/store/utils.ts?process-shim=${Date.now()}`);
+      expect(isDev()).toBe(false);
     } finally {
       if (originalProcessDescriptor) {
         Object.defineProperty(globalThis, 'process', originalProcessDescriptor);
@@ -1809,7 +1836,7 @@ describe('store/isDev', () => {
 
     try {
       const { isDev } = await import(`../src/store/utils.ts?dev-override=${Date.now()}`);
-      expect(isDev).toBe(true);
+      expect(isDev()).toBe(true);
     } finally {
       if (originalProcessDescriptor) {
         Object.defineProperty(globalThis, 'process', originalProcessDescriptor);
@@ -1821,6 +1848,63 @@ describe('store/isDev', () => {
       } else {
         (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__ = originalDevOverride;
       }
+    }
+  });
+
+  it('respects late dev override toggles for store diagnostics after import', async () => {
+    const originalProcessDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'process');
+    const originalDevOverride = (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+
+    Object.defineProperty(globalThis, 'process', {
+      value: undefined,
+      configurable: true,
+    });
+    delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+
+    try {
+      const { createStore } = await import(`../src/store/create-store.ts?late-dev-toggle=${Date.now()}`);
+      const store = createStore<
+        { count: number },
+        Record<string, never>,
+        { increment(): number }
+      >({
+        id: `late-store-dev-toggle-${Date.now()}`,
+        state: () => ({ count: 0 }),
+        actions: {
+          increment() {
+            (this as { count: number }).count++;
+            return (this as { count: number }).count;
+          },
+        },
+      });
+
+      store.$onAction(() => {
+        throw new Error('listener boom');
+      });
+
+      expect(store.increment()).toBe(1);
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__ = true;
+
+      expect(store.increment()).toBe(2);
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`store "${store.$id}" action "increment"`),
+        expect.objectContaining({ message: 'listener boom' })
+      );
+    } finally {
+      if (originalProcessDescriptor) {
+        Object.defineProperty(globalThis, 'process', originalProcessDescriptor);
+      } else {
+        delete (globalThis as { process?: unknown }).process;
+      }
+      if (originalDevOverride === undefined) {
+        delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+      } else {
+        (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__ = originalDevOverride;
+      }
+      errorSpy.mockRestore();
     }
   });
 });

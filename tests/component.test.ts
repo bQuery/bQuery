@@ -2692,4 +2692,54 @@ describe('component/createComponentScope', () => {
       errorSpy.mockRestore();
     }
   });
+
+  it('respects late dev override toggles for disposer errors after import', async () => {
+    const originalProcessDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'process');
+    const originalDevOverride = (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+
+    Object.defineProperty(globalThis, 'process', {
+      value: undefined,
+      configurable: true,
+    });
+    delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+
+    try {
+      const { createComponentScope } = await import(
+        `../src/component/scope.ts?late-dev-override=${Date.now()}`
+      );
+      const scopeBeforeOverride = createComponentScope();
+      scopeBeforeOverride.addDisposer(() => {
+        throw new Error('dispose failed');
+      });
+
+      scopeBeforeOverride.dispose();
+      expect(errorSpy).not.toHaveBeenCalled();
+
+      (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__ = true;
+
+      const scopeAfterOverride = createComponentScope();
+      scopeAfterOverride.addDisposer(() => {
+        throw new Error('dispose failed');
+      });
+
+      scopeAfterOverride.dispose();
+      expect(errorSpy).toHaveBeenCalledWith(
+        'bQuery component: Error disposing scoped resource',
+        expect.any(Error)
+      );
+    } finally {
+      if (originalProcessDescriptor) {
+        Object.defineProperty(globalThis, 'process', originalProcessDescriptor);
+      } else {
+        delete (globalThis as { process?: unknown }).process;
+      }
+      if (originalDevOverride === undefined) {
+        delete (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__;
+      } else {
+        (globalThis as { __BQUERY_DEV__?: boolean }).__BQUERY_DEV__ = originalDevOverride;
+      }
+      errorSpy.mockRestore();
+    }
+  });
 });
