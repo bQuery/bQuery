@@ -99,6 +99,7 @@ export const typewriter = (
     removeCursor();
     // Resolve the done promise so callers awaiting it are unblocked
     resolvePromise?.();
+    resolvePromise = null;
   };
 
   // If reduced motion, show text instantly
@@ -148,6 +149,7 @@ export const typewriter = (
           } else {
             removeCursor();
             resolve();
+            resolvePromise = null;
           }
         }
       };

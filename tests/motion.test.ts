@@ -1220,6 +1220,18 @@ describe('motion/typewriter', () => {
     expect(text.length).toBeLessThan('Hello World!!!'.length);
   });
 
+  it('allows repeated stop calls after done resolves', async () => {
+    const el = document.createElement('div');
+    const tw = typewriter(el, 'Hello World!!!', { speed: 20, cursor: true });
+
+    await new Promise((r) => setTimeout(r, 60));
+    tw.stop();
+    await tw.done;
+
+    expect(() => tw.stop()).not.toThrow();
+    expect(el.querySelector('span[aria-hidden="true"]')).toBeNull();
+  });
+
   it('handles empty text', async () => {
     const el = document.createElement('div');
     const tw = typewriter(el, '', { speed: 5 });
