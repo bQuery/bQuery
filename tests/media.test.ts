@@ -194,6 +194,8 @@ describe('media/breakpoints', () => {
     expect(Object.keys(bp.sm)).not.toContain('destroy');
     expect(Object.getOwnPropertyDescriptor(bp.sm, 'destroy')?.enumerable ?? true).toBe(false);
     expect(Object.getOwnPropertyDescriptor(bp.sm, 'destroy')?.configurable ?? false).toBe(true);
+    expect(Object.getOwnPropertyDescriptor(bp, 'destroyAll')?.enumerable ?? true).toBe(false);
+    expect(Object.getOwnPropertyDescriptor(bp, 'destroyAll')?.configurable ?? false).toBe(true);
     expect(Object.getOwnPropertyDescriptor(bp, 'destroy')?.enumerable ?? true).toBe(false);
     expect(Object.getOwnPropertyDescriptor(bp, 'destroy')?.configurable ?? false).toBe(true);
   });
@@ -228,6 +230,38 @@ describe('media/breakpoints', () => {
       expect(bp.lg.value).toBe(false);
 
       bp.destroy();
+      expect(removed).toEqual(new Set(['(min-width: 640px)', '(min-width: 1024px)']));
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('keeps a breakpoint named destroy accessible and exposes destroyAll for collection cleanup', () => {
+    const removed = new Set<string>();
+    const originalMatchMedia = window.matchMedia;
+
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {
+          removed.add(query);
+        },
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => true,
+      }) as MediaQueryList) as typeof window.matchMedia;
+
+    try {
+      const bp = breakpoints({ destroy: 640, lg: 1024 });
+
+      expect(typeof bp.destroy.value).toBe('boolean');
+      expect(typeof bp.destroy.destroy).toBe('function');
+      expect(typeof bp.destroyAll).toBe('function');
+
+      bp.destroyAll();
       expect(removed).toEqual(new Set(['(min-width: 640px)', '(min-width: 1024px)']));
     } finally {
       window.matchMedia = originalMatchMedia;

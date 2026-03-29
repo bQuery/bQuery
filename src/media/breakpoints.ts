@@ -10,6 +10,10 @@
 import { readonly, signal } from '../reactive/index';
 import type { BreakpointMap, MediaSignalHandle } from './types';
 
+type BreakpointSignals<T extends BreakpointMap> = { [K in keyof T]: MediaSignalHandle<boolean> } & {
+  destroyAll(): void;
+} & ('destroy' extends keyof T ? Record<never, never> : { destroy(): void });
+
 /**
  * Defines named breakpoints and returns reactive boolean signals for each.
  *
@@ -19,7 +23,8 @@ import type { BreakpointMap, MediaSignalHandle } from './types';
  *
  * @param bp - An object mapping breakpoint names to minimum widths in pixels
  * @returns An object with the same keys, each a reactive boolean signal with
- * `destroy()`, plus a top-level `destroy()` method to clean up all listeners
+ * `destroy()`, plus a top-level `destroyAll()` method to clean up all listeners.
+ * When no breakpoint is named `destroy`, a `destroy()` alias is also provided.
  *
  * @example
  * ```ts
@@ -43,7 +48,7 @@ import type { BreakpointMap, MediaSignalHandle } from './types';
  */
 export const breakpoints = <T extends BreakpointMap>(
   bp: T
-): { [K in keyof T]: MediaSignalHandle<boolean> } & { destroy(): void } => {
+): BreakpointSignals<T> => {
   const signals = {} as { [K in keyof T]: MediaSignalHandle<boolean> };
   const destroyers: Array<() => void> = [];
 
@@ -102,7 +107,7 @@ export const breakpoints = <T extends BreakpointMap>(
   }
 
   let destroyed = false;
-  return Object.defineProperty(signals, 'destroy', {
+  const result = Object.defineProperty(signals, 'destroyAll', {
     enumerable: false,
     configurable: true,
     value(): void {
@@ -112,5 +117,15 @@ export const breakpoints = <T extends BreakpointMap>(
         destroy();
       });
     },
-  }) as { [K in keyof T]: MediaSignalHandle<boolean> } & { destroy(): void };
+  }) as BreakpointSignals<T>;
+
+  if (!Object.prototype.hasOwnProperty.call(signals, 'destroy')) {
+    Object.defineProperty(result, 'destroy', {
+      enumerable: false,
+      configurable: true,
+      value: result.destroyAll,
+    });
+  }
+
+  return result;
 };

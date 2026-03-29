@@ -123,7 +123,12 @@ export const createPersistedStore = <
       storage.setItem(versionKey, String(version));
       return true;
     } catch (error) {
-      if (warningMessage && isDev()) {
+      if (
+        warningMessage &&
+        isDev() &&
+        typeof console !== 'undefined' &&
+        typeof console.warn === 'function'
+      ) {
         console.warn(warningMessage, error);
       }
       return false;
@@ -174,7 +179,11 @@ export const createPersistedStore = <
               canRetryPendingVersionAfterCreate = true;
             } catch (e) {
               // Migration will re-run on next load, but state is still usable
-              if (isDev()) {
+              if (
+                isDev() &&
+                typeof console !== 'undefined' &&
+                typeof console.warn === 'function'
+              ) {
                 console.warn(
                   `[bQuery store "${definition.id}"] Failed to persist migrated state:`,
                   e

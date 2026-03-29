@@ -1601,6 +1601,45 @@ describe('Store', () => {
       }
     });
 
+    it('should not throw when dev-only persisted-store warnings run without console.warn', () => {
+      const mem = createMemoryStorage();
+      mem.store.set('bquery-store-consoleless-migration', JSON.stringify({ val: 'persisted' }));
+      mem.store.set('bquery-store-consoleless-migration__version', '1');
+      const originalWarn = console.warn;
+
+      Object.defineProperty(console, 'warn', {
+        value: undefined,
+        configurable: true,
+      });
+
+      try {
+        const store = createPersistedStore(
+          { id: 'consoleless-migration', state: () => ({ val: 'default', migrated: false }) },
+          {
+            storage: mem,
+            version: 2,
+            migrate: (old) => ({ ...old, migrated: true }),
+            serializer: {
+              serialize: () => {
+                throw new Error('serialize failed');
+              },
+              deserialize: (raw: string) => JSON.parse(raw) as unknown,
+            },
+          }
+        );
+
+        expect(store.val).toBe('persisted');
+        expect(store.migrated).toBe(true);
+        expect(mem.store.get('bquery-store-consoleless-migration__version')).toBe('1');
+      } finally {
+        Object.defineProperty(console, 'warn', {
+          value: originalWarn,
+          configurable: true,
+        });
+        destroyStore('consoleless-migration');
+      }
+    });
+
     it('should persist the pending migrated version after a later successful state write', () => {
       const mem = createMemoryStorage();
       const stateKey = 'bquery-store-migration-version-pending';

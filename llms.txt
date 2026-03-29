@@ -62,7 +62,7 @@ Accessibility helpers. Includes `trapFocus()`, `releaseFocus()`, `getFocusableEl
 Drag-and-drop utilities. `draggable()` adds pointer-based dragging with bounds and handles. `droppable()` manages drop zones with accept filters and callbacks. `sortable()` adds list reordering with placeholders and sort events.
 
 ### Media (`@bquery/bquery/media`)
-Reactive browser and device APIs. Includes `mediaQuery()`, `breakpoints()`, `useViewport()`, `useNetworkStatus()`, `useBattery()`, `useGeolocation()`, `useDeviceMotion()`, `useDeviceOrientation()`, and async clipboard helpers via `clipboard.read()` / `clipboard.write()`.
+Reactive browser and device APIs. Includes `mediaQuery()`, `breakpoints()` (with collection cleanup via `destroyAll()`), `useViewport()`, `useNetworkStatus()`, `useBattery()`, `useGeolocation()`, `useDeviceMotion()`, `useDeviceOrientation()`, and async clipboard helpers via `clipboard.read()` / `clipboard.write()`.
 
 ### Plugin (`@bquery/bquery/plugin`)
 Global extension system. `use(plugin)` installs a plugin once by name. Plugins receive a `PluginInstallContext` that can register custom view directives and Web Components. Introspection helpers include `isInstalled()`, `getInstalledPlugins()`, `getCustomDirective()`, `getCustomDirectives()`, and `resetPlugins()`.

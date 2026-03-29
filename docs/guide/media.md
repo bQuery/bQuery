@@ -28,6 +28,7 @@ isDark.destroy();
 bp.sm.destroy();
 bp.md.destroy();
 bp.lg.destroy();
+bp.destroyAll();
 ```
 
 ## Viewport and network state
@@ -77,4 +78,4 @@ const text = await clipboard.read();
 console.log(text);
 ```
 
-All media signals expose `destroy()` so you can release listeners cleanly when a view or component goes away.
+All media signals expose `destroy()` so you can release listeners cleanly when a view or component goes away. Breakpoint collections also expose `destroyAll()` for bulk cleanup, with a `destroy()` alias when none of your breakpoint names use that key.

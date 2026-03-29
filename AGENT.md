@@ -244,7 +244,7 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 
 | Export                                    | Kind      | Description                                 |
 | ----------------------------------------- | --------- | ------------------------------------------- |
-| `mediaQuery`, `breakpoints`               | functions | Reactive media-query and breakpoint helpers |
+| `mediaQuery`, `breakpoints`               | functions | Reactive media-query and breakpoint helpers (`breakpoints()` collections use `destroyAll()` for bulk cleanup) |
 | `useViewport`, `useNetworkStatus`         | functions | Reactive viewport and network state         |
 | `useBattery`, `useGeolocation`            | functions | Battery and geolocation wrappers            |
 | `useDeviceMotion`, `useDeviceOrientation` | functions | Device sensor wrappers                      |
