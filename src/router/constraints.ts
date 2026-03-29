@@ -92,11 +92,15 @@ const normalizeConstraintCaptures = (constraint: string): string => {
 
     if (char === '\\' && i + 1 < constraint.length) {
       if (!inCharacterClass && constraint[i + 1] >= '1' && constraint[i + 1] <= '9') {
-        throw new Error('bQuery router: Route constraints cannot use backreferences.');
+        throw new Error(
+          `bQuery router: Route constraints cannot use backreferences: "${constraint}".`
+        );
       }
 
       if (!inCharacterClass && constraint[i + 1] === 'k' && constraint[i + 2] === '<') {
-        throw new Error('bQuery router: Route constraints cannot use backreferences.');
+        throw new Error(
+          `bQuery router: Route constraints cannot use backreferences: "${constraint}".`
+        );
       }
 
       normalized += char + constraint[i + 1];
@@ -126,7 +130,9 @@ const normalizeConstraintCaptures = (constraint: string): string => {
 
           const namedCaptureEnd = constraint.indexOf('>', i + 3);
           if (namedCaptureEnd === -1) {
-            throw new Error('bQuery router: Invalid route constraint named capture group.');
+            throw new Error(
+              `bQuery router: Invalid route constraint named capture group: "${constraint}".`
+            );
           }
           normalized += '(?:';
           i = namedCaptureEnd;
@@ -167,7 +173,7 @@ export const getRouteConstraintRegex = (constraint: string): RegExp => {
 
   if (hasNestedQuantifier(normalizedConstraint)) {
     throw new Error(
-      'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+      `bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "${constraint}".`
     );
   }
 

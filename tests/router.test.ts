@@ -1945,36 +1945,40 @@ describe('Router', () => {
         createRouter({
           routes: [{ path: '/item/:slug((foo|bar)-\\1)', component: () => null }],
         })
-      ).toThrow('bQuery router: Route constraints cannot use backreferences.');
+      ).toThrow(
+        'bQuery router: Route constraints cannot use backreferences: "(foo|bar)-\\1".'
+      );
     });
 
     it('should reject constraints that use named backreferences (\\k<name>)', () => {
       expect(() =>
         getRouteConstraintRegex('(?<word>[a-z]+)-\\k<word>')
-      ).toThrow('bQuery router: Route constraints cannot use backreferences.');
+      ).toThrow(
+        'bQuery router: Route constraints cannot use backreferences: "(?<word>[a-z]+)-\\k<word>".'
+      );
     });
 
     it('should reject constraints with nested quantifiers (ReDoS protection)', () => {
       expect(() => getRouteConstraintRegex('(a+)+')).toThrow(
-        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "(a+)+".'
       );
       expect(() => getRouteConstraintRegex('(a*)*')).toThrow(
-        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "(a*)*".'
       );
       expect(() => getRouteConstraintRegex('(\\d*)*')).toThrow(
-        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "(\\d*)*".'
       );
       expect(() => getRouteConstraintRegex('(a+){2,}')).toThrow(
-        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "(a+){2,}".'
       );
     });
 
     it('should reject nested quantifiers even when later nested groups would previously clear state', () => {
       expect(() => getRouteConstraintRegex('(a(b+)(c))+')).toThrow(
-        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "(a(b+)(c))+".'
       );
       expect(() => getRouteConstraintRegex('(ab(c+)(de{2}))+')).toThrow(
-        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed.'
+        'bQuery router: Route constraint contains a potentially catastrophic (ReDoS) pattern. Nested quantifiers are not allowed: "(ab(c+)(de{2}))+".'
       );
     });
 

@@ -1009,7 +1009,7 @@ describe('Store', () => {
       }
     });
 
-    it('should warn that async listeners must register hooks before awaiting', async () => {
+    it('should warn once that async listeners must register hooks before awaiting', async () => {
       const store = createStore<{ count: number }, Record<string, never>, { increment(): number }>({
         id: 'on-action-async-listener-warning',
         state: () => ({ count: 0 }),
@@ -1033,10 +1033,13 @@ describe('Store', () => {
 
         expect(store.increment()).toBe(1);
         await Promise.resolve();
+        expect(store.increment()).toBe(2);
+        await Promise.resolve();
 
         expect(lateAfterCalled).toBe(false);
+        expect(consoleWarnSpy).toHaveBeenCalledTimes(1);
         expect(consoleWarnSpy).toHaveBeenCalledWith(
-          `[bQuery store "on-action-async-listener-warning"] If an async $onAction listener awaits, register after()/onError() before the first await; late registrations will not affect the current action "increment".`
+          `[bQuery store "on-action-async-listener-warning"] Async $onAction listener detected for action "increment". If it awaits, register after()/onError() before the first await; late registrations will not affect the current action.`
         );
       } finally {
         consoleWarnSpy.mockRestore();

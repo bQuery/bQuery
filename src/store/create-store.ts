@@ -76,10 +76,17 @@ export const createStore = <
     );
   };
 
-  const warnAsyncOnActionListener = (actionName: string): void => {
+  const warnedAsyncOnActionListeners = new WeakSet<OnActionCallback<S, G, A>>();
+
+  const warnAsyncOnActionListener = (
+    listener: OnActionCallback<S, G, A>,
+    actionName: string
+  ): void => {
     if (!isDev() || typeof console === 'undefined' || typeof console.warn !== 'function') return;
+    if (warnedAsyncOnActionListeners.has(listener)) return;
+    warnedAsyncOnActionListeners.add(listener);
     console.warn(
-      `[bQuery store "${id}"] If an async $onAction listener awaits, register after()/onError() before the first await; late registrations will not affect the current action "${actionName}".`
+      `[bQuery store "${id}"] Async $onAction listener detected for action "${actionName}". If it awaits, register after()/onError() before the first await; late registrations will not affect the current action.`
     );
   };
 
@@ -93,13 +100,14 @@ export const createStore = <
   const runOnActionCallback = (
     phase: 'listener' | 'after' | 'onError',
     actionName: string,
-    callback: () => unknown
+    callback: () => unknown,
+    listener?: OnActionCallback<S, G, A>
   ): void => {
     try {
       const result = callback();
       if (isPromise(result)) {
-        if (phase === 'listener') {
-          warnAsyncOnActionListener(actionName);
+        if (phase === 'listener' && listener) {
+          warnAsyncOnActionListener(listener, actionName);
         }
         void result.catch((error) => {
           reportOnActionError(phase, actionName, error);
@@ -281,7 +289,7 @@ export const createStore = <
 
       // Notify all action listeners (before phase)
       for (const listener of listenerSnapshot) {
-        runOnActionCallback('listener', actionName, () => listener(listenerContext));
+        runOnActionCallback('listener', actionName, () => listener(listenerContext), listener);
       }
 
       let result: unknown;
