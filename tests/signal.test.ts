@@ -1393,6 +1393,16 @@ describe('toValue', () => {
     expect(toValue(ro)).toBe(9);
   });
 
+  it('does not unwrap unrelated objects that happen to have value and peek', () => {
+    const domainObject = {
+      value: 123,
+      peek: () => 123,
+      label: 'not a readonly signal',
+    };
+
+    expect(toValue(domainObject)).toBe(domainObject);
+  });
+
   it('participates in reactive tracking', () => {
     const s = signal(1);
     let tracked = 0;

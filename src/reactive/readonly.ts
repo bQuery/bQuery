@@ -4,6 +4,8 @@
 
 import type { Signal } from './core';
 
+const READONLY_SIGNAL_BRAND = Symbol('bquery.readonlySignal');
+
 /**
  * A readonly wrapper around a signal that prevents writes.
  * Provides read-only access to a signal's value while maintaining reactivity.
@@ -18,6 +20,19 @@ export interface ReadonlySignal<T> {
 }
 
 /**
+ * Determines whether a value is a bQuery readonly signal wrapper.
+ *
+ * @internal
+ */
+export const isReadonlySignal = <T>(value: unknown): value is ReadonlySignal<T> => {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    READONLY_SIGNAL_BRAND in value
+  );
+};
+
+/**
  * Creates a read-only view of a signal.
  * Useful for exposing reactive state without allowing modifications.
  *
@@ -25,11 +40,21 @@ export interface ReadonlySignal<T> {
  * @param sig - The signal to wrap
  * @returns A readonly signal wrapper
  */
-export const readonly = <T>(sig: Signal<T>): ReadonlySignal<T> => ({
-  get value(): T {
-    return sig.value;
-  },
-  peek(): T {
-    return sig.peek();
-  },
-});
+export const readonly = <T>(sig: Signal<T>): ReadonlySignal<T> =>
+  Object.defineProperty(
+    {
+      get value(): T {
+        return sig.value;
+      },
+      peek(): T {
+        return sig.peek();
+      },
+    },
+    READONLY_SIGNAL_BRAND,
+    {
+      value: true,
+      enumerable: false,
+      configurable: false,
+      writable: false,
+    }
+  ) as ReadonlySignal<T>;

@@ -4,7 +4,7 @@
 
 import { Computed } from './computed';
 import { Signal } from './core';
-import type { ReadonlySignal } from './readonly';
+import { isReadonlySignal, type ReadonlySignal } from './readonly';
 
 /**
  * A value that may be a raw value, a Signal, a ReadonlySignal, or a Computed.
@@ -53,22 +53,8 @@ export type MaybeSignal<T> = T | Signal<T> | ReadonlySignal<T> | Computed<T>;
  * ```
  */
 export const toValue = <T>(source: MaybeSignal<T>): T => {
-  if (source instanceof Signal || source instanceof Computed || isReadonlySignalLike(source)) {
+  if (source instanceof Signal || source instanceof Computed || isReadonlySignal(source)) {
     return source.value;
   }
   return source;
-};
-
-/**
- * Determines whether a value matches the public ReadonlySignal shape.
- * @internal
- */
-const isReadonlySignalLike = <T>(value: unknown): value is ReadonlySignal<T> => {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    'value' in value &&
-    'peek' in value &&
-    typeof (value as { peek?: unknown }).peek === 'function'
-  );
 };
