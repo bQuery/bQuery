@@ -75,6 +75,15 @@ const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
   value !== null &&
   typeof (value as { then?: unknown }).then === 'function';
 
+const isAsyncFunction = (value: unknown): value is (...args: never[]) => Promise<unknown> => {
+  return (
+    typeof value === 'function' &&
+    ((Symbol.toStringTag in value &&
+      (value as { [Symbol.toStringTag]?: unknown })[Symbol.toStringTag] === 'AsyncFunction') ||
+      value.constructor?.name === 'AsyncFunction')
+  );
+};
+
 /**
  * Returns the currently active scope, or `undefined` if none.
  * @internal
@@ -105,11 +114,17 @@ class EffectScopeImpl implements ScopeInternal {
     if (!this._active) {
       throw new Error('bQuery reactive: Cannot run in a stopped effectScope');
     }
+    if (isAsyncFunction(fn)) {
+      throw new Error(
+        'bQuery reactive: effectScope.run() only supports synchronous callbacks'
+      );
+    }
 
     scopeStack.push(this);
     try {
       const result = fn();
       if (isPromiseLike(result)) {
+        this.stop();
         throw new Error(
           'bQuery reactive: effectScope.run() only supports synchronous callbacks'
         );
@@ -232,7 +247,7 @@ export const getCurrentScope = (): EffectScope | undefined => getActiveScope();
  */
 export const onScopeDispose = (fn: CleanupFn): void => {
   const scope = getActiveScope();
-  if (!scope) {
+  if (!scope || !scope.active) {
     throw new Error(
       'bQuery reactive: onScopeDispose() must be called inside an active effectScope'
     );

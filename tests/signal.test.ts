@@ -1394,12 +1394,18 @@ describe('toValue', () => {
   });
 
   it('does not unwrap unrelated objects that happen to have value and peek', () => {
-    const domainObject = {
+    type DomainObject = {
+      value: number;
+      peek: () => number;
+      label: string;
+    };
+
+    const domainObject: DomainObject = {
       value: 123,
       peek: () => 123,
       label: 'not a readonly signal',
     };
-    const result = toValue(domainObject);
+    const result = toValue<DomainObject>(domainObject as MaybeSignal<DomainObject>);
 
     expect(result).toBe(domainObject);
     expect(result.label).toBe('not a readonly signal');
@@ -1514,12 +1520,38 @@ describe('effectScope', () => {
 
   it('throws when run receives an async callback', () => {
     const scope = effectScope();
+    let invoked = false;
 
     expect(() =>
       scope.run(async () => {
+        invoked = true;
         await Promise.resolve();
       })
     ).toThrow('effectScope.run() only supports synchronous callbacks');
+    expect(invoked).toBe(false);
+  });
+
+  it('stops synchronously collected resources when run returns a promise-like value', () => {
+    const scope = effectScope();
+    const count = signal(0);
+    let runs = 0;
+
+    expect(() =>
+      scope.run(() => {
+        effect(() => {
+          void count.value;
+          runs++;
+        });
+
+        return Promise.resolve();
+      })
+    ).toThrow('effectScope.run() only supports synchronous callbacks');
+
+    expect(scope.active).toBe(false);
+    expect(runs).toBe(1);
+
+    count.value = 1;
+    expect(runs).toBe(1);
   });
 
   it('throws when running inside a stopped scope', () => {
@@ -1666,6 +1698,17 @@ describe('effectScope', () => {
     expect(() => onScopeDispose(() => {})).toThrow(
       'onScopeDispose() must be called inside an active effectScope'
     );
+  });
+
+  it('throws when onScopeDispose is called after the current scope is stopped', () => {
+    const scope = effectScope();
+
+    expect(() =>
+      scope.run(() => {
+        scope.stop();
+        onScopeDispose(() => {});
+      })
+    ).toThrow('onScopeDispose() must be called inside an active effectScope');
   });
 
   // -----------------------------------------------------------------------
