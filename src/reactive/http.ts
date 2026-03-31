@@ -226,14 +226,16 @@ const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
       return;
     }
     const timer = setTimeout(resolve, ms);
-    signal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(signal.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
-      },
-      { once: true }
-    );
+    if (signal) {
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          reject(signal.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
+        },
+        { once: true }
+      );
+    }
   });
 
 /** @internal */

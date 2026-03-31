@@ -225,7 +225,7 @@ export const useWebSocket = <TSend = string, TReceive = string>(
 
     heartbeatTimer = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(typeof pingMsg === 'string' ? pingMsg : pingMsg as ArrayBufferLike);
+        ws.send(pingMsg as string | ArrayBufferLike);
         pongTimer = setTimeout(() => {
           // No pong received — force close to trigger reconnect
           ws?.close(4000, 'Heartbeat timeout');

@@ -218,7 +218,7 @@ export const useResource = <T = unknown>(
         optimistic ? ({ ...fetchState.data.peek(), ...body } as T) : undefined
       ),
     remove: async () => {
-      await executeMutation('remove', 'DELETE', undefined, optimistic ? undefined : undefined);
+      await executeMutation('remove', 'DELETE');
       if (!disposed) {
         fetchState.data.value = undefined;
       }
