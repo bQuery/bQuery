@@ -5,6 +5,7 @@
  */
 
 import { computed, signal } from '../reactive/index';
+import { isPrototypePollutionKey } from '../core/utils/object';
 import { isPromise } from '../core/utils/type-guards';
 import type {
   CrossFieldValidator,
@@ -269,10 +270,15 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
    */
   const setValues = (values: Partial<T>): void => {
     for (const [name, val] of Object.entries(values)) {
-      const field = (fields as Record<string, FormField>)[name];
-      if (field) {
-        field.value.value = val;
+      if (
+        isPrototypePollutionKey(name) ||
+        !Object.prototype.hasOwnProperty.call(fields, name)
+      ) {
+        continue;
       }
+
+      const field = (fields as Record<string, FormField>)[name];
+      field.value.value = val;
     }
   };
 
@@ -283,10 +289,15 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
    */
   const setErrors = (errorMap: Partial<Record<keyof T & string, string>>): void => {
     for (const [name, msg] of Object.entries(errorMap)) {
-      const field = (fields as Record<string, FormField>)[name];
-      if (field) {
-        field.error.value = (msg as string) ?? '';
+      if (
+        isPrototypePollutionKey(name) ||
+        !Object.prototype.hasOwnProperty.call(fields, name)
+      ) {
+        continue;
       }
+
+      const field = (fields as Record<string, FormField>)[name];
+      field.error.value = (msg as string) ?? '';
     }
   };
 

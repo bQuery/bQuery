@@ -949,6 +949,22 @@ describe('forms/createForm', () => {
       form.setValues({});
       expect(form.fields.name.value.value).toBe('test');
     });
+
+    it('ignores prototype pollution keys', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+        },
+      });
+      const values = { name: 'Ada' } as Record<string, unknown>;
+
+      Object.defineProperty(values, '__proto__', { value: 'ignored', enumerable: true });
+      Object.defineProperty(values, 'constructor', { value: 'ignored', enumerable: true });
+      Object.defineProperty(values, 'prototype', { value: 'ignored', enumerable: true });
+
+      expect(() => form.setValues(values)).not.toThrow();
+      expect(form.fields.name.value.value).toBe('Ada');
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -1008,6 +1024,22 @@ describe('forms/createForm', () => {
       form.setErrors({ name: 'Error' });
       form.setErrors({});
       expect(form.fields.name.error.value).toBe('Error'); // unchanged
+    });
+
+    it('ignores prototype pollution keys', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+        },
+      });
+      const errors = { name: 'Required' } as Record<string, string>;
+
+      Object.defineProperty(errors, '__proto__', { value: 'ignored', enumerable: true });
+      Object.defineProperty(errors, 'constructor', { value: 'ignored', enumerable: true });
+      Object.defineProperty(errors, 'prototype', { value: 'ignored', enumerable: true });
+
+      expect(() => form.setErrors(errors)).not.toThrow();
+      expect(form.fields.name.error.value).toBe('Required');
     });
   });
 });
@@ -1206,6 +1238,28 @@ describe('forms/useFormField', () => {
     } finally {
       console.error = originalError;
     }
+  });
+
+  it('destroy cancels automatic validation timers and subscriptions', async () => {
+    const field = useFormField<string>('Ada', {
+      validators: [required('Required')],
+      validateOn: 'both',
+      debounceMs: 20,
+    });
+
+    field.value.value = '';
+    field.destroy();
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(field.error.value).toBe('');
+
+    field.touch();
+    field.value.value = 'Grace';
+    field.value.value = '';
+
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(field.error.value).toBe('');
+    expect(field.isValidating.value).toBe(false);
   });
 });
 

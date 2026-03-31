@@ -4,6 +4,7 @@ import {
   computed,
   createUseFetch,
   effect,
+  readonly,
   signal,
   useAsyncData,
   useFetch,
@@ -1383,6 +1384,15 @@ describe('toValue', () => {
     expect(toValue(c)).toBe(10);
   });
 
+  it('unwraps a ReadonlySignal', () => {
+    const s = signal(7);
+    const ro = readonly(s);
+
+    expect(toValue(ro)).toBe(7);
+    s.value = 9;
+    expect(toValue(ro)).toBe(9);
+  });
+
   it('participates in reactive tracking', () => {
     const s = signal(1);
     let tracked = 0;
@@ -1412,9 +1422,11 @@ describe('toValue', () => {
   it('satisfies MaybeSignal type constraint', () => {
     const plainVal: MaybeSignal<number> = 5;
     const sigVal: MaybeSignal<number> = signal(5);
+    const readonlyVal: MaybeSignal<number> = readonly(signal(5));
     const compVal: MaybeSignal<number> = computed(() => 5);
     expect(toValue(plainVal)).toBe(5);
     expect(toValue(sigVal)).toBe(5);
+    expect(toValue(readonlyVal)).toBe(5);
     expect(toValue(compVal)).toBe(5);
   });
 });

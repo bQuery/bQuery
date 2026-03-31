@@ -277,14 +277,13 @@ export const customAsync = <T = unknown>(
  * @example
  * ```ts
  * import { signal } from '@bquery/bquery/reactive';
- * import { createForm, required, matchField } from '@bquery/bquery/forms';
+ * import { matchField } from '@bquery/bquery/forms';
  *
- * const form = createForm({
- *   fields: {
- *     password:        { initialValue: '', validators: [required()] },
- *     confirmPassword: { initialValue: '', validators: [required(), matchField(form.fields.password.value)] },
- *   },
- * });
+ * const password = signal('secret');
+ * const confirmPassword = signal('');
+ * const validateConfirmPassword = matchField(password, 'Passwords must match');
+ *
+ * validateConfirmPassword(confirmPassword.value);
  * ```
  */
 export const matchField = (
@@ -293,4 +292,3 @@ export const matchField = (
 ): SyncValidator<unknown> => {
   return (value: unknown) => (Object.is(value, ref.value) ? true : message);
 };
-

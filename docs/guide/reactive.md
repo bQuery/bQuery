@@ -364,22 +364,24 @@ scope.stop(); // abort() is called
 
 ## toValue
 
-`toValue()` extracts the underlying value from a `Signal`, `Computed`, or returns a plain value as-is. This eliminates repetitive `isSignal(x) ? x.value : x` patterns.
+`toValue()` extracts the underlying value from a `Signal`, `ReadonlySignal`, `Computed`, or returns a plain value as-is. This eliminates repetitive `isSignal(x) ? x.value : x` patterns.
 
 ```ts
-import { signal, computed, toValue } from '@bquery/bquery/reactive';
+import { signal, readonly, computed, toValue } from '@bquery/bquery/reactive';
 
 const count = signal(5);
+const publicCount = readonly(count);
 const doubled = computed(() => count.value * 2);
 
 toValue(42);      // 42 (plain value returned as-is)
 toValue(count);   // 5  (reads signal.value)
+toValue(publicCount); // 5  (reads readonly signal.value)
 toValue(doubled); // 10 (reads computed.value)
 ```
 
 ### MaybeSignal Type
 
-The `MaybeSignal<T>` type represents a value that may be plain, a `Signal<T>`, or a `Computed<T>`. Use it for APIs that accept both reactive and non-reactive inputs:
+The `MaybeSignal<T>` type represents a value that may be plain, a `Signal<T>`, a `ReadonlySignal<T>`, or a `Computed<T>`. Use it for APIs that accept both reactive and non-reactive inputs:
 
 ```ts
 import { type MaybeSignal, toValue } from '@bquery/bquery/reactive';

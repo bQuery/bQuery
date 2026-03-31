@@ -102,6 +102,8 @@ export type UseFormFieldReturn<T = unknown> = FormField<T> & {
   isValidating: Signal<boolean>;
   /** Validate the current field value immediately */
   validate: () => Promise<boolean>;
+  /** Cancel pending timers and automatic validation subscriptions */
+  destroy: () => void;
 };
 
 /**

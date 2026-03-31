@@ -30,6 +30,7 @@ console.log(emailField.isValid.value);
 - `debounceMs` for automatic validation
 - external writable signals when you want to reuse existing reactive state
 - `validate()` for immediate validation
+- `destroy()` to cancel pending validation timers and automatic subscriptions for dynamic fields
 
 ## Basic usage
 
@@ -166,21 +167,14 @@ The `matchField()` validator compares a field's value against a reference signal
 This is the recommended approach for "confirm password" and similar patterns:
 
 ```ts
-import { createForm, required, matchField } from '@bquery/bquery/forms';
+import { matchField } from '@bquery/bquery/forms';
 import { signal } from '@bquery/bquery/reactive';
 
-const form = createForm({
-  fields: {
-    password: { initialValue: '', validators: [required()] },
-    confirmPassword: {
-      initialValue: '',
-      validators: [
-        required(),
-        matchField(form.fields.password.value, 'Passwords must match'),
-      ],
-    },
-  },
-});
+const password = signal('');
+const confirmPassword = signal('');
+const validateConfirmPassword = matchField(password, 'Passwords must match');
+
+validateConfirmPassword(confirmPassword.value); // true when the values match
 ```
 
 ::: tip
