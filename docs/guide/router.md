@@ -7,7 +7,7 @@ The router module provides SPA-style client-side routing built on the History AP
 Internally, the router is now split into focused submodules (matching, navigation, state, links, utilities). The public API remains unchanged.
 
 ```ts
-import { createRouter, navigate, currentRoute } from '@bquery/bquery/router';
+import { createRouter, navigate, currentRoute, isNavigating } from '@bquery/bquery/router';
 import { effect } from '@bquery/bquery/reactive';
 ```
 
@@ -172,6 +172,21 @@ import { resolve } from '@bquery/bquery/router';
 const path = resolve('user', { id: '42' });
 // Returns '/user/42'
 ```
+
+## Navigation State
+
+Use `isNavigating` to reactively track in-flight navigation, including async guards and redirect resolution.
+
+```ts
+import { isNavigating } from '@bquery/bquery/router';
+import { effect } from '@bquery/bquery/reactive';
+
+effect(() => {
+  document.body.toggleAttribute('data-route-loading', isNavigating.value);
+});
+```
+
+This is useful for global loading indicators, disabling route-changing controls, or preventing duplicate navigation triggers while guards are still resolving.
 
 ## Active Link Detection
 

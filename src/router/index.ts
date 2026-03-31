@@ -43,7 +43,7 @@ export { BqLinkElement, registerBqLink } from './bq-link';
 export { interceptLinks, link } from './links';
 export { back, forward, navigate } from './navigation';
 export { createRouter } from './router';
-export { currentRoute } from './state';
+export { currentRoute, isNavigating } from './state';
 export type { NavigationGuard, Route, RouteDefinition, Router, RouterOptions } from './types';
 export { useRoute, type UseRouteReturn } from './use-route';
 export { isActive, isActiveSignal, resolve } from './utils';

@@ -5,7 +5,15 @@
 
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { createRoute } from './match';
-import { currentRoute, getActiveRouter, routeSignal, setActiveRouter } from './state';
+import {
+  beginNavigation,
+  currentRoute,
+  endNavigation,
+  getActiveRouter,
+  resetNavigationState,
+  routeSignal,
+  setActiveRouter,
+} from './state';
 import type { NavigationGuard, Route, Router, RouterOptions } from './types';
 import { flattenRoutes } from './utils';
 
@@ -210,68 +218,73 @@ export const createRouter = (options: RouterOptions): Router => {
     method: 'pushState' | 'replaceState',
     visitedPaths: Set<string> = new Set()
   ): Promise<void> => {
-    const { pathname, search, hash } = getCurrentPath();
-    const from = createRoute(pathname, search, hash, flatRoutes);
+    beginNavigation();
+    try {
+      const { pathname, search, hash } = getCurrentPath();
+      const from = createRoute(pathname, search, hash, flatRoutes);
 
-    // Parse the target path
-    const url = new URL(path, window.location.origin);
-    const resolvedPath = `${url.pathname}${url.search}${url.hash}`;
-    if (visitedPaths.has(resolvedPath)) {
-      throw new Error(`bQuery router: redirect loop detected for path "${resolvedPath}"`);
-    }
-    visitedPaths.add(resolvedPath);
-    const to = createRoute(url.pathname, url.search, url.hash, flatRoutes);
-
-    // Check for redirectTo on the matched route
-    if (to.matched?.redirectTo) {
-      // Navigate to the redirect target instead
-      await performNavigation(to.matched.redirectTo, method, visitedPaths);
-      return;
-    }
-
-    // Run route-level beforeEnter guard
-    if (to.matched?.beforeEnter) {
-      const result = await to.matched.beforeEnter(to, from);
-      if (result === false) {
-        return; // Cancel navigation
+      // Parse the target path
+      const url = new URL(path, window.location.origin);
+      const resolvedPath = `${url.pathname}${url.search}${url.hash}`;
+      if (visitedPaths.has(resolvedPath)) {
+        throw new Error(`bQuery router: redirect loop detected for path "${resolvedPath}"`);
       }
-    }
+      visitedPaths.add(resolvedPath);
+      const to = createRoute(url.pathname, url.search, url.hash, flatRoutes);
 
-    // Run beforeEach guards
-    for (const guard of beforeGuards) {
-      const result = await guard(to, from);
-      if (result === false) {
-        return; // Cancel navigation
+      // Check for redirectTo on the matched route
+      if (to.matched?.redirectTo) {
+        // Navigate to the redirect target instead
+        await performNavigation(to.matched.redirectTo, method, visitedPaths);
+        return;
       }
-    }
 
-    // Save scroll position before navigation
-    saveScrollPosition();
+      // Run route-level beforeEnter guard
+      if (to.matched?.beforeEnter) {
+        const result = await to.matched.beforeEnter(to, from);
+        if (result === false) {
+          return; // Cancel navigation
+        }
+      }
 
-    // Update browser history
-    const existingScrollKey = scrollRestoration ? getScrollKey() : undefined;
-    const scrollKey =
-      method === 'replaceState' && existingScrollKey ? existingScrollKey : createScrollKey();
-    const fullPath = useHash ? `#${path}` : `${base}${path}`;
-    const baseState =
-      scrollRestoration && history.state && typeof history.state === 'object'
-        ? sanitizeHistoryState(history.state as Record<string, unknown>)
-        : {};
-    const state = scrollRestoration ? { ...baseState, __bqScrollKey: scrollKey } : {};
-    history[method](state, '', fullPath);
-    currentScrollKey = scrollKey;
+      // Run beforeEach guards
+      for (const guard of beforeGuards) {
+        const result = await guard(to, from);
+        if (result === false) {
+          return; // Cancel navigation
+        }
+      }
 
-    // Update route signal
-    syncRoute();
+      // Save scroll position before navigation
+      saveScrollPosition();
 
-    // Scroll to top on push navigation
-    if (scrollRestoration && method === 'pushState') {
-      window.scrollTo(0, 0);
-    }
+      // Update browser history
+      const existingScrollKey = scrollRestoration ? getScrollKey() : undefined;
+      const scrollKey =
+        method === 'replaceState' && existingScrollKey ? existingScrollKey : createScrollKey();
+      const fullPath = useHash ? `#${path}` : `${base}${path}`;
+      const baseState =
+        scrollRestoration && history.state && typeof history.state === 'object'
+          ? sanitizeHistoryState(history.state as Record<string, unknown>)
+          : {};
+      const state = scrollRestoration ? { ...baseState, __bqScrollKey: scrollKey } : {};
+      history[method](state, '', fullPath);
+      currentScrollKey = scrollKey;
 
-    // Run afterEach hooks
-    for (const hook of afterHooks) {
-      hook(routeSignal.value, from);
+      // Update route signal
+      syncRoute();
+
+      // Scroll to top on push navigation
+      if (scrollRestoration && method === 'pushState') {
+        window.scrollTo(0, 0);
+      }
+
+      // Run afterEach hooks
+      for (const hook of afterHooks) {
+        hook(routeSignal.value, from);
+      }
+    } finally {
+      endNavigation();
     }
   };
 
@@ -279,70 +292,75 @@ export const createRouter = (options: RouterOptions): Router => {
    * Handle popstate events (back/forward).
    */
   const handlePopState = async (event: PopStateEvent): Promise<void> => {
-    const { pathname, search, hash } = getCurrentPath();
-    const from = routeSignal.value;
-    const to = createRoute(pathname, search, hash, flatRoutes);
+    beginNavigation();
+    try {
+      const { pathname, search, hash } = getCurrentPath();
+      const from = routeSignal.value;
+      const to = createRoute(pathname, search, hash, flatRoutes);
 
-    // Check for redirectTo on the matched route
-    if (to.matched?.redirectTo) {
-      await performNavigation(to.matched.redirectTo, 'replaceState');
-      return;
-    }
-
-    // Run route-level beforeEnter guard
-    if (to.matched?.beforeEnter) {
-      const result = await to.matched.beforeEnter(to, from);
-      if (result === false) {
-        // Restore previous state with full URL (including query/hash)
-        const queryString = new URLSearchParams(
-          Object.entries(from.query).flatMap(([key, value]) =>
-            Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
-          )
-        ).toString();
-        const searchStr = queryString ? `?${queryString}` : '';
-        const hashStr = from.hash ? `#${from.hash}` : '';
-        const restorePath = useHash
-          ? `#${from.path}${searchStr}${hashStr}`
-          : `${base}${from.path}${searchStr}${hashStr}`;
-        history.replaceState(getRestoreHistoryState(), '', restorePath);
+      // Check for redirectTo on the matched route
+      if (to.matched?.redirectTo) {
+        await performNavigation(to.matched.redirectTo, 'replaceState');
         return;
       }
-    }
 
-    // Run beforeEach guards (supports async guards)
-    for (const guard of beforeGuards) {
-      const result = await guard(to, from);
-      if (result === false) {
-        // Restore previous state with full URL (including query/hash)
-        const queryString = new URLSearchParams(
-          Object.entries(from.query).flatMap(([key, value]) =>
-            Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
-          )
-        ).toString();
-        const search = queryString ? `?${queryString}` : '';
-        const hash = from.hash ? `#${from.hash}` : '';
-        const restorePath = useHash
-          ? `#${from.path}${search}${hash}`
-          : `${base}${from.path}${search}${hash}`;
-        history.replaceState(getRestoreHistoryState(), '', restorePath);
-        return;
+      // Run route-level beforeEnter guard
+      if (to.matched?.beforeEnter) {
+        const result = await to.matched.beforeEnter(to, from);
+        if (result === false) {
+          // Restore previous state with full URL (including query/hash)
+          const queryString = new URLSearchParams(
+            Object.entries(from.query).flatMap(([key, value]) =>
+              Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
+            )
+          ).toString();
+          const searchStr = queryString ? `?${queryString}` : '';
+          const hashStr = from.hash ? `#${from.hash}` : '';
+          const restorePath = useHash
+            ? `#${from.path}${searchStr}${hashStr}`
+            : `${base}${from.path}${searchStr}${hashStr}`;
+          history.replaceState(getRestoreHistoryState(), '', restorePath);
+          return;
+        }
       }
-    }
 
-    // Save scroll position of the page we're leaving
-    saveScrollPosition(currentScrollKey);
+      // Run beforeEach guards (supports async guards)
+      for (const guard of beforeGuards) {
+        const result = await guard(to, from);
+        if (result === false) {
+          // Restore previous state with full URL (including query/hash)
+          const queryString = new URLSearchParams(
+            Object.entries(from.query).flatMap(([key, value]) =>
+              Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
+            )
+          ).toString();
+          const search = queryString ? `?${queryString}` : '';
+          const hash = from.hash ? `#${from.hash}` : '';
+          const restorePath = useHash
+            ? `#${from.path}${search}${hash}`
+            : `${base}${from.path}${search}${hash}`;
+          history.replaceState(getRestoreHistoryState(), '', restorePath);
+          return;
+        }
+      }
 
-    // Update scroll key from history state
-    currentScrollKey =
-      (event.state as { __bqScrollKey?: string } | null)?.__bqScrollKey ?? getScrollKey();
+      // Save scroll position of the page we're leaving
+      saveScrollPosition(currentScrollKey);
 
-    syncRoute();
+      // Update scroll key from history state
+      currentScrollKey =
+        (event.state as { __bqScrollKey?: string } | null)?.__bqScrollKey ?? getScrollKey();
 
-    // Restore scroll position for the entry we're navigating to
-    restoreScrollPosition(currentScrollKey);
+      syncRoute();
 
-    for (const hook of afterHooks) {
-      hook(routeSignal.value, from);
+      // Restore scroll position for the entry we're navigating to
+      restoreScrollPosition(currentScrollKey);
+
+      for (const hook of afterHooks) {
+        hook(routeSignal.value, from);
+      }
+    } finally {
+      endNavigation();
     }
   };
 
@@ -393,6 +411,7 @@ export const createRouter = (options: RouterOptions): Router => {
       ) {
         history.scrollRestoration = previousScrollRestoration;
       }
+      resetNavigationState();
       setActiveRouter(null);
     },
   };

@@ -216,6 +216,7 @@ export {
   createRouter,
   currentRoute,
   forward,
+  isNavigating,
   interceptLinks,
   isActive,
   isActiveSignal,
