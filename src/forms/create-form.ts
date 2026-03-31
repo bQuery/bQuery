@@ -270,6 +270,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
    */
   const setValues = (values: Partial<T>): void => {
     for (const [name, val] of Object.entries(values)) {
+      // Ignore inherited keys and prototype-pollution vectors before mutating field state.
       if (
         isPrototypePollutionKey(name) ||
         !Object.prototype.hasOwnProperty.call(fields, name)
@@ -278,6 +279,9 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       }
 
       const field = (fields as Record<string, FormField>)[name];
+      if (!field) {
+        continue;
+      }
       field.value.value = val;
     }
   };
@@ -289,6 +293,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
    */
   const setErrors = (errorMap: Partial<Record<keyof T & string, string>>): void => {
     for (const [name, msg] of Object.entries(errorMap)) {
+      // Ignore inherited keys and prototype-pollution vectors before mutating field state.
       if (
         isPrototypePollutionKey(name) ||
         !Object.prototype.hasOwnProperty.call(fields, name)
@@ -297,6 +302,9 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       }
 
       const field = (fields as Record<string, FormField>)[name];
+      if (!field) {
+        continue;
+      }
       field.error.value = (msg as string) ?? '';
     }
   };
