@@ -24,6 +24,21 @@ export const isHTMLElement = (element: Element | null | undefined): element is H
 };
 
 /**
+ * Gets an element's inner size (content + padding, excluding border and margin).
+ *
+ * @internal
+ */
+export const getInnerSize = (
+  element: Element | null | undefined,
+  dimension: 'width' | 'height'
+): number => {
+  if (!isHTMLElement(element)) {
+    return 0;
+  }
+  return dimension === 'width' ? element.clientWidth : element.clientHeight;
+};
+
+/**
  * Gets an element's outer size, optionally including margins.
  *
  * @internal

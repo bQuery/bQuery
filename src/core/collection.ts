@@ -5,7 +5,7 @@ import {
   type InsertableContent,
 } from './dom';
 import { BQueryElement } from './element';
-import { applyAll, getOuterSize, isHTMLElement, toElementList } from './shared';
+import { applyAll, getInnerSize, getOuterSize, isHTMLElement, toElementList } from './shared';
 
 /** Handler signature for delegated events */
 type DelegatedHandler = (event: Event, target: Element) => void;
@@ -441,6 +441,24 @@ export class BQueryCollection {
   }
 
   /**
+   * Gets the inner width of the first element (content + padding, excluding border).
+   *
+   * @returns Inner width in pixels, or 0 when the collection is empty
+   */
+  innerWidth(): number {
+    return getInnerSize(this.first(), 'width');
+  }
+
+  /**
+   * Gets the inner height of the first element (content + padding, excluding border).
+   *
+   * @returns Inner height in pixels, or 0 when the collection is empty
+   */
+  innerHeight(): number {
+    return getInnerSize(this.first(), 'height');
+  }
+
+  /**
    * Gets the outer width of the first element, optionally including margins.
    *
    * @param includeMargin - When true, include horizontal margins
@@ -659,6 +677,156 @@ export class BQueryCollection {
           seen.add(found[i]);
           results.push(found[i]);
         }
+      }
+    }
+    return new BQueryCollection(results);
+  }
+
+  /**
+   * Gets the closest ancestor matching a selector for each element in the
+   * collection. Duplicates are removed from the result.
+   *
+   * @param selector - CSS selector to match
+   * @returns A new BQueryCollection with matching ancestors
+   *
+   * @example
+   * ```ts
+   * $$('.item').closest('.container');
+   * ```
+   */
+  closest(selector: string): BQueryCollection {
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      const match = el.closest(selector);
+      if (match && !seen.has(match)) {
+        seen.add(match);
+        results.push(match);
+      }
+    }
+    return new BQueryCollection(results);
+  }
+
+  /**
+   * Gets the parent element of each element in the collection.
+   * Duplicates are removed (e.g. siblings sharing a parent).
+   *
+   * @returns A new BQueryCollection with unique parent elements
+   *
+   * @example
+   * ```ts
+   * $$('.item').parent().addClass('has-items');
+   * ```
+   */
+  parent(): BQueryCollection {
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      const p = el.parentElement;
+      if (p && !seen.has(p)) {
+        seen.add(p);
+        results.push(p);
+      }
+    }
+    return new BQueryCollection(results);
+  }
+
+  /**
+   * Gets the direct children of every element in the collection.
+   * Duplicates are removed from the result.
+   *
+   * @returns A new BQueryCollection with child elements
+   *
+   * @example
+   * ```ts
+   * $$('.list').children().addClass('child');
+   * ```
+   */
+  children(): BQueryCollection {
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      for (const child of Array.from(el.children)) {
+        if (!seen.has(child)) {
+          seen.add(child);
+          results.push(child);
+        }
+      }
+    }
+    return new BQueryCollection(results);
+  }
+
+  /**
+   * Gets all siblings of every element in the collection (excluding the
+   * elements themselves). Duplicates are removed.
+   *
+   * @returns A new BQueryCollection with sibling elements
+   *
+   * @example
+   * ```ts
+   * $$('.active').siblings().removeClass('active');
+   * ```
+   */
+  siblings(): BQueryCollection {
+    const selfSet = new Set(this.elements);
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      const parent = el.parentElement;
+      if (!parent) continue;
+      for (const sibling of Array.from(parent.children)) {
+        if (!selfSet.has(sibling) && !seen.has(sibling)) {
+          seen.add(sibling);
+          results.push(sibling);
+        }
+      }
+    }
+    return new BQueryCollection(results);
+  }
+
+  /**
+   * Gets the next sibling element of each element in the collection.
+   * Elements without a next sibling are skipped.
+   *
+   * @returns A new BQueryCollection with next sibling elements
+   *
+   * @example
+   * ```ts
+   * $$('.current').next().addClass('upcoming');
+   * ```
+   */
+  next(): BQueryCollection {
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      const n = el.nextElementSibling;
+      if (n && !seen.has(n)) {
+        seen.add(n);
+        results.push(n);
+      }
+    }
+    return new BQueryCollection(results);
+  }
+
+  /**
+   * Gets the previous sibling element of each element in the collection.
+   * Elements without a previous sibling are skipped.
+   *
+   * @returns A new BQueryCollection with previous sibling elements
+   *
+   * @example
+   * ```ts
+   * $$('.current').prev().addClass('previous');
+   * ```
+   */
+  prev(): BQueryCollection {
+    const seen = new Set<Element>();
+    const results: Element[] = [];
+    for (const el of this.elements) {
+      const p = el.previousElementSibling;
+      if (p && !seen.has(p)) {
+        seen.add(p);
+        results.push(p);
       }
     }
     return new BQueryCollection(results);

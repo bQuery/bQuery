@@ -1349,3 +1349,102 @@ describe('createUseFetch', () => {
     expect(state.error.value).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// toValue
+// ---------------------------------------------------------------------------
+
+import { isComputed, isSignal } from '../src/reactive/type-guards';
+import { toValue } from '../src/reactive/to-value';
+import type { MaybeSignal } from '../src/reactive/to-value';
+
+describe('toValue', () => {
+  it('returns plain values as-is', () => {
+    expect(toValue(42)).toBe(42);
+    expect(toValue('hello')).toBe('hello');
+    expect(toValue(null)).toBeNull();
+    expect(toValue(undefined)).toBeUndefined();
+    expect(toValue(true)).toBe(true);
+    expect(toValue(false)).toBe(false);
+  });
+
+  it('unwraps a Signal', () => {
+    const s = signal(10);
+    expect(toValue(s)).toBe(10);
+    s.value = 20;
+    expect(toValue(s)).toBe(20);
+  });
+
+  it('unwraps a Computed', () => {
+    const s = signal(3);
+    const c = computed(() => s.value * 2);
+    expect(toValue(c)).toBe(6);
+    s.value = 5;
+    expect(toValue(c)).toBe(10);
+  });
+
+  it('participates in reactive tracking', () => {
+    const s = signal(1);
+    let tracked = 0;
+    effect(() => {
+      toValue(s);
+      tracked++;
+    });
+    expect(tracked).toBe(1);
+    s.value = 2;
+    expect(tracked).toBe(2);
+  });
+
+  it('handles complex objects', () => {
+    const obj = { a: 1, b: [2, 3] };
+    expect(toValue(obj)).toBe(obj);
+    const objSignal = signal(obj);
+    expect(toValue(objSignal)).toBe(obj);
+  });
+
+  it('handles zero and empty string', () => {
+    expect(toValue(0)).toBe(0);
+    expect(toValue('')).toBe('');
+    const zeroSignal = signal(0);
+    expect(toValue(zeroSignal)).toBe(0);
+  });
+
+  it('satisfies MaybeSignal type constraint', () => {
+    const plainVal: MaybeSignal<number> = 5;
+    const sigVal: MaybeSignal<number> = signal(5);
+    const compVal: MaybeSignal<number> = computed(() => 5);
+    expect(toValue(plainVal)).toBe(5);
+    expect(toValue(sigVal)).toBe(5);
+    expect(toValue(compVal)).toBe(5);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// isSignal / isComputed (edge cases)
+// ---------------------------------------------------------------------------
+
+describe('type guards edge cases', () => {
+  it('isSignal rejects non-signal objects', () => {
+    expect(isSignal(null)).toBe(false);
+    expect(isSignal(undefined)).toBe(false);
+    expect(isSignal(42)).toBe(false);
+    expect(isSignal({ value: 1 })).toBe(false);
+    expect(isSignal(computed(() => 1))).toBe(false);
+  });
+
+  it('isComputed rejects non-computed objects', () => {
+    expect(isComputed(null)).toBe(false);
+    expect(isComputed(undefined)).toBe(false);
+    expect(isComputed(42)).toBe(false);
+    expect(isComputed({ value: 1 })).toBe(false);
+    expect(isComputed(signal(1))).toBe(false);
+  });
+
+  it('isSignal returns true for Signal instances', () => {
+    expect(isSignal(signal(1))).toBe(true);
+  });
+
+  it('isComputed returns true for Computed instances', () => {
+    expect(isComputed(computed(() => 1))).toBe(true);
+  });
+});

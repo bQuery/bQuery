@@ -768,6 +768,29 @@ describe('core/BQueryElement - new methods', () => {
     div.remove();
   });
 
+  it('innerWidth and innerHeight return clientWidth and clientHeight', () => {
+    const div = document.createElement('div') as HTMLElement;
+    document.body.appendChild(div);
+
+    Object.defineProperty(div, 'clientWidth', { configurable: true, get: () => 80 });
+    Object.defineProperty(div, 'clientHeight', { configurable: true, get: () => 30 });
+
+    const wrapped = new BQueryElement(div);
+
+    expect(wrapped.innerWidth()).toBe(80);
+    expect(wrapped.innerHeight()).toBe(30);
+
+    div.remove();
+  });
+
+  it('innerWidth and innerHeight return 0 for non-HTML elements', () => {
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    const wrapped = new BQueryElement(svg);
+
+    expect(wrapped.innerWidth()).toBe(0);
+    expect(wrapped.innerHeight()).toBe(0);
+  });
+
   it('layout parity helpers return safe defaults for non-HTML elements', () => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     const wrapped = new BQueryElement(svg);
@@ -1162,6 +1185,24 @@ describe('core/BQueryCollection parity getters', () => {
     parent.remove();
   });
 
+  it('innerWidth and innerHeight use the first element clientWidth/clientHeight', () => {
+    const first = document.createElement('div') as HTMLElement;
+    const second = document.createElement('div') as HTMLElement;
+    document.body.appendChild(first);
+    document.body.appendChild(second);
+
+    Object.defineProperty(first, 'clientWidth', { configurable: true, get: () => 60 });
+    Object.defineProperty(first, 'clientHeight', { configurable: true, get: () => 25 });
+
+    const collection = new BQueryCollection([first, second]);
+
+    expect(collection.innerWidth()).toBe(60);
+    expect(collection.innerHeight()).toBe(25);
+
+    first.remove();
+    second.remove();
+  });
+
   it('empty collection parity getters return safe defaults', () => {
     const collection = new BQueryCollection([]);
 
@@ -1171,6 +1212,8 @@ describe('core/BQueryCollection parity getters', () => {
     expect(collection.position()).toEqual({ top: 0, left: 0 });
     expect(collection.outerWidth()).toBe(0);
     expect(collection.outerHeight(true)).toBe(0);
+    expect(collection.innerWidth()).toBe(0);
+    expect(collection.innerHeight()).toBe(0);
   });
 
   it('non-HTMLElement first elements use the same safe defaults', () => {
@@ -1182,6 +1225,8 @@ describe('core/BQueryCollection parity getters', () => {
     expect(collection.position()).toEqual({ top: 0, left: 0 });
     expect(collection.outerWidth()).toBe(0);
     expect(collection.outerHeight(true)).toBe(0);
+    expect(collection.innerWidth()).toBe(0);
+    expect(collection.innerHeight()).toBe(0);
 
     svg.remove();
     div.remove();
@@ -1403,5 +1448,184 @@ describe('core/BQueryCollection find()', () => {
     const found = collection.find('.shared');
 
     expect(found.length).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// BQueryCollection DOM traversal methods
+// ---------------------------------------------------------------------------
+
+describe('core/BQueryCollection DOM traversal', () => {
+  it('parent() returns unique parent elements', () => {
+    const parent = document.createElement('div');
+    const child1 = document.createElement('span');
+    const child2 = document.createElement('span');
+    parent.appendChild(child1);
+    parent.appendChild(child2);
+
+    const collection = new BQueryCollection([child1, child2]);
+    const parents = collection.parent();
+
+    // Both children share the same parent, so deduplication means length = 1
+    expect(parents.length).toBe(1);
+    expect(parents.elements[0]).toBe(parent);
+  });
+
+  it('parent() skips elements without a parent', () => {
+    const orphan = document.createElement('div');
+    const collection = new BQueryCollection([orphan]);
+    const parents = collection.parent();
+
+    expect(parents.length).toBe(0);
+  });
+
+  it('children() returns all child elements across collection', () => {
+    const parent1 = document.createElement('div');
+    const child1a = document.createElement('span');
+    const child1b = document.createElement('span');
+    parent1.appendChild(child1a);
+    parent1.appendChild(child1b);
+
+    const parent2 = document.createElement('div');
+    const child2a = document.createElement('em');
+    parent2.appendChild(child2a);
+
+    const collection = new BQueryCollection([parent1, parent2]);
+    const children = collection.children();
+
+    expect(children.length).toBe(3);
+    expect(children.elements).toEqual([child1a, child1b, child2a]);
+  });
+
+  it('children() returns empty collection for childless elements', () => {
+    const empty = document.createElement('div');
+    const collection = new BQueryCollection([empty]);
+    expect(collection.children().length).toBe(0);
+  });
+
+  it('siblings() returns siblings excluding self', () => {
+    const parent = document.createElement('div');
+    const a = document.createElement('span');
+    a.id = 'a';
+    const b = document.createElement('span');
+    b.id = 'b';
+    const c = document.createElement('span');
+    c.id = 'c';
+    parent.appendChild(a);
+    parent.appendChild(b);
+    parent.appendChild(c);
+
+    const collection = new BQueryCollection([b]);
+    const sibs = collection.siblings();
+
+    expect(sibs.length).toBe(2);
+    expect(sibs.elements).toEqual([a, c]);
+  });
+
+  it('siblings() deduplicates across multiple elements sharing a parent', () => {
+    const parent = document.createElement('div');
+    const a = document.createElement('span');
+    const b = document.createElement('span');
+    const c = document.createElement('span');
+    parent.appendChild(a);
+    parent.appendChild(b);
+    parent.appendChild(c);
+
+    const collection = new BQueryCollection([a, c]);
+    const sibs = collection.siblings();
+
+    // b is a sibling of both a and c, but only listed once
+    expect(sibs.length).toBe(1);
+    expect(sibs.elements[0]).toBe(b);
+  });
+
+  it('siblings() returns empty for elements without a parent', () => {
+    const orphan = document.createElement('div');
+    const collection = new BQueryCollection([orphan]);
+    expect(collection.siblings().length).toBe(0);
+  });
+
+  it('next() returns next sibling of each element', () => {
+    const parent = document.createElement('div');
+    const a = document.createElement('span');
+    const b = document.createElement('span');
+    const c = document.createElement('span');
+    parent.appendChild(a);
+    parent.appendChild(b);
+    parent.appendChild(c);
+
+    const collection = new BQueryCollection([a, b]);
+    const nexts = collection.next();
+
+    // a.next = b, b.next = c → [b, c]
+    expect(nexts.length).toBe(2);
+    expect(nexts.elements).toEqual([b, c]);
+  });
+
+  it('next() skips elements at end of sibling list', () => {
+    const parent = document.createElement('div');
+    const a = document.createElement('span');
+    parent.appendChild(a);
+
+    const collection = new BQueryCollection([a]);
+    expect(collection.next().length).toBe(0);
+  });
+
+  it('prev() returns previous sibling of each element', () => {
+    const parent = document.createElement('div');
+    const a = document.createElement('span');
+    const b = document.createElement('span');
+    const c = document.createElement('span');
+    parent.appendChild(a);
+    parent.appendChild(b);
+    parent.appendChild(c);
+
+    const collection = new BQueryCollection([b, c]);
+    const prevs = collection.prev();
+
+    // b.prev = a, c.prev = b → [a, b]
+    expect(prevs.length).toBe(2);
+    expect(prevs.elements).toEqual([a, b]);
+  });
+
+  it('prev() skips elements at start of sibling list', () => {
+    const parent = document.createElement('div');
+    const a = document.createElement('span');
+    parent.appendChild(a);
+
+    const collection = new BQueryCollection([a]);
+    expect(collection.prev().length).toBe(0);
+  });
+
+  it('closest() returns matching ancestors, deduplicated', () => {
+    const root = document.createElement('div');
+    root.classList.add('container');
+    const child1 = document.createElement('span');
+    const child2 = document.createElement('span');
+    root.appendChild(child1);
+    root.appendChild(child2);
+
+    const collection = new BQueryCollection([child1, child2]);
+    const closest = collection.closest('.container');
+
+    expect(closest.length).toBe(1);
+    expect(closest.elements[0]).toBe(root);
+  });
+
+  it('closest() returns empty collection when no match', () => {
+    const div = document.createElement('div');
+    const collection = new BQueryCollection([div]);
+    expect(collection.closest('.nonexistent').length).toBe(0);
+  });
+
+  it('traversal methods return empty collections for empty input', () => {
+    const empty = new BQueryCollection([]);
+
+    expect(empty.parent().length).toBe(0);
+    expect(empty.children().length).toBe(0);
+    expect(empty.siblings().length).toBe(0);
+    expect(empty.next().length).toBe(0);
+    expect(empty.prev().length).toBe(0);
+    expect(empty.closest('.x').length).toBe(0);
   });
 });

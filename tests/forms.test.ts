@@ -4,6 +4,7 @@ import {
   custom,
   customAsync,
   email,
+  matchField,
   max,
   maxLength,
   min,
@@ -12,7 +13,7 @@ import {
   required,
   url,
 } from '../src/forms/index';
-import { effect } from '../src/reactive/index';
+import { effect, signal } from '../src/reactive/index';
 
 // ---------------------------------------------------------------------------
 // Validators
@@ -886,5 +887,187 @@ describe('forms/createForm', () => {
       expect(form.fields.first.value.value).toBe('A');
       expect(form.fields.second.value.value).toBe('Y');
     });
+  });
+
+  // -------------------------------------------------------------------------
+  // setValues
+  // -------------------------------------------------------------------------
+
+  describe('setValues', () => {
+    it('bulk-sets field values from a partial object', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+          age: { initialValue: 0 },
+          email: { initialValue: '' },
+        },
+      });
+
+      form.setValues({ name: 'Ada', age: 30 });
+
+      expect(form.fields.name.value.value).toBe('Ada');
+      expect(form.fields.age.value.value).toBe(30);
+      expect(form.fields.email.value.value).toBe(''); // unchanged
+    });
+
+    it('marks affected fields as dirty', () => {
+      const form = createForm({
+        fields: {
+          first: { initialValue: 'A' },
+          second: { initialValue: 'B' },
+        },
+      });
+
+      form.setValues({ first: 'X' });
+
+      expect(form.fields.first.isDirty.value).toBe(true);
+      expect(form.fields.second.isDirty.value).toBe(false);
+      expect(form.isDirty.value).toBe(true);
+    });
+
+    it('ignores unknown field names', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+        },
+      });
+
+      // Should not throw
+      form.setValues({ name: 'Ada', unknownField: 'ignored' } as Record<string, unknown>);
+
+      expect(form.fields.name.value.value).toBe('Ada');
+    });
+
+    it('handles empty object', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: 'test' },
+        },
+      });
+
+      form.setValues({});
+      expect(form.fields.name.value.value).toBe('test');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // setErrors
+  // -------------------------------------------------------------------------
+
+  describe('setErrors', () => {
+    it('bulk-sets error messages on specific fields', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+          email: { initialValue: '' },
+          age: { initialValue: 0 },
+        },
+      });
+
+      form.setErrors({ name: 'Name is required', email: 'Invalid email' });
+
+      expect(form.fields.name.error.value).toBe('Name is required');
+      expect(form.fields.email.error.value).toBe('Invalid email');
+      expect(form.fields.age.error.value).toBe(''); // untouched
+    });
+
+    it('makes isValid reflect the errors', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+        },
+      });
+
+      form.setErrors({ name: 'Required' });
+      expect(form.isValid.value).toBe(false);
+
+      form.setErrors({ name: '' });
+      expect(form.isValid.value).toBe(true);
+    });
+
+    it('ignores unknown field names', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+        },
+      });
+
+      // Should not throw
+      form.setErrors({ name: 'Error', unknown: 'ignored' } as Record<string, string>);
+      expect(form.fields.name.error.value).toBe('Error');
+    });
+
+    it('handles empty error map', () => {
+      const form = createForm({
+        fields: {
+          name: { initialValue: '' },
+        },
+      });
+
+      form.setErrors({ name: 'Error' });
+      form.setErrors({});
+      expect(form.fields.name.error.value).toBe('Error'); // unchanged
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// matchField validator
+// ---------------------------------------------------------------------------
+
+describe('forms/matchField', () => {
+  it('passes when values match', () => {
+    const ref = signal('secret');
+    const validate = matchField(ref);
+
+    expect(validate('secret')).toBe(true);
+  });
+
+  it('fails when values do not match', () => {
+    const ref = signal('secret');
+    const validate = matchField(ref);
+
+    expect(validate('wrong')).toBe('Fields do not match');
+  });
+
+  it('uses custom error message', () => {
+    const ref = signal('abc');
+    const validate = matchField(ref, 'Passwords must match');
+
+    expect(validate('xyz')).toBe('Passwords must match');
+  });
+
+  it('tracks reactive changes in the reference signal', () => {
+    const ref = signal('first');
+    const validate = matchField(ref);
+
+    expect(validate('first')).toBe(true);
+    ref.value = 'second';
+    expect(validate('first')).toBe('Fields do not match');
+    expect(validate('second')).toBe(true);
+  });
+
+  it('uses Object.is comparison (handles NaN)', () => {
+    const ref = signal(NaN);
+    const validate = matchField(ref);
+
+    expect(validate(NaN)).toBe(true);
+    expect(validate(0)).toBe('Fields do not match');
+  });
+
+  it('handles null and undefined', () => {
+    const ref = signal<unknown>(null);
+    const validate = matchField(ref);
+
+    expect(validate(null)).toBe(true);
+    expect(validate(undefined)).toBe('Fields do not match');
+  });
+
+  it('works with plain object references', () => {
+    const ref = { value: 'test' };
+    const validate = matchField(ref);
+
+    expect(validate('test')).toBe(true);
+    expect(validate('other')).toBe('Fields do not match');
   });
 });

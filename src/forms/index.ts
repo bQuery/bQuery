@@ -40,6 +40,7 @@ export {
   custom,
   customAsync,
   email,
+  matchField,
   max,
   maxLength,
   min,

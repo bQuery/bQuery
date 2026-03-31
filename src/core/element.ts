@@ -1,5 +1,5 @@
 import { createElementFromHtml, insertContent, setHtml } from './dom';
-import { getOuterSize, isHTMLElement } from './shared';
+import { getInnerSize, getOuterSize, isHTMLElement } from './shared';
 import { isPrototypePollutionKey } from './utils/object';
 
 /**
@@ -480,6 +480,40 @@ export class BQueryElement {
       top: el.offsetTop,
       left: el.offsetLeft,
     };
+  }
+
+  /**
+   * Gets the inner width of the element (content + padding, excluding border).
+   *
+   * This corresponds to the element's `clientWidth` and mirrors jQuery's
+   * `innerWidth()` method.
+   *
+   * @returns Inner width in pixels, or 0 for non-HTML elements
+   *
+   * @example
+   * ```ts
+   * const innerW = $('#panel').innerWidth();
+   * ```
+   */
+  innerWidth(): number {
+    return getInnerSize(this.element, 'width');
+  }
+
+  /**
+   * Gets the inner height of the element (content + padding, excluding border).
+   *
+   * This corresponds to the element's `clientHeight` and mirrors jQuery's
+   * `innerHeight()` method.
+   *
+   * @returns Inner height in pixels, or 0 for non-HTML elements
+   *
+   * @example
+   * ```ts
+   * const innerH = $('#panel').innerHeight();
+   * ```
+   */
+  innerHeight(): number {
+    return getInnerSize(this.element, 'height');
   }
 
   /**

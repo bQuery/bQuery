@@ -151,4 +151,14 @@ export type Form<T extends Record<string, unknown>> = {
   reset: () => void;
   /** Get a snapshot of all current field values */
   getValues: () => T;
+  /**
+   * Bulk-set field values from a partial object.
+   * Only fields present in the object are updated; missing keys are left unchanged.
+   */
+  setValues: (values: Partial<T>) => void;
+  /**
+   * Bulk-set field error messages from a partial object.
+   * Useful for applying server-side validation errors.
+   */
+  setErrors: (errors: Partial<Record<keyof T & string, string>>) => void;
 };
