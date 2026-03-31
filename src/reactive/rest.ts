@@ -430,7 +430,8 @@ export const createRestClient = <T = unknown>(
   const httpClient = createHttp({ ...defaults });
 
   // Ensure the base URL ends without a trailing slash for consistent joining
-  const base = baseUrl.replace(/\/+$/, '');
+  let base = baseUrl;
+  while (base.endsWith('/')) base = base.slice(0, -1);
 
   return {
     list: (config) => httpClient.get<T[]>(base, config),
