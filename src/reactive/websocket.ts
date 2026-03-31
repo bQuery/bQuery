@@ -115,13 +115,19 @@ export interface UseWebSocketReturn<TSend = unknown, TReceive = unknown> {
 // ---------------------------------------------------------------------------
 
 /** @internal */
-const resolveReconnect = <TReconnectConfig extends object>(
-  opt: boolean | TReconnectConfig | undefined
-): TReconnectConfig | false => {
+function resolveReconnect(opt: UseWebSocketOptions['autoReconnect']): WebSocketReconnectConfig | false;
+/** @internal */
+function resolveReconnect(
+  opt: UseEventSourceOptions['autoReconnect']
+): EventSourceReconnectConfig | false;
+/** @internal */
+function resolveReconnect(
+  opt: boolean | WebSocketReconnectConfig | EventSourceReconnectConfig | undefined
+): WebSocketReconnectConfig | EventSourceReconnectConfig | false {
   if (opt === false) return false;
-  if (opt === true || opt === undefined) return {} as TReconnectConfig;
+  if (opt === true || opt === undefined) return {};
   return opt;
-};
+}
 
 /** @internal */
 const resolveHeartbeat = (
@@ -548,16 +554,17 @@ export const useWebSocketChannel = <TSend = unknown, TReceive = unknown>(
     channelOptions.wrap ??
     ((ch: string, data: TSend) => ({ channel: ch, data }) as unknown as TReceive);
 
-  const channels = new Map<string, { signal: Signal<TReceive | undefined>; subscriptions: number }>();
+  const channels = new Map<string, Signal<TReceive | undefined>>();
+  const channelSubscriptions = new Map<string, number>();
 
   const ws = useWebSocket<TReceive, TReceive>(url, {
     ...wsOptions,
     onMessage: (msg, event) => {
       const ch = getChannel(msg);
       if (ch !== undefined) {
-        const entry = channels.get(ch);
-        if (entry) {
-          entry.signal.value = msg;
+        const sig = channels.get(ch);
+        if (sig) {
+          sig.value = msg;
         }
       }
       wsOptions.onMessage?.(msg, event);
@@ -565,22 +572,25 @@ export const useWebSocketChannel = <TSend = unknown, TReceive = unknown>(
   });
 
   const subscribe = (channel: string): ChannelSubscription<TReceive> => {
-    let entry = channels.get(channel);
-    if (!entry) {
-      entry = { signal: signal<TReceive | undefined>(undefined), subscriptions: 0 };
-      channels.set(channel, entry);
+    let sig = channels.get(channel);
+    if (!sig) {
+      sig = signal<TReceive | undefined>(undefined);
+      channels.set(channel, sig);
     }
-    entry.subscriptions++;
+    channelSubscriptions.set(channel, (channelSubscriptions.get(channel) ?? 0) + 1);
     let unsubscribed = false;
 
     return {
-      data: entry.signal,
+      data: sig,
       unsubscribe: () => {
         if (unsubscribed) return;
         unsubscribed = true;
-        entry.subscriptions--;
-        if (entry.subscriptions <= 0) {
+        const remaining = (channelSubscriptions.get(channel) ?? 1) - 1;
+        if (remaining <= 0) {
+          channelSubscriptions.delete(channel);
           channels.delete(channel);
+        } else {
+          channelSubscriptions.set(channel, remaining);
         }
       },
     };

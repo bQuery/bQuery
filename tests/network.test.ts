@@ -15,17 +15,6 @@ import {
 import type { HttpResponse } from '../src/reactive/http';
 import type { UseEventSourceOptions } from '../src/reactive/websocket';
 
-const _eventSourceReconnectConfig: UseEventSourceOptions<string> = {
-  autoReconnect: { delay: 10, maxAttempts: 2 },
-};
-void _eventSourceReconnectConfig;
-
-const _invalidEventSourceReconnectConfig: UseEventSourceOptions<string> = {
-  // @ts-expect-error EventSource autoReconnect does not support a CloseEvent-based predicate
-  autoReconnect: { shouldReconnect: () => true },
-};
-void _invalidEventSourceReconnectConfig;
-
 // ---------------------------------------------------------------------------
 // Mock helpers
 // ---------------------------------------------------------------------------
@@ -567,6 +556,21 @@ describe('useWebSocket', () => {
 describe('useEventSource', () => {
   beforeEach(() => installEventSourceMock());
   afterEach(() => uninstallEventSourceMock());
+
+  it('accepts SSE reconnect config without a reconnect predicate', () => {
+    const validOptions: UseEventSourceOptions<string> = {
+      autoReconnect: { delay: 10, maxAttempts: 2 },
+    };
+
+    expect(validOptions.autoReconnect).toEqual({ delay: 10, maxAttempts: 2 });
+
+    const invalidOptions: UseEventSourceOptions<string> = {
+      // @ts-expect-error EventSource autoReconnect does not support a CloseEvent-based predicate
+      autoReconnect: { shouldReconnect: () => true },
+    };
+
+    expect(invalidOptions).toBeDefined();
+  });
 
   it('connects immediately and sets OPEN status', async () => {
     const sse = useEventSource('/api/events');
@@ -1220,7 +1224,7 @@ describe('useWebSocket — new extensions', () => {
 
   it('cancels a pending reconnect when manually reopened', async () => {
     let connectCount = 0;
-    const OriginalWebSocket = (globalThis as unknown as { WebSocket: typeof MockWebSocket }).WebSocket;
+    const originalWebSocket = (globalThis as unknown as { WebSocket: typeof MockWebSocket }).WebSocket;
     (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends MockWebSocket {
       constructor(url: string, protocols?: string | string[]) {
         super(url, protocols);
@@ -1245,7 +1249,7 @@ describe('useWebSocket — new extensions', () => {
     expect(connectCount).toBe(2);
 
     ws.dispose();
-    (globalThis as unknown as { WebSocket: unknown }).WebSocket = OriginalWebSocket;
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = originalWebSocket;
   });
 });
 
