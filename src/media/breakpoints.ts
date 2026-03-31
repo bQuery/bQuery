@@ -90,7 +90,7 @@ export const breakpoints = <T extends BreakpointMap>(
       }
     }
 
-    const ro = readonly(s) as MediaSignalHandle<boolean>;
+    const ro = readonly(s) as unknown as MediaSignalHandle<boolean>;
     let destroyed = false;
     Object.defineProperty(ro, 'destroy', {
       enumerable: false,

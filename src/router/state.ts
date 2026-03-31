@@ -27,8 +27,8 @@ export const routeSignal: Signal<Route> = signal<Route>({
  *
  * @example
  * ```ts
- * import { currentRoute } from 'bquery/router';
- * import { effect } from 'bquery/reactive';
+ * import { currentRoute } from '@bquery/bquery/router';
+ * import { effect } from '@bquery/bquery/reactive';
  *
  * effect(() => {
  *   document.title = `Page: ${currentRoute.value.path}`;
@@ -51,8 +51,8 @@ const isNavigatingSignal: Signal<boolean> = signal(false);
  *
  * @example
  * ```ts
- * import { isNavigating } from 'bquery/router';
- * import { effect } from 'bquery/reactive';
+ * import { isNavigating } from '@bquery/bquery/router';
+ * import { effect } from '@bquery/bquery/reactive';
  *
  * effect(() => {
  *   document.body.toggleAttribute('data-loading-route', isNavigating.value);

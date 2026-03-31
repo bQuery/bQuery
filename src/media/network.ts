@@ -98,7 +98,7 @@ export const useNetworkStatus = (): NetworkSignal => {
     };
   }
 
-  const ro = readonly(s) as NetworkSignal;
+  const ro = readonly(s) as unknown as NetworkSignal;
   let destroyed = false;
   Object.defineProperty(ro, 'destroy', {
     value(): void {

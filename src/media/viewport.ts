@@ -67,7 +67,7 @@ export const useViewport = (): ViewportSignal => {
     };
   }
 
-  const ro = readonly(s) as ViewportSignal;
+  const ro = readonly(s) as unknown as ViewportSignal;
   let destroyed = false;
   Object.defineProperty(ro, 'destroy', {
     enumerable: false,

@@ -100,7 +100,7 @@ export const useBattery = (): BatterySignal => {
       });
   }
 
-  const ro = readonly(s) as BatterySignal;
+  const ro = readonly(s) as unknown as BatterySignal;
   Object.defineProperty(ro, 'destroy', {
     enumerable: false,
     configurable: true,

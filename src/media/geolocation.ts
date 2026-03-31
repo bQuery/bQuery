@@ -102,7 +102,7 @@ export const useGeolocation = (options: GeolocationOptions = {}): GeolocationSig
     }
   }
 
-  const ro = readonly(s) as GeolocationSignal;
+  const ro = readonly(s) as unknown as GeolocationSignal;
   let destroyed = false;
   Object.defineProperty(ro, 'destroy', {
     enumerable: false,

@@ -4,10 +4,10 @@
 
 import type { Signal } from './core';
 
-const READONLY_SIGNAL_BRAND = Symbol('bquery.readonlySignal');
+const READONLY_SIGNAL_BRAND: unique symbol = Symbol('bquery.readonlySignal');
 
 /** @internal */
-type BrandedReadonlySignal<T> = ReadonlySignal<T> & {
+type ReadonlySignalWrapper<T> = ReadonlySignal<T> & {
   readonly [READONLY_SIGNAL_BRAND]: true;
 };
 
@@ -29,7 +29,7 @@ export interface ReadonlySignal<T> {
  *
  * @internal
  */
-export const isReadonlySignal = <T>(value: unknown): value is BrandedReadonlySignal<T> => {
+export const isReadonlySignal = <T>(value: unknown): value is ReadonlySignalWrapper<T> => {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -45,7 +45,7 @@ export const isReadonlySignal = <T>(value: unknown): value is BrandedReadonlySig
  * @param sig - The signal to wrap
  * @returns A readonly signal wrapper
  */
-export const readonly = <T>(sig: Signal<T>): ReadonlySignal<T> =>
+export const readonly = <T>(sig: Signal<T>): ReadonlySignalWrapper<T> =>
   Object.defineProperties(
     {},
     {
@@ -68,4 +68,4 @@ export const readonly = <T>(sig: Signal<T>): ReadonlySignal<T> =>
         writable: false,
       },
     }
-  ) as BrandedReadonlySignal<T>;
+  ) as ReadonlySignalWrapper<T>;

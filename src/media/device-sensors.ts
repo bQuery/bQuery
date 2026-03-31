@@ -84,7 +84,7 @@ export const useDeviceMotion = (): DeviceMotionSignal => {
     };
   }
 
-  const ro = readonly(s) as DeviceMotionSignal;
+  const ro = readonly(s) as unknown as DeviceMotionSignal;
   let destroyed = false;
   Object.defineProperty(ro, 'destroy', {
     enumerable: false,
@@ -141,7 +141,7 @@ export const useDeviceOrientation = (): DeviceOrientationSignal => {
     };
   }
 
-  const ro = readonly(s) as DeviceOrientationSignal;
+  const ro = readonly(s) as unknown as DeviceOrientationSignal;
   let destroyed = false;
   Object.defineProperty(ro, 'destroy', {
     enumerable: false,

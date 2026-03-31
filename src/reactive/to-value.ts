@@ -4,16 +4,16 @@
 
 import { Computed } from './computed';
 import { Signal } from './core';
-import { isReadonlySignal, type ReadonlySignal } from './readonly';
+import { readonly, isReadonlySignal } from './readonly';
 
 /**
  * A value that may be a raw value, a Signal, a `readonly()` wrapper, or a Computed.
  *
  * Useful for APIs that accept both reactive and plain inputs.
  *
- * `ReadonlySignal<T>` is included so APIs can accept values returned by
- * {@link readonly}. At runtime, `toValue()` only unwraps bQuery readonly wrappers
- * created by `readonly()`, not arbitrary structural `{ value, peek }` objects.
+ * Readonly wrappers are limited to the values returned by {@link readonly}. This keeps
+ * the type aligned with runtime behavior, where arbitrary structural `{ value, peek }`
+ * objects are intentionally returned unchanged.
  *
  * @template T - The underlying value type
  *
@@ -28,7 +28,7 @@ import { isReadonlySignal, type ReadonlySignal } from './readonly';
  * useTitle(computed(() => 'Hi')); // computed value
  * ```
  */
-export type MaybeSignal<T> = T | Signal<T> | ReadonlySignal<T> | Computed<T>;
+export type MaybeSignal<T> = T | Signal<T> | ReturnType<typeof readonly<T>> | Computed<T>;
 
 /**
  * Extracts the current value from a Signal, a bQuery `readonly()` wrapper, a

@@ -10,6 +10,7 @@ import {
   useFetch,
 } from '../src/reactive/signal';
 import { isReadonlySignal } from '../src/reactive/readonly';
+import type { ReadonlySignal } from '../src/reactive/readonly';
 
 const asMockFetch = (
   handler: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
@@ -1455,6 +1456,20 @@ describe('toValue', () => {
     expect(toValue(sigVal)).toBe(5);
     expect(toValue(readonlyVal)).toBe(5);
     expect(toValue(compVal)).toBe(5);
+  });
+
+  it('does not accept structural ReadonlySignal objects as MaybeSignal inputs', () => {
+    const structuralReadonly = {
+      value: 1,
+      peek: () => 1,
+    } satisfies ReadonlySignal<number>;
+    const readMaybeSignal = (input: MaybeSignal<number>) => input;
+
+    // @ts-expect-error MaybeSignal only accepts readonly() wrappers, not arbitrary structural values
+    readMaybeSignal(structuralReadonly);
+
+    expect(toValue(structuralReadonly)).toBe(structuralReadonly);
+    expect(toValue(structuralReadonly).value).toBe(1);
   });
 });
 
