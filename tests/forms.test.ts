@@ -15,6 +15,8 @@ import {
   url,
 } from '../src/forms/index';
 import { computed, effect, readonly, signal } from '../src/reactive/index';
+import type { Computed } from '../src/reactive/computed';
+import type { Signal } from '../src/reactive/core';
 
 const expectType = <T>(_value: T): void => {};
 
@@ -1295,6 +1297,28 @@ describe('forms/useFormField', () => {
     await new Promise((resolve) => setTimeout(resolve, 30));
     expect(field.error.value).toBe('');
     expect(field.isValidating.value).toBe(false);
+  });
+
+  it('destroy disposes internal computed state subscriptions', () => {
+    const value = signal('Ada');
+    const field = useFormField(value);
+    const valueSubscribers = value as Signal<string> & { subscribers: Set<() => void> };
+    const errorSubscribers = field.error as Signal<string> & { subscribers: Set<() => void> };
+    const dirtySubscribers = field.isDirty as Computed<boolean> & { subscribers: Set<() => void> };
+
+    void field.isDirty.value;
+    void field.isPristine.value;
+    void field.isValid.value;
+
+    expect(valueSubscribers.subscribers.size).toBe(1);
+    expect(errorSubscribers.subscribers.size).toBe(1);
+    expect(dirtySubscribers.subscribers.size).toBe(1);
+
+    field.destroy();
+
+    expect(valueSubscribers.subscribers.size).toBe(0);
+    expect(errorSubscribers.subscribers.size).toBe(0);
+    expect(dirtySubscribers.subscribers.size).toBe(0);
   });
 });
 

@@ -7,9 +7,13 @@ import { Signal } from './core';
 import { isReadonlySignal, type ReadonlySignal } from './readonly';
 
 /**
- * A value that may be a raw value, a Signal, a ReadonlySignal, or a Computed.
+ * A value that may be a raw value, a Signal, a `readonly()` wrapper, or a Computed.
  *
  * Useful for APIs that accept both reactive and plain inputs.
+ *
+ * `ReadonlySignal<T>` is included so APIs can accept values returned by
+ * {@link readonly}. At runtime, `toValue()` only unwraps bQuery readonly wrappers
+ * created by `readonly()`, not arbitrary structural `{ value, peek }` objects.
  *
  * @template T - The underlying value type
  *
@@ -27,8 +31,8 @@ import { isReadonlySignal, type ReadonlySignal } from './readonly';
 export type MaybeSignal<T> = T | Signal<T> | ReadonlySignal<T> | Computed<T>;
 
 /**
- * Extracts the current value from a Signal, ReadonlySignal, Computed, or returns the
- * raw value as-is. This eliminates repetitive
+ * Extracts the current value from a Signal, a bQuery `readonly()` wrapper, a
+ * Computed, or returns the raw value as-is. This eliminates repetitive
  * `isSignal(x) ? x.value : x` patterns throughout user code.
  *
  * Reading a Signal or Computed via `toValue()` uses `.value`, so the
@@ -36,7 +40,7 @@ export type MaybeSignal<T> = T | Signal<T> | ReadonlySignal<T> | Computed<T>;
  * an effect or computed.
  *
  * @template T - The underlying value type
- * @param source - A plain value, Signal, ReadonlySignal, or Computed
+ * @param source - A plain value, Signal, bQuery readonly wrapper, or Computed
  * @returns The unwrapped value
  *
  * @example

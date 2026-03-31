@@ -175,6 +175,9 @@ export const useFormField = <T>(
     debouncedValidate.cancel();
     stopChangeValidationEffect?.();
     stopChangeValidationEffect = undefined;
+    isDirty.dispose();
+    isPristine.dispose();
+    isValid.dispose();
     isValidating.value = false;
   };
 
