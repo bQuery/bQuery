@@ -11,6 +11,17 @@ import {
 } from '../src/reactive/signal';
 import { isReadonlySignal } from '../src/reactive/readonly';
 import type { ReadonlySignal } from '../src/reactive/readonly';
+import { isComputed, isSignal } from '../src/reactive/type-guards';
+import { toValue } from '../src/reactive/to-value';
+import type { MaybeSignal } from '../src/reactive/to-value';
+import {
+  effectScope,
+  getCurrentScope,
+  onScopeDispose,
+} from '../src/reactive/scope';
+import type { EffectScope } from '../src/reactive/scope';
+import { watch as watchFn } from '../src/reactive/watch';
+import { untrack as untrackedFn } from '../src/reactive/untrack';
 
 const asMockFetch = (
   handler: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
@@ -1357,10 +1368,6 @@ describe('createUseFetch', () => {
 // toValue
 // ---------------------------------------------------------------------------
 
-import { isComputed, isSignal } from '../src/reactive/type-guards';
-import { toValue } from '../src/reactive/to-value';
-import type { MaybeSignal } from '../src/reactive/to-value';
-
 describe('toValue', () => {
   it('returns plain values as-is', () => {
     expect(toValue(42)).toBe(42);
@@ -1514,15 +1521,6 @@ describe('type guards edge cases', () => {
 // ---------------------------------------------------------------------------
 // effectScope
 // ---------------------------------------------------------------------------
-
-import {
-  effectScope,
-  getCurrentScope,
-  onScopeDispose,
-} from '../src/reactive/scope';
-import { watch as watchFn } from '../src/reactive/watch';
-import { untrack as untrackedFn } from '../src/reactive/untrack';
-import type { EffectScope } from '../src/reactive/scope';
 
 describe('effectScope', () => {
   it('creates an active scope', () => {
