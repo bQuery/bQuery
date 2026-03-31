@@ -340,7 +340,10 @@ export const useWebSocket = <TSend = string, TReceive = string>(
     ws.onopen = (event: Event): void => {
       status.value = 'OPEN';
       const wasReconnecting = isAutoReconnecting;
+      const reconnectCount = internalReconnectCount;
       if (!isAutoReconnecting) {
+        // Only reset counters on user-initiated connections (not auto-reconnects,
+        // so maxAttempts tracking remains accurate across rapid open/close cycles)
         internalReconnectCount = 0;
         reconnectAttempts.value = 0;
       }
@@ -349,7 +352,7 @@ export const useWebSocket = <TSend = string, TReceive = string>(
       startHeartbeat();
       onOpen?.(event);
       if (wasReconnecting) {
-        onReconnect?.(internalReconnectCount);
+        onReconnect?.(reconnectCount);
       }
     };
 

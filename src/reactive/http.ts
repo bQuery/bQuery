@@ -20,7 +20,7 @@ export interface RetryConfig {
   delay?: number | ((attempt: number) => number);
   /** Predicate deciding whether to retry a given error. Defaults to network / 5xx errors. */
   retryOn?: (error: HttpError, attempt: number) => boolean;
-  /** Called before each retry attempt with the error and attempt index. */
+  /** Called before each retry attempt with the error and 1-indexed attempt number. */
   onRetry?: (error: HttpError, attempt: number) => void;
 }
 
