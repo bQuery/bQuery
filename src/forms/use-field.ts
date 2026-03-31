@@ -6,7 +6,8 @@
 
 import { debounce } from '../core/utils/function';
 import { isPromise } from '../core/utils/type-guards';
-import { computed, effect, signal, type Signal } from '../reactive/index';
+import { Signal } from '../reactive/core';
+import { computed, effect, signal } from '../reactive/index';
 import type {
   UseFormFieldOptions,
   UseFormFieldReturn,
@@ -181,5 +182,5 @@ export const useFormField = <T>(
  * @internal
  */
 const isSignal = <T>(value: T | Signal<T>): value is Signal<T> => {
-  return typeof value === 'object' && value !== null && 'value' in value && 'peek' in value;
+  return value instanceof Signal;
 };

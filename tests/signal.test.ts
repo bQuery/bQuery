@@ -1488,6 +1488,16 @@ describe('effectScope', () => {
     scope.stop();
   });
 
+  it('throws when run receives an async callback', () => {
+    const scope = effectScope();
+
+    expect(() =>
+      scope.run(async () => {
+        await Promise.resolve();
+      })
+    ).toThrow('effectScope.run() only supports synchronous callbacks');
+  });
+
   it('throws when running inside a stopped scope', () => {
     const scope = effectScope();
     scope.stop();

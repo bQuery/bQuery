@@ -281,6 +281,9 @@ isComputed(count); // false
 
 This is essential for managing cleanup in non-component code such as store plugins, router guards, feature modules, and test setup.
 
+`scope.run()` is synchronous-only. Do not pass an async callback — resources
+created after an `await` cannot be collected reliably.
+
 ```ts
 import { effectScope, signal, effect, computed, onScopeDispose } from '@bquery/bquery/reactive';
 

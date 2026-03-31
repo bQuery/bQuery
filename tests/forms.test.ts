@@ -14,7 +14,7 @@ import {
   useFormField,
   url,
 } from '../src/forms/index';
-import { effect, signal } from '../src/reactive/index';
+import { computed, effect, signal } from '../src/reactive/index';
 
 // ---------------------------------------------------------------------------
 // Validators
@@ -1038,6 +1038,17 @@ describe('forms/useFormField', () => {
     field.value.value = 'Grace';
     expect(value.value).toBe('Grace');
     expect(field.isDirty.value).toBe(true);
+  });
+
+  it('does not treat computed values as writable external signals', () => {
+    const source = signal('Ada');
+    const readonlyValue = computed(() => source.value);
+    const field = useFormField(readonlyValue as unknown as string);
+
+    expect(field.value).not.toBe(readonlyValue);
+    expect(field.value.value).toBe(readonlyValue);
+
+    expect(() => field.reset()).not.toThrow();
   });
 
   it('validates manually by default', async () => {

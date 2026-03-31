@@ -40,6 +40,10 @@ export interface EffectScope {
    * Executes `fn` inside this scope, collecting any reactive resources
    * (effects, computed values, watches, nested scopes) created during the call.
    *
+   * `run()` is synchronous-only. Do not pass an async function or a function
+   * that returns a Promise — resources created after an `await` cannot be
+   * collected reliably.
+   *
    * @template T - Return type of the provided function
    * @param fn - Function to run inside the scope
    * @returns The return value of `fn`
@@ -65,6 +69,12 @@ interface ScopeInternal extends EffectScope {
 }
 
 const scopeStack: ScopeInternal[] = [];
+
+const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>
+  (typeof value === 'object' || typeof value === 'function') &&
+  value !== null &&
+  'then' in value &&
+  typeof value.then === 'function';
 
 /**
  * Returns the currently active scope, or `undefined` if none.
@@ -99,7 +109,13 @@ class EffectScopeImpl implements ScopeInternal {
 
     scopeStack.push(this);
     try {
-      return fn();
+      const result = fn();
+      if (isPromiseLike(result)) {
+        throw new Error(
+          'bQuery reactive: effectScope.run() only supports synchronous callbacks'
+        );
+      }
+      return result;
     } finally {
       scopeStack.pop();
     }
@@ -131,6 +147,10 @@ class EffectScopeImpl implements ScopeInternal {
  * All `effect()`, `computed()`, `watch()`, and nested `effectScope()` calls
  * made inside `scope.run(fn)` are automatically collected. Calling
  * `scope.stop()` disposes them all at once.
+ *
+ * `run()` is synchronous-only. Create the scope outside async flows when
+ * needed, but keep the callback itself synchronous so cleanup registration
+ * stays deterministic.
  *
  * @returns A new {@link EffectScope}
  *
