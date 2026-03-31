@@ -154,9 +154,24 @@ export const useResource = <T = unknown>(
       });
 
       const result = await mutationState.execute();
+      const mutationError = mutationState.error.peek();
       mutationState.dispose();
 
       if (disposed) return fetchState.data.peek();
+
+      // Check if the inner fetch encountered an error
+      if (mutationError) {
+        // Rollback on optimistic failure
+        if (optimistic && optimisticData !== undefined) {
+          fetchState.data.value = previousData;
+        }
+
+        fetchState.error.value = mutationError;
+        fetchState.status.value = 'error';
+        mutating.value = false;
+        onMutationError?.(mutationError, action);
+        return fetchState.data.peek();
+      }
 
       // For non-DELETE mutations, update data with server response
       if (method !== 'DELETE' && result !== undefined) {
@@ -308,7 +323,14 @@ export const useSubmit = <TResponse = unknown>(
       });
 
       const result = await state.execute();
+      const fetchError = state.error.peek();
       state.dispose();
+
+      if (fetchError) {
+        error.value = fetchError;
+        status.value = 'error';
+        return undefined;
+      }
 
       data.value = result;
       status.value = 'success';
@@ -405,30 +427,30 @@ export const createRestClient = <T = unknown>(
   baseUrl: string,
   defaults: HttpRequestConfig = {}
 ): RestClient<T> => {
-  const httpClient = createHttp({ ...defaults, baseUrl });
+  const httpClient = createHttp({ ...defaults });
 
   // Ensure the base URL ends without a trailing slash for consistent joining
-  const normalizedBase = baseUrl.replace(/\/+$/, '');
+  const base = baseUrl.replace(/\/+$/, '');
 
   return {
-    list: (config) => httpClient.get<T[]>('', { ...config, baseUrl: normalizedBase }),
-    get: (id, config) => httpClient.get<T>(`/${encodeURIComponent(String(id))}`, { ...config, baseUrl: normalizedBase }),
+    list: (config) => httpClient.get<T[]>(base, config),
+    get: (id, config) => httpClient.get<T>(`${base}/${encodeURIComponent(String(id))}`, config),
     create: (body, config) =>
-      httpClient.post<T>('', body as HttpRequestConfig['body'], { ...config, baseUrl: normalizedBase }),
+      httpClient.post<T>(base, body as HttpRequestConfig['body'], config),
     update: (id, body, config) =>
       httpClient.put<T>(
-        `/${encodeURIComponent(String(id))}`,
+        `${base}/${encodeURIComponent(String(id))}`,
         body as HttpRequestConfig['body'],
-        { ...config, baseUrl: normalizedBase }
+        config
       ),
     patch: (id, body, config) =>
       httpClient.patch<T>(
-        `/${encodeURIComponent(String(id))}`,
+        `${base}/${encodeURIComponent(String(id))}`,
         body as HttpRequestConfig['body'],
-        { ...config, baseUrl: normalizedBase }
+        config
       ),
     remove: (id, config) =>
-      httpClient.delete<void>(`/${encodeURIComponent(String(id))}`, { ...config, baseUrl: normalizedBase }),
+      httpClient.delete<void>(`${base}/${encodeURIComponent(String(id))}`, config),
     http: httpClient,
   };
 };

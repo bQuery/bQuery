@@ -22,6 +22,11 @@ import {
   usePolling,
   usePaginatedFetch,
   useInfiniteFetch,
+  useWebSocket,
+  useEventSource,
+  useResource,
+  useSubmit,
+  createRestClient,
   untrack,
   isSignal,
   isComputed,
@@ -656,3 +661,257 @@ useTitle('Hello');               // plain string
 useTitle(signal('Hello'));       // reactive signal
 useTitle(computed(() => 'Hi')); // computed value
 ```
+
+## WebSocket
+
+`useWebSocket()` provides a reactive WebSocket connection with auto-reconnect,
+heartbeat, typed messaging, message history, and signal-based state.
+
+```ts
+import { useWebSocket } from '@bquery/bquery/reactive';
+
+const ws = useWebSocket<{ type: string; payload: unknown }>('wss://api.example.com/ws', {
+  autoReconnect: { maxAttempts: 5, delay: 2000 },
+  heartbeat: { interval: 30_000, pongTimeout: 10_000 },
+  historySize: 50,
+  onMessage: (data) => console.log('Received:', data),
+});
+
+// Send typed messages (serialized with JSON.stringify by default)
+ws.send({ type: 'subscribe', payload: { channel: 'updates' } });
+
+// Send raw data without serialization
+ws.sendRaw('raw text message');
+
+// Reactive state
+effect(() => {
+  console.log('Connected:', ws.isConnected.value);
+  console.log('Last message:', ws.data.value);
+  console.log('Status:', ws.status.value);
+  console.log('History:', ws.history.value);
+});
+
+// Manual control
+ws.close();
+ws.open();
+ws.dispose();
+```
+
+### Options
+
+| Option           | Type                                  | Default        | Description                                |
+| ---------------- | ------------------------------------- | -------------- | ------------------------------------------ |
+| `protocols`      | `string \| string[]`                  | —              | Sub-protocols for the handshake            |
+| `immediate`      | `boolean`                             | `true`         | Connect immediately                        |
+| `autoReconnect`  | `boolean \| WebSocketReconnectConfig` | `true`         | Auto-reconnect on unexpected close         |
+| `heartbeat`      | `boolean \| WebSocketHeartbeatConfig` | `false`        | Keep-alive ping/pong                       |
+| `historySize`    | `number`                              | `0` (disabled) | Max messages to keep in history            |
+| `serialize`      | `(data) => string \| ...`             | `JSON.stringify`| Outgoing message serializer               |
+| `deserialize`    | `(event) => TReceive`                 | `JSON.parse`   | Incoming message deserializer              |
+
+### Reconnect config
+
+| Field              | Type                                     | Default    |
+| ------------------ | ---------------------------------------- | ---------- |
+| `maxAttempts`      | `number`                                 | `Infinity` |
+| `delay`            | `number`                                 | `1000`     |
+| `maxDelay`         | `number`                                 | `30000`    |
+| `factor`           | `number`                                 | `2`        |
+| `shouldReconnect`  | `(event, attempts) => boolean`           | —          |
+
+### Heartbeat config
+
+| Field              | Type                          | Default  |
+| ------------------ | ----------------------------- | -------- |
+| `message`          | `string \| ArrayBuffer \| ...`| `'ping'` |
+| `interval`         | `number`                      | `30000`  |
+| `pongTimeout`      | `number`                      | `10000`  |
+| `responseMessage`  | `string`                      | —        |
+
+### Returned state
+
+| Field               | Type                         | Description                              |
+| ------------------- | ---------------------------- | ---------------------------------------- |
+| `status`            | `readonly Signal`            | `'CONNECTING' \| 'OPEN' \| 'CLOSING' \| 'CLOSED'` |
+| `data`              | `Signal<TReceive>`           | Last received message (deserialized)     |
+| `error`             | `Signal<Event \| null>`      | Last error event                         |
+| `history`           | `Signal<TReceive[]>`         | Rolling message history                  |
+| `isConnected`       | `computed boolean`           | Whether the socket is `OPEN`             |
+| `reconnectAttempts` | `Signal<number>`             | Current reconnect attempt count          |
+| `send`              | `(data: TSend) => void`      | Send a serialized message                |
+| `sendRaw`           | `(data) => void`             | Send raw data without serialization      |
+| `open`              | `() => void`                 | Open / reconnect manually                |
+| `close`             | `(code?, reason?) => void`   | Gracefully close                         |
+| `dispose`           | `() => void`                 | Tear down all resources                  |
+
+## Server-Sent Events (SSE)
+
+`useEventSource()` wraps the native `EventSource` API with reactive signals,
+auto-reconnect, and typed deserialization.
+
+```ts
+import { useEventSource } from '@bquery/bquery/reactive';
+
+const sse = useEventSource<{ type: string; message: string }>('/api/events', {
+  events: ['notification', 'update'],
+  autoReconnect: true,
+  onMessage: (data, event) => console.log(`[${event.type}]`, data),
+});
+
+effect(() => {
+  if (sse.data.value) {
+    console.log(`Event [${sse.eventName.value}]:`, sse.data.value);
+  }
+});
+
+sse.dispose();
+```
+
+### Options
+
+| Option            | Type                                  | Default        | Description                          |
+| ----------------- | ------------------------------------- | -------------- | ------------------------------------ |
+| `immediate`       | `boolean`                             | `true`         | Connect immediately                  |
+| `autoReconnect`   | `boolean \| WebSocketReconnectConfig` | `true`         | Auto-reconnect on error              |
+| `events`          | `string[]`                            | `[]`           | Named events to listen for           |
+| `deserialize`     | `(data: string) => TData`            | `JSON.parse`   | Custom deserializer                  |
+| `eventSourceInit` | `EventSourceInit`                     | —              | Native EventSource init (e.g. `withCredentials`) |
+
+### Returned state
+
+| Field         | Type                    | Description                       |
+| ------------- | ----------------------- | --------------------------------- |
+| `status`      | `readonly Signal`       | Connection status                 |
+| `data`        | `Signal<TData>`         | Last received data                |
+| `eventName`   | `Signal<string>`        | Last event name                   |
+| `error`       | `Signal<Event \| null>` | Last error event                  |
+| `isConnected` | `computed boolean`      | Whether the EventSource is open   |
+| `open`        | `() => void`            | Open / reconnect                  |
+| `close`       | `() => void`            | Close the connection              |
+| `dispose`     | `() => void`            | Tear down all resources           |
+
+## REST resource composable
+
+`useResource()` provides a full CRUD lifecycle for a REST endpoint with
+reactive state, optimistic updates, and mutation tracking.
+
+```ts
+import { useResource } from '@bquery/bquery/reactive';
+
+const user = useResource<User>('/api/users/1', {
+  baseUrl: 'https://api.example.com',
+  optimistic: true,
+});
+
+// CRUD operations
+await user.actions.fetch();
+await user.actions.create({ name: 'Ada' });
+await user.actions.update({ name: 'Ada', email: 'ada@example.com' });
+await user.actions.patch({ email: 'new@example.com' });
+await user.actions.remove();
+
+// Reactive state
+effect(() => {
+  console.log('Data:', user.data.value);
+  console.log('Mutating:', user.isMutating.value);
+  console.log('Status:', user.status.value);
+});
+```
+
+### Options
+
+All `useFetch()` options (except `method` and `body`) plus:
+
+| Option              | Type                          | Default | Description                               |
+| ------------------- | ----------------------------- | ------- | ----------------------------------------- |
+| `optimistic`        | `boolean`                     | `false` | Apply updates optimistically with rollback |
+| `onMutationSuccess` | `(data, action) => void`      | —       | Called after successful mutations          |
+| `onMutationError`   | `(error, action) => void`     | —       | Called after failed mutations              |
+
+### Returned state
+
+| Field        | Type                      | Description                          |
+| ------------ | ------------------------- | ------------------------------------ |
+| `data`       | `Signal<T>`               | Resource data                        |
+| `error`      | `Signal<Error \| null>`   | Last error                           |
+| `status`     | `Signal<AsyncDataStatus>` | Lifecycle status                     |
+| `pending`    | `computed boolean`        | Whether the initial fetch is pending |
+| `isMutating` | `computed boolean`        | Whether any mutation is in progress  |
+| `actions`    | `ResourceActions<T>`      | CRUD methods (fetch/create/update/patch/remove) |
+| `refresh`    | `() => Promise`           | Re-fetch the resource                |
+| `clear`      | `() => void`              | Clear data and status                |
+| `dispose`    | `() => void`              | Stop all reactive state              |
+
+## Form submission
+
+`useSubmit()` provides a simple reactive wrapper for form submissions.
+
+```ts
+import { useSubmit } from '@bquery/bquery/reactive';
+
+const form = useSubmit<{ id: number }>('/api/users', {
+  baseUrl: 'https://api.example.com',
+  headers: { 'x-csrf': token },
+});
+
+const result = await form.submit({ name: 'Ada', email: 'ada@example.com' });
+console.log(form.status.value); // 'success'
+console.log(form.data.value);   // { id: 42 }
+
+form.clear(); // Reset state
+```
+
+### Returned state
+
+| Field     | Type                      | Description               |
+| --------- | ------------------------- | ------------------------- |
+| `data`    | `Signal<TResponse>`       | Last response data        |
+| `error`   | `Signal<Error \| null>`   | Last error                |
+| `status`  | `Signal<AsyncDataStatus>` | Current status            |
+| `pending` | `computed boolean`        | Whether submission is pending |
+| `submit`  | `(body) => Promise`       | Submit data               |
+| `clear`   | `() => void`              | Reset state               |
+
+## Imperative REST client
+
+`createRestClient()` creates a typed REST client for a specific API resource
+with conventional CRUD endpoints.
+
+```ts
+import { createRestClient } from '@bquery/bquery/reactive';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const users = createRestClient<User>('https://api.example.com/users', {
+  headers: { authorization: '******' },
+  timeout: 10_000,
+});
+
+const { data: allUsers } = await users.list();
+const { data: user } = await users.get(1);
+const { data: created } = await users.create({ name: 'Ada' });
+await users.update(1, { name: 'Ada', email: 'ada@example.com' });
+await users.patch(1, { email: 'new@example.com' });
+await users.remove(1);
+
+// Access interceptors via the underlying http client
+users.http.interceptors.request.use((config) => {
+  config.headers = { ...Object.fromEntries(new Headers(config.headers)), 'x-request-id': crypto.randomUUID() };
+  return config;
+});
+```
+
+### Methods
+
+| Method     | HTTP    | URL Pattern      | Description         |
+| ---------- | ------- | ---------------- | ------------------- |
+| `list()`   | `GET`   | `{baseUrl}`      | Fetch all items     |
+| `get(id)`  | `GET`   | `{baseUrl}/{id}` | Fetch a single item |
+| `create(body)` | `POST` | `{baseUrl}`  | Create a new item   |
+| `update(id, body)` | `PUT` | `{baseUrl}/{id}` | Full replace |
+| `patch(id, body)` | `PATCH` | `{baseUrl}/{id}` | Partial update |
+| `remove(id)` | `DELETE` | `{baseUrl}/{id}` | Delete an item  |

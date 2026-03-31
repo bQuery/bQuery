@@ -109,6 +109,11 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `usePolling(input, options)` | function  | Periodic data fetching with pause/resume/visibility           |
 | `usePaginatedFetch(fn, opt)` | function  | Cursor-based pagination with next/prev/goTo helpers           |
 | `useInfiniteFetch(fn, opt)`  | function  | Infinite scroll with accumulated pages and fetchNextPage      |
+| `useWebSocket(url, opt)`     | function  | Reactive WebSocket with auto-reconnect, heartbeat, history    |
+| `useEventSource(url, opt)`   | function  | Reactive SSE composable with auto-reconnect                   |
+| `useResource(url, opt)`      | function  | REST CRUD composable with optimistic updates                  |
+| `useSubmit(url, opt)`        | function  | Form submission composable with reactive state                |
+| `createRestClient(url, cfg)` | function  | Typed imperative REST client (list/get/create/update/patch/remove) |
 | `readonly(sig)`              | function  | Read-only wrapper around a signal                             |
 | `isSignal`, `isComputed`     | functions | Type guards                                                   |
 | `Signal`, `Computed`         | classes   | Signal and Computed value classes                             |

@@ -208,6 +208,8 @@ export const useWebSocket = <TSend = string, TReceive = string>(
   let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   let heartbeatTimer: ReturnType<typeof setInterval> | undefined;
   let pongTimer: ReturnType<typeof setTimeout> | undefined;
+  let internalReconnectCount = 0;
+  let isAutoReconnecting = false;
   const sendQueue: Array<string | ArrayBufferLike | Blob | ArrayBufferView> = [];
 
   const reconnectConfig = resolveReconnect(options.autoReconnect);
@@ -255,20 +257,21 @@ export const useWebSocket = <TSend = string, TReceive = string>(
     if (disposed || explicitClose || !reconnectConfig) return;
 
     const maxAttempts = reconnectConfig.maxAttempts ?? Infinity;
-    const attempts = reconnectAttempts.peek();
 
-    if (attempts >= maxAttempts) return;
+    if (internalReconnectCount >= maxAttempts) return;
 
     if (
       reconnectConfig.shouldReconnect &&
-      !reconnectConfig.shouldReconnect(event, attempts)
+      !reconnectConfig.shouldReconnect(event, internalReconnectCount)
     ) {
       return;
     }
 
-    const delay = computeDelay(attempts, reconnectConfig);
+    const delay = computeDelay(internalReconnectCount, reconnectConfig);
     reconnectTimer = setTimeout(() => {
-      reconnectAttempts.value = reconnectAttempts.peek() + 1;
+      internalReconnectCount++;
+      reconnectAttempts.value = internalReconnectCount;
+      isAutoReconnecting = true;
       open();
     }, delay);
   };
@@ -321,7 +324,11 @@ export const useWebSocket = <TSend = string, TReceive = string>(
 
     ws.onopen = (event: Event): void => {
       status.value = 'OPEN';
-      reconnectAttempts.value = 0;
+      if (!isAutoReconnecting) {
+        internalReconnectCount = 0;
+        reconnectAttempts.value = 0;
+      }
+      isAutoReconnecting = false;
       flushQueue();
       startHeartbeat();
       onOpen?.(event);
