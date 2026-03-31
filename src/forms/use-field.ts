@@ -62,7 +62,7 @@ export const useFormField = <T>(
   options: UseFormFieldOptions<T> = {}
 ): UseFormFieldReturn<T> => {
   const startingValue = isComputedValue<T>(initialValue)
-    ? initialValue.value
+    ? initialValue.peek()
     : (initialValue as T);
   const value: Signal<T> = isSignal(initialValue) ? initialValue : signal(startingValue);
   const initial = value.peek();

@@ -1083,6 +1083,24 @@ describe('forms/useFormField', () => {
     expect(() => field.reset()).not.toThrow();
   });
 
+  it('snapshots computed values without subscribing the active observer', () => {
+    const source = signal('Ada');
+    const readonlyValue = computed(() => source.value);
+    let runs = 0;
+
+    const stop = effect(() => {
+      useFormField(readonlyValue as unknown as string);
+      runs++;
+    });
+
+    expect(runs).toBe(1);
+
+    source.value = 'Grace';
+    expect(runs).toBe(1);
+
+    stop();
+  });
+
   it('validates manually by default', async () => {
     const field = useFormField('', {
       validators: [required('Required')],
