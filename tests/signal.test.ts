@@ -1769,9 +1769,9 @@ describe('effectScope', () => {
 
   it('errors in scope cleanup are caught and logged', () => {
     const scope = effectScope();
-    const errors: unknown[] = [];
+    const loggedMessages: string[] = [];
     const originalError = console.error;
-    console.error = (...args: unknown[]) => errors.push(args);
+    console.error = (message: string) => loggedMessages.push(message);
 
     scope.run(() => {
       onScopeDispose(() => {
@@ -1782,8 +1782,8 @@ describe('effectScope', () => {
     scope.stop();
     console.error = originalError;
 
-    expect(errors.length).toBe(1);
-    expect((errors[0] as unknown[])[0]).toContain('Error in scope cleanup');
+    expect(loggedMessages.length).toBe(1);
+    expect(loggedMessages[0]).toContain('Error in scope cleanup');
   });
 
   it('scope.run can be called multiple times to collect more resources', () => {
