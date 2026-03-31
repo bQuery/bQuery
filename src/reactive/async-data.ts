@@ -47,15 +47,27 @@ export interface AsyncDataState<TData> {
   execute: () => Promise<TData | undefined>;
   /** Alias for execute(). */
   refresh: () => Promise<TData | undefined>;
+  /** Abort the current in-flight request (useFetch only; no-op for useAsyncData). */
+  abort: () => void;
   /** Clear data, error, and status back to the initial state. */
   clear: () => void;
   /** Dispose reactive watchers and prevent future executions. */
   dispose: () => void;
 }
 
+/** Configuration for automatic request retries in useFetch(). */
+export interface UseFetchRetryConfig {
+  /** Maximum number of retry attempts (default: 3). */
+  count: number;
+  /** Delay in ms between retries, or a function receiving the attempt index. */
+  delay?: number | ((attempt: number) => number);
+  /** Predicate deciding whether to retry. Defaults to network / 5xx errors. */
+  retryOn?: (error: Error, attempt: number) => boolean;
+}
+
 /** Options for useFetch(). */
 export interface UseFetchOptions<TResponse = unknown, TData = TResponse>
-  extends UseAsyncDataOptions<TResponse, TData>, Omit<RequestInit, 'body' | 'headers'> {
+  extends UseAsyncDataOptions<TResponse, TData>, Omit<RequestInit, 'body' | 'headers' | 'signal'> {
   /** Base URL prepended to relative URLs. */
   baseUrl?: string;
   /** Query parameters appended to the request URL. */
@@ -68,6 +80,14 @@ export interface UseFetchOptions<TResponse = unknown, TData = TResponse>
   parseAs?: BqueryFetchParseAs;
   /** Custom fetch implementation for testing or adapters. */
   fetcher?: typeof fetch;
+  /** Request timeout in milliseconds. 0 means no timeout. */
+  timeout?: number;
+  /** External AbortSignal for request cancellation. */
+  signal?: AbortSignal;
+  /** Retry configuration. Pass a number for simple retry count, or a config object. */
+  retry?: number | UseFetchRetryConfig;
+  /** Custom status validation. Returns `true` for acceptable statuses. */
+  validateStatus?: (status: number) => boolean;
 }
 
 /** Input accepted by useFetch(). */
@@ -340,23 +360,76 @@ export const useAsyncData = <TResult, TData = TResult>(
     pending,
     execute,
     refresh: execute,
+    abort: () => {},
     clear,
     dispose,
   };
 };
 
+/** @internal */
+const DEFAULT_VALIDATE_STATUS = (status: number): boolean => status >= 200 && status < 300;
+
+/** @internal */
+const DEFAULT_RETRY_ON = (error: Error): boolean => {
+  if (error instanceof DOMException && error.name === 'AbortError') return false;
+  const status = (error as Error & { status?: number }).status;
+  return status === undefined || status >= 500;
+};
+
+/** @internal */
+const normalizeRetryConfig = (
+  retry: UseFetchOptions['retry']
+): UseFetchRetryConfig | undefined => {
+  if (retry == null) return undefined;
+  if (typeof retry === 'number') return { count: retry };
+  return retry;
+};
+
+/** @internal */
+const resolveRetryDelay = (delay: UseFetchRetryConfig['delay'], attempt: number): number => {
+  if (delay == null) return Math.min(1000 * 2 ** attempt, 30_000);
+  if (typeof delay === 'number') return delay;
+  return delay(attempt);
+};
+
+/** @internal */
+const sleepWithSignal = (ms: number, abortSignal?: AbortSignal): Promise<void> =>
+  new Promise<void>((resolve, reject) => {
+    if (abortSignal?.aborted) {
+      reject(abortSignal.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
+      return;
+    }
+    const timer = setTimeout(resolve, ms);
+    abortSignal?.addEventListener(
+      'abort',
+      () => {
+        clearTimeout(timer);
+        reject(
+          abortSignal.reason ?? new DOMException('The operation was aborted.', 'AbortError')
+        );
+      },
+      { once: true }
+    );
+  });
+
 /**
  * Reactive fetch composable using the browser Fetch API.
+ *
+ * Supports timeout, abort, retry, and custom status validation in addition
+ * to the core useFetch features (query params, JSON body, baseUrl, watch).
  *
  * @template TResponse - Raw parsed response type
  * @template TData - Stored response type after optional transformation
  * @param input - Request URL, Request object, or lazy input factory
  * @param options - Request and reactive state options
- * @returns Reactive fetch state with execute(), refresh(), and clear()
+ * @returns Reactive fetch state with execute(), refresh(), abort(), clear(), and dispose()
  *
  * @example
  * ```ts
- * const users = useFetch<{ id: number; name: string }[]>('/api/users');
+ * const users = useFetch<{ id: number; name: string }[]>('/api/users', {
+ *   timeout: 5000,
+ *   retry: 3,
+ * });
  * ```
  */
 export const useFetch = <TResponse = unknown, TData = TResponse>(
@@ -366,8 +439,11 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
   const fetchConfig = getBqueryConfig().fetch;
   const parseAs = options.parseAs ?? fetchConfig?.parseAs ?? 'json';
   const fetcher = options.fetcher ?? fetch;
+  const validateStatus = options.validateStatus ?? DEFAULT_VALIDATE_STATUS;
 
-  return useAsyncData<TResponse, TData>(async () => {
+  let currentAbortController: AbortController | null = null;
+
+  const state = useAsyncData<TResponse, TData>(async () => {
     const requestInput = resolveInput(input);
     const requestUrl =
       typeof requestInput === 'string' || requestInput instanceof URL
@@ -393,11 +469,36 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       throw new Error(`Cannot send a request body with ${bodylessMethod} requests`);
     }
     const requestInitMethod = resolveRequestInitMethod(explicitMethod, requestInput, method);
+
+    // Abort controller: compose timeout + external signal + manual abort
+    const abortController = new AbortController();
+    currentAbortController = abortController;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    if (options.signal) {
+      if (options.signal.aborted) {
+        abortController.abort(options.signal.reason);
+      } else {
+        options.signal.addEventListener(
+          'abort',
+          () => abortController.abort(options.signal!.reason),
+          { once: true }
+        );
+      }
+    }
+
+    if (options.timeout && options.timeout > 0) {
+      timeoutId = setTimeout(() => {
+        abortController.abort(new DOMException('Request timeout', 'TimeoutError'));
+      }, options.timeout);
+    }
+
     const requestInit: RequestInit = {
       ...options,
       method: requestInitMethod,
       headers,
       body: serializeBody(options.body, headers),
+      signal: abortController.signal,
     };
 
     delete (requestInit as Partial<UseFetchOptions>).baseUrl;
@@ -410,6 +511,9 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
     delete (requestInit as Partial<UseFetchOptions>).transform;
     delete (requestInit as Partial<UseFetchOptions>).onSuccess;
     delete (requestInit as Partial<UseFetchOptions>).onError;
+    delete (requestInit as Partial<UseFetchOptions>).timeout;
+    delete (requestInit as Partial<UseFetchOptions>).retry;
+    delete (requestInit as Partial<UseFetchOptions>).validateStatus;
 
     let requestTarget: Request | string | URL = requestUrl ?? requestInput;
     if (
@@ -417,22 +521,79 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       requestUrl &&
       requestUrl.toString() !== requestInput.url
     ) {
-      // Rebuild Request inputs when query params changed so the updated URL is preserved.
-      // String/URL inputs already use `requestUrl` directly, so only Request objects need rebuilding.
       requestTarget = new Request(requestUrl.toString(), toRequestInit(requestInput));
     }
-    const response = await fetcher(requestTarget, requestInit);
 
-    if (!response.ok) {
-      throw Object.assign(new Error(`Request failed with status ${response.status}`), {
-        response,
-        status: response.status,
-        statusText: response.statusText,
-      });
+    const retryConfig = normalizeRetryConfig(options.retry);
+    const maxAttempts = (retryConfig?.count ?? 0) + 1;
+    let lastError: Error | undefined;
+
+    try {
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const response = await fetcher(requestTarget, requestInit);
+
+          if (!validateStatus(response.status)) {
+            throw Object.assign(new Error(`Request failed with status ${response.status}`), {
+              response,
+              status: response.status,
+              statusText: response.statusText,
+            });
+          }
+
+          return await parseResponse<TResponse>(response, parseAs);
+        } catch (error) {
+          const normalizedError =
+            error instanceof Error ? error : new Error(String(error));
+
+          // Abort errors should not be retried
+          if (
+            normalizedError instanceof DOMException &&
+            normalizedError.name === 'AbortError'
+          ) {
+            const isTimeout = normalizedError.message === 'Request timeout';
+            throw Object.assign(
+              new Error(
+                isTimeout
+                  ? `Request timeout of ${options.timeout}ms exceeded`
+                  : 'Request aborted'
+              ),
+              { code: isTimeout ? 'TIMEOUT' : 'ABORT' }
+            );
+          }
+
+          lastError = normalizedError;
+
+          const shouldRetry = retryConfig
+            ? (retryConfig.retryOn ?? DEFAULT_RETRY_ON)(normalizedError, attempt)
+            : false;
+
+          if (!shouldRetry || attempt >= maxAttempts - 1) {
+            throw normalizedError;
+          }
+
+          await sleepWithSignal(
+            resolveRetryDelay(retryConfig!.delay, attempt),
+            abortController.signal
+          );
+        }
+      }
+
+      throw lastError!;
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
+      currentAbortController = null;
     }
-
-    return parseResponse<TResponse>(response, parseAs);
   }, options);
+
+  // Override abort with real abort logic
+  state.abort = (): void => {
+    if (currentAbortController) {
+      currentAbortController.abort(new DOMException('Request aborted', 'AbortError'));
+    }
+  };
+
+  return state;
 };
 
 /**
