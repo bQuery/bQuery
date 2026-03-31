@@ -384,7 +384,7 @@ toValue(doubled); // 10 (reads computed.value)
 The `MaybeSignal<T>` type represents a value that may be plain, a `Signal<T>`, a `ReadonlySignal<T>`, or a `Computed<T>`. Use it for APIs that accept both reactive and non-reactive inputs:
 
 ```ts
-import { type MaybeSignal, toValue } from '@bquery/bquery/reactive';
+import { computed, signal, type MaybeSignal, toValue } from '@bquery/bquery/reactive';
 
 function useTitle(title: MaybeSignal<string>) {
   document.title = toValue(title);

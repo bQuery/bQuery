@@ -683,11 +683,12 @@ export class BQueryCollection {
   }
 
   /**
-   * Gets the closest ancestor matching a selector for each element in the
-   * collection. Duplicates are removed from the result.
+   * Gets the closest element or ancestor matching a selector for each element in
+   * the collection, including the element itself. Duplicates are removed from the
+   * result.
    *
    * @param selector - CSS selector to match
-   * @returns A new BQueryCollection with matching ancestors
+   * @returns A new BQueryCollection with matching elements or ancestors
    *
    * @example
    * ```ts
