@@ -20,6 +20,7 @@ import { getActiveScope, hasScopeDisposer } from './scope';
 export const effect = (fn: () => void | CleanupFn): CleanupFn => {
   let cleanupFn: CleanupFn | void;
   let isDisposed = false;
+  const scope = getActiveScope();
 
   const runCleanup = (): void => {
     if (cleanupFn) {
@@ -31,6 +32,25 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
       cleanupFn = undefined;
     }
   };
+
+  const clearEffectState = (): void => {
+    runCleanup();
+    // Clean up all dependencies when effect is disposed
+    clearDependencies(observer);
+  };
+
+  const dispose: CleanupFn = () => {
+    if (isDisposed) {
+      return;
+    }
+
+    isDisposed = true;
+    clearEffectState();
+  };
+
+  if (hasScopeDisposer(scope)) {
+    scope._addDisposer(dispose);
+  }
 
   const observer: Observer = () => {
     if (isDisposed) return;
@@ -45,22 +65,13 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     } catch (error) {
       console.error('bQuery reactive: Error in effect', error);
     }
+
+    if (isDisposed) {
+      clearEffectState();
+    }
   };
 
   observer();
-
-  const dispose: CleanupFn = () => {
-    isDisposed = true;
-    runCleanup();
-    // Clean up all dependencies when effect is disposed
-    clearDependencies(observer);
-  };
-
-  // Auto-register with the current scope so scope.stop() disposes this effect
-  const scope = getActiveScope();
-  if (hasScopeDisposer(scope)) {
-    scope._addDisposer(dispose);
-  }
 
   return dispose;
 };

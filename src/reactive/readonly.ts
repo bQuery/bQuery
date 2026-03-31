@@ -33,7 +33,7 @@ export const isReadonlySignal = <T>(value: unknown): value is ReturnType<typeof 
   return (
     typeof value === 'object' &&
     value !== null &&
-    READONLY_SIGNAL_BRAND in value
+    Object.prototype.hasOwnProperty.call(value, READONLY_SIGNAL_BRAND)
   );
 };
 

@@ -1421,6 +1421,14 @@ describe('toValue', () => {
     expect(result.label).toBe('not a readonly signal');
   });
 
+  it('does not unwrap objects that inherit the readonly brand through the prototype chain', () => {
+    const wrapped = readonly(signal(5));
+    const inheritedWrapper = Object.create(wrapped) as ReadonlySignal<number>;
+
+    expect(isReadonlySignal(inheritedWrapper)).toBe(false);
+    expect(toValue<ReadonlySignal<number>>(inheritedWrapper)).toBe(inheritedWrapper);
+  });
+
   it('participates in reactive tracking', () => {
     const s = signal(1);
     let tracked = 0;
@@ -1609,6 +1617,29 @@ describe('effectScope', () => {
     // After stop, effect should no longer react
     count.value = 2;
     expect(runs).toBe(2);
+  });
+
+  it('disposes an effect when the scope stops during the initial synchronous run', () => {
+    const scope = effectScope();
+    const count = signal(0);
+    let runs = 0;
+
+    scope.run(() => {
+      effect(() => {
+        void count.value;
+        runs++;
+
+        if (runs === 1) {
+          scope.stop();
+        }
+      });
+    });
+
+    expect(scope.active).toBe(false);
+    expect(runs).toBe(1);
+
+    count.value = 1;
+    expect(runs).toBe(1);
   });
 
   it('collects multiple effects', () => {

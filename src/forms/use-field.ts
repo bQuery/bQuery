@@ -64,13 +64,18 @@ export const useFormField = <T>(
   initialValue: MaybeSignal<T>,
   options: UseFormFieldOptions<T> = {}
 ): UseFormFieldReturn<T> => {
-  const startingValue: T =
-    isReadonlySignal<T>(initialValue) || isComputedValue<T>(initialValue)
-      ? initialValue.peek()
-      : (initialValue as T);
-  const value: Signal<T> = isSignal(initialValue)
-    ? (initialValue as Signal<T>)
-    : signal(startingValue);
+  let value: Signal<T>;
+
+  if (isSignal(initialValue)) {
+    value = initialValue as Signal<T>;
+  } else {
+    const startingValue: T =
+      isReadonlySignal<T>(initialValue) || isComputedValue<T>(initialValue)
+        ? initialValue.peek()
+        : (initialValue as T);
+    value = signal(startingValue);
+  }
+
   const initial = value.peek();
   const error = signal(options.initialError ?? '');
   const isTouched = signal(false);
