@@ -332,7 +332,7 @@ export const useWebSocket = <TSend = string, TReceive = string>(
 
     try {
       ws = new WebSocket(resolveUrl(), protocols);
-    } catch (err) {
+    } catch {
       status.value = 'CLOSED';
       return;
     }

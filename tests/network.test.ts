@@ -12,10 +12,7 @@ import {
   useEventSource,
   signal,
 } from '../src/reactive/signal';
-import type {
-  UseWebSocketReturn,
-  UseEventSourceReturn,
-} from '../src/reactive/websocket';
+import type { HttpResponse } from '../src/reactive/http';
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -63,6 +60,7 @@ class MockWebSocket {
 
   constructor(url: string, _protocols?: string | string[]) {
     this.url = url;
+    setLastMockWS(this);
     // Auto-connect asynchronously
     setTimeout(() => this._simulateOpen(), 0);
   }
@@ -171,6 +169,7 @@ class MockEventSource {
   constructor(url: string, _init?: EventSourceInit) {
     this.url = url;
     this.withCredentials = _init?.withCredentials ?? false;
+    setLastMockES(this);
     setTimeout(() => this._simulateOpen(), 0);
   }
 
@@ -223,12 +222,19 @@ let originalEventSource: typeof EventSource | undefined;
 let lastMockWS: MockWebSocket | undefined;
 let lastMockES: MockEventSource | undefined;
 
+const setLastMockWS = (ws: MockWebSocket | undefined): void => {
+  lastMockWS = ws;
+};
+
+const setLastMockES = (es: MockEventSource | undefined): void => {
+  lastMockES = es;
+};
+
 const installWebSocketMock = (): void => {
   originalWebSocket = (globalThis as unknown as { WebSocket?: typeof WebSocket }).WebSocket;
   (globalThis as unknown as { WebSocket: unknown }).WebSocket = class extends MockWebSocket {
     constructor(url: string, protocols?: string | string[]) {
       super(url, protocols);
-      lastMockWS = this;
     }
   };
 };
@@ -247,7 +253,6 @@ const installEventSourceMock = (): void => {
   (globalThis as unknown as { EventSource: unknown }).EventSource = class extends MockEventSource {
     constructor(url: string, init?: EventSourceInit) {
       super(url, init);
-      lastMockES = this;
     }
   };
 };
@@ -284,7 +289,7 @@ describe('useWebSocket', () => {
   });
 
   it('receives and deserializes messages', async () => {
-    const ws = useWebSocket<{ type: string }>('ws://localhost:8080');
+    const ws = useWebSocket<unknown, { type: string }>('ws://localhost:8080');
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -406,7 +411,6 @@ describe('useWebSocket', () => {
       constructor(url: string, protocols?: string | string[]) {
         super(url, protocols);
         connectCount++;
-        lastMockWS = this;
       }
     };
 
@@ -462,7 +466,6 @@ describe('useWebSocket', () => {
       constructor(url: string, protocols?: string | string[]) {
         super(url, protocols);
         connectCount++;
-        lastMockWS = this;
       }
 
       // Override: open normally then close immediately on next tick
@@ -1616,7 +1619,13 @@ describe('createRequestQueue', () => {
         order.push(id);
         await new Promise((r) => setTimeout(r, 30));
         inFlight--;
-        return { data: id, status: 200, statusText: 'OK', headers: new Headers(), config: {} } as any;
+        return {
+          data: id,
+          status: 200,
+          statusText: 'OK',
+          headers: new Headers(),
+          config: {},
+        } as HttpResponse<number>;
       });
 
     await Promise.all([makeRequest(1), makeRequest(2), makeRequest(3), makeRequest(4)]);
@@ -1631,14 +1640,14 @@ describe('createRequestQueue', () => {
 
     const p1 = queue.add(
       () =>
-        new Promise<any>((resolve) => {
+        new Promise<HttpResponse<number>>((resolve) => {
           resolve1 = () =>
             resolve({ data: 1, status: 200, statusText: 'OK', headers: new Headers(), config: {} });
         })
     );
     const p2 = queue.add(
       async () =>
-        ({ data: 2, status: 200, statusText: 'OK', headers: new Headers(), config: {} }) as any
+        ({ data: 2, status: 200, statusText: 'OK', headers: new Headers(), config: {} }) as HttpResponse<number>
     );
 
     await new Promise((r) => setTimeout(r, 10));
@@ -1662,7 +1671,7 @@ describe('createRequestQueue', () => {
 
     const p1 = queue.add(
       () =>
-        new Promise<any>((resolve) => {
+        new Promise<HttpResponse<number>>((resolve) => {
           resolve1 = () =>
             resolve({ data: 1, status: 200, statusText: 'OK', headers: new Headers(), config: {} });
         })
@@ -1670,7 +1679,7 @@ describe('createRequestQueue', () => {
 
     const p2 = queue.add(
       async () =>
-        ({ data: 2, status: 200, statusText: 'OK', headers: new Headers(), config: {} }) as any
+        ({ data: 2, status: 200, statusText: 'OK', headers: new Headers(), config: {} }) as HttpResponse<number>
     );
 
     await new Promise((r) => setTimeout(r, 10));

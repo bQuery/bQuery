@@ -7,9 +7,7 @@ import {
   usePolling,
   usePaginatedFetch,
   useInfiniteFetch,
-  signal,
 } from '../src/reactive/signal';
-import type { HttpRequestConfig, HttpResponse } from '../src/reactive/http';
 
 const asMockFetch = (
   handler: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
@@ -206,7 +204,8 @@ describe('interceptors', () => {
     });
 
     api.interceptors.response.use((response) => {
-      return { ...response, data: { ...response.data, modified: true } };
+      const data = response.data as { raw: boolean };
+      return { ...response, data: { ...data, modified: true } };
     });
 
     const res = await api.get<{ raw: boolean; modified: boolean }>('/test');
@@ -952,9 +951,7 @@ describe('usePaginatedFetch', () => {
 
 describe('useInfiniteFetch', () => {
   const createMockApi = (totalPages: number = 3) => {
-    let fetchCount = 0;
     return asMockFetch(async (input) => {
-      fetchCount++;
       const url = new URL(String(input), 'http://localhost');
       const cursorParam = url.searchParams.get('cursor');
       const cursor = cursorParam ? Number(cursorParam) : 0;
