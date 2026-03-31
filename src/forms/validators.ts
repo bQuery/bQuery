@@ -286,9 +286,9 @@ export const customAsync = <T = unknown>(
  * validateConfirmPassword(confirmPassword.value);
  * ```
  */
-export const matchField = (
-  ref: { readonly value: unknown },
+export const matchField = <T>(
+  ref: { readonly value: T },
   message = 'Fields do not match'
-): SyncValidator<unknown> => {
-  return (value: unknown) => (Object.is(value, ref.value) ? true : message);
+): SyncValidator<T> => {
+  return (value: T) => (Object.is(value, ref.value) ? true : message);
 };

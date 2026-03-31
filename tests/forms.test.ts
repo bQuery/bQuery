@@ -14,7 +14,9 @@ import {
   useFormField,
   url,
 } from '../src/forms/index';
-import { computed, effect, signal } from '../src/reactive/index';
+import { computed, effect, readonly, signal } from '../src/reactive/index';
+
+const expectType = <T>(_value: T): void => {};
 
 // ---------------------------------------------------------------------------
 // Validators
@@ -1075,7 +1077,9 @@ describe('forms/useFormField', () => {
   it('does not treat computed values as writable external signals', () => {
     const source = signal('Ada');
     const readonlyValue = computed(() => source.value);
-    const field = useFormField(readonlyValue as unknown as string);
+    const field = useFormField(readonlyValue);
+
+    expectType<string>(field.value.value);
 
     expect(field.value).not.toBe(readonlyValue);
     expect(field.value.value).toBe('Ada');
@@ -1089,7 +1093,8 @@ describe('forms/useFormField', () => {
     let runs = 0;
 
     const stop = effect(() => {
-      useFormField(readonlyValue as unknown as string);
+      const field = useFormField(readonlyValue);
+      expectType<string>(field.value.value);
       runs++;
     });
 
@@ -1099,6 +1104,18 @@ describe('forms/useFormField', () => {
     expect(runs).toBe(1);
 
     stop();
+  });
+
+  it('snapshots readonly signal wrappers without reusing them as writable field state', () => {
+    const source = signal('Ada');
+    const readonlyValue = readonly(source);
+    const field = useFormField(readonlyValue);
+
+    expectType<string>(field.value.value);
+    expect(field.value.value).toBe('Ada');
+    expect(field.value).not.toBe(readonlyValue);
+
+    expect(() => field.reset()).not.toThrow();
   });
 
   it('validates manually by default', async () => {
@@ -1290,6 +1307,7 @@ describe('forms/matchField', () => {
     const ref = signal('secret');
     const validate = matchField(ref);
 
+    expectType<string | true | undefined>(validate('secret'));
     expect(validate('secret')).toBe(true);
   });
 
@@ -1339,5 +1357,15 @@ describe('forms/matchField', () => {
 
     expect(validate('test')).toBe(true);
     expect(validate('other')).toBe('Fields do not match');
+  });
+
+  it('preserves the reference value type in the validator signature', () => {
+    const ref = signal('secret');
+    const validate = matchField(ref);
+
+    expectType<string | true | undefined>(validate('secret'));
+
+    // @ts-expect-error matchField validator should require the same value type as ref
+    validate(123);
   });
 });

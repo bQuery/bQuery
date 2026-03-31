@@ -9,6 +9,8 @@ import { isPromise } from '../core/utils/type-guards';
 import { Computed } from '../reactive/computed';
 import { Signal } from '../reactive/core';
 import { computed, effect, signal } from '../reactive/index';
+import type { MaybeSignal } from '../reactive/index';
+import { isReadonlySignal } from '../reactive/readonly';
 import type {
   UseFormFieldOptions,
   UseFormFieldReturn,
@@ -40,7 +42,8 @@ const runValidator = async <T>(validator: Validator<T>, value: T): Promise<strin
  * or when you want to bind an existing signal to the forms validation model.
  *
  * @template T - The type of the field value
- * @param initialValue - Plain initial value or an existing writable signal to reuse
+ * @param initialValue - Plain initial value, an existing writable signal to reuse, or a
+ * computed / readonly reactive source to snapshot
  * @param options - Validation mode, validators, debounce, and initial error configuration
  * @returns A reactive field handle with validation helpers
  *
@@ -58,13 +61,15 @@ const runValidator = async <T>(validator: Validator<T>, value: T): Promise<strin
  * ```
  */
 export const useFormField = <T>(
-  initialValue: T | Signal<T>,
+  initialValue: MaybeSignal<T>,
   options: UseFormFieldOptions<T> = {}
 ): UseFormFieldReturn<T> => {
-  const startingValue = isComputedValue<T>(initialValue)
+  const startingValue = isReadonlySignal<T>(initialValue) || isComputedValue<T>(initialValue)
     ? initialValue.peek()
-    : (initialValue as T);
-  const value: Signal<T> = isSignal(initialValue) ? initialValue : signal(startingValue);
+    : initialValue;
+  const value: Signal<T> = isSignal(initialValue)
+    ? (initialValue as Signal<T>)
+    : signal(startingValue);
   const initial = value.peek();
   const error = signal(options.initialError ?? '');
   const isTouched = signal(false);
@@ -209,7 +214,7 @@ export const useFormField = <T>(
  * Determines whether a value looks like a writable signal.
  * @internal
  */
-const isSignal = <T>(value: T | Signal<T>): value is Signal<T> => {
+const isSignal = (value: unknown): value is Signal<unknown> => {
   return value instanceof Signal;
 };
 
