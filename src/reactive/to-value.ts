@@ -53,8 +53,15 @@ export type MaybeSignal<T> = T | Signal<T> | ReadonlySignal<T> | Computed<T>;
  * ```
  */
 export const toValue = <T>(source: MaybeSignal<T>): T => {
-  if (source instanceof Signal || source instanceof Computed || isReadonlySignal(source)) {
+  if (source instanceof Signal || source instanceof Computed) {
     return source.value;
   }
-  return source;
+
+  if (isReadonlySignal<T>(source)) {
+    return source.value;
+  }
+
+  // Remaining values are plain `T` inputs. Structural readonly-like objects that are not
+  // branded bQuery wrappers intentionally fall through and are returned unchanged.
+  return source as T;
 };

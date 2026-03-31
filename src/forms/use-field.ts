@@ -64,9 +64,10 @@ export const useFormField = <T>(
   initialValue: MaybeSignal<T>,
   options: UseFormFieldOptions<T> = {}
 ): UseFormFieldReturn<T> => {
-  const startingValue = isReadonlySignal<T>(initialValue) || isComputedValue<T>(initialValue)
-    ? initialValue.peek()
-    : initialValue;
+  const startingValue: T =
+    isReadonlySignal<T>(initialValue) || isComputedValue<T>(initialValue)
+      ? initialValue.peek()
+      : (initialValue as T);
   const value: Signal<T> = isSignal(initialValue)
     ? (initialValue as Signal<T>)
     : signal(startingValue);

@@ -6,6 +6,11 @@ import type { Signal } from './core';
 
 const READONLY_SIGNAL_BRAND = Symbol('bquery.readonlySignal');
 
+/** @internal */
+type BrandedReadonlySignal<T> = ReadonlySignal<T> & {
+  readonly [READONLY_SIGNAL_BRAND]: true;
+};
+
 /**
  * A readonly wrapper around a signal that prevents writes.
  * Provides read-only access to a signal's value while maintaining reactivity.
@@ -24,7 +29,7 @@ export interface ReadonlySignal<T> {
  *
  * @internal
  */
-export const isReadonlySignal = <T>(value: unknown): value is ReadonlySignal<T> => {
+export const isReadonlySignal = <T>(value: unknown): value is BrandedReadonlySignal<T> => {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -63,4 +68,4 @@ export const readonly = <T>(sig: Signal<T>): ReadonlySignal<T> =>
         writable: false,
       },
     }
-  ) as ReadonlySignal<T>;
+  ) as BrandedReadonlySignal<T>;

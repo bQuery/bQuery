@@ -9,6 +9,7 @@ import {
   useAsyncData,
   useFetch,
 } from '../src/reactive/signal';
+import { isReadonlySignal } from '../src/reactive/readonly';
 
 const asMockFetch = (
   handler: (...args: Parameters<typeof fetch>) => ReturnType<typeof fetch>
@@ -1391,6 +1392,14 @@ describe('toValue', () => {
     expect(toValue(ro)).toBe(7);
     s.value = 9;
     expect(toValue(ro)).toBe(9);
+  });
+
+  it('only narrows readonly wrappers created by readonly()', () => {
+    const wrapped = readonly(signal(1));
+    const computedValue = computed(() => 2);
+
+    expect(isReadonlySignal(wrapped)).toBe(true);
+    expect(isReadonlySignal(computedValue)).toBe(false);
   });
 
   it('does not unwrap unrelated objects that happen to have value and peek', () => {
