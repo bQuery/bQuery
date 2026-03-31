@@ -59,6 +59,25 @@ Form methods:
 - `handleSubmit()`
 - `reset()`
 - `getValues()`
+- `setValues(values)` – bulk-set field values from a partial object
+- `setErrors(errors)` – bulk-set field error messages (e.g. from server responses)
+
+## Bulk-setting values and errors
+
+Use `setValues()` to programmatically update multiple fields at once,
+and `setErrors()` to apply server-side validation errors:
+
+```ts
+// Pre-fill from an API response
+const userData = await fetch('/api/user/1').then((r) => r.json());
+form.setValues({ name: userData.name, email: userData.email });
+
+// Apply server-side validation errors
+const result = await submitToServer(form.getValues());
+if (result.errors) {
+  form.setErrors(result.errors); // { name: 'Already taken', email: 'Invalid' }
+}
+```
 
 ## Cross-field validation
 
@@ -109,7 +128,35 @@ const usernameForm = createForm({
 - `pattern(regex)`
 - `email()`
 - `url()`
+- `matchField(ref)` – compare field value to a reference signal (e.g. password confirmation)
 - `custom(fn)`
 - `customAsync(fn)`
+
+## matchField validator
+
+The `matchField()` validator compares a field's value against a reference signal.
+This is the recommended approach for "confirm password" and similar patterns:
+
+```ts
+import { createForm, required, matchField } from '@bquery/bquery/forms';
+import { signal } from '@bquery/bquery/reactive';
+
+const form = createForm({
+  fields: {
+    password: { initialValue: '', validators: [required()] },
+    confirmPassword: {
+      initialValue: '',
+      validators: [
+        required(),
+        matchField(form.fields.password.value, 'Passwords must match'),
+      ],
+    },
+  },
+});
+```
+
+::: tip
+`matchField()` accepts any object with a `.value` property, so it works with both signals and plain `{ value: T }` objects.
+:::
 
 Use forms when you want signal-based state without wiring every input manually.

@@ -132,8 +132,10 @@ $('#el').matches('.active');
 - `contents()`
 - `offsetParent()`
 - `position()`
-- `outerWidth(includeMargin?)`
-- `outerHeight(includeMargin?)`
+- `innerWidth()` – content + padding width (clientWidth)
+- `innerHeight()` – content + padding height (clientHeight)
+- `outerWidth(includeMargin?)` – border-box width, optionally with margins
+- `outerHeight(includeMargin?)` – border-box height, optionally with margins
 - `focus()` / `blur()`
 - `raw` (getter) / `node` (getter)
 
@@ -200,6 +202,22 @@ All mutating methods are chainable and apply to every element. Getter methods re
 - `toArray()`
 - `find(selector)` – query all descendant elements matching a selector across all collection elements (deduplicates shared descendants)
 
+### DOM traversal
+
+- `closest(selector)` – matching ancestors (deduplicated)
+- `parent()` – unique parent elements
+- `children()` – all child elements across the collection
+- `siblings()` – all siblings excluding collection elements
+- `next()` – next sibling of each element
+- `prev()` – previous sibling of each element
+
+```ts
+// Navigate the DOM from a collection
+$$('.item').parent().addClass('has-items');
+$$('.active').siblings().removeClass('active');
+$$('.current').next().addClass('upcoming');
+```
+
 ```ts
 // Find all .item descendants across multiple containers
 $$('.container').find('.item').addClass('highlight');
@@ -228,8 +246,10 @@ $$('.container').find('.item').addClass('highlight');
 - `contents()`
 - `offsetParent()`
 - `position()`
-- `outerWidth(includeMargin?)`
-- `outerHeight(includeMargin?)`
+- `innerWidth()` – content + padding width (first element)
+- `innerHeight()` – content + padding height (first element)
+- `outerWidth(includeMargin?)` – border-box width (first element)
+- `outerHeight(includeMargin?)` – border-box height (first element)
 - `css(property)` – getter: returns computed style value (first element)
 - `css(property, value)` – setter: sets a single CSS property
 - `css(properties)` – setter: sets an object of properties
