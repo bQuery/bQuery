@@ -861,6 +861,7 @@ describe('useResource', () => {
     });
 
     await resource.actions.fetch();
+    expect(resource.status.value).toBe('success');
     await resource.actions.remove();
 
     expect(resource.status.value).toBe('error');
@@ -1760,7 +1761,6 @@ describe('useResourceList', () => {
     ];
 
     await list.actions.remove(1);
-    await new Promise((r) => setTimeout(r, 20));
 
     expect(list.status.value).toBe('error');
     expect(list.data.value).toEqual([
