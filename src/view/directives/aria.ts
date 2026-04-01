@@ -6,12 +6,14 @@ const toKebabCase = (value: string): string => value.replace(/([A-Z])/g, '-$1').
 
 const normalizeAriaAttribute = (name: string): string => {
   const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
 
-  if (trimmed.startsWith('aria-')) {
-    return trimmed.toLowerCase();
+  if (lower.startsWith('aria-')) {
+    return lower;
   }
 
-  return `aria-${toKebabCase(trimmed.replace(/^aria/, ''))}`;
+  const withoutPrefix = /^aria[A-Z]/.test(trimmed) ? trimmed.slice(4) : trimmed;
+  return `aria-${toKebabCase(withoutPrefix).replace(/^-/, '')}`;
 };
 
 const shouldRemoveAttribute = (value: unknown): boolean => value == null || value === false || value === '';

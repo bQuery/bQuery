@@ -310,6 +310,16 @@ describe('View', () => {
       expect(div.getAttribute('aria-describedby')).toBe('hint-id');
     });
 
+    it('should normalize camelCase keys that start with aria', () => {
+      container.innerHTML = '<div bq-aria="{ ariaExpanded: isExpanded }"></div>';
+      const isExpanded = signal(true);
+
+      view = mount(container, { isExpanded });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-expanded')).toBe('true');
+    });
+
     it('should remove attributes for null, false, and empty string values', () => {
       container.innerHTML = '<button bq-aria="{ pressed: isPressed, controls: controlsId }"></button>';
       const isPressed = signal(true);
@@ -1004,8 +1014,11 @@ describe('View', () => {
 
   describe('custom prefix', () => {
     it('should support custom directive prefix', () => {
-      container.innerHTML =
-        '<p x-text="message"></p><span x-error="errorMessage"></span><button x-aria="{ expanded: expanded }"></button>';
+      container.innerHTML = `
+        <p x-text="message"></p>
+        <span x-error="errorMessage"></span>
+        <button x-aria="{ expanded: expanded }"></button>
+      `;
       const errorMessage = signal('Needs attention');
       const expanded = signal(true);
 
