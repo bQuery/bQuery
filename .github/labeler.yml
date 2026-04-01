@@ -1,86 +1,114 @@
 core:
-  - 'src/core/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/core/**'
 
 reactive:
-  - 'src/reactive/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/reactive/**'
 
 component:
-  - 'src/component/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/component/**'
 
 motion:
-  - 'src/motion/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/motion/**'
 
 platform:
-  - 'src/platform/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/platform/**'
 
 router:
-  - 'src/router/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/router/**'
 
 security:
-  - 'src/security/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/security/**'
 
 store:
-  - 'src/store/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/store/**'
 
 view:
-  - 'src/view/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/view/**'
 
 forms:
-  - 'src/forms/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/forms/**'
 
 i18n:
-  - 'src/i18n/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/i18n/**'
 
 a11y:
-  - 'src/a11y/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/a11y/**'
 
 dnd:
-  - 'src/dnd/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/dnd/**'
 
 media:
-  - 'src/media/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/media/**'
 
 plugin:
-  - 'src/plugin/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/plugin/**'
 
 devtools:
-  - 'src/devtools/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/devtools/**'
 
 testing:
-  - 'src/testing/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/testing/**'
 
 ssr:
-  - 'src/ssr/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/ssr/**'
 
 storybook:
-  - 'src/storybook/**'
+  - changed-files:
+      - any-glob-to-any-file: 'src/storybook/**'
 
 docs:
-  - 'docs/**'
-  - '*.md'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'docs/**'
+          - '*.md'
 
 tests:
-  - 'tests/**'
-  - '**/*.test.ts'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'tests/**'
+          - '**/*.test.ts'
 
 build:
-  - 'package.json'
-  - 'bun.lock'
-  - 'bunfig.toml'
-  - 'vite*.ts'
-  - 'tsconfig*.json'
-  - 'eslint.config.js'
-  - 'typedoc.json'
-  - '.prettier*'
-  - '.npmignore'
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'package.json'
+          - 'bun.lock'
+          - 'bunfig.toml'
+          - 'vite*.ts'
+          - 'tsconfig*.json'
+          - 'eslint.config.js'
+          - 'typedoc.json'
+          - '.prettier*'
+          - '.npmignore'
 
 ci/cd:
-  - '.github/workflows/**'
+  - changed-files:
+      - any-glob-to-any-file: '.github/workflows/**'
 
 github:
-  - '.github/ISSUE_TEMPLATE/**'
-  - '.github/FUNDING.yml'
-  - '.github/copilot-instructions.md'
-  - '.clinerules'
-  - '.cursorrules'
-  - 'llms.txt'
+  - changed-files:
+      - any-glob-to-any-file:
+          - '.github/ISSUE_TEMPLATE/**'
+          - '.github/FUNDING.yml'
+          - '.github/copilot-instructions.md'
+          - '.clinerules'
+          - '.cursorrules'
+          - 'llms.txt'
