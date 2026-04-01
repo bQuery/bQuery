@@ -609,11 +609,11 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
                 if (result && typeof result === 'object' && 'data' in result) {
                   return result as HttpResponse<T>;
                 }
-                if (result !== undefined) {
+                if (result != null) {
                   finalError = result;
                 }
               } catch (innerErr) {
-                if (innerErr !== undefined && innerErr !== null) {
+                if (innerErr != null) {
                   finalError = innerErr;
                 }
               }

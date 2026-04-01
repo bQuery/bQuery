@@ -711,7 +711,7 @@ ws.dispose();
 | `heartbeat`      | `boolean \| WebSocketHeartbeatConfig` | `false`        | Keep-alive ping/pong                       |
 | `historySize`    | `number`                              | `0` (disabled) | Max messages to keep in history            |
 | `serialize`      | `(data) => string \| ...`             | `JSON.stringify`| Outgoing message serializer               |
-| `deserialize`    | `(event) => TReceive`                 | `JSON.parse` (fallback to raw string on error) | Incoming message deserializer |
+| `deserialize`    | `(event) => TReceive`                 | `JSON.parse` (fallback to raw string on JSON parse failure) | Incoming message deserializer |
 
 ### Reconnect config
 
