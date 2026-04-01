@@ -1036,9 +1036,9 @@ describe('forms/createForm', () => {
       });
       const errors = Object.create(null) as Record<string, string>;
       errors.name = 'Required';
-      errors.__proto__ = 'ignored' as unknown as string;
-      errors.constructor = 'ignored' as unknown as string;
-      errors.prototype = 'ignored' as unknown as string;
+      (errors as any)['__proto__'] = 'ignored';
+      (errors as any)['constructor'] = 'ignored';
+      (errors as any)['prototype'] = 'ignored';
 
       expect(() => form.setErrors(errors)).not.toThrow();
       expect(form.fields.name.error.value).toBe('Required');
