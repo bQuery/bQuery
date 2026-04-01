@@ -711,9 +711,11 @@ ws.dispose();
 | `heartbeat`      | `boolean \| WebSocketHeartbeatConfig` | `false`        | Keep-alive ping/pong                       |
 | `historySize`    | `number`                              | `0` (disabled) | Max messages to keep in history            |
 | `serialize`      | `(data) => string \| ...`             | `JSON.stringify`| Outgoing message serializer               |
-| `deserialize`    | `(event) => TReceive`                 | `JSON.parse` (fallback to raw string on JSON parse failure) | Incoming message deserializer |
+| `deserialize`    | `(event) => TReceive`                 | `JSON.parse` with raw-string fallback | Incoming message deserializer |
 
 ### Reconnect config
+
+If the built-in deserializer receives a string that fails JSON parsing, it returns the original raw string instead of throwing.
 
 | Field              | Type                                     | Default    |
 | ------------------ | ---------------------------------------- | ---------- |
