@@ -126,7 +126,7 @@ export const useResource = <T = unknown>(
     return resolved instanceof URL ? resolved.toString() : resolved;
   };
 
-  const stripGetOnlyOptions = <TResult,>(): Omit<
+  const stripGetLifecycleOptions = <TResult,>(): Omit<
     UseFetchOptions<TResult>,
     'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
   > => {
@@ -154,16 +154,16 @@ export const useResource = <T = unknown>(
     const previousData = fetchState.data.peek();
 
     // Optimistic update
-      if (optimistic && optimisticData !== undefined) {
-        fetchState.data.value = optimisticData;
-      }
+    if (optimistic && optimisticData !== undefined) {
+      fetchState.data.value = optimisticData;
+    }
 
     mutating.value = true;
     fetchState.error.value = null;
 
     try {
       const mutationState = useFetch<T>(resolveUrl(), {
-        ...stripGetOnlyOptions<T>(),
+        ...stripGetLifecycleOptions<T>(),
         method,
         body: body ?? undefined,
         immediate: false,
