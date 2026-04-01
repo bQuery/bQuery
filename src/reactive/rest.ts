@@ -580,11 +580,13 @@ export const useResourceList = <T = unknown>(
     UseFetchOptions<TResult>,
     'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
   > => {
-    const { defaultValue, transform, onSuccess, onError, ...transportOpts } = fetchOptions;
-    void defaultValue;
-    void transform;
-    void onSuccess;
-    void onError;
+    const {
+      defaultValue: _defaultValue,
+      transform: _transform,
+      onSuccess: _onSuccess,
+      onError: _onError,
+      ...transportOpts
+    } = fetchOptions;
     return transportOpts as Omit<
       UseFetchOptions<TResult>,
       'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
@@ -676,6 +678,7 @@ export const useResourceList = <T = unknown>(
         const current = fetchState.data.peek() ?? [];
         if (optimistic) {
           const next = [...current];
+          // Replace the optimistic placeholder when it is still present; otherwise append.
           if (optimisticInsertionIndex < next.length) {
             next[optimisticInsertionIndex] = result;
           } else {
