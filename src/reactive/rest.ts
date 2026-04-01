@@ -576,6 +576,21 @@ export const useResourceList = <T = unknown>(
     return base;
   };
 
+  const toMutationFetchOptions = <TResult,>(): Omit<
+    UseFetchOptions<TResult>,
+    'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
+  > => {
+    const { defaultValue, transform, onSuccess, onError, ...transportOpts } = fetchOptions;
+    void defaultValue;
+    void transform;
+    void onSuccess;
+    void onError;
+    return transportOpts as Omit<
+      UseFetchOptions<TResult>,
+      'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
+    >;
+  };
+
   const runMutation = async <TResult>(
     action: string,
     method: string,
@@ -593,16 +608,8 @@ export const useResourceList = <T = unknown>(
 
     try {
       const mutationUrl = `${baseUrl()}${urlSuffix}`;
-      // Only forward transport-level options, not list-typed async-data defaults/callbacks
-      const {
-        defaultValue: _defaultValue,
-        transform: _transform,
-        onSuccess: _onSuccess,
-        onError: _onError,
-        ...transportOpts
-      } = fetchOptions;
       const mutationState = useFetch<TResult>(mutationUrl, {
-        ...(transportOpts as Omit<UseFetchOptions<TResult>, 'method' | 'body'>),
+        ...toMutationFetchOptions<TResult>(),
         method,
         body: body ?? undefined,
         immediate: false,
