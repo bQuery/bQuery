@@ -418,17 +418,27 @@ const sleepWithSignal = (ms: number, abortSignal?: AbortSignal): Promise<void> =
       reject(abortSignal.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
       return;
     }
-    const timer = setTimeout(resolve, ms);
-    abortSignal?.addEventListener(
-      'abort',
-      () => {
-        clearTimeout(timer);
-        reject(
-          abortSignal.reason ?? new DOMException('The operation was aborted.', 'AbortError')
-        );
-      },
-      { once: true }
-    );
+    let cleanedUp = false;
+    let timer: ReturnType<typeof setTimeout>;
+
+    const onAbort = (): void => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      clearTimeout(timer);
+      abortSignal?.removeEventListener('abort', onAbort);
+      reject(
+        abortSignal?.reason ?? new DOMException('The operation was aborted.', 'AbortError')
+      );
+    };
+
+    timer = setTimeout(() => {
+      if (cleanedUp) return;
+      cleanedUp = true;
+      abortSignal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+
+    abortSignal?.addEventListener('abort', onAbort, { once: true });
   });
 
 /**
@@ -486,7 +496,7 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       appendQuery(requestUrl, options.query);
     }
 
-    const headers = toHeaders(
+    const baseHeaders = toHeaders(
       fetchConfig?.headers,
       requestInput instanceof Request ? requestInput.headers : undefined,
       options.headers
@@ -499,22 +509,22 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       throw new Error(`Cannot send a request body with ${bodylessMethod} requests`);
     }
     const requestInitMethod = resolveRequestInitMethod(explicitMethod, requestInput, method);
+    const retryConfig = normalizeRetryConfig(options.retry);
+    const maxAttempts = (retryConfig?.count ?? 0) + 1;
 
     // Abort controller: compose timeout + external signal + manual abort
     const abortController = new AbortController();
     currentAbortController = abortController;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     let didTimeout = false;
+    let externalAbortHandler: (() => void) | undefined;
 
     if (options.signal) {
       if (options.signal.aborted) {
         abortController.abort(options.signal.reason);
       } else {
-        options.signal.addEventListener(
-          'abort',
-          () => abortController.abort(options.signal!.reason),
-          { once: true }
-        );
+        externalAbortHandler = () => abortController.abort(options.signal?.reason);
+        options.signal.addEventListener('abort', externalAbortHandler, { once: true });
       }
     }
 
@@ -525,27 +535,25 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       }, options.timeout);
     }
 
-    const requestInit: RequestInit = {
+    const baseRequestInit: Omit<RequestInit, 'body' | 'signal'> = {
       ...options,
       method: requestInitMethod,
-      headers,
-      body: serializeBody(options.body, headers),
-      signal: abortController.signal,
+      headers: baseHeaders,
     };
 
-    delete (requestInit as Partial<UseFetchOptions>).baseUrl;
-    delete (requestInit as Partial<UseFetchOptions>).query;
-    delete (requestInit as Partial<UseFetchOptions>).parseAs;
-    delete (requestInit as Partial<UseFetchOptions>).fetcher;
-    delete (requestInit as Partial<UseFetchOptions>).defaultValue;
-    delete (requestInit as Partial<UseFetchOptions>).immediate;
-    delete (requestInit as Partial<UseFetchOptions>).watch;
-    delete (requestInit as Partial<UseFetchOptions>).transform;
-    delete (requestInit as Partial<UseFetchOptions>).onSuccess;
-    delete (requestInit as Partial<UseFetchOptions>).onError;
-    delete (requestInit as Partial<UseFetchOptions>).timeout;
-    delete (requestInit as Partial<UseFetchOptions>).retry;
-    delete (requestInit as Partial<UseFetchOptions>).validateStatus;
+    delete (baseRequestInit as Partial<UseFetchOptions>).baseUrl;
+    delete (baseRequestInit as Partial<UseFetchOptions>).query;
+    delete (baseRequestInit as Partial<UseFetchOptions>).parseAs;
+    delete (baseRequestInit as Partial<UseFetchOptions>).fetcher;
+    delete (baseRequestInit as Partial<UseFetchOptions>).defaultValue;
+    delete (baseRequestInit as Partial<UseFetchOptions>).immediate;
+    delete (baseRequestInit as Partial<UseFetchOptions>).watch;
+    delete (baseRequestInit as Partial<UseFetchOptions>).transform;
+    delete (baseRequestInit as Partial<UseFetchOptions>).onSuccess;
+    delete (baseRequestInit as Partial<UseFetchOptions>).onError;
+    delete (baseRequestInit as Partial<UseFetchOptions>).timeout;
+    delete (baseRequestInit as Partial<UseFetchOptions>).retry;
+    delete (baseRequestInit as Partial<UseFetchOptions>).validateStatus;
 
     let requestTarget: Request | string | URL = requestUrl ?? requestInput;
     if (
@@ -556,14 +564,25 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       requestTarget = new Request(requestUrl.toString(), toRequestInit(requestInput));
     }
 
-    const retryConfig = normalizeRetryConfig(options.retry);
-    const maxAttempts = (retryConfig?.count ?? 0) + 1;
+    const createAttemptRequestInit = (): RequestInit => {
+      const headers = new Headers(baseHeaders);
+      return {
+        ...baseRequestInit,
+        headers,
+        body: serializeBody(options.body, headers),
+        signal: abortController.signal,
+      };
+    };
+
+    if (maxAttempts > 1 && options.body instanceof ReadableStream) {
+      throw new Error('Cannot retry requests with ReadableStream bodies');
+    }
     let lastError: Error | undefined;
 
     try {
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
-          const response = await fetcher(requestTarget, requestInit);
+          const response = await fetcher(requestTarget, createAttemptRequestInit());
 
           if (!validateStatus(response.status)) {
             throw Object.assign(new Error(`Request failed with status ${response.status}`), {
@@ -610,6 +629,9 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       throw lastError!;
     } finally {
       if (timeoutId !== undefined) clearTimeout(timeoutId);
+      if (options.signal && externalAbortHandler) {
+        options.signal.removeEventListener('abort', externalAbortHandler);
+      }
       if (currentAbortController === abortController) {
         currentAbortController = null;
       }

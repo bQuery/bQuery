@@ -93,7 +93,7 @@ export const usePolling = <TResponse = unknown, TData = TResponse>(
   // Create the underlying useFetch with immediate control
   const fetchState = useFetch<TResponse, TData>(input, {
     ...fetchOptions,
-    immediate,
+    immediate: immediate && enabledGetter(),
   });
 
   let intervalId: ReturnType<typeof setInterval> | undefined;

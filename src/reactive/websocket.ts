@@ -100,9 +100,19 @@ export interface UseWebSocketReturn<TSend = unknown, TReceive = unknown> {
   latency: Signal<number>;
   /** Timestamp of the last unexpected disconnection, or 0 if never disconnected. */
   lastDisconnectedAt: Signal<number>;
-  /** Send a message. Queues while the connection is not yet open when `immediate` is true. */
+  /**
+   * Send a message.
+   *
+   * If the socket is not `OPEN`, the message is queued and sent once a
+   * connection is (re)established, subject to the configured options.
+   */
   send: (data: TSend) => void;
-  /** Send raw data without serialization. */
+  /**
+   * Send raw data without serialization.
+   *
+   * Uses the same queuing behavior as {@link send}: data is queued when the
+   * socket is not `OPEN` and flushed once a connection is (re)established.
+   */
   sendRaw: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void;
   /** Manually open / reconnect the WebSocket. */
   open: () => void;
@@ -745,6 +755,7 @@ export const useEventSource = <TData = unknown>(
 
   const open = (): void => {
     if (disposed) return;
+    cancelReconnect();
 
     if (es) {
       es.close();

@@ -226,16 +226,18 @@ const sleep = (ms: number, signal?: AbortSignal): Promise<void> =>
       reject(signal.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
       return;
     }
-    const timer = setTimeout(resolve, ms);
+    let timer: ReturnType<typeof setTimeout>;
+    const onAbort = (): void => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', onAbort);
+      reject(signal?.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
+    };
+    timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
     if (signal) {
-      signal.addEventListener(
-        'abort',
-        () => {
-          clearTimeout(timer);
-          reject(signal.reason ?? new DOMException('The operation was aborted.', 'AbortError'));
-        },
-        { once: true }
-      );
+      signal.addEventListener('abort', onAbort, { once: true });
     }
   });
 
@@ -410,17 +412,15 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
   // Abort / timeout
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   let mergedSignal: AbortSignal | undefined = config.signal;
+  let externalAbortHandler: (() => void) | undefined;
 
   if (config.timeout && config.timeout > 0) {
     const controller = new AbortController();
 
     if (config.signal) {
       // Compose: abort when *either* the external signal or the timeout fires
-      config.signal.addEventListener(
-        'abort',
-        () => controller.abort(config.signal!.reason),
-        { once: true }
-      );
+      externalAbortHandler = () => controller.abort(config.signal?.reason);
+      config.signal.addEventListener('abort', externalAbortHandler, { once: true });
     }
 
     timeoutId = setTimeout(() => {
@@ -487,6 +487,9 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
     );
   } finally {
     if (timeoutId !== undefined) clearTimeout(timeoutId);
+    if (config.signal && externalAbortHandler) {
+      config.signal.removeEventListener('abort', externalAbortHandler);
+    }
   }
 };
 
@@ -756,8 +759,8 @@ export function createRequestQueue(options: RequestQueueOptions = {}): RequestQu
     while (running < concurrency && queue.length > 0) {
       const entry = queue.shift()!;
       running++;
-      entry
-        .execute()
+      Promise.resolve()
+        .then(entry.execute)
         .then(entry.resolve, entry.reject)
         .finally(() => {
           running--;

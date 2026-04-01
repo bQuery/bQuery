@@ -704,6 +704,48 @@ describe('useEventSource', () => {
 
     sse.dispose();
   });
+
+  it('cancels a pending reconnect when reopened manually', async () => {
+    let connectCount = 0;
+    const originalEventSourceCtor = (globalThis as unknown as {
+      EventSource?: typeof EventSource;
+    }).EventSource;
+
+    (globalThis as unknown as { EventSource: unknown }).EventSource = class extends MockEventSource {
+      constructor(url: string, init?: EventSourceInit) {
+        super(url, init);
+        connectCount++;
+      }
+    };
+
+    try {
+      const sse = useEventSource('/api/events', {
+        autoReconnect: { delay: 40, maxAttempts: 3 },
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(connectCount).toBe(1);
+
+      lastMockES!._simulateError();
+      await new Promise((r) => setTimeout(r, 10));
+
+      sse.open();
+      await new Promise((r) => setTimeout(r, 10));
+      expect(connectCount).toBe(2);
+
+      await new Promise((r) => setTimeout(r, 60));
+      expect(connectCount).toBe(2);
+
+      sse.dispose();
+    } finally {
+      if (originalEventSourceCtor !== undefined) {
+        (globalThis as unknown as { EventSource: typeof EventSource }).EventSource =
+          originalEventSourceCtor;
+      } else {
+        delete (globalThis as unknown as { EventSource?: unknown }).EventSource;
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1943,6 +1985,23 @@ describe('createRequestQueue', () => {
     expect(() => createRequestQueue({ concurrency: 1.5 })).toThrow(
       'Request queue concurrency must be a positive integer'
     );
+  });
+
+  it('rejects queued tasks that throw synchronously', async () => {
+    const queue = createRequestQueue({ concurrency: 1 });
+
+    await expect(
+      queue.add(() => {
+        throw new Error('sync boom');
+      })
+    ).rejects.toThrow('sync boom');
+
+    const result = await queue.add(
+      async () =>
+        ({ data: 1, status: 200, statusText: 'OK', headers: new Headers(), config: {} }) as HttpResponse<number>
+    );
+
+    expect(result.data).toBe(1);
   });
 });
 

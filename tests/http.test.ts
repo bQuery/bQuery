@@ -682,6 +682,33 @@ describe('useFetch retry', () => {
     expect(state.status.value).toBe('error');
     expect(attempts).toBe(2);
   });
+
+  it('does not retry ReadableStream request bodies', async () => {
+    let attempts = 0;
+    const body = new ReadableStream({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('payload'));
+        controller.close();
+      },
+    });
+
+    const state = useFetch('/api/stream', {
+      immediate: false,
+      method: 'POST',
+      body,
+      retry: { count: 1, delay: 10 },
+      fetcher: asMockFetch(async () => {
+        attempts++;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }),
+    });
+
+    await state.execute();
+
+    expect(attempts).toBe(0);
+    expect(state.status.value).toBe('error');
+    expect(state.error.value?.message).toContain('ReadableStream');
+  });
 });
 
 describe('useFetch abort', () => {
@@ -866,6 +893,28 @@ describe('usePolling', () => {
     expect(fetchCount).toBe(0);
     expect(state.isActive.value).toBe(false);
 
+    state.dispose();
+  });
+
+  it('does not perform the initial fetch when immediate is true but enabled is false', async () => {
+    let fetchCount = 0;
+
+    const state = usePolling<{ ok: boolean }>('/api/data', {
+      interval: 30,
+      enabled: false,
+      immediate: true,
+      pauseOnHidden: false,
+      pauseOnOffline: false,
+      fetcher: asMockFetch(async () => {
+        fetchCount++;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(fetchCount).toBe(0);
+    expect(state.status.value).toBe('idle');
     state.dispose();
   });
 
