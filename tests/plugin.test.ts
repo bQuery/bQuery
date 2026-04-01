@@ -12,6 +12,7 @@ import {
   resetPlugins,
   use,
 } from '../src/plugin/index';
+import { registerCustomDirectiveResolver } from '../src/view/custom-directives';
 import {
   createForHandler,
   handleBind,
@@ -528,6 +529,28 @@ describe('Plugin System', () => {
   // ==========================================================================
 
   describe('view integration', () => {
+    it('should reattach the custom directive resolver when it was cleared before plugin use', () => {
+      const calls: string[] = [];
+
+      registerCustomDirectiveResolver(null);
+
+      use({
+        name: 'resolver-reattach-plugin',
+        install(ctx) {
+          ctx.directive('reattach', (_el, expression) => {
+            calls.push(expression);
+          });
+        },
+      });
+
+      const el = document.createElement('div');
+      el.setAttribute('bq-reattach', 'works');
+
+      processElement(el, {}, 'bq', [], createDirectiveHandlers());
+
+      expect(calls).toEqual(['works']);
+    });
+
     it('should invoke custom directive handler when processing DOM elements', () => {
       const calls: Array<{ el: Element; expr: string }> = [];
 

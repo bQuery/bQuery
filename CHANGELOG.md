@@ -8,6 +8,8 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.8.1\] - 2026-04-01](#181---2026-04-01)
+    - [Fixed (1.8.1)](#fixed-181)
   - [\[1.8.0\] - 2026-04-01](#180---2026-04-01)
     - [Added (1.8.0)](#added-180)
     - [Changed (1.8.0)](#changed-180)
@@ -52,6 +54,12 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.8.1] - 2026-04-01
+
+### Fixed (1.8.1)
+
+- **Plugin / View**: Custom directives registered through `@bquery/bquery/plugin` now reattach their view-side resolver when plugins are installed or reset, so plugin-provided `bq-*` directives continue to run reliably after resolver teardown in isolated test runs and other reinitialized environments.
 
 ## [1.8.0] - 2026-04-01
 

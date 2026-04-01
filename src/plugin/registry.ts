@@ -31,7 +31,19 @@ type PendingComponentRegistration = {
   options?: ElementDefinitionOptions;
 };
 
-registerCustomDirectiveResolver((name) => customDirectives.get(name));
+/**
+ * Ensure the view pipeline resolves plugin directives against the current registry.
+ *
+ * This is intentionally idempotent so tests or internal modules can temporarily
+ * clear the resolver without leaving plugin/view integration in a broken state.
+ *
+ * @internal
+ */
+const attachCustomDirectiveResolver = (): void => {
+  registerCustomDirectiveResolver((name) => customDirectives.get(name));
+};
+
+attachCustomDirectiveResolver();
 
 /**
  * Restore the directive registry to a previously captured snapshot.
@@ -147,6 +159,8 @@ export const use = <TOptions = unknown>(
   plugin: BQueryPlugin<TOptions>,
   options?: TOptions
 ): void => {
+  attachCustomDirectiveResolver();
+
   if (!plugin || typeof plugin !== 'object') {
     throw new Error('bQuery plugin: use() expects a plugin object with { name, install }');
   }
@@ -266,4 +280,5 @@ export const getCustomDirectives = (): readonly CustomDirective[] =>
 export const resetPlugins = (): void => {
   installedPlugins.clear();
   customDirectives.clear();
+  attachCustomDirectiveResolver();
 };
