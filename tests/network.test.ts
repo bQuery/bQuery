@@ -1240,6 +1240,9 @@ describe('useWebSocket — new extensions', () => {
     expect(ws.reconnectAttempts.value).toBe(0);
 
     lastMockWS!._simulateClose(1006, 'server restart again');
+    await new Promise((r) => setTimeout(r, 30));
+    expect(ws.reconnectAttempts.value).toBeGreaterThan(0);
+    (lastMockWS as ControlledReconnectWebSocket | null)?.openNow();
     await new Promise((r) => setTimeout(r, 10));
     expect(ws.reconnectAttempts.value).toBe(0);
 
