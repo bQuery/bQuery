@@ -581,6 +581,15 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
     ) {
       throw new Error('Cannot retry requests with ReadableStream bodies');
     }
+
+    if (
+      maxAttempts > 1 &&
+      typeof Request !== 'undefined' &&
+      requestTarget instanceof Request &&
+      requestTarget.body !== null
+    ) {
+      throw new Error('Cannot retry requests with non-replayable Request bodies');
+    }
     let lastError: Error | undefined;
 
     try {

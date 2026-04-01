@@ -1724,6 +1724,75 @@ describe('useResourceList', () => {
     list.dispose();
   });
 
+  it('reconciles optimistic update with the server response', async () => {
+    const list = useResourceList<{ id: number; name: string; updatedAt?: string }>(
+      'http://api.test/items',
+      {
+        immediate: false,
+        optimistic: true,
+        fetcher: asMockFetch(async (_input, init) => {
+          if (init?.method === 'PUT') {
+            return new Response(
+              JSON.stringify({ id: 1, name: 'Updated', updatedAt: 'server-time' }),
+              { status: 200 }
+            );
+          }
+          return new Response(JSON.stringify([]), { status: 200 });
+        }),
+      }
+    );
+
+    list.data.value = [
+      { id: 1, name: 'A' },
+      { id: 2, name: 'B' },
+    ];
+
+    await list.actions.update(1, { name: 'Updated' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(list.data.value?.[0]).toEqual({
+      id: 1,
+      name: 'Updated',
+      updatedAt: 'server-time',
+    });
+    expect(list.data.value?.[1]).toEqual({ id: 2, name: 'B' });
+    list.dispose();
+  });
+
+  it('reconciles optimistic patch with the server response', async () => {
+    const list = useResourceList<{ id: number; name: string; normalized?: boolean }>(
+      'http://api.test/items',
+      {
+        immediate: false,
+        optimistic: true,
+        fetcher: asMockFetch(async (_input, init) => {
+          if (init?.method === 'PATCH') {
+            return new Response(
+              JSON.stringify({ id: 2, name: 'Patched', normalized: true }),
+              { status: 200 }
+            );
+          }
+          return new Response(JSON.stringify([]), { status: 200 });
+        }),
+      }
+    );
+
+    list.data.value = [
+      { id: 1, name: 'A' },
+      { id: 2, name: 'B' },
+    ];
+
+    await list.actions.patch(2, { name: 'Patched' });
+    await new Promise((r) => setTimeout(r, 50));
+
+    expect(list.data.value?.[1]).toEqual({
+      id: 2,
+      name: 'Patched',
+      normalized: true,
+    });
+    list.dispose();
+  });
+
   it('supports optimistic add with rollback on error', async () => {
     const list = useResourceList<{ id: number; name: string }>('http://api.test/items', {
       immediate: false,

@@ -740,8 +740,7 @@ export const useResourceList = <T = unknown>(
           : undefined
       );
 
-      // If not optimistic, replace the item in the list with server response
-      if (!optimistic && result !== undefined && !disposed) {
+      if (result !== undefined && !disposed) {
         const current = fetchState.data.peek() ?? [];
         fetchState.data.value = current.map((item) =>
           getId(item) === id ? result : item
@@ -773,7 +772,7 @@ export const useResourceList = <T = unknown>(
           : undefined
       );
 
-      if (!optimistic && result !== undefined && !disposed) {
+      if (result !== undefined && !disposed) {
         const current = fetchState.data.peek() ?? [];
         fetchState.data.value = current.map((item) =>
           getId(item) === id ? result : item

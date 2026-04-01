@@ -740,6 +740,30 @@ describe('useFetch retry', () => {
       Object.assign(globalThis, { ReadableStream: originalReadableStream });
     }
   });
+
+  it('does not retry Request inputs with non-replayable bodies', async () => {
+    let attempts = 0;
+    const request = new Request('http://api.test/request-body', {
+      method: 'POST',
+      body: JSON.stringify({ ok: true }),
+      headers: { 'content-type': 'application/json' },
+    });
+
+    const state = useFetch(request, {
+      immediate: false,
+      retry: { count: 1, delay: 10 },
+      fetcher: asMockFetch(async () => {
+        attempts++;
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }),
+    });
+
+    await state.execute();
+
+    expect(attempts).toBe(0);
+    expect(state.status.value).toBe('error');
+    expect(state.error.value?.message).toContain('non-replayable Request bodies');
+  });
 });
 
 describe('useFetch abort', () => {
