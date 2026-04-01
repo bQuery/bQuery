@@ -332,9 +332,11 @@ export const useWebSocket = <TSend = string, TReceive = string>(
     }
 
     let index = 0;
-    while (index < sendQueue.length && ws.readyState === WebSocket.OPEN) {
+    for (; index < sendQueue.length; index++) {
+      if (ws.readyState !== WebSocket.OPEN) {
+        break;
+      }
       ws.send(sendQueue[index]);
-      index++;
     }
 
     if (index > 0) {

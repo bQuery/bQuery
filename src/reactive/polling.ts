@@ -76,7 +76,7 @@ export const usePolling = <TResponse = unknown, TData = TResponse>(
   } = options;
 
   if (!Number.isFinite(interval) || interval < 1) {
-    throw new Error('Polling interval must be a finite number greater than or equal to 1');
+    throw new Error('Polling interval must be a finite number of at least 1');
   }
 
   const manuallyPaused = signal(false);
