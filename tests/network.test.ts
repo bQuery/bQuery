@@ -1204,17 +1204,37 @@ describe('useWebSocket — new extensions', () => {
   });
 
   it('resets reconnect attempt counters after a successful auto-reconnect', async () => {
+    const originalWebSocket = (globalThis as unknown as { WebSocket: typeof MockWebSocket }).WebSocket;
+    class ControlledReconnectWebSocket extends MockWebSocket {
+      autoOpen = false;
+
+      override _simulateOpen(): void {
+        if (this.autoOpen) {
+          super._simulateOpen();
+        }
+      }
+
+      openNow(): void {
+        this.autoOpen = true;
+        super._simulateOpen();
+      }
+    }
+
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = ControlledReconnectWebSocket;
+
     const ws = useWebSocket('ws://localhost/test', {
       autoReconnect: { delay: 20, maxAttempts: 2 },
     });
 
     await new Promise((r) => setTimeout(r, 10));
+    (lastMockWS as ControlledReconnectWebSocket | null)?.openNow();
+    await new Promise((r) => setTimeout(r, 10));
     lastMockWS!._simulateClose(1006, 'server restart');
 
-    await new Promise((r) => setTimeout(r, 40));
-    if (lastMockWS!.readyState !== MockWebSocket.OPEN) {
-      lastMockWS!._simulateOpen();
-    }
+    await new Promise((r) => setTimeout(r, 30));
+    expect(ws.reconnectAttempts.value).toBeGreaterThan(0);
+
+    (lastMockWS as ControlledReconnectWebSocket | null)?.openNow();
     await new Promise((r) => setTimeout(r, 10));
 
     expect(ws.reconnectAttempts.value).toBe(0);
@@ -1224,6 +1244,7 @@ describe('useWebSocket — new extensions', () => {
     expect(ws.reconnectAttempts.value).toBe(0);
 
     ws.dispose();
+    (globalThis as unknown as { WebSocket: unknown }).WebSocket = originalWebSocket;
   });
 
   it('measures latency via heartbeat RTT', async () => {
@@ -1680,6 +1701,27 @@ describe('useResourceList', () => {
 
     expect(successCalls).toBe(0);
     expect(errorCalls).toBe(0);
+    list.dispose();
+  });
+
+  it('calls list-level fetch callbacks for actual list fetches', async () => {
+    let successCalls = 0;
+
+    const list = useResourceList<{ id: number; name: string }>('http://api.test/items', {
+      immediate: false,
+      onSuccess: () => {
+        successCalls++;
+      },
+      fetcher: asMockFetch(async () =>
+        new Response(JSON.stringify([{ id: 1, name: 'A' }]), { status: 200 })
+      ),
+    });
+
+    await list.refresh();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(successCalls).toBe(1);
+    expect(list.data.value).toEqual([{ id: 1, name: 'A' }]);
     list.dispose();
   });
 
