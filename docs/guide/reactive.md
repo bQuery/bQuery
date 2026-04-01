@@ -16,6 +16,21 @@ import {
   useAsyncData,
   useFetch,
   createUseFetch,
+  createHttp,
+  http,
+  HttpError,
+  usePolling,
+  usePaginatedFetch,
+  useInfiniteFetch,
+  useWebSocket,
+  useWebSocketChannel,
+  useEventSource,
+  useResource,
+  useResourceList,
+  useSubmit,
+  createRestClient,
+  createRequestQueue,
+  deduplicateRequest,
   untrack,
   isSignal,
   isComputed,
@@ -153,6 +168,7 @@ console.log(user.status.value, user.pending.value, user.data.value);
 - `status` – `'idle' | 'pending' | 'success' | 'error'`
 - `pending` – computed boolean for loading state
 - `execute()` / `refresh()` – trigger the async handler manually
+- `abort()` – cancel the current in-flight request (useFetch only)
 - `clear()` – reset data, error, and status
 - `dispose()` – stop watchers and future executions
 
@@ -191,6 +207,259 @@ const profile = useApiFetch<{ id: number; name: string }>('/profile');
 ```
 
 Factory defaults merge with per-call options, including request headers and query params.
+
+## Timeout, retry and abort
+
+`useFetch()` supports request timeouts, automatic retries, and request
+cancellation out of the box.
+
+```ts
+const data = useFetch('/api/data', {
+  timeout: 5000,
+  retry: 3,
+});
+
+// Or with full retry configuration
+const resilient = useFetch('/api/important', {
+  timeout: 10_000,
+  retry: {
+    count: 3,
+    delay: (attempt) => 1000 * 2 ** attempt,
+    retryOn: (error) => error.message.includes('500'),
+  },
+});
+
+// Abort an in-flight request
+data.abort();
+```
+
+External `AbortSignal` support:
+
+```ts
+const controller = new AbortController();
+const data = useFetch('/api/data', { signal: controller.signal });
+controller.abort(); // cancels the request
+```
+
+### `validateStatus`
+
+Override which HTTP status codes are considered successful:
+
+```ts
+const data = useFetch('/api/resource', {
+  validateStatus: (status) => status < 500,
+});
+```
+
+## Imperative HTTP client
+
+`createHttp()` returns an Axios-style imperative client with method
+shortcuts, interceptors, retry, timeout, and abort support.
+
+```ts
+import { createHttp, http } from '@bquery/bquery/reactive';
+
+// Use the default instance
+const { data } = await http.get<User[]>('/api/users');
+const { data: created } = await http.post('/api/users', { name: 'Ada' });
+
+// Or create a custom instance
+const api = createHttp({
+  baseUrl: 'https://api.example.com',
+  headers: { authorization: 'Bearer token' },
+  timeout: 10_000,
+});
+
+const { data: users } = await api.get<User[]>('/users');
+```
+
+### Method shortcuts
+
+```ts
+api.get<T>(url, config?)
+api.post<T>(url, body?, config?)
+api.put<T>(url, body?, config?)
+api.patch<T>(url, body?, config?)
+api.delete<T>(url, config?)
+api.head<T>(url, config?)
+api.options<T>(url, config?)
+api.request<T>(config)
+```
+
+### Interceptors
+
+```ts
+// Request interceptor
+api.interceptors.request.use((config) => {
+  config.headers = {
+    ...Object.fromEntries(new Headers(config.headers)),
+    'x-request-id': crypto.randomUUID(),
+  };
+  return config;
+});
+
+// Response interceptor
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error instanceof HttpError && error.response?.status === 401) {
+      // handle auth errors
+    }
+    throw error;
+  }
+);
+
+// Remove interceptor
+const id = api.interceptors.request.use((c) => c);
+api.interceptors.request.eject(id);
+api.interceptors.request.clear();
+```
+
+### Retry and timeout
+
+```ts
+const api = createHttp({
+  timeout: 5000,
+  retry: {
+    count: 3,
+    delay: 1000,
+    retryOn: (error, attempt) => error.code === 'TIMEOUT' || error.code === 'NETWORK',
+  },
+});
+```
+
+### HttpResponse
+
+Every imperative method returns a structured `HttpResponse<T>`:
+
+| Field        | Type               | Description                       |
+| ------------ | ------------------ | --------------------------------- |
+| `data`       | `T`                | Parsed response body              |
+| `status`     | `number`           | HTTP status code                  |
+| `statusText` | `string`           | HTTP status text                  |
+| `headers`    | `Headers`          | Response headers                  |
+| `config`     | `HttpRequestConfig` | Resolved request configuration   |
+
+### HttpError
+
+Failed requests throw `HttpError` with rich metadata:
+
+| Field      | Type               | Description                               |
+| ---------- | ------------------ | ----------------------------------------- |
+| `message`  | `string`           | Human-readable error message              |
+| `code`     | `string`           | `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`, `'ERR_BAD_RESPONSE'` |
+| `config`   | `HttpRequestConfig` | Resolved request config                  |
+| `response` | `HttpResponse?`    | Response if server replied                |
+
+## Polling
+
+`usePolling()` wraps `useFetch()` and executes it on a fixed interval with
+automatic pause/resume support.
+
+```ts
+import { usePolling } from '@bquery/bquery/reactive';
+
+const notifications = usePolling<Notification[]>('/api/notifications', {
+  interval: 30_000,
+  pauseOnHidden: true,
+  pauseOnOffline: true,
+});
+
+// Manual control
+notifications.pause();
+notifications.resume();
+console.log(notifications.isActive.value);
+
+// Cleanup
+notifications.dispose();
+```
+
+### Options
+
+All `useFetch()` options plus:
+
+| Option           | Type                | Default | Description                        |
+| ---------------- | ------------------- | ------- | ---------------------------------- |
+| `interval`       | `number`            | —       | Polling interval in milliseconds   |
+| `enabled`        | `boolean \| () => boolean` | `true` | Enable/disable polling    |
+| `pauseOnHidden`  | `boolean`           | `true`  | Pause when document is hidden      |
+| `pauseOnOffline` | `boolean`           | `true`  | Pause when browser is offline      |
+
+## Paginated fetch
+
+`usePaginatedFetch()` adds page navigation helpers on top of `useFetch()`.
+
+```ts
+import { usePaginatedFetch } from '@bquery/bquery/reactive';
+
+const users = usePaginatedFetch<User[]>(
+  (page) => `/api/users?page=${page}`,
+  { baseUrl: 'https://api.example.com' }
+);
+
+await users.next();
+await users.prev();
+await users.goTo(5);
+console.log(users.page.value); // 5
+```
+
+### Returned state
+
+All `AsyncDataState` fields plus:
+
+| Field  | Type                      | Description                          |
+| ------ | ------------------------- | ------------------------------------ |
+| `page` | `Signal<number>`          | Current page (writable)              |
+| `next`  | `() => Promise`          | Advance to the next page             |
+| `prev`  | `() => Promise`          | Go back one page (minimum 1)        |
+| `goTo`  | `(page) => Promise`      | Jump to a specific page              |
+
+## Infinite fetch
+
+`useInfiniteFetch()` accumulates pages using a cursor pattern, ideal for
+infinite scroll or "load more" UIs.
+
+```ts
+import { useInfiniteFetch } from '@bquery/bquery/reactive';
+
+const feed = useInfiniteFetch<Post[], Post[]>(
+  (cursor) => `/api/posts?cursor=${cursor ?? ''}`,
+  {
+    getNextCursor: (page) =>
+      page.length > 0 ? page[page.length - 1].id : undefined,
+    transform: (pages) => pages.flat(),
+  }
+);
+
+await feed.fetchNextPage();
+console.log(feed.data.value);     // All accumulated posts
+console.log(feed.hasMore.value);  // true if more pages available
+
+// Reset and start over
+await feed.refresh();
+```
+
+### Options
+
+All `useFetch()` options (except `transform`) plus:
+
+| Option           | Type                                     | Description                             |
+| ---------------- | ---------------------------------------- | --------------------------------------- |
+| `getNextCursor`  | `(page, allPages) => cursor \| undefined` | Extract cursor for the next request    |
+| `transform`      | `(pages[]) => TData`                    | Transform accumulated pages             |
+| `initialCursor`  | `TCursor`                                | Starting cursor value                   |
+
+### Returned state
+
+| Field           | Type                                    | Description                            |
+| --------------- | --------------------------------------- | -------------------------------------- |
+| `data`          | `Signal<TData>`                         | Transformed accumulated data           |
+| `pages`         | `Signal<TResponse[]>`                   | Raw accumulated pages                  |
+| `hasMore`       | `computed boolean`                      | Whether more pages are available       |
+| `fetchNextPage` | `() => Promise`                         | Load the next page                     |
+| `refresh`       | `() => Promise`                         | Reset and re-fetch from initial cursor |
+| `clear`         | `() => void`                            | Clear all accumulated data             |
+| `dispose`       | `() => void`                            | Stop and clean up                      |
 
 ## Linked signals
 
@@ -395,4 +664,442 @@ function useTitle(title: MaybeSignal<string>) {
 useTitle('Hello');               // plain string
 useTitle(signal('Hello'));       // reactive signal
 useTitle(computed(() => 'Hi')); // computed value
+```
+
+## WebSocket
+
+`useWebSocket()` provides a reactive WebSocket connection with auto-reconnect,
+heartbeat, typed messaging, message history, and signal-based state.
+
+```ts
+import { useWebSocket } from '@bquery/bquery/reactive';
+
+const ws = useWebSocket<{ type: string; payload: unknown }>('wss://api.example.com/ws', {
+  autoReconnect: { maxAttempts: 5, delay: 2000 },
+  heartbeat: { interval: 30_000, pongTimeout: 10_000 },
+  historySize: 50,
+  onMessage: (data) => console.log('Received:', data),
+});
+
+// Send typed messages (serialized with JSON.stringify by default)
+ws.send({ type: 'subscribe', payload: { channel: 'updates' } });
+
+// Send raw data without serialization
+ws.sendRaw('raw text message');
+
+// Reactive state
+effect(() => {
+  console.log('Connected:', ws.isConnected.value);
+  console.log('Last message:', ws.data.value);
+  console.log('Status:', ws.status.value);
+  console.log('History:', ws.history.value);
+});
+
+// Manual control
+ws.close();
+ws.open();
+ws.dispose();
+```
+
+### Options
+
+| Option           | Type                                  | Default        | Description                                |
+| ---------------- | ------------------------------------- | -------------- | ------------------------------------------ |
+| `protocols`      | `string \| string[]`                  | —              | Sub-protocols for the handshake            |
+| `immediate`      | `boolean`                             | `true`         | Connect immediately                        |
+| `autoReconnect`  | `boolean \| WebSocketReconnectConfig` | `true`         | Auto-reconnect on unexpected close         |
+| `heartbeat`      | `boolean \| WebSocketHeartbeatConfig` | `false`        | Keep-alive ping/pong                       |
+| `historySize`    | `number`                              | `0` (disabled) | Max messages to keep in history            |
+| `serialize`      | `(data) => string \| ...`             | `JSON.stringify`| Outgoing message serializer               |
+| `deserialize`    | `(event) => TReceive`                 | `JSON.parse` with raw-string fallback | Incoming message deserializer |
+
+If the built-in deserializer receives a string that fails JSON parsing, it returns the original raw string instead of throwing.
+
+### Reconnect config
+
+| Field              | Type                                     | Default    |
+| ------------------ | ---------------------------------------- | ---------- |
+| `maxAttempts`      | `number`                                 | `Infinity` |
+| `delay`            | `number`                                 | `1000`     |
+| `maxDelay`         | `number`                                 | `30000`    |
+| `factor`           | `number`                                 | `2`        |
+| `shouldReconnect`  | `(event, attempts) => boolean`           | —          |
+
+### Heartbeat config
+
+| Field              | Type                          | Default  |
+| ------------------ | ----------------------------- | -------- |
+| `message`          | `string \| ArrayBuffer \| ...`| `'ping'` |
+| `interval`         | `number`                      | `30000`  |
+| `pongTimeout`      | `number`                      | `10000`  |
+| `responseMessage`  | `string`                      | —        |
+
+### Returned state
+
+| Field               | Type                         | Description                              |
+| ------------------- | ---------------------------- | ---------------------------------------- |
+| `status`            | `readonly Signal`            | `'CONNECTING' \| 'OPEN' \| 'CLOSING' \| 'CLOSED'` |
+| `data`              | `Signal<TReceive>`           | Last received message (deserialized)     |
+| `error`             | `Signal<Event \| null>`      | Last error event                         |
+| `history`           | `Signal<TReceive[]>`         | Rolling message history                  |
+| `isConnected`       | `computed boolean`           | Whether the socket is `OPEN`             |
+| `reconnectAttempts` | `Signal<number>`             | Current reconnect attempt count          |
+| `latency`           | `Signal<number>`             | Last measured round-trip time in ms      |
+| `lastDisconnectedAt`| `Signal<number>`             | Timestamp of the last unexpected disconnect |
+| `send`              | `(data: TSend) => void`      | Send a serialized message                |
+| `sendRaw`           | `(data) => void`             | Send raw data without serialization      |
+| `open`              | `() => void`                 | Open / reconnect manually                |
+| `close`             | `(code?, reason?) => void`   | Gracefully close                         |
+| `dispose`           | `() => void`                 | Tear down all resources                  |
+
+## Server-Sent Events (SSE)
+
+`useEventSource()` wraps the native `EventSource` API with reactive signals,
+auto-reconnect, and typed deserialization.
+
+```ts
+import { useEventSource } from '@bquery/bquery/reactive';
+
+const sse = useEventSource<{ type: string; message: string }>('/api/events', {
+  events: ['notification', 'update'],
+  autoReconnect: true,
+  onMessage: (data, event) => console.log(`[${event.type}]`, data),
+});
+
+effect(() => {
+  if (sse.data.value) {
+    console.log(`Event [${sse.eventName.value}]:`, sse.data.value);
+  }
+});
+
+sse.dispose();
+```
+
+### Options
+
+| Option            | Type                                  | Default        | Description                          |
+| ----------------- | ------------------------------------- | -------------- | ------------------------------------ |
+| `immediate`       | `boolean`                             | `true`         | Connect immediately                  |
+| `autoReconnect`   | `boolean \| EventSourceReconnectConfig` | `true`       | Auto-reconnect on error with configurable delay and attempt limits |
+| `events`          | `string[]`                            | `[]`           | Named events to listen for           |
+| `deserialize`     | `(data: string) => TData`            | `JSON.parse`   | Custom deserializer                  |
+| `eventSourceInit` | `EventSourceInit`                     | —              | Native EventSource init (e.g. `withCredentials`) |
+
+### Returned state
+
+| Field         | Type                    | Description                       |
+| ------------- | ----------------------- | --------------------------------- |
+| `status`      | `readonly Signal`       | Connection status                 |
+| `data`        | `Signal<TData>`         | Last received data                |
+| `eventName`   | `Signal<string>`        | Last event name                   |
+| `error`       | `Signal<Event \| null>` | Last error event                  |
+| `isConnected` | `computed boolean`      | Whether the EventSource is open   |
+| `open`        | `() => void`            | Open / reconnect                  |
+| `close`       | `() => void`            | Close the connection              |
+| `dispose`     | `() => void`            | Tear down all resources           |
+
+## REST resource composable
+
+`useResource()` provides a full CRUD lifecycle for a REST endpoint with
+reactive state, optimistic updates, and mutation tracking.
+
+```ts
+import { useResource } from '@bquery/bquery/reactive';
+
+const user = useResource<User>('/api/users/1', {
+  baseUrl: 'https://api.example.com',
+  optimistic: true,
+});
+
+// CRUD operations
+await user.actions.fetch();
+await user.actions.create({ name: 'Ada' });
+await user.actions.update({ name: 'Ada', email: 'ada@example.com' });
+await user.actions.patch({ email: 'new@example.com' });
+await user.actions.remove();
+
+// Reactive state
+effect(() => {
+  console.log('Data:', user.data.value);
+  console.log('Mutating:', user.isMutating.value);
+  console.log('Status:', user.status.value);
+});
+```
+
+### Options
+
+All `useFetch()` options (except `method` and `body`) plus:
+
+| Option              | Type                          | Default | Description                               |
+| ------------------- | ----------------------------- | ------- | ----------------------------------------- |
+| `optimistic`        | `boolean`                     | `false` | Apply updates optimistically with rollback |
+| `onMutationSuccess` | `(data, action) => void`      | —       | Called after successful mutations          |
+| `onMutationError`   | `(error, action) => void`     | —       | Called after failed mutations              |
+
+### Returned state
+
+| Field        | Type                      | Description                          |
+| ------------ | ------------------------- | ------------------------------------ |
+| `data`       | `Signal<T>`               | Resource data                        |
+| `error`      | `Signal<Error \| null>`   | Last error                           |
+| `status`     | `Signal<AsyncDataStatus>` | Lifecycle status                     |
+| `pending`    | `computed boolean`        | Whether the initial fetch is pending |
+| `isMutating` | `computed boolean`        | Whether any mutation is in progress  |
+| `actions`    | `ResourceActions<T>`      | CRUD methods (fetch/create/update/patch/remove) |
+| `refresh`    | `() => Promise`           | Re-fetch the resource                |
+| `clear`      | `() => void`              | Clear data and status                |
+| `dispose`    | `() => void`              | Stop all reactive state              |
+
+## Form submission
+
+`useSubmit()` provides a simple reactive wrapper for form submissions.
+
+```ts
+import { useSubmit } from '@bquery/bquery/reactive';
+
+const form = useSubmit<{ id: number }>('/api/users', {
+  baseUrl: 'https://api.example.com',
+  headers: { 'x-csrf': token },
+});
+
+const result = await form.submit({ name: 'Ada', email: 'ada@example.com' });
+console.log(form.status.value); // 'success'
+console.log(form.data.value);   // { id: 42 }
+
+form.clear(); // Reset state
+```
+
+### Returned state
+
+| Field     | Type                      | Description               |
+| --------- | ------------------------- | ------------------------- |
+| `data`    | `Signal<TResponse>`       | Last response data        |
+| `error`   | `Signal<Error \| null>`   | Last error                |
+| `status`  | `Signal<AsyncDataStatus>` | Current status            |
+| `pending` | `computed boolean`        | Whether submission is pending |
+| `submit`  | `(body) => Promise`       | Submit data               |
+| `clear`   | `() => void`              | Reset state               |
+
+## Imperative REST client
+
+`createRestClient()` creates a typed REST client for a specific API resource
+with conventional CRUD endpoints.
+
+```ts
+import { createRestClient } from '@bquery/bquery/reactive';
+
+interface User {
+  id: number;
+  name: string;
+  email: string;
+}
+
+const users = createRestClient<User>('https://api.example.com/users', {
+  headers: { authorization: '******' },
+  timeout: 10_000,
+});
+
+const { data: allUsers } = await users.list();
+const { data: user } = await users.get(1);
+const { data: created } = await users.create({ name: 'Ada' });
+await users.update(1, { name: 'Ada', email: 'ada@example.com' });
+await users.patch(1, { email: 'new@example.com' });
+await users.remove(1);
+
+// Access interceptors via the underlying http client
+users.http.interceptors.request.use((config) => {
+  config.headers = { ...Object.fromEntries(new Headers(config.headers)), 'x-request-id': crypto.randomUUID() };
+  return config;
+});
+```
+
+### Methods
+
+| Method     | HTTP    | URL Pattern      | Description         |
+| ---------- | ------- | ---------------- | ------------------- |
+| `list()`   | `GET`   | `{baseUrl}`      | Fetch all items     |
+| `get(id)`  | `GET`   | `{baseUrl}/{id}` | Fetch a single item |
+| `create(body)` | `POST` | `{baseUrl}`  | Create a new item   |
+| `update(id, body)` | `PUT` | `{baseUrl}/{id}` | Full replace |
+| `patch(id, body)` | `PATCH` | `{baseUrl}/{id}` | Partial update |
+| `remove(id)` | `DELETE` | `{baseUrl}/{id}` | Delete an item  |
+
+## WebSocket channels
+
+`useWebSocketChannel()` multiplexes a single WebSocket connection into
+topic-based channels. Incoming messages are routed to per-channel
+reactive signals based on a configurable channel extractor.
+
+```ts
+import { useWebSocketChannel } from '@bquery/bquery/reactive';
+
+const chat = useWebSocketChannel('wss://chat.example.com/ws');
+
+const general = chat.subscribe('general');
+const updates = chat.subscribe('updates');
+
+effect(() => console.log('General:', general.data.value));
+
+chat.publish('general', { text: 'Hello!' });
+
+// Unsubscribe from a channel
+updates.unsubscribe();
+
+// Access underlying WebSocket
+chat.ws.dispose();
+```
+
+### Channel options
+
+| Option        | Type                              | Default                     | Description                     |
+| ------------- | --------------------------------- | --------------------------- | ------------------------------- |
+| `getChannel`  | `(msg: TReceive) => string?`     | reads `msg.channel`         | Extract channel from message    |
+| `wrap`        | `(ch, data) => TReceive`         | `{ channel: ch, data }`    | Wrap payload for sending        |
+
+### Default message format
+
+```ts
+interface ChannelMessage<T = unknown> {
+  channel: string;
+  data: T;
+}
+```
+
+## WebSocket latency & reconnect events
+
+`useWebSocket()` now includes additional reactive signals and callbacks:
+
+```ts
+const ws = useWebSocket('wss://api.example.com/ws', {
+  heartbeat: { interval: 30_000, responseMessage: 'pong' },
+  onReconnect: (attempts) => console.log(`Reconnected after ${attempts} attempts`),
+});
+
+effect(() => {
+  console.log('Latency:', ws.latency.value, 'ms');
+  console.log('Last disconnect:', ws.lastDisconnectedAt.value);
+});
+```
+
+| Signal                | Type            | Description                                                    |
+| --------------------- | --------------- | -------------------------------------------------------------- |
+| `latency`             | `Signal<number>`| Round-trip time in ms measured from heartbeat ping/pong         |
+| `lastDisconnectedAt`  | `Signal<number>`| Timestamp of last unexpected disconnection (0 if never)        |
+
+| Callback     | Signature                      | Description                                  |
+| ------------ | ------------------------------ | -------------------------------------------- |
+| `onReconnect`| `(attempts: number) => void`   | Called after a successful auto-reconnection   |
+
+## Resource list composable
+
+`useResourceList()` provides collection-level CRUD with optimistic array mutations.
+
+```ts
+import { useResourceList } from '@bquery/bquery/reactive';
+
+interface Todo { id: number; title: string; done: boolean }
+
+const todos = useResourceList<Todo>('/api/todos', {
+  baseUrl: 'https://api.example.com',
+  optimistic: true,
+  getId: (t) => t.id,
+});
+
+await todos.actions.add({ title: 'Buy milk', done: false });
+await todos.actions.patch(1, { done: true });
+await todos.actions.remove(2);
+
+effect(() => console.log('Todos:', todos.data.value));
+```
+
+### Options
+
+All `useFetch()` options (except `method` and `body`) plus:
+
+| Option              | Type                             | Default           | Description                           |
+| ------------------- | -------------------------------- | ----------------- | ------------------------------------- |
+| `getId`             | `(item: T) => string \| number` | `item.id`         | Extract unique ID from each item      |
+| `optimistic`        | `boolean`                        | `false`           | Apply list mutations optimistically   |
+| `onMutationSuccess` | `(action: string) => void`       | —                 | Called after successful mutations      |
+| `onMutationError`   | `(error, action) => void`        | —                 | Called after failed mutations          |
+
+### Returned state
+
+| Field        | Type                       | Description                          |
+| ------------ | -------------------------- | ------------------------------------ |
+| `data`       | `Signal<T[]>`              | Reactive list data                   |
+| `error`      | `Signal<Error \| null>`    | Last error                           |
+| `status`     | `Signal<AsyncDataStatus>`  | Lifecycle status                     |
+| `pending`    | `computed boolean`         | Whether the list fetch is pending    |
+| `isMutating` | `computed boolean`         | Whether any mutation is in progress  |
+| `actions`    | `ResourceListActions<T>`   | CRUD methods (fetch/add/update/patch/remove) |
+| `refresh`    | `() => Promise`            | Re-fetch the list                    |
+| `clear`      | `() => void`               | Clear data and status                |
+| `dispose`    | `() => void`               | Stop all reactive state              |
+
+## Request deduplication
+
+`deduplicateRequest()` coalesces identical in-flight operations so that
+concurrent callers sharing the same key reuse a single promise.
+
+```ts
+import { deduplicateRequest, createHttp } from '@bquery/bquery/reactive';
+
+const api = createHttp({ baseUrl: 'https://api.example.com' });
+
+// Both calls share one in-flight operation
+const [a, b] = await Promise.all([
+  deduplicateRequest('/users', () => api.get('/users')),
+  deduplicateRequest('/users', () => api.get('/users')),
+]);
+```
+
+## Request queue
+
+`createRequestQueue()` limits the number of concurrent HTTP requests.
+
+```ts
+import { createRequestQueue, createHttp } from '@bquery/bquery/reactive';
+
+const api = createHttp({ baseUrl: 'https://api.example.com' });
+const queue = createRequestQueue({ concurrency: 3 });
+
+// At most 3 requests run in parallel
+const results = await Promise.all(
+  ids.map(id => queue.add(() => api.get(`/items/${id}`)))
+);
+```
+
+### Options
+
+| Option        | Type     | Default | Description                          |
+| ------------- | -------- | ------- | ------------------------------------ |
+| `concurrency` | `number` | `6`     | Maximum concurrent in-flight requests |
+
+### Returned API
+
+| Member    | Type                                          | Description                        |
+| --------- | --------------------------------------------- | ---------------------------------- |
+| `add`     | `(fn: () => Promise) => Promise`              | Enqueue a request                  |
+| `pending` | `number` (getter)                             | Currently running requests         |
+| `size`    | `number` (getter)                             | Requests waiting in queue          |
+| `clear`   | `() => void`                                  | Reject all pending (queued) items  |
+
+## onRetry callback
+
+The `RetryConfig` now accepts an optional `onRetry` callback invoked
+before each retry attempt:
+
+```ts
+import { createHttp } from '@bquery/bquery/reactive';
+
+const api = createHttp({
+  retry: {
+    count: 3,
+    delay: 1000,
+    onRetry: (error, attempt) => {
+      console.log(`Retry #${attempt}:`, error.message);
+    },
+  },
+});
 ```
