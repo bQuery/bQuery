@@ -185,12 +185,12 @@ export const useInfiniteFetch = <TResponse = unknown, TData = TResponse[], TCurs
     transform: transformPages,
     initialCursor,
     immediate = true,
-    onSuccess: infiniteOnSuccess,
-    onError: infiniteOnError,
+    // Keep these callbacks on the infinite-fetch layer instead of forwarding
+    // them into the inner per-page useFetch() instance.
+    onSuccess: _infiniteOnSuccess,
+    onError: _infiniteOnError,
     ...fetchOptions
   } = options;
-  void infiniteOnSuccess;
-  void infiniteOnError;
 
   const pages = signal<TResponse[]>([]);
   const data = signal<TData | undefined>(options.defaultValue);
