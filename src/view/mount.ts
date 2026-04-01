@@ -1,6 +1,7 @@
 import type { CleanupFn } from '../reactive/index';
 import {
   createForHandler,
+  handleAria,
   handleBind,
   handleClass,
   handleError,
@@ -82,6 +83,7 @@ export const mount = (
   const handlers: DirectiveHandlers = {
     text: handleText,
     error: handleError,
+    aria: handleAria,
     html: handleHtml(sanitize),
     if: handleIf,
     show: handleShow,

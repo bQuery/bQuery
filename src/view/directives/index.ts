@@ -1,3 +1,4 @@
+export { handleAria } from './aria';
 export { handleBind } from './bind';
 export { handleClass } from './class';
 export { handleError } from './error';

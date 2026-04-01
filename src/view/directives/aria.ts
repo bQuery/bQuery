@@ -1,0 +1,63 @@
+import { effect } from '../../reactive/index';
+import { evaluate, parseObjectExpression } from '../evaluate';
+import type { DirectiveHandler } from '../types';
+
+const toKebabCase = (value: string): string => value.replace(/([A-Z])/g, '-$1').toLowerCase();
+
+const normalizeAriaAttribute = (name: string): string => {
+  const trimmed = name.trim();
+
+  if (trimmed.startsWith('aria-')) {
+    return trimmed.toLowerCase();
+  }
+
+  return `aria-${toKebabCase(trimmed.replace(/^aria/, ''))}`;
+};
+
+const shouldRemoveAttribute = (value: unknown): boolean => value == null || value === false || value === '';
+
+/**
+ * Handles bq-aria directive - reactive ARIA attribute binding.
+ * @internal
+ */
+export const handleAria: DirectiveHandler = (el, expression, context, cleanups) => {
+  let appliedAttributes: Set<string> = new Set();
+
+  const cleanup = effect(() => {
+    const newAttributes = new Set<string>();
+    const ariaValues: Record<string, unknown> = {};
+
+    if (expression.trimStart().startsWith('{')) {
+      const ariaMap = parseObjectExpression(expression);
+      for (const [attrName, valueExpr] of Object.entries(ariaMap)) {
+        ariaValues[attrName] = evaluate(valueExpr, context);
+      }
+    } else {
+      const result = evaluate<Record<string, unknown>>(expression, context);
+      if (result && typeof result === 'object' && !Array.isArray(result)) {
+        Object.assign(ariaValues, result);
+      }
+    }
+
+    for (const [attrName, value] of Object.entries(ariaValues)) {
+      const normalizedName = normalizeAriaAttribute(attrName);
+      if (shouldRemoveAttribute(value)) {
+        el.removeAttribute(normalizedName);
+        continue;
+      }
+
+      el.setAttribute(normalizedName, value === true ? 'true' : String(value));
+      newAttributes.add(normalizedName);
+    }
+
+    for (const attrName of appliedAttributes) {
+      if (!newAttributes.has(attrName)) {
+        el.removeAttribute(attrName);
+      }
+    }
+
+    appliedAttributes = newAttributes;
+  });
+
+  cleanups.push(cleanup);
+};

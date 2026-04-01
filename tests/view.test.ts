@@ -257,6 +257,77 @@ describe('View', () => {
     });
   });
 
+  describe('bq-aria', () => {
+    it('should bind object syntax ARIA attributes reactively', () => {
+      container.innerHTML = '<button bq-aria="{ expanded: isOpen, label: buttonLabel }"></button>';
+      const isOpen = signal(false);
+      const buttonLabel = signal('Open menu');
+
+      view = mount(container, { isOpen, buttonLabel });
+
+      const button = container.querySelector('button')!;
+      expect(button.hasAttribute('aria-expanded')).toBe(false);
+      expect(button.getAttribute('aria-label')).toBe('Open menu');
+
+      isOpen.value = true;
+      buttonLabel.value = 'Close menu';
+      expect(button.getAttribute('aria-expanded')).toBe('true');
+      expect(button.getAttribute('aria-label')).toBe('Close menu');
+    });
+
+    it('should support expression-returned ARIA maps', () => {
+      container.innerHTML = '<div bq-aria="ariaState"></div>';
+      const ariaState = signal<Record<string, string | boolean | number>>({
+        current: 'page',
+        hidden: false,
+        level: 2,
+      });
+
+      view = mount(container, { ariaState });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-current')).toBe('page');
+      expect(div.hasAttribute('aria-hidden')).toBe(false);
+      expect(div.getAttribute('aria-level')).toBe('2');
+
+      ariaState.value = {
+        controls: 'menu-panel',
+        hidden: true,
+      };
+      expect(div.hasAttribute('aria-current')).toBe(false);
+      expect(div.getAttribute('aria-controls')).toBe('menu-panel');
+      expect(div.getAttribute('aria-hidden')).toBe('true');
+      expect(div.hasAttribute('aria-level')).toBe(false);
+    });
+
+    it('should accept keys that already include the aria- prefix', () => {
+      container.innerHTML = '<div bq-aria="{ \'aria-describedby\': describedById }"></div>';
+      const describedById = signal('hint-id');
+
+      view = mount(container, { describedById });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-describedby')).toBe('hint-id');
+    });
+
+    it('should remove attributes for null, false, and empty string values', () => {
+      container.innerHTML = '<button bq-aria="{ pressed: isPressed, controls: controlsId }"></button>';
+      const isPressed = signal(true);
+      const controlsId = signal('panel-id');
+
+      view = mount(container, { isPressed, controlsId });
+
+      const button = container.querySelector('button')!;
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+      expect(button.getAttribute('aria-controls')).toBe('panel-id');
+
+      isPressed.value = false;
+      controlsId.value = '';
+      expect(button.hasAttribute('aria-pressed')).toBe(false);
+      expect(button.hasAttribute('aria-controls')).toBe(false);
+    });
+  });
+
   describe('bq-class', () => {
     it('should bind object syntax classes', () => {
       container.innerHTML = '<div bq-class="{ active: isActive, disabled: isDisabled }"></div>';
@@ -933,13 +1004,16 @@ describe('View', () => {
 
   describe('custom prefix', () => {
     it('should support custom directive prefix', () => {
-      container.innerHTML = '<p x-text="message"></p><span x-error="errorMessage"></span>';
+      container.innerHTML =
+        '<p x-text="message"></p><span x-error="errorMessage"></span><button x-aria="{ expanded: expanded }"></button>';
       const errorMessage = signal('Needs attention');
+      const expanded = signal(true);
 
-      view = mount(container, { message: 'Custom prefix', errorMessage }, { prefix: 'x' });
+      view = mount(container, { message: 'Custom prefix', errorMessage, expanded }, { prefix: 'x' });
 
       expect(container.querySelector('p')?.textContent).toBe('Custom prefix');
       expect(container.querySelector('span')?.textContent).toBe('Needs attention');
+      expect(container.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
     });
   });
 

@@ -138,6 +138,31 @@ const serverError = signal('');
 mount('#app', { form, serverError });
 ```
 
+### bq-aria
+
+Bind ARIA attributes from an object literal or an expression that returns an object.
+
+```html
+<!-- Object syntax -->
+<button bq-aria="{ expanded: isOpen, controls: panelId, label: buttonLabel }">
+  Toggle menu
+</button>
+
+<!-- Expression returning an object -->
+<nav bq-aria="navAria"></nav>
+```
+
+`bq-aria` automatically prefixes keys with `aria-`, removes attributes for `null`, `undefined`, `false`, or empty strings, and keeps previously applied ARIA attributes in sync when the object shape changes.
+
+```ts
+const navAria = signal({
+  label: 'Primary navigation',
+  current: 'page',
+});
+
+mount('#app', { isOpen, panelId, buttonLabel, navAria });
+```
+
 ### bq-bind:attr
 
 Bind any attribute:

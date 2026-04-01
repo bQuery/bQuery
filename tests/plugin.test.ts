@@ -15,6 +15,7 @@ import {
 import { registerCustomDirectiveResolver } from '../src/view/custom-directives';
 import {
   createForHandler,
+  handleAria,
   handleBind,
   handleClass,
   handleError,
@@ -55,6 +56,7 @@ const generateUniqueCustomElementTag = (suffix: string): string =>
 const createDirectiveHandlers = () => ({
   text: handleText,
   error: handleError,
+  aria: handleAria,
   html: handleHtml(true),
   if: handleIf,
   show: handleShow,
