@@ -860,7 +860,7 @@ describe('useResource', () => {
       }),
     });
 
-    resource.data.value = { id: 1, name: 'Ada' };
+    await resource.actions.fetch();
     await resource.actions.remove();
 
     expect(resource.status.value).toBe('error');
