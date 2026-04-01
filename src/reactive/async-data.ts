@@ -574,7 +574,11 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
       };
     };
 
-    if (maxAttempts > 1 && options.body instanceof ReadableStream) {
+    if (
+      maxAttempts > 1 &&
+      typeof ReadableStream !== 'undefined' &&
+      options.body instanceof ReadableStream
+    ) {
       throw new Error('Cannot retry requests with ReadableStream bodies');
     }
     let lastError: Error | undefined;

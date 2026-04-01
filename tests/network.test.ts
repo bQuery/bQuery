@@ -350,6 +350,19 @@ describe('useWebSocket', () => {
     ws.dispose();
   });
 
+  it('does not enqueue or send messages after dispose', async () => {
+    const ws = useWebSocket<{ cmd: string }>('ws://localhost:8080');
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(lastMockWS!.sentMessages).toHaveLength(0);
+
+    ws.dispose();
+    ws.send({ cmd: 'late' });
+    ws.sendRaw('late raw');
+
+    expect(lastMockWS!.sentMessages).toHaveLength(0);
+  });
+
   it('maintains a message history when historySize > 0', async () => {
     const ws = useWebSocket<string>('ws://localhost:8080', {
       historySize: 3,

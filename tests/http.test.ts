@@ -709,6 +709,37 @@ describe('useFetch retry', () => {
     expect(state.status.value).toBe('error');
     expect(state.error.value?.message).toContain('ReadableStream');
   });
+
+  it('supports retries when ReadableStream is unavailable globally', async () => {
+    const originalReadableStream = globalThis.ReadableStream;
+    let attempts = 0;
+
+    try {
+      Object.assign(globalThis, { ReadableStream: undefined });
+
+      const state = useFetch<{ ok: boolean }>('/api/retry-no-stream', {
+        immediate: false,
+        method: 'POST',
+        body: JSON.stringify({ ok: true }),
+        retry: { count: 1, delay: 10 },
+        fetcher: asMockFetch(async () => {
+          attempts++;
+          if (attempts === 1) {
+            return new Response('error', { status: 500 });
+          }
+          return new Response(JSON.stringify({ ok: true }), { status: 200 });
+        }),
+      });
+
+      await state.execute();
+
+      expect(state.data.value).toEqual({ ok: true });
+      expect(state.error.value).toBeNull();
+      expect(attempts).toBe(2);
+    } finally {
+      Object.assign(globalThis, { ReadableStream: originalReadableStream });
+    }
+  });
 });
 
 describe('useFetch abort', () => {

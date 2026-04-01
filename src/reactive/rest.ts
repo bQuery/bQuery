@@ -44,7 +44,7 @@ export interface UseResourceOptions<T = unknown>
   optimistic?: boolean;
   /** Called after any successful mutation (create / update / patch / remove). */
   onMutationSuccess?: (data: T | undefined, action: string) => void;
-  /** Called after a failed mutation, receives the rolled-back value for optimistic updates. */
+  /** Called after a failed mutation, receives the error and action name. */
   onMutationError?: (error: Error, action: string) => void;
 }
 

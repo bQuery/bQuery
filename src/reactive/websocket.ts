@@ -450,11 +450,13 @@ export const useWebSocket = <TSend = string, TReceive = string>(
   };
 
   const send = (msg: TSend): void => {
+    if (disposed) return;
     const serialized = serialize(msg);
     sendRaw(serialized);
   };
 
   const sendRaw = (raw: string | ArrayBufferLike | Blob | ArrayBufferView): void => {
+    if (disposed) return;
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(raw);
     } else {
