@@ -1265,6 +1265,27 @@ describe('useInfiniteFetch', () => {
     state.dispose();
   });
 
+  it('calls onSuccess after successfully loading a page', async () => {
+    const successes: string[][] = [];
+    const state = useInfiniteFetch<{ items: string[]; nextCursor: number | null }, string[]>(
+      (cursor) => `/api/feed?cursor=${cursor ?? ''}`,
+      {
+        immediate: false,
+        getNextCursor: (page) => (page.nextCursor != null ? page.nextCursor : undefined) as number | undefined,
+        transform: (pages) => pages.flatMap((p) => p.items),
+        onSuccess: (value) => successes.push(value),
+        fetcher: createMockApi(),
+      }
+    );
+
+    const result = await state.fetchNextPage();
+
+    expect(result).toEqual(['item-1-a', 'item-1-b']);
+    expect(successes).toEqual([['item-1-a', 'item-1-b']]);
+
+    state.dispose();
+  });
+
   it('prevents fetching after dispose', async () => {
     let fetchCount = 0;
 

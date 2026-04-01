@@ -260,7 +260,7 @@ export const useWebSocket = <TSend = string, TReceive = string>(
     heartbeatTimer = setInterval(() => {
       if (ws?.readyState === WebSocket.OPEN) {
         pingSentAt = Date.now();
-        ws.send(pingMsg as string | ArrayBufferLike);
+        ws.send(pingMsg);
         if (pongTimer !== undefined) {
           clearTimeout(pongTimer);
         }

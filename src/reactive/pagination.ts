@@ -185,6 +185,8 @@ export const useInfiniteFetch = <TResponse = unknown, TData = TResponse[], TCurs
     transform: transformPages,
     initialCursor,
     immediate = true,
+    onSuccess: _onSuccess,
+    onError: _onError,
     ...fetchOptions
   } = options;
 
@@ -247,6 +249,7 @@ export const useInfiniteFetch = <TResponse = unknown, TData = TResponse[], TCurs
         const transformed = applyTransform(newPages);
         data.value = transformed;
         status.value = 'success';
+        options.onSuccess?.(transformed);
         return transformed;
       }
 
