@@ -126,6 +126,23 @@ export const useResource = <T = unknown>(
     return resolved instanceof URL ? resolved.toString() : resolved;
   };
 
+  const toMutationFetchOptions = <TResult,>(): Omit<
+    UseFetchOptions<TResult>,
+    'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
+  > => {
+    const {
+      defaultValue: _defaultValue,
+      transform: _transform,
+      onSuccess: _onSuccess,
+      onError: _onError,
+      ...transportOpts
+    } = fetchOptions;
+    return transportOpts as Omit<
+      UseFetchOptions<TResult>,
+      'method' | 'body' | 'defaultValue' | 'transform' | 'onSuccess' | 'onError'
+    >;
+  };
+
   const executeMutation = async (
     action: string,
     method: string,
@@ -146,7 +163,7 @@ export const useResource = <T = unknown>(
 
     try {
       const mutationState = useFetch<T>(resolveUrl(), {
-        ...fetchOptions,
+        ...toMutationFetchOptions<T>(),
         method,
         body: body ?? undefined,
         immediate: false,
@@ -223,7 +240,7 @@ export const useResource = <T = unknown>(
     },
     remove: async () => {
       await executeMutation('remove', 'DELETE');
-      if (!disposed) {
+      if (!disposed && fetchState.error.peek() == null) {
         fetchState.data.value = undefined;
       }
     },
@@ -789,7 +806,7 @@ export const useResourceList = <T = unknown>(
       );
 
       // If not optimistic, remove from the list after server confirms
-      if (!optimistic && !disposed) {
+      if (!optimistic && !disposed && fetchState.error.peek() == null) {
         const current = fetchState.data.peek() ?? [];
         fetchState.data.value = current.filter((item) => getId(item) !== id);
       }

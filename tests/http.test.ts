@@ -1104,6 +1104,34 @@ describe('usePaginatedFetch', () => {
     state.page.value = 5;
     expect(state.page.value).toBe(5);
   });
+
+  it('does not double-fetch when using pagination helpers', async () => {
+    let fetchCount = 0;
+    const state = usePaginatedFetch<{ page: number }>(
+      (page) => `/api/items?page=${page}`,
+      {
+        immediate: false,
+        fetcher: asMockFetch(async (input) => {
+          fetchCount++;
+          const url = new URL(String(input), 'http://localhost');
+          const page = Number(url.searchParams.get('page'));
+          return new Response(JSON.stringify({ page }), { status: 200 });
+        }),
+      }
+    );
+
+    await state.execute();
+    expect(fetchCount).toBe(1);
+
+    await state.next();
+    expect(fetchCount).toBe(2);
+
+    await state.goTo(5);
+    expect(fetchCount).toBe(3);
+
+    await state.prev();
+    expect(fetchCount).toBe(4);
+  });
 });
 
 // ---------------------------------------------------------------------------

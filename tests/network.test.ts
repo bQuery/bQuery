@@ -849,6 +849,26 @@ describe('useResource', () => {
     resource.dispose();
   });
 
+  it('keeps the last known data when DELETE fails', async () => {
+    const resource = useResource<{ id: number; name: string }>('/api/users/1', {
+      immediate: false,
+      fetcher: asMockFetch(async (_input, init) => {
+        if (init?.method === 'DELETE') {
+          return new Response('Server Error', { status: 500 });
+        }
+        return new Response(JSON.stringify({ id: 1, name: 'Ada' }), { status: 200 });
+      }),
+    });
+
+    resource.data.value = { id: 1, name: 'Ada' };
+    await resource.actions.remove();
+
+    expect(resource.status.value).toBe('error');
+    expect(resource.data.value).toEqual({ id: 1, name: 'Ada' });
+
+    resource.dispose();
+  });
+
   it('tracks isMutating during mutations', async () => {
     const states: boolean[] = [];
 
@@ -938,6 +958,41 @@ describe('useResource', () => {
 
     await resource.actions.remove();
     expect(callbacks).toContain('error:remove');
+
+    resource.dispose();
+  });
+
+  it('does not apply resource fetch callbacks or transforms to mutation responses', async () => {
+    let fetchSuccessCalls = 0;
+    let fetchErrorCalls = 0;
+
+    const resource = useResource<{ id: number; name: string }>('/api/users/1', {
+      immediate: false,
+      transform: (data) => ({ ...data, name: `${data.name} (transformed)` }),
+      onSuccess: () => {
+        fetchSuccessCalls++;
+      },
+      onError: () => {
+        fetchErrorCalls++;
+      },
+      fetcher: asMockFetch(async (_input, init) => {
+        if (init?.method === 'POST') {
+          return new Response(JSON.stringify({ id: 2, name: 'Bob' }), { status: 201 });
+        }
+        return new Response(JSON.stringify({ id: 1, name: 'Ada' }), { status: 200 });
+      }),
+    });
+
+    await resource.actions.fetch();
+    expect(fetchSuccessCalls).toBe(1);
+    expect(resource.data.value).toEqual({ id: 1, name: 'Ada (transformed)' });
+
+    const created = await resource.actions.create({ name: 'Bob' });
+
+    expect(created).toEqual({ id: 2, name: 'Bob' });
+    expect(resource.data.value).toEqual({ id: 2, name: 'Bob' });
+    expect(fetchSuccessCalls).toBe(1);
+    expect(fetchErrorCalls).toBe(0);
 
     resource.dispose();
   });
@@ -1690,6 +1745,29 @@ describe('useResourceList', () => {
 
     // After error, should roll back to original
     expect(list.data.value?.length).toBe(2);
+    list.dispose();
+  });
+
+  it('does not remove items locally after a failed non-optimistic delete', async () => {
+    const list = useResourceList<{ id: number; name: string }>('http://api.test/items', {
+      immediate: false,
+      fetcher: asMockFetch(async () => new Response('Server Error', { status: 500 })),
+    });
+
+    list.data.value = [
+      { id: 1, name: 'A' },
+      { id: 2, name: 'B' },
+    ];
+
+    await list.actions.remove(1);
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(list.status.value).toBe('error');
+    expect(list.data.value).toEqual([
+      { id: 1, name: 'A' },
+      { id: 2, name: 'B' },
+    ]);
+
     list.dispose();
   });
 

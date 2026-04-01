@@ -74,7 +74,7 @@ export const usePaginatedFetch = <TResponse = unknown, TData = TResponse>(
 
   const state = useFetch<TResponse, TData>(() => inputFactory(page.value), {
     ...fetchOptions,
-    watch: [...(fetchOptions.watch ?? []), page],
+    watch: fetchOptions.watch,
   });
 
   const next = async (): Promise<TData | undefined> => {
