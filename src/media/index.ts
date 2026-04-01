@@ -55,6 +55,9 @@ export { useDeviceMotion, useDeviceOrientation } from './device-sensors';
 // Clipboard
 export { clipboard } from './clipboard';
 
+// Observers
+export { useIntersectionObserver, useMutationObserver, useResizeObserver } from './observers';
+
 // Types
 export type {
   BatterySignal,
@@ -68,9 +71,18 @@ export type {
   GeolocationOptions,
   GeolocationSignal,
   GeolocationState,
+  IntersectionObserverOptions,
+  IntersectionObserverSignal,
+  IntersectionObserverState,
   MediaSignalHandle,
+  MutationObserverOptions,
+  MutationObserverSignal,
+  MutationObserverState,
   NetworkSignal,
   NetworkState,
+  ResizeObserverOptions,
+  ResizeObserverSignal,
+  ResizeObserverState,
   ViewportSignal,
   ViewportState,
 } from './types';
