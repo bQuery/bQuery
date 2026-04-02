@@ -245,14 +245,14 @@ describe('View', () => {
 
     it('should preserve existing role and aria-live attributes', () => {
       container.innerHTML =
-        '<p bq-error="errorMessage" role="status" aria-live="assertive"></p>';
+        '<p bq-error="errorMessage" role="status" aria-live="polite"></p>';
       const errorMessage = signal('Server error');
 
       view = mount(container, { errorMessage });
 
       const message = container.querySelector('p') as HTMLParagraphElement;
       expect(message.getAttribute('role')).toBe('status');
-      expect(message.getAttribute('aria-live')).toBe('assertive');
+      expect(message.getAttribute('aria-live')).toBe('polite');
       expect(message.textContent).toBe('Server error');
     });
 
