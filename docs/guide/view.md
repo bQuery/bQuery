@@ -131,7 +131,7 @@ Render validation or error messages from a form field, signal, computed value, o
 <p bq-error="serverError"></p>
 ```
 
-`bq-error` sets `textContent`, hides the element when the message is empty, applies `aria-hidden="true"` only when the message is empty and you did not already provide `aria-hidden`, and adds accessible defaults with `role="alert"` and `aria-live="polite"` unless you already provided those attributes.
+`bq-error` sets `textContent`, hides the element when the message is empty, applies `aria-hidden="true"` only when the message is empty and you did not already provide `aria-hidden`, and adds accessible defaults with `role="alert"` and `aria-live="assertive"` unless you already provided those attributes.
 
 ```ts
 const serverError = signal('');

@@ -37,7 +37,7 @@ export const handleError: DirectiveHandler = (el, expression, context, cleanups)
   }
 
   if (!htmlEl.hasAttribute('aria-live')) {
-    htmlEl.setAttribute('aria-live', 'polite');
+    htmlEl.setAttribute('aria-live', 'assertive');
   }
 
   const cleanup = effect(() => {

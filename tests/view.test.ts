@@ -190,7 +190,7 @@ describe('View', () => {
       expect(message.hidden).toBe(true);
       expect(message.textContent).toBe('');
       expect(message.getAttribute('role')).toBe('alert');
-      expect(message.getAttribute('aria-live')).toBe('polite');
+      expect(message.getAttribute('aria-live')).toBe('assertive');
       expect(message.getAttribute('aria-hidden')).toBe('true');
 
       errorMessage.value = 'Email is required';
