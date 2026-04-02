@@ -344,7 +344,7 @@ interface FireEventOptions {
 }
 ```
 
-**Returns:** The event's `defaultPrevented` status (inverted — `true` if not cancelled).
+**Returns:** `true` if the event was not canceled (same as `EventTarget.dispatchEvent()`), or `false` if `preventDefault()` was called on a cancelable event.
 
 #### Examples
 
