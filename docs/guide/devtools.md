@@ -57,11 +57,11 @@ function trackSignal(
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `label` | `string` | A unique, human-readable label for the signal |
+| `label` | `string` | A non-empty, human-readable label for the signal |
 | `peek` | `() => unknown` | A function that returns the current value without tracking |
 | `subscriberCount` | `() => number` | A function returning the current subscriber count |
 
-**Throws:** If a signal with the same label is already tracked.
+**Throws:** If `label` is empty.
 
 ```ts
 import { signal } from '@bquery/bquery/reactive';
@@ -69,7 +69,7 @@ import { trackSignal } from '@bquery/bquery/devtools';
 
 const count = signal(0);
 
-// The label must be unique across all tracked signals
+// Reusing a label replaces the previously tracked entry
 trackSignal('counter', () => count.peek(), () => 0);
 ```
 

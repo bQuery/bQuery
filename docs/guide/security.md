@@ -103,7 +103,7 @@ const text = sanitizeHtml('<p>Hello <strong>world</strong></p>', {
 
 #### Dangerous Elements
 
-The following elements are **always removed**, regardless of options:
+The following elements are removed by default. Tags listed in `DANGEROUS_TAGS` are blocked even if you try to allowlist them. `slot` is **not** in that hard block list: it is disallowed by default, but can be explicitly allowlisted for component/shadow-DOM use cases.
 
 | Category | Elements |
 |----------|----------|
@@ -111,7 +111,7 @@ The following elements are **always removed**, regardless of options:
 | Frames | `iframe`, `frame`, `frameset` |
 | Embedded objects | `object`, `embed`, `applet` |
 | Parsing vectors | `svg`, `math`, `foreignobject` |
-| Template slots | `template`, `slot` |
+| Template slots | `template` (`slot` is disallowed by default, but can be allowlisted) |
 | Document metadata | `base`, `meta`, `link` |
 
 #### Dangerous Attributes
@@ -127,7 +127,7 @@ The following elements are **always removed**, regardless of options:
 URLs in `href`, `src`, `action`, and `srcset` are validated. These protocols are blocked:
 
 - `javascript:`
-- `data:` (on links)
+- `data:`
 - `vbscript:`
 - `file:`
 

@@ -24,7 +24,7 @@ function storyHtml(
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `strings` | `TemplateStringsArray` | The static parts of the template literal |
-| `...values` | `StoryValue[]` | Interpolated values — strings, numbers, booleans, `TrustedHtml`, `null`, or `undefined` |
+| `...values` | `StoryValue[]` | Interpolated values — strings, numbers, booleans, `null`, `undefined`, arrays of values, or callbacks returning values |
 
 **Returns:** A sanitized HTML string ready for Storybook rendering.
 
@@ -33,7 +33,6 @@ function storyHtml(
 - **Sanitization by default** — All interpolated markup is sanitized via bQuery's security module
 - **Custom element allowlist** — Custom elements found in the template structure are automatically allowed
 - **Boolean attribute shorthand** — Use `?attrName=${booleanValue}` to conditionally set/remove boolean attributes
-- **`TrustedHtml` passthrough** — Values wrapped in `trusted()` are inserted verbatim without re-escaping
 
 ### Examples
 
@@ -79,14 +78,12 @@ export const Card = {
 };
 ```
 
-**With trusted fragments:**
+**With reusable fragments:**
 
-When you need to reuse already-sanitized markup, wrap it with `trusted()` so it is inserted verbatim:
+When you need to reuse a fragment, keep it as a string and pass it like any other interpolated value:
 
 ```ts
-import { trusted, sanitizeHtml } from '@bquery/bquery/security';
-
-const badge = trusted(sanitizeHtml('<span class="badge">Stable</span>'));
+const badge = '<span class="badge">Stable</span>';
 
 export const WithBadge = {
   render: () => storyHtml`<ui-card>${badge}</ui-card>`,
@@ -126,7 +123,7 @@ function when(
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `condition` | `unknown` | Any truthy or falsy value |
-| `truthyValue` | `StoryValue` | Rendered when `condition` is truthy — a string, callback, `TrustedHtml`, `null`, or `undefined` |
+| `truthyValue` | `StoryValue` | Rendered when `condition` is truthy — a string, callback, array, `null`, or `undefined` |
 | `falsyValue` | `StoryValue` | Optional — rendered when `condition` is falsy |
 
 **Returns:** The resolved string fragment, or an empty string.
@@ -192,7 +189,7 @@ export const OptionalBadge = {
 - **Pass user-controlled content as interpolated values** so sanitization stays effective. Never build HTML strings manually.
 - **Prefer `storyHtml()` over manual string concatenation.** It handles escaping, boolean attributes, and custom element allowlisting automatically.
 - **Use Storybook args for booleans** and map them with `?attr=${value}` where possible.
-- **Use `trusted()` sparingly** and only for fragments you have already sanitized yourself.
+- **Keep reusable fragments string-based.** `storyHtml()` already sanitizes the final output.
 - **Combine `when()` with `storyHtml()`** for readable conditional rendering without ternary chains.
 
 ---
@@ -201,9 +198,6 @@ export const OptionalBadge = {
 
 ```ts
 import { storyHtml, when } from '@bquery/bquery/storybook';
-import { trusted, sanitizeHtml } from '@bquery/bquery/security';
-
-const icon = trusted(sanitizeHtml('<svg class="icon"><use href="#save"/></svg>'));
 
 export default {
   title: 'Components/Button',
@@ -228,7 +222,7 @@ export const Interactive = {
         variant="${variant}"
         ?disabled=${disabled}
       >
-        ${when(showIcon, icon)}
+        ${when(showIcon, '<span class="icon" aria-hidden="true">💾</span>')}
         ${label}
       </ui-button>
     `,
