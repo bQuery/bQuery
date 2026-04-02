@@ -141,7 +141,7 @@ export const useIntersectionObserver = (
         }
       }
     } catch {
-      observer?.disconnect();
+      if (observer) observer.disconnect();
       observer = undefined;
     }
   }
@@ -250,7 +250,7 @@ export const useResizeObserver = (
         }
       }
     } catch {
-      observer?.disconnect();
+      if (observer) observer.disconnect();
       observer = undefined;
     }
   }
@@ -364,7 +364,7 @@ export const useMutationObserver = (
         observer.observe(target, resolvedOptions);
       }
     } catch {
-      observer?.disconnect();
+      if (observer) observer.disconnect();
       observer = undefined;
     }
   }
