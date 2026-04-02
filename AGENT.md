@@ -263,6 +263,9 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `useViewport`, `useNetworkStatus`         | functions | Reactive viewport and network state                                                                           |
 | `useBattery`, `useGeolocation`            | functions | Battery and geolocation wrappers                                                                              |
 | `useDeviceMotion`, `useDeviceOrientation` | functions | Device sensor wrappers                                                                                        |
+| `useIntersectionObserver`                 | function  | Reactive IntersectionObserver wrapper with `observe` / `unobserve` / `destroy`                              |
+| `useResizeObserver`                       | function  | Reactive ResizeObserver wrapper with box selection and `observe` / `unobserve` / `destroy`                  |
+| `useMutationObserver`                     | function  | Reactive MutationObserver wrapper with `observe` / `takeRecords` / `destroy`                                |
 | `clipboard`                               | object    | Async clipboard read/write helpers                                                                            |
 
 ### Plugin (`@bquery/bquery/plugin`)
@@ -312,7 +315,7 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `createTemplate(html)`   | function | Create a reusable template fragment   |
 | `clearExpressionCache()` | function | Clear the expression evaluation cache |
 
-**Directives:** `bq-text`, `bq-html`, `bq-if`, `bq-for`, `bq-model`, `bq-class`, `bq-style`, `bq-show`, `bq-bind`, `bq-on:event`
+**Directives:** `bq-text`, `bq-html`, `bq-if`, `bq-for`, `bq-model`, `bq-class`, `bq-style`, `bq-show`, `bq-bind`, `bq-error`, `bq-aria`, `bq-on:event`
 
 > ⚠ View module uses `new Function()` internally — requires `'unsafe-eval'` in CSP.
 

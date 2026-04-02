@@ -175,3 +175,139 @@ export interface ClipboardAPI {
   /** Write text to the clipboard. */
   write: (text: string) => Promise<void>;
 }
+
+// ─── Observer Composable Types ───────────────────────────────────────────────
+
+/**
+ * Options for {@link useIntersectionObserver}.
+ */
+export interface IntersectionObserverOptions {
+  /**
+   * Root element or document to use as the viewport.
+   * Defaults to the browser viewport when `null` or omitted.
+   */
+  root?: Element | Document | null;
+  /** Margin around the root, using CSS margin syntax (e.g. `'10px 20px'`). */
+  rootMargin?: string;
+  /**
+   * Thresholds at which the callback fires.
+   * A single number or an array of numbers between 0 and 1.
+   */
+  threshold?: number | number[];
+}
+
+/**
+ * State tracked by {@link useIntersectionObserver}.
+ *
+ * Reflects the most recent {@link IntersectionObserverEntry} reported by the
+ * underlying `IntersectionObserver` callback, not an aggregate across all
+ * observed targets.
+ */
+export interface IntersectionObserverState {
+  /**
+   * Whether the most recently reported entry is intersecting.
+   *
+   * This is equivalent to `entry?.isIntersecting ?? false` and does not
+   * represent an aggregate across all observed targets.
+   */
+  isIntersecting: boolean;
+  /**
+   * The intersection ratio (0–1) from the most recent entry.
+   *
+   * This is equivalent to `entry?.intersectionRatio ?? 0`.
+   */
+  intersectionRatio: number;
+  /** The most recent `IntersectionObserverEntry`, or `null` before the first callback. */
+  entry: IntersectionObserverEntry | null;
+}
+
+/**
+ * Extended handle returned by {@link useIntersectionObserver}.
+ *
+ * In addition to the reactive signal, exposes `observe()` and `unobserve()`
+ * so elements can be added or removed after creation.
+ */
+export interface IntersectionObserverSignal extends MediaSignalHandle<IntersectionObserverState> {
+  /** Start observing the given element. */
+  observe(target: Element): void;
+  /** Stop observing the given element. */
+  unobserve(target: Element): void;
+}
+
+/**
+ * Options for {@link useResizeObserver}.
+ */
+export interface ResizeObserverOptions {
+  /**
+   * Which CSS box model to observe.
+   * @default 'content-box'
+   */
+  box?: ResizeObserverBoxOptions;
+}
+
+/**
+ * State tracked by {@link useResizeObserver}.
+ */
+export interface ResizeObserverState {
+  /** Observed box width of the element in pixels (based on the configured `box`). */
+  width: number;
+  /** Observed box height of the element in pixels (based on the configured `box`). */
+  height: number;
+  /** The most recent `ResizeObserverEntry`, or `null` before the first callback. */
+  entry: ResizeObserverEntry | null;
+}
+
+/**
+ * Extended handle returned by {@link useResizeObserver}.
+ *
+ * Exposes `observe()` and `unobserve()` so elements can be added or removed
+ * after creation.
+ */
+export interface ResizeObserverSignal extends MediaSignalHandle<ResizeObserverState> {
+  /** Start observing the given element. */
+  observe(target: Element): void;
+  /** Stop observing the given element. */
+  unobserve(target: Element): void;
+}
+
+/**
+ * Options for {@link useMutationObserver}.
+ */
+export interface MutationObserverOptions {
+  /** Observe attribute changes. @default true */
+  attributes?: boolean;
+  /** Observe child list changes. @default false */
+  childList?: boolean;
+  /** Observe character data changes. @default false */
+  characterData?: boolean;
+  /** Observe the entire subtree. @default false */
+  subtree?: boolean;
+  /** Record previous attribute values. @default false */
+  attributeOldValue?: boolean;
+  /** Record previous character data values. @default false */
+  characterDataOldValue?: boolean;
+  /** Filter observed attributes to this list. */
+  attributeFilter?: string[];
+}
+
+/**
+ * State tracked by {@link useMutationObserver}.
+ */
+export interface MutationObserverState {
+  /** The list of mutations from the most recent callback. */
+  mutations: MutationRecord[];
+  /** Total number of mutation callbacks received. */
+  count: number;
+}
+
+/**
+ * Extended handle returned by {@link useMutationObserver}.
+ *
+ * Exposes `observe()`, `takeRecords()`, and `destroy()` for manual lifecycle control.
+ */
+export interface MutationObserverSignal extends MediaSignalHandle<MutationObserverState> {
+  /** Start observing mutations on the given target. Uses the options from construction time. */
+  observe(target: Node): void;
+  /** Take and clear any pending mutation records. */
+  takeRecords(): MutationRecord[];
+}

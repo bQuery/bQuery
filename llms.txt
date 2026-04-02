@@ -47,7 +47,7 @@ SPA routing. `createRouter(options)` sets up routes with path matching, wildcard
 Signal-based state management. `createStore(definition)` creates a store with state, getters, and actions. Stores expose `$reset`, `$patch`, `$patchDeep`, `$subscribe`, `$state`, and `$onAction()` for action lifecycle observation. `defineStore()` provides factory-style (Pinia-like) stores. `createPersistedStore()` supports legacy string keys and richer options (`key`, `storage`, `serializer`, `version`, `migrate`). Helpers: `mapActions`, `mapGetters`, `mapState`, `watchStore`.
 
 ### View (`@bquery/bquery/view`)
-Declarative DOM bindings. `mount(selector, context)` binds reactive state to DOM using directives: `bq-text`, `bq-html`, `bq-if`, `bq-for`, `bq-model` (two-way), `bq-class`, `bq-style`, `bq-show`, `bq-bind`, `bq-on:event`. Uses `new Function()` internally (requires CSP `unsafe-eval`).
+Declarative DOM bindings. `mount(selector, context)` binds reactive state to DOM using directives: `bq-text`, `bq-html`, `bq-if`, `bq-for`, `bq-model` (two-way), `bq-class`, `bq-style`, `bq-show`, `bq-bind`, `bq-error`, `bq-aria`, `bq-on:event`. Uses `new Function()` internally (requires CSP `unsafe-eval`).
 
 ### Forms (`@bquery/bquery/forms`)
 Reactive form handling. `createForm()` manages field values, errors, touched/dirty state, validation, submission, and `isSubmitting`. Built-in validators: `required`, `minLength`, `maxLength`, `pattern`, `email`, `url`, `min`, `max`, `custom`, and `customAsync`. Supports cross-field validation.
@@ -62,7 +62,7 @@ Accessibility helpers. Includes `trapFocus()`, `releaseFocus()`, `getFocusableEl
 Drag-and-drop utilities. `draggable()` adds pointer-based dragging with bounds and handles. `droppable()` manages drop zones with accept filters and callbacks. `sortable()` adds list reordering with placeholders and sort events.
 
 ### Media (`@bquery/bquery/media`)
-Reactive browser and device APIs. Includes `mediaQuery()`, `breakpoints()` (with collection cleanup via `destroyAll()`), `useViewport()`, `useNetworkStatus()`, `useBattery()`, `useGeolocation()`, `useDeviceMotion()`, `useDeviceOrientation()`, and async clipboard helpers via `clipboard.read()` / `clipboard.write()`.
+Reactive browser and device APIs. Includes `mediaQuery()`, `breakpoints()` (with collection cleanup via `destroyAll()`), `useViewport()`, `useNetworkStatus()`, `useBattery()`, `useGeolocation()`, `useDeviceMotion()`, `useDeviceOrientation()`, `useIntersectionObserver()`, `useResizeObserver()`, `useMutationObserver()`, and async clipboard helpers via `clipboard.read()` / `clipboard.write()`.
 
 ### Plugin (`@bquery/bquery/plugin`)
 Global extension system. `use(plugin)` installs a plugin once by name. Plugins receive a `PluginInstallContext` that can register custom view directives and Web Components. Introspection helpers include `isInstalled()`, `getInstalledPlugins()`, `getCustomDirective()`, `getCustomDirectives()`, and `resetPlugins()`.

@@ -70,6 +70,30 @@ Available helpers:
 - `isDirty`
 - `isPristine`
 
+## Rendering errors with the view module
+
+When you use `@bquery/bquery/view`, the `bq-error` directive can render field errors directly from a form field object or its `error` signal:
+
+```html
+<input bq-model="form.fields.email.value" />
+<p bq-error="form.fields.email"></p>
+```
+
+```ts
+import { createForm, email, required } from '@bquery/bquery/forms';
+import { mount } from '@bquery/bquery/view';
+
+const form = createForm({
+  fields: {
+    email: { initialValue: '', validators: [required(), email()] },
+  },
+});
+
+mount('#app', { form });
+```
+
+The message element is hidden automatically while the field has no error.
+
 Helpers available only on values returned by `useFormField()` (not on `createForm().fields.*`):
 
 - `isValid`

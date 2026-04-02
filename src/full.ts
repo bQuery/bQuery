@@ -446,7 +446,10 @@ export {
   useDeviceMotion,
   useDeviceOrientation,
   useGeolocation,
+  useIntersectionObserver,
+  useMutationObserver,
   useNetworkStatus,
+  useResizeObserver,
   useViewport,
 } from './media/index';
 export type {
@@ -457,7 +460,13 @@ export type {
   DeviceOrientationState,
   GeolocationOptions,
   GeolocationState,
+  IntersectionObserverOptions,
+  IntersectionObserverState,
+  MutationObserverOptions,
+  MutationObserverState,
   NetworkState,
+  ResizeObserverOptions,
+  ResizeObserverState,
   ViewportState,
 } from './media/index';
 

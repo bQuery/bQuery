@@ -2,13 +2,15 @@
  * bQuery Media module — reactive browser and device API signals.
  *
  * Provides reactive wrappers around browser media queries, viewport,
- * network status, battery, geolocation, device sensors, and clipboard.
+ * network status, battery, geolocation, device sensors, clipboard,
+ * and browser Observer APIs (IntersectionObserver, ResizeObserver,
+ * MutationObserver).
  *
  * @module bquery/media
  *
  * @example
  * ```ts
- * import { mediaQuery, breakpoints, useViewport, useNetworkStatus, clipboard } from '@bquery/bquery/media';
+ * import { mediaQuery, breakpoints, useViewport, useNetworkStatus, clipboard, useIntersectionObserver } from '@bquery/bquery/media';
  * import { effect } from '@bquery/bquery/reactive';
  *
  * // Reactive media query
@@ -28,6 +30,10 @@
  * // Clipboard
  * await clipboard.write('Hello!');
  * const text = await clipboard.read();
+ *
+ * // Intersection observer
+ * const io = useIntersectionObserver(document.querySelector('#el'));
+ * effect(() => console.log('Visible:', io.value.isIntersecting));
  * ```
  */
 
@@ -55,6 +61,9 @@ export { useDeviceMotion, useDeviceOrientation } from './device-sensors';
 // Clipboard
 export { clipboard } from './clipboard';
 
+// Observers
+export { useIntersectionObserver, useMutationObserver, useResizeObserver } from './observers';
+
 // Types
 export type {
   BatterySignal,
@@ -68,9 +77,18 @@ export type {
   GeolocationOptions,
   GeolocationSignal,
   GeolocationState,
+  IntersectionObserverOptions,
+  IntersectionObserverSignal,
+  IntersectionObserverState,
   MediaSignalHandle,
+  MutationObserverOptions,
+  MutationObserverSignal,
+  MutationObserverState,
   NetworkSignal,
   NetworkState,
+  ResizeObserverOptions,
+  ResizeObserverSignal,
+  ResizeObserverState,
   ViewportSignal,
   ViewportState,
 } from './types';
