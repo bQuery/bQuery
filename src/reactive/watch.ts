@@ -8,6 +8,7 @@ import type { CleanupFn } from './internals';
 
 import { debounce, throttle } from '../core/utils/function';
 import { effect } from './effect';
+import { getCurrentScope, onScopeDispose } from './scope';
 
 /**
  * Options for the watch function.
@@ -109,6 +110,11 @@ export const watchDebounce = <T>(
   let hasPending = false;
   let pendingNewValue!: T;
   let pendingOldValue: T | undefined;
+  const cancelPending = (): void => {
+    notify.cancel();
+    hasPending = false;
+    pendingOldValue = undefined;
+  };
 
   const notify = debounce(() => {
     if (!hasPending) {
@@ -121,7 +127,7 @@ export const watchDebounce = <T>(
   }, Math.max(0, delayMs));
 
   if (immediate) {
-    callback(source.value, undefined);
+    callback(source.peek(), undefined);
   }
 
   const cleanup = watch(
@@ -138,11 +144,13 @@ export const watchDebounce = <T>(
     { equals }
   );
 
+  if (getCurrentScope()) {
+    onScopeDispose(cancelPending);
+  }
+
   return () => {
     cleanup();
-    notify.cancel();
-    hasPending = false;
-    pendingOldValue = undefined;
+    cancelPending();
   };
 };
 
@@ -182,7 +190,7 @@ export const watchThrottle = <T>(
   );
 
   if (immediate) {
-    notify(source.value, undefined);
+    notify(source.peek(), undefined);
   }
 
   const cleanup = watch(source, (newValue, oldValue) => {

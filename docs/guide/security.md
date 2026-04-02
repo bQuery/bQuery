@@ -338,7 +338,7 @@ function generateNonce(length?: number): string;
 |-----------|------|---------|-------------|
 | `length` | `number` | `16` | Nonce length in bytes (max: 1024) |
 
-**Throws:** `RangeError` if length is negative, non-integer, or exceeds 1024.  
+**Throws:** `RangeError` if length is less than 1, non-integer, or exceeds 1024.  
 **Throws:** `Error` if `crypto.getRandomValues` or `btoa` are unavailable.
 
 ```ts

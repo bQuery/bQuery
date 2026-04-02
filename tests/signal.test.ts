@@ -545,6 +545,25 @@ describe('watch', () => {
     expect(callCount).toBe(0);
   });
 
+  it('cancels pending debounced callbacks when the effectScope is stopped', async () => {
+    const { signal, watchDebounce } = await import('../src/reactive/signal');
+    const scope = effectScope();
+    const count = signal(0);
+    let callCount = 0;
+
+    scope.run(() => {
+      watchDebounce(count, () => {
+        callCount++;
+      }, 30);
+    });
+
+    count.value = 1;
+    scope.stop();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(callCount).toBe(0);
+  });
+
   it('throttles rapid changes', async () => {
     const { signal, watchThrottle } = await import('../src/reactive/signal');
     const count = signal(0);
