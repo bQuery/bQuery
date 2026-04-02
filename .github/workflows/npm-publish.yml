@@ -10,11 +10,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+      id-token: write  # Required for OIDC
+      contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -26,8 +28,6 @@ jobs:
 
   build-docs:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v6
       - uses: oven-sh/setup-bun@v2
@@ -55,7 +55,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - name: Publish to npm (Trusted Publisher)
-        run: npm publish --access public --provenance
+        run: npm publish --scope public
 
   deploy-pages:
     needs: build-docs
@@ -68,4 +68,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
