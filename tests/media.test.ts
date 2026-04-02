@@ -1363,6 +1363,80 @@ describe('media/useMutationObserver', () => {
     }
   });
 
+  it('clears attribute-dependent options when attributes observation is disabled', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    let observedOptions: MutationObserverInit | undefined;
+
+    class MockMutationObserver {
+      observe(_target: Node, options: MutationObserverInit): void {
+        observedOptions = options;
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      const mo = useMutationObserver(el, {
+        attributes: false,
+        childList: true,
+        attributeOldValue: true,
+        attributeFilter: ['data-test'],
+      });
+
+      expect(observedOptions).toBeDefined();
+      expect(observedOptions?.attributes).toBe(false);
+      expect(observedOptions?.childList).toBe(true);
+      expect(observedOptions?.attributeOldValue).toBe(false);
+      expect('attributeFilter' in (observedOptions ?? {})).toBe(false);
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
+  it('clears characterDataOldValue when characterData observation is disabled', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    let observedOptions: MutationObserverInit | undefined;
+
+    class MockMutationObserver {
+      observe(_target: Node, options: MutationObserverInit): void {
+        observedOptions = options;
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      const mo = useMutationObserver(el, {
+        attributes: true,
+        characterData: false,
+        characterDataOldValue: true,
+      });
+
+      expect(observedOptions).toBeDefined();
+      expect(observedOptions?.attributes).toBe(true);
+      expect(observedOptions?.characterData).toBe(false);
+      expect(observedOptions?.characterDataOldValue).toBe(false);
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
   it('fails gracefully when initial mutation observation throws', () => {
     const originalMutationObserver = globalThis.MutationObserver;
 
