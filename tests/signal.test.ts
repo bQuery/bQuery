@@ -657,6 +657,26 @@ describe('watch', () => {
 
     cleanup();
   });
+
+  it('normalizes non-finite throttle intervals to zero', async () => {
+    const { signal, watchThrottle } = await import('../src/reactive/signal');
+    const count = signal(0);
+    const changes: [number, number | undefined][] = [];
+
+    const cleanup = watchThrottle(count, (newVal, oldVal) => {
+      changes.push([newVal, oldVal]);
+    }, Number.NaN);
+
+    count.value = 1;
+    count.value = 2;
+
+    expect(changes).toEqual([
+      [1, 0],
+      [2, 1],
+    ]);
+
+    cleanup();
+  });
 });
 
 describe('readonly', () => {

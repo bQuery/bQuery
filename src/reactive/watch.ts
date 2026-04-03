@@ -186,11 +186,12 @@ export const watchThrottle = <T>(
   options: WatchOptions<T> = {}
 ): CleanupFn => {
   const { immediate = false, equals = Object.is } = options;
+  const normalizedIntervalMs = Number.isFinite(intervalMs) ? Math.max(0, intervalMs) : 0;
   const notify = throttle(
     (newValue: T, oldValue: T | undefined) => {
       callback(newValue, oldValue);
     },
-    Math.max(0, intervalMs)
+    normalizedIntervalMs
   );
 
   if (immediate) {
