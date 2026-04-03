@@ -110,6 +110,13 @@ export const watchDebounce = <T>(
   let hasPending = false;
   let pendingNewValue!: T;
   let pendingOldValue: T | undefined;
+  const invokeCallback = (newValue: T, oldValue: T | undefined): void => {
+    try {
+      callback(newValue, oldValue);
+    } catch (error) {
+      console.error('bQuery reactive: Error in watchDebounce callback', error);
+    }
+  };
   const cancelPending = (): void => {
     notify.cancel();
     hasPending = false;
@@ -121,13 +128,13 @@ export const watchDebounce = <T>(
       return;
     }
 
-    callback(pendingNewValue, pendingOldValue);
+    invokeCallback(pendingNewValue, pendingOldValue);
     hasPending = false;
     pendingOldValue = undefined;
   }, Math.max(0, delayMs));
 
   if (immediate) {
-    callback(source.peek(), undefined);
+    invokeCallback(source.peek(), undefined);
   }
 
   const cleanup = watch(

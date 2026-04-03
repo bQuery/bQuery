@@ -19,7 +19,7 @@ import {
 
 ### `renderComponent()`
 
-Mounts a custom element for testing. Creates the element, injects props and slots, appends it to the DOM, and returns a handle for assertions and cleanup.
+Mounts a custom element for testing. Creates the element, sets stringified attributes from `props`, injects slots, appends it to the DOM, and returns a handle for assertions and cleanup.
 
 ```ts
 function renderComponent(
@@ -31,13 +31,13 @@ function renderComponent(
 | Parameter | Type | Description |
 |-----------|------|-------------|
 | `tagName` | `string` | The custom element tag name (must be registered) |
-| `options` | `RenderComponentOptions` | Optional props, slots, and container |
+| `options` | `RenderComponentOptions` | Optional attributes, slots, and container |
 
 #### `RenderComponentOptions`
 
 ```ts
 interface RenderComponentOptions {
-  /** Attributes/properties to set on the element before connecting. */
+  /** Attributes to set on the element before connecting. Values are stringified with `String(value)`. */
   props?: Record<string, unknown>;
   /** Slot content. A string fills the default slot. An object maps slot names to HTML strings. */
   slots?: string | Record<string, string>;
@@ -59,14 +59,15 @@ interface RenderResult {
 
 #### Examples
 
-**Render with props:**
+**Render with attributes:**
 
 ```ts
 const { el, unmount } = renderComponent('ui-button', {
-  props: { variant: 'primary', disabled: false },
+  props: { variant: 'primary', 'data-testid': 'save-button' },
 });
 
 expect(el.getAttribute('variant')).toBe('primary');
+expect(el.getAttribute('data-testid')).toBe('save-button');
 unmount();
 ```
 
@@ -103,7 +104,7 @@ document.body.appendChild(container);
 
 const { el, unmount } = renderComponent('ui-panel', {
   container,
-  props: { open: true },
+  props: { state: 'open' },
 });
 
 unmount();

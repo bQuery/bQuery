@@ -564,6 +564,33 @@ describe('watch', () => {
     expect(callCount).toBe(0);
   });
 
+  it('logs debounced callback errors instead of throwing them asynchronously', async () => {
+    const { signal, watchDebounce } = await import('../src/reactive/signal');
+    const count = signal(0);
+    const originalError = console.error;
+    const loggedCalls: unknown[][] = [];
+
+    console.error = (...args: unknown[]) => {
+      loggedCalls.push(args);
+    };
+
+    try {
+      const cleanup = watchDebounce(count, () => {
+        throw new Error('debounce failure');
+      }, 10);
+
+      count.value = 1;
+      await new Promise((resolve) => setTimeout(resolve, 30));
+
+      expect(loggedCalls.length).toBe(1);
+      expect(loggedCalls[0]?.[0]).toBe('bQuery reactive: Error in watchDebounce callback');
+
+      cleanup();
+    } finally {
+      console.error = originalError;
+    }
+  });
+
   it('throttles rapid changes', async () => {
     const { signal, watchThrottle } = await import('../src/reactive/signal');
     const count = signal(0);
