@@ -227,6 +227,8 @@ import {
   effect,
   batch,
   watch,
+  watchDebounce,
+  watchThrottle,
   readonly,
   linkedSignal,
 } from '@bquery/bquery/reactive';
@@ -241,6 +243,10 @@ effect(() => {
 watch(count, (newVal, oldVal) => {
   console.log(`Changed from ${oldVal} to ${newVal}`);
 });
+
+watchDebounce(count, (newVal) => {
+  console.log('Debounced count', newVal);
+}, 150);
 
 const readOnlyCount = readonly(count);
 

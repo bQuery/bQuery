@@ -23,6 +23,8 @@ import {
   computed,
   effect,
   batch,
+  watchDebounce,
+  watchThrottle,
   createHttp,
   useWebSocket,
   useEventSource,

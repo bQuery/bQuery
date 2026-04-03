@@ -9,6 +9,8 @@ import {
   effect,
   batch,
   watch,
+  watchDebounce,
+  watchThrottle,
   readonly,
   effectScope,
   getCurrentScope,
@@ -493,6 +495,23 @@ const stop = watch(count, (newVal, oldVal) => {
 
 count.value = 5; // logs: "Changed: 0 → 5"
 stop(); // Stop watching
+```
+
+For noisy inputs, use `watchDebounce()` or `watchThrottle()` to control callback frequency without leaving the reactive API:
+
+```ts
+import { signal, watchDebounce, watchThrottle } from '@bquery/bquery/reactive';
+
+const query = signal('');
+const scrollY = signal(0);
+
+watchDebounce(query, (nextQuery, previousQuery) => {
+  console.log('Search changed from', previousQuery, 'to', nextQuery);
+}, 250);
+
+watchThrottle(scrollY, (nextY) => {
+  console.log('Sampled scroll position', nextY);
+}, 100);
 ```
 
 ## Readonly

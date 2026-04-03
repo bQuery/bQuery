@@ -40,6 +40,8 @@ export {
   useWebSocketChannel,
   untrack,
   watch,
+  watchDebounce,
+  watchThrottle,
 } from './signal';
 
 export type {
@@ -90,6 +92,7 @@ export type {
   UseWebSocketChannelReturn,
   UseWebSocketOptions,
   UseWebSocketReturn,
+  WatchOptions,
   WebSocketHeartbeatConfig,
   WebSocketReconnectConfig,
   WebSocketSerializer,

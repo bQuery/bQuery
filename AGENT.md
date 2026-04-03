@@ -97,6 +97,8 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `effect(fn)`                             | function  | Side-effect that re-runs on dependency change                       |
 | `batch(fn)`                              | function  | Group multiple signal writes, notify once                           |
 | `watch(src, cb)`                         | function  | Watch a signal with old/new values + cleanup                        |
+| `watchDebounce(src, cb, ms)`             | function  | Watch with debounced callback delivery for bursty updates           |
+| `watchThrottle(src, cb, ms)`             | function  | Watch with throttled callback delivery for high-frequency updates   |
 | `untrack(fn)`                            | function  | Read signals without tracking                                       |
 | `linkedSignal(get, set)`                 | function  | Writable computed (bidirectional)                                   |
 | `persistedSignal(key, init)`             | function  | Signal persisted to localStorage                                    |

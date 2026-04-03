@@ -80,6 +80,8 @@ export {
   useWebSocket,
   useWebSocketChannel,
   watch,
+  watchDebounce,
+  watchThrottle,
 } from './reactive/index';
 export type {
   AsyncDataState,
@@ -129,6 +131,7 @@ export type {
   UseWebSocketChannelReturn,
   UseWebSocketOptions,
   UseWebSocketReturn,
+  WatchOptions,
   WebSocketHeartbeatConfig,
   WebSocketReconnectConfig,
   WebSocketSerializer,

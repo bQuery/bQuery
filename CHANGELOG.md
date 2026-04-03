@@ -8,6 +8,7 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[Unreleased\] - 2026-04-02](#unreleased---2026-04-02)
   - [\[1.8.2\] - 2026-04-01](#182---2026-04-01)
     - [Changed (1.8.2)](#changed-182)
   - [\[1.8.1\] - 2026-04-01](#181---2026-04-01)
@@ -56,6 +57,12 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [Unreleased] - 2026-04-02
+
+### Added (Unreleased)
+
+- **Reactive / Watch**: Added `watchDebounce()` and `watchThrottle()` so signal watchers can smooth bursty updates with cleanup-safe debounce and throttle timing while keeping the same `(newValue, oldValue)` callback style as `watch()`.
 
 ## [1.8.2] - 2026-04-01
 
