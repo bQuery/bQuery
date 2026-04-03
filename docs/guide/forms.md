@@ -209,4 +209,85 @@ validateConfirmPassword(confirmPassword.value); // true when the values match
 `matchField()` accepts any object with a `.value` property, so it works with both signals and plain `{ value: T }` objects.
 :::
 
+## Complete form example with view bindings
+
+Here is a full registration form combining `createForm()`, validators, and the view module for rendering:
+
+```html
+<form id="register-form" bq-on:submit.prevent="form.handleSubmit()">
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" bq-model="form.fields.name.value" placeholder="Your name" />
+    <p bq-error="form.fields.name" class="error-text"></p>
+  </div>
+
+  <div class="field">
+    <label for="email">Email</label>
+    <input id="email" type="email" bq-model="form.fields.email.value" placeholder="you@example.com" />
+    <p bq-error="form.fields.email" class="error-text"></p>
+  </div>
+
+  <div class="field">
+    <label for="password">Password</label>
+    <input id="password" type="password" bq-model="form.fields.password.value" />
+    <p bq-error="form.fields.password" class="error-text"></p>
+  </div>
+
+  <div class="field">
+    <label for="confirm">Confirm Password</label>
+    <input id="confirm" type="password" bq-model="form.fields.confirmPassword.value" />
+    <p bq-error="form.fields.confirmPassword" class="error-text"></p>
+  </div>
+
+  <button type="submit" bq-bind:disabled="form.isSubmitting.value || !form.isValid.value">
+    Register
+  </button>
+
+  <p bq-show="form.isSubmitting.value">Submitting...</p>
+</form>
+```
+
+```ts
+import { createForm, required, email, minLength } from '@bquery/bquery/forms';
+import { mount } from '@bquery/bquery/view';
+
+const form = createForm({
+  fields: {
+    name: { initialValue: '', validators: [required(), minLength(2)] },
+    email: { initialValue: '', validators: [required(), email()] },
+    password: { initialValue: '', validators: [required(), minLength(8)] },
+    confirmPassword: { initialValue: '', validators: [required()] },
+  },
+  crossValidators: [
+    (values) =>
+      values.password === values.confirmPassword
+        ? undefined
+        : { confirmPassword: 'Passwords must match' },
+  ],
+  onSubmit: async (values) => {
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values),
+    });
+
+    if (!res.ok) {
+      const data = await res.json();
+      form.setErrors(data.errors); // apply server-side errors
+    }
+  },
+});
+
+mount('#register-form', { form });
+```
+
+## Tips for beginners
+
+- **Start with `useFormField()`** if you only need a single input validated — it's simpler than `createForm()`
+- **Use `bq-error`** to show errors without manual DOM manipulation
+- **Validators stack** — you can combine multiple validators on a single field: `[required(), minLength(3), email()]`
+- **`form.isValid`** is reactive — use it in effects or bind it to disable buttons
+- **`form.reset()`** clears all fields and errors back to initial state
+- **Server-side errors** can be applied with `form.setErrors()` after a failed API call
+
 Use forms when you want signal-based state without wiring every input manually.
