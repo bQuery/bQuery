@@ -1,6 +1,6 @@
 # Media
 
-The media module exposes reactive wrappers and helpers around browser and device APIs. Many composables return reactive signals that update automatically when the underlying browser state changes, typically as a `MediaSignalHandle` with a `destroy()` method for cleanup, while some utilities return helper objects with their own APIs.
+The media module exposes reactive wrappers and helpers around browser and device APIs. Many composables return reactive signals that update automatically when the underlying browser state changes, typically as a `MediaSignalHandle` with a `destroy()` method for cleanup. Some utilities return helper objects with their own APIs instead.
 
 ```ts
 import {
