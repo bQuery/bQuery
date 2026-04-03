@@ -37,7 +37,7 @@ function renderComponent(
 
 ```ts
 interface RenderComponentOptions {
-  /** Attributes to set on the element before connecting. Values are stringified with `String(value)`. */
+  /** Attribute values to set via the `props` option before connecting. Values are applied with `setAttribute()` and stringified with `String(value)`. */
   props?: Record<string, unknown>;
   /** Slot content. A string fills the default slot. An object maps slot names to HTML strings. */
   slots?: string | Record<string, string>;
