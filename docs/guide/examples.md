@@ -242,8 +242,7 @@ mount('#login-form', { form });
 ### Registration with password confirmation
 
 ```ts
-import { createForm, required, email, minLength, matchField } from '@bquery/bquery/forms';
-import { signal } from '@bquery/bquery/reactive';
+import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 
 const form = createForm({
   fields: {
