@@ -11,8 +11,8 @@ on:
   workflow_dispatch:
 
 permissions:
-      id-token: write  # Required for OIDC
-      contents: read
+  id-token: write  # Required for OIDC
+  contents: read
 
 jobs:
   build:
@@ -52,7 +52,7 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run build
       - name: Publish to npm (Trusted Publisher)
-        run: npm publish --scope public
+        run: npm publish --access public --provenance
 
   deploy-pages:
     needs: build-docs
