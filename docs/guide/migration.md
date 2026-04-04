@@ -268,7 +268,9 @@ ws.onmessage = (e) => {
 import { $ } from '@bquery/bquery/core';
 import { effect, useWebSocket } from '@bquery/bquery/reactive';
 
-const { data, send } = useWebSocket('wss://example.com/chat');
+type ChatMessage = { text: string };
+
+const { data, send } = useWebSocket<ChatMessage, ChatMessage>('wss://example.com/chat');
 
 effect(() => {
   if (data.value) {

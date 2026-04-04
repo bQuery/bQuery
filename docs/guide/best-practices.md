@@ -203,7 +203,7 @@ $('#content').raw.innerHTML = myGeneratedHtml;
 import { escapeHtml } from '@bquery/bquery/security';
 
 // ❌ Dangerous — even if you think the data is safe
-element.raw.innerHTML = `<p>${userComment}</p>`;
+$('#comment').raw.innerHTML = `<p>${userComment}</p>`;
 
 // ✅ Use text for user content
 $('#comment').text(userComment);

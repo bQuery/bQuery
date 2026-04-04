@@ -62,7 +62,7 @@ A simple todo list using the view module's declarative directives:
   import { mount, signal } from 'https://cdn.jsdelivr.net/npm/@bquery/bquery@1/view/+esm';
 
   const newTodo = signal('');
-  const todos = signal([]);
+  const todos = signal<string[]>([]);
 
   function addTodo() {
     const text = newTodo.value.trim();
