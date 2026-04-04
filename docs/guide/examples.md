@@ -635,11 +635,15 @@ async function initTheme() {
   isDark.value = (await local.get('dark-mode')) === 'true';
 }
 
-void initTheme();
+initTheme().catch((error) => {
+  console.error('Failed to load theme preference:', error);
+});
 
 effect(() => {
   document.documentElement.classList.toggle('dark', isDark.value);
-  void local.set('dark-mode', String(isDark.value));
+  local.set('dark-mode', String(isDark.value)).catch((error) => {
+    console.error('Failed to save theme preference:', error);
+  });
 });
 
 $('#theme-toggle').on('click', () => {
