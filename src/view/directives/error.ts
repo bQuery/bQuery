@@ -2,11 +2,7 @@ import { effect, isComputed, isSignal } from '../../reactive/index';
 import { evaluateRaw } from '../evaluate';
 import type { DirectiveHandler } from '../types';
 
-type ErrorSource =
-  | {
-      error?: unknown;
-    }
-  | unknown;
+type ErrorSource = unknown;
 
 const getErrorMessage = (source: ErrorSource): string => {
   if (isSignal(source) || isComputed(source)) {
