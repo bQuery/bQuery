@@ -327,7 +327,7 @@ fieldState.value = { invalid: true, describedBy: 'email-error' };
 ```html
 <input
   id="email"
-  bq-aria="{ invalid: fieldState.value.invalid, describedby: fieldState.value.describedBy }"
+  bq-aria="{ invalid: fieldState.value.invalid, 'aria-describedby': fieldState.value.describedBy }"
 />
 <p id="email-error" bq-error="formError"></p>
 ```
@@ -539,7 +539,7 @@ effect(() => {
   console.log(prefersDark.value, viewport.value.width, intersection.value.isIntersecting);
 });
 
-console.log(resize.value.contentRect?.width, mutations.value.records.length);
+console.log(resize.value.width, mutations.value.mutations.length);
 ```
 
 ### Router – SPA navigation

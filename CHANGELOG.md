@@ -63,6 +63,18 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased] - 2026-04-04
 
+### Added (Unreleased)
+
+- No changes yet.
+
+### Changed (Unreleased)
+
+- No changes yet.
+
+### Fixed (Unreleased)
+
+- No changes yet.
+
 ## [1.9.0] - 2026-04-04
 
 ### Added (1.9.0)
