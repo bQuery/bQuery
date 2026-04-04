@@ -627,11 +627,12 @@ import { storage } from '@bquery/bquery/platform';
 import { signal, effect } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 
-const isDark = signal(storage.get('dark-mode') === 'true');
+const local = storage.local();
+const isDark = signal((await local.get('dark-mode')) === 'true');
 
 effect(() => {
   document.documentElement.classList.toggle('dark', isDark.value);
-  storage.set('dark-mode', String(isDark.value));
+  void local.set('dark-mode', String(isDark.value));
 });
 
 $('#theme-toggle').on('click', () => {
@@ -642,12 +643,13 @@ $('#theme-toggle').on('click', () => {
 ### Browser notifications
 
 ```ts
+import { $ } from '@bquery/bquery/core';
 import { notifications } from '@bquery/bquery/platform';
 
 async function notifyUser(title: string, body: string) {
-  const permission = await notifications.request();
+  const permission = await notifications.requestPermission();
   if (permission === 'granted') {
-    notifications.show(title, { body });
+    notifications.send(title, { body });
   }
 }
 
@@ -663,15 +665,18 @@ $('#notify-btn').on('click', () => {
 ### Focus trap in a modal
 
 ```ts
-import { trapFocus, releaseFocus } from '@bquery/bquery/a11y';
+import { trapFocus } from '@bquery/bquery/a11y';
+
+let focusTrap: ReturnType<typeof trapFocus> | null = null;
 
 function openModal(modalEl: HTMLElement) {
   modalEl.hidden = false;
-  trapFocus(modalEl);
+  focusTrap = trapFocus(modalEl);
 }
 
 function closeModal(modalEl: HTMLElement) {
-  releaseFocus(modalEl);
+  focusTrap?.release();
+  focusTrap = null;
   modalEl.hidden = true;
 }
 ```
@@ -681,7 +686,7 @@ function closeModal(modalEl: HTMLElement) {
 ```ts
 import { skipLink } from '@bquery/bquery/a11y';
 
-skipLink({ target: '#main-content', text: 'Skip to main content' });
+skipLink('#main-content', { text: 'Skip to main content' });
 ```
 
 ### Screen reader announcements
@@ -732,7 +737,7 @@ effect(() => {
 // Send a message
 $('#send-btn').on('click', () => {
   const input = $('#message-input');
-  send(JSON.stringify({ text: (input.raw as HTMLInputElement).value }));
+  send({ text: (input.raw as HTMLInputElement).value });
   (input.raw as HTMLInputElement).value = '';
 });
 
@@ -788,8 +793,8 @@ effect(() => {
   $('#item-count').text(i18n.t('items', { count: 5 }));
 });
 
-$('#lang-en').on('click', () => i18n.locale.value = 'en');
-$('#lang-de').on('click', () => i18n.locale.value = 'de');
+$('#lang-en').on('click', () => i18n.$locale.value = 'en');
+$('#lang-de').on('click', () => i18n.$locale.value = 'de');
 ```
 
 ---
@@ -801,12 +806,23 @@ $('#lang-de').on('click', () => i18n.locale.value = 'de');
 ```ts
 import { sortable } from '@bquery/bquery/dnd';
 
-const cleanup = sortable('#task-list', {
+const taskList = document.querySelector('#task-list');
+
+if (!(taskList instanceof HTMLElement)) {
+  throw new Error('Expected #task-list to exist');
+}
+
+const handle = sortable(taskList, {
   items: '.task-item',
-  onSort: (items) => {
+  onSortEnd: ({ oldIndex, newIndex }) => {
+    const items = Array.from(taskList.querySelectorAll<HTMLElement>('.task-item'));
+    console.log('Moved:', { oldIndex, newIndex });
     console.log('New order:', items.map((el) => el.dataset.id));
   },
 });
+
+// Later, when you no longer need sorting:
+handle.destroy();
 ```
 
 ```html

@@ -33,10 +33,10 @@ jQuery's `$()` returns a collection that may be empty. bQuery's `$()` returns ex
 
 ```js
 // jQuery — silently returns empty collection
-const el = $('#maybe-exists'); // el.length might be 0
+const maybeEl = $('#maybe-exists'); // maybeEl.length might be 0
 
 // bQuery — throws if not found
-const el = $('#must-exist'); // guaranteed to exist
+const mustEl = $('#must-exist'); // guaranteed to exist
 
 // bQuery — safe alternative for optional elements
 const els = $$('#maybe-exists'); // empty collection if not found
@@ -156,12 +156,14 @@ $('#item').remove();
 
 ```js
 // jQuery
-$('#btn').on('click', (e) => console.log('clicked'));
+const handleClick = (e) => console.log('clicked');
+$('#btn').on('click', handleClick);
 $('#btn').off('click');
 
-// bQuery — same API
-$('#btn').on('click', (e) => console.log('clicked'));
-$('#btn').off('click');
+// bQuery — keep a reference to the handler you want to remove
+const handleBqClick = (e) => console.log('clicked');
+$('#btn').on('click', handleBqClick);
+$('#btn').off('click', handleBqClick);
 ```
 
 ### Event delegation
@@ -274,7 +276,7 @@ effect(() => {
   }
 });
 
-send(JSON.stringify({ text: 'Hello!' }));
+send({ text: 'Hello!' });
 ```
 
 ---
