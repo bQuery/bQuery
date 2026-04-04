@@ -123,8 +123,13 @@ watchDebounce(
       results.value = [];
       return;
     }
-    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-    results.value = await res.json();
+    try {
+      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+      results.value = await res.json();
+    } catch (error) {
+      console.error('Search request failed:', error);
+      results.value = [];
+    }
   },
   300,
 );
@@ -738,8 +743,13 @@ import { useWebSocket } from '@bquery/bquery/reactive';
 import { signal, effect } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 
-const messages = signal<Array<{ user: string; text: string }>>([]);
-const { data, send, status } = useWebSocket('wss://chat.example.com/ws');
+type ChatMessage = { user: string; text: string };
+type OutgoingChatMessage = { text: string };
+
+const messages = signal<ChatMessage[]>([]);
+const { data, send, status } = useWebSocket<OutgoingChatMessage, ChatMessage>(
+  'wss://chat.example.com/ws',
+);
 
 // Update messages when new data arrives
 effect(() => {
