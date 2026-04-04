@@ -245,8 +245,8 @@ Always declare prop types for documentation and safety:
 ```ts
 component('status-badge', {
   props: {
-    status: 'active' as 'active' | 'inactive' | 'pending',
-    size: 'md',
+    status: { type: String, default: 'active' },
+    size: { type: String, default: 'md' },
   },
   render({ props }) {
     return html`<span class="badge badge-${props.status} badge-${props.size}">
@@ -259,25 +259,33 @@ component('status-badge', {
 ### Use composition hooks for reactive state
 
 ```ts
+import { component, html, useComputed, useEffect, useSignal } from '@bquery/bquery/component';
+
 component('live-counter', {
-  render({ el }) {
+  shadow: false,
+  state: { count: 0, doubled: 0 },
+  render({ state }) {
+    return html`
+      <button type="button" class="increment">+</button>
+      <span class="count">${state.count}</span> (doubled: <span class="doubled">${state.doubled}</span>)
+    `;
+  },
+  connected() {
     const count = useSignal(0);
     const doubled = useComputed(() => count.value * 2);
 
     useEffect(() => {
-      el.querySelector('.count')!.textContent = String(count.value);
-      el.querySelector('.doubled')!.textContent = String(doubled.value);
+      this.setState('count', count.value);
+      this.setState('doubled', doubled.value);
     });
 
-    return html`
-      <button onclick="this.getRootNode().host.increment()">+</button>
-      <span class="count">0</span> (doubled: <span class="doubled">0</span>)
-    `;
-  },
-  connected({ el }) {
-    (el as any).increment = () => {
-      // Access signal through closure
+    this.onclick = (event) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('.increment')) count.value += 1;
     };
+  },
+  disconnected() {
+    this.onclick = null;
   },
 });
 ```
@@ -291,14 +299,15 @@ component('live-counter', {
 ```ts
 import { createStore } from '@bquery/bquery/store';
 
-export const authStore = createStore('auth', {
-  state: {
+export const authStore = createStore({
+  id: 'auth',
+  state: () => ({
     user: null as User | null,
     token: '',
-  },
+  }),
   getters: {
-    isLoggedIn() { return this.user !== null; },
-    displayName() { return this.user?.name ?? 'Guest'; },
+    isLoggedIn: (state) => state.user !== null,
+    displayName: (state) => state.user?.name ?? 'Guest',
   },
   actions: {
     login(user: User, token: string) {
@@ -334,17 +343,22 @@ actions: {
 ```ts
 import { createPersistedStore } from '@bquery/bquery/store';
 
-const settings = createPersistedStore('settings', {
-  state: { theme: 'light', language: 'en' },
-  version: 1,
-  migrate(state, oldVersion) {
-    if (oldVersion < 1) state.language = 'en';
-    return state;
+const settings = createPersistedStore(
+  {
+    id: 'settings',
+    state: () => ({ theme: 'light', language: 'en' }),
+    actions: {
+      setTheme(theme: string) {
+        this.theme = theme;
+      },
+    },
   },
-  actions: {
-    setTheme(theme: string) { this.theme = theme; },
-  },
-});
+  {
+    version: 1,
+    migrate: (state, oldVersion) =>
+      oldVersion < 1 ? { ...state, language: 'en' } : state,
+  }
+);
 ```
 
 ---
@@ -358,12 +372,12 @@ import { createRouter, navigate } from '@bquery/bquery/router';
 
 createRouter({
   routes: [
-    { path: '/', handler: () => renderHome() },
+    { path: '/', component: () => renderHome() },
     {
       path: '/dashboard',
-      handler: () => renderDashboard(),
-      guard: () => {
-        if (!authStore.state.isLoggedIn) {
+      component: () => renderDashboard(),
+      beforeEnter: () => {
+        if (!authStore.isLoggedIn) {
           navigate('/login');
           return false;
         }
@@ -377,12 +391,14 @@ createRouter({
 ### Use parameterized routes with constraints
 
 ```ts
+import { createRouter, currentRoute } from '@bquery/bquery/router';
+
 createRouter({
   routes: [
     // Only matches numeric IDs
-    { path: '/user/:id(\\d+)', handler: ({ params }) => showUser(params.id) },
+    { path: '/user/:id(\\d+)', component: () => showUser(currentRoute.value.params.id) },
     // Catches everything else
-    { path: '/404', handler: () => show404() },
+    { path: '/404', component: () => show404() },
   ],
 });
 ```

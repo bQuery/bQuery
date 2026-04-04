@@ -214,7 +214,7 @@ validateConfirmPassword(confirmPassword.value); // true when the values match
 Here is a full registration form combining `createForm()`, validators, and the view module for rendering:
 
 ```html
-<form id="register-form" bq-on:submit.prevent="form.handleSubmit()">
+<form id="register-form" bq-on:submit="$event.preventDefault(); form.handleSubmit()">
   <div class="field">
     <label for="name">Name</label>
     <input id="name" bq-model="form.fields.name.value" placeholder="Your name" />

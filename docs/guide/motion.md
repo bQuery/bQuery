@@ -282,6 +282,7 @@ Many real-world scenarios combine multiple motion helpers. Here are common patte
 
 ```ts
 import { transition, animate, stagger, keyframePresets } from '@bquery/bquery/motion';
+import { $ } from '@bquery/bquery/core';
 
 async function navigateToPage(content: string) {
   await transition(async () => {

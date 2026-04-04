@@ -205,7 +205,7 @@ $.ajax({
 });
 
 // bQuery
-import { useFetch } from '@bquery/bquery/reactive';
+import { effect, useFetch } from '@bquery/bquery/reactive';
 
 const { data, error, loading } = useFetch('/api/users');
 
@@ -242,7 +242,8 @@ const timer = setInterval(async () => {
 }, 5000);
 
 // bQuery — declarative polling
-import { usePolling } from '@bquery/bquery/reactive';
+import { $ } from '@bquery/bquery/core';
+import { effect, usePolling } from '@bquery/bquery/reactive';
 
 const { data } = usePolling('/api/status', { interval: 5000 });
 
@@ -262,7 +263,8 @@ ws.onmessage = (e) => {
 };
 
 // bQuery — reactive WebSocket
-import { useWebSocket } from '@bquery/bquery/reactive';
+import { $ } from '@bquery/bquery/core';
+import { effect, useWebSocket } from '@bquery/bquery/reactive';
 
 const { data, send } = useWebSocket('wss://example.com/chat');
 
@@ -289,6 +291,8 @@ $('#card').slideUp(300);
 // bQuery — Web Animations API
 import { animate, keyframePresets } from '@bquery/bquery/motion';
 
+const card = document.querySelector('#card')!;
+
 await animate(card, {
   keyframes: keyframePresets.fadeIn(),
   options: { duration: 200 },
@@ -298,6 +302,7 @@ await animate(card, {
 ### View transitions (no jQuery equivalent)
 
 ```ts
+import { $ } from '@bquery/bquery/core';
 import { transition } from '@bquery/bquery/motion';
 
 await transition(() => {
@@ -314,6 +319,7 @@ These features have no jQuery equivalent:
 ### Reactive state
 
 ```ts
+import { $ } from '@bquery/bquery/core';
 import { signal, computed, effect } from '@bquery/bquery/reactive';
 
 const count = signal(0);
@@ -344,7 +350,10 @@ mount('#app', { name: signal('World') });
 import { component, html } from '@bquery/bquery/component';
 
 component('user-card', {
-  props: { name: '', avatar: '' },
+  props: {
+    name: { type: String, default: '' },
+    avatar: { type: String, default: '' },
+  },
   render({ props }) {
     return html`
       <img src="${props.avatar}" alt="${props.name}" />
@@ -376,8 +385,8 @@ import { createRouter, navigate } from '@bquery/bquery/router';
 
 createRouter({
   routes: [
-    { path: '/', handler: () => showHome() },
-    { path: '/about', handler: () => showAbout() },
+    { path: '/', component: () => showHome() },
+    { path: '/about', component: () => showAbout() },
   ],
 });
 ```
@@ -387,10 +396,11 @@ createRouter({
 ```ts
 import { createStore } from '@bquery/bquery/store';
 
-const counter = createStore('counter', {
-  state: { count: 0 },
+const counter = createStore({
+  id: 'counter',
+  state: () => ({ count: 0 }),
   getters: {
-    doubled() { return this.count * 2; },
+    doubled: (state) => state.count * 2,
   },
   actions: {
     increment() { this.count++; },

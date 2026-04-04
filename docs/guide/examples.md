@@ -217,7 +217,7 @@ mount('#login-form', { form });
 ```
 
 ```html
-<form id="login-form" bq-on:submit.prevent="form.handleSubmit()">
+<form id="login-form" bq-on:submit="$event.preventDefault(); form.handleSubmit()">
   <div>
     <label>Email</label>
     <input type="email" bq-model="form.fields.email.value" />
@@ -300,23 +300,21 @@ effect(() => {
 ### A notification toast
 
 ```ts
-import { component, html, useSignal, useEffect } from '@bquery/bquery/component';
+import { component, html } from '@bquery/bquery/component';
 
 component('toast-message', {
-  props: { message: '', type: 'info', duration: '3000' },
-  render({ props, el }) {
-    const visible = useSignal(true);
-
-    useEffect(() => {
-      const timer = setTimeout(() => {
-        visible.value = false;
-        setTimeout(() => el.remove(), 300);
-      }, Number(props.duration));
-      return () => clearTimeout(timer);
-    });
-
+  props: {
+    message: { type: String, default: '' },
+    type: { type: String, default: 'info' },
+    duration: { type: Number, default: 3000 },
+  },
+  connected() {
+    const duration = Number(this.getAttribute('duration') ?? '3000');
+    window.setTimeout(() => this.remove(), duration);
+  },
+  render({ props }) {
     return html`
-      <div class="toast toast-${props.type}" style="opacity: ${visible.value ? 1 : 0}; transition: opacity 0.3s">
+      <div class="toast toast-${props.type}">
         ${props.message}
       </div>
     `;
@@ -335,13 +333,16 @@ function showToast(message: string, type = 'info') {
 ### Reusable modal dialog
 
 ```ts
-import { component, html } from '@bquery/bquery/component';
+import { bool, component, html } from '@bquery/bquery/component';
 
 component('modal-dialog', {
-  props: { open: false, title: '' },
+  props: {
+    open: { type: Boolean, default: false },
+    title: { type: String, default: '' },
+  },
   render({ props }) {
     return html`
-      <div class="modal-backdrop" style="display: ${props.open ? 'flex' : 'none'}">
+      <div class="modal-backdrop" ${bool('hidden', !props.open)}>
         <div class="modal-content" role="dialog" aria-modal="true">
           <header>
             <h2>${props.title}</h2>
@@ -381,10 +382,10 @@ component('modal-dialog', {
 ### Multi-page app with route transitions
 
 ```ts
-import { createRouter, navigate, currentRoute } from '@bquery/bquery/router';
+import { $, $$ } from '@bquery/bquery/core';
 import { transition } from '@bquery/bquery/motion';
 import { effect } from '@bquery/bquery/reactive';
-import { $ } from '@bquery/bquery/core';
+import { createRouter, navigate, currentRoute } from '@bquery/bquery/router';
 
 const pages: Record<string, string> = {
   home: '<h1>Home</h1><p>Welcome to our site!</p>',
@@ -396,15 +397,15 @@ createRouter({
   routes: [
     {
       path: '/',
-      handler: () => transition(() => $('#content').html(pages.home)),
+      component: () => transition(() => $('#content').html(pages.home)),
     },
     {
       path: '/about',
-      handler: () => transition(() => $('#content').html(pages.about)),
+      component: () => transition(() => $('#content').html(pages.about)),
     },
     {
       path: '/contact',
-      handler: () => transition(() => $('#content').html(pages.contact)),
+      component: () => transition(() => $('#content').html(pages.contact)),
     },
   ],
 });
@@ -423,19 +424,22 @@ effect(() => {
 import { createRouter, navigate } from '@bquery/bquery/router';
 import { createStore } from '@bquery/bquery/store';
 
-const auth = createStore('auth', {
-  state: { token: '' },
-  getters: { isLoggedIn() { return this.token !== ''; } },
+const auth = createStore({
+  id: 'auth',
+  state: () => ({ token: '' }),
+  getters: {
+    isLoggedIn: (state) => state.token !== '',
+  },
 });
 
 createRouter({
   routes: [
-    { path: '/login', handler: () => showLogin() },
+    { path: '/login', component: () => showLogin() },
     {
       path: '/dashboard',
-      handler: () => showDashboard(),
-      guard: () => {
-        if (!auth.state.isLoggedIn) {
+      component: () => showDashboard(),
+      beforeEnter: () => {
+        if (!auth.isLoggedIn) {
           navigate('/login');
           return false;
         }
@@ -557,11 +561,12 @@ import { createStore } from '@bquery/bquery/store';
 import { effect } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 
-const counter = createStore('counter', {
-  state: { count: 0 },
+const counter = createStore({
+  id: 'counter',
+  state: () => ({ count: 0 }),
   getters: {
-    doubled() { return this.count * 2; },
-    isPositive() { return this.count > 0; },
+    doubled: (state) => state.count * 2,
+    isPositive: (state) => state.count > 0,
   },
   actions: {
     increment() { this.count++; },
@@ -571,37 +576,41 @@ const counter = createStore('counter', {
 });
 
 effect(() => {
-  $('#count').text(String(counter.state.count));
-  $('#doubled').text(String(counter.state.doubled));
+  $('#count').text(String(counter.count));
+  $('#doubled').text(String(counter.doubled));
 });
 
-$('#inc-btn').on('click', () => counter.actions.increment());
-$('#dec-btn').on('click', () => counter.actions.decrement());
-$('#reset-btn').on('click', () => counter.actions.reset());
+$('#inc-btn').on('click', () => counter.increment());
+$('#dec-btn').on('click', () => counter.decrement());
+$('#reset-btn').on('click', () => counter.reset());
 ```
 
 ### Persisted theme store
 
 ```ts
+import { effect } from '@bquery/bquery/reactive';
 import { createPersistedStore } from '@bquery/bquery/store';
 
-const themeStore = createPersistedStore('theme', {
-  state: { mode: 'light' as 'light' | 'dark', accentColor: '#3b82f6' },
-  version: 1,
-  actions: {
-    toggleMode() {
-      this.mode = this.mode === 'light' ? 'dark' : 'light';
-    },
-    setAccentColor(color: string) {
-      this.accentColor = color;
+const themeStore = createPersistedStore(
+  {
+    id: 'theme',
+    state: () => ({ mode: 'light' as 'light' | 'dark', accentColor: '#3b82f6' }),
+    actions: {
+      toggleMode() {
+        this.mode = this.mode === 'light' ? 'dark' : 'light';
+      },
+      setAccentColor(color: string) {
+        this.accentColor = color;
+      },
     },
   },
-});
+  { version: 1 }
+);
 
 // Apply theme reactively
 effect(() => {
-  document.documentElement.setAttribute('data-theme', themeStore.state.mode);
-  document.documentElement.style.setProperty('--accent', themeStore.state.accentColor);
+  document.documentElement.setAttribute('data-theme', themeStore.mode);
+  document.documentElement.style.setProperty('--accent', themeStore.accentColor);
 });
 ```
 
@@ -871,11 +880,12 @@ import { mount, signal } from '@bquery/bquery/view';
 import { transition } from '@bquery/bquery/motion';
 
 // ── Store ──
-const taskStore = createStore('tasks', {
-  state: { tasks: [] as Array<{ id: number; title: string; done: boolean }> },
+const taskStore = createStore({
+  id: 'tasks',
+  state: () => ({ tasks: [] as Array<{ id: number; title: string; done: boolean }> }),
   getters: {
-    pending() { return this.tasks.filter((t) => !t.done); },
-    completed() { return this.tasks.filter((t) => t.done); },
+    pending: (state) => state.tasks.filter((t) => !t.done),
+    completed: (state) => state.tasks.filter((t) => t.done),
   },
   actions: {
     add(title: string) {
@@ -898,7 +908,7 @@ const form = createForm({
     title: { initialValue: '', validators: [required()] },
   },
   onSubmit: async (values) => {
-    taskStore.actions.add(values.title);
+    taskStore.add(values.title);
     form.reset();
   },
 });
@@ -908,11 +918,11 @@ createRouter({
   routes: [
     {
       path: '/',
-      handler: () => transition(() => showTaskList()),
+      component: () => transition(() => showTaskList()),
     },
     {
       path: '/completed',
-      handler: () => transition(() => showCompleted()),
+      component: () => transition(() => showCompleted()),
     },
   ],
 });
