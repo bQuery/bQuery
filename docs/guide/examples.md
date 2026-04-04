@@ -106,8 +106,7 @@ effect(() => {
 ### Search with debounced input
 
 ```ts
-import { signal, effect } from '@bquery/bquery/reactive';
-import { watchDebounce } from '@bquery/bquery/reactive';
+import { signal, effect, watchDebounce } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 
 const query = signal('');
