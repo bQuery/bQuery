@@ -628,7 +628,13 @@ import { signal, effect } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 
 const local = storage.local();
-const isDark = signal((await local.get('dark-mode')) === 'true');
+const isDark = signal(false);
+
+async function initTheme() {
+  isDark.value = (await local.get('dark-mode')) === 'true';
+}
+
+void initTheme();
 
 effect(() => {
   document.documentElement.classList.toggle('dark', isDark.value);
@@ -667,6 +673,7 @@ $('#notify-btn').on('click', () => {
 ```ts
 import { trapFocus } from '@bquery/bquery/a11y';
 
+// trapFocus() returns a handle you can release later.
 let focusTrap: ReturnType<typeof trapFocus> | null = null;
 
 function openModal(modalEl: HTMLElement) {
@@ -805,12 +812,9 @@ $('#lang-de').on('click', () => i18n.$locale.value = 'de');
 
 ```ts
 import { sortable } from '@bquery/bquery/dnd';
+import { $ } from '@bquery/bquery/core';
 
-const taskList = document.querySelector('#task-list');
-
-if (!(taskList instanceof HTMLElement)) {
-  throw new Error('Expected #task-list to exist');
-}
+const taskList = $('#task-list').raw;
 
 const handle = sortable(taskList, {
   items: '.task-item',
