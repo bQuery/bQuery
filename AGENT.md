@@ -9,10 +9,11 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Name        | bQuery.js                                                                                                                                                                                                                                                    |
 | Package     | `@bquery/bquery`                                                                                                                                                                                                                                             |
-| Version     | 1.8.0                                                                                                                                                                                                                                                        |
+| Version     | 1.9.0                                                                                                                                                                                                                                                        |
 | License     | MIT                                                                                                                                                                                                                                                          |
 | Language    | TypeScript (strict)                                                                                                                                                                                                                                          |
 | Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                                                                                                 |
+| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.11`                                                                                                                                                                                                                           |
 | Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                                                                           |
 | Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                                                                             |
 | Description | jQuery-style DOM library with reactivity, async data, HTTP clients, polling / pagination, realtime transports, REST helpers, Web Components, motion, routing, stores, declarative views, and shared runtime config — zero-build capable, security-by-default |
@@ -31,6 +32,13 @@ bun run storybook     # Storybook dev server
 bun run dev           # VitePress docs server
 ```
 
+## Version 1.9.0 Highlights
+
+- `watchDebounce()` and `watchThrottle()` are public reactive APIs and should preserve the same cleanup-safe callback semantics as `watch()`.
+- View directive inventories must include `bq-error` and `bq-aria` when describing the declarative binding layer.
+- Media guidance should treat `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()` as first-class public composables.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.11`.
+
 ---
 
 ## Architecture Overview
@@ -40,7 +48,7 @@ src/
 ├── index.ts            # Default entry — re-exports all modules
 ├── full.ts             # Full bundle with explicit named exports (CDN)
 ├── core/               # $, $$, BQueryElement, BQueryCollection, utils
-├── reactive/           # signal, computed, effect, batch, watch, async data/fetch, HTTP, polling, pagination, realtime, REST
+├── reactive/           # signal, computed, effect, scopes, watch/watchDebounce/watchThrottle, async data/fetch, HTTP, polling, pagination, realtime, REST
 ├── component/          # component(), defineComponent(), scoped reactivity, defaults
 ├── storybook/          # storyHtml(), when() helpers for Storybook stories
 ├── motion/             # animate, transition, flip, morph, spring, timeline, scroll
@@ -48,12 +56,12 @@ src/
 ├── platform/           # storage, cache, cookies, announcers, page meta, config
 ├── router/             # createRouter, navigate, guards, currentRoute, bq-link
 ├── store/              # createStore, defineStore, plugins, persistence
-├── view/               # mount(), bq-* directives, declarative DOM bindings
+├── view/               # mount(), bq-* directives incl. bq-error/bq-aria, declarative DOM bindings
 ├── forms/              # createForm(), validators, field state
 ├── i18n/               # createI18n(), formatting, lazy locale loading
 ├── a11y/               # focus traps, announcements, audits, media prefs
 ├── dnd/                # draggable, droppable, sortable
-├── media/              # viewport, network, battery, clipboard, sensors
+├── media/              # viewport, network, battery, clipboard, sensors, observers
 ├── plugin/             # plugin registry for directives/components
 ├── devtools/           # runtime inspection and timeline helpers
 ├── testing/            # renderComponent(), mockSignal(), waitFor()
@@ -265,9 +273,9 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `useViewport`, `useNetworkStatus`         | functions | Reactive viewport and network state                                                                           |
 | `useBattery`, `useGeolocation`            | functions | Battery and geolocation wrappers                                                                              |
 | `useDeviceMotion`, `useDeviceOrientation` | functions | Device sensor wrappers                                                                                        |
-| `useIntersectionObserver`                 | function  | Reactive IntersectionObserver wrapper with `observe` / `unobserve` / `destroy`                              |
-| `useResizeObserver`                       | function  | Reactive ResizeObserver wrapper with box selection and `observe` / `unobserve` / `destroy`                  |
-| `useMutationObserver`                     | function  | Reactive MutationObserver wrapper with `observe` / `takeRecords` / `destroy`                                |
+| `useIntersectionObserver`                 | function  | Reactive IntersectionObserver wrapper with `observe` / `unobserve` / `destroy`                                |
+| `useResizeObserver`                       | function  | Reactive ResizeObserver wrapper with box selection and `observe` / `unobserve` / `destroy`                    |
+| `useMutationObserver`                     | function  | Reactive MutationObserver wrapper with `observe` / `takeRecords` / `destroy`                                  |
 | `clipboard`                               | object    | Async clipboard read/write helpers                                                                            |
 
 ### Plugin (`@bquery/bquery/plugin`)

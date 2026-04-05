@@ -4,6 +4,8 @@
 
 bQuery.js is a TypeScript-first, zero-build-capable DOM library with jQuery-style chaining and modern platform features. The package is modular, tree-shakeable, has zero runtime dependencies, and currently ships **21 public entry points**.
 
+Current release baseline: **1.9.0**.
+
 Start here before making assumptions:
 
 - `AGENT.md` — full architecture, module reference, key files, patterns
@@ -12,6 +14,13 @@ Start here before making assumptions:
 - `docs/guide/` — feature-specific guides for modules and workflows
 
 Prefer linking to those files instead of duplicating large sections into new instructions or docs.
+
+## Version 1.9.0 highlights
+
+- `watchDebounce()` and `watchThrottle()` are public reactive APIs and should preserve `watch()`-style callback semantics and cleanup behavior.
+- The view module's public directive set includes `bq-error` and `bq-aria`.
+- The media module's public surface includes `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()`.
+- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.11`.
 
 ## Source of truth
 
@@ -38,6 +47,8 @@ Also sync `src/full.ts` whenever public runtime exports change so the `/full` / 
 
 Use Bun for repository workflows:
 
+Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.11`.
+
 - `bun test` — primary test suite with `happy-dom`
 - `bun test --watch` — watch mode
 - `bun run build` — library build (`build:lib` + `build:umd` + `build:types`)
@@ -54,14 +65,14 @@ For code changes, prefer validating with the smallest relevant command first, th
 Public modules live under `src/<module>/index.ts`. Important module groups:
 
 - `core` — `$`, `$$`, DOM wrappers, traversal, manipulation, events, utilities
-- `reactive` — signals, computed values, effects, batching, async helpers, HTTP, polling/pagination, realtime transport, REST helpers
+- `reactive` — signals, computed values, scopes, batching, watch/watchDebounce/watchThrottle, async helpers, HTTP, polling/pagination, realtime transport, REST helpers
 - `component` — Web Components helpers, typed props, lifecycle hooks, shadow DOM helpers
 - `motion` — transitions, FLIP, springs, timelines, parallax, typewriter, reduced motion
 - `security` — sanitization, Trusted Types, CSP helpers
 - `platform` — storage, buckets, notifications, web platform helpers
 - `router` — SPA routing, guards, params, navigation utilities, route signals
 - `store` — signal-based state management and persistence
-- `view` — declarative bindings with `bq-*` directives
+- `view` — declarative bindings with `bq-*` directives including `bq-error` and `bq-aria`
 - `storybook`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `ssr` — feature modules with their own public barrels and guides
 
 Entry points:
@@ -93,6 +104,7 @@ Entry points:
 - `$$(selector)` returns `BQueryCollection` and does not throw for empty results
 - Signal `.value` participates in tracking; `.peek()` reads without subscribing
 - `computed()` is read-only; `linkedSignal()` is read-write
+- `watchDebounce()` and `watchThrottle()` keep the same `(newValue, oldValue)` watcher callback shape as `watch()`
 - Store actions mutate state through `this`, not external state parameters
 - Component reactive helpers such as `useSignal()`, `useComputed()`, and `useEffect()` belong in lifecycle-safe contexts
 
