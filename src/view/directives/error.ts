@@ -1,5 +1,5 @@
 import { effect, isComputed, isSignal } from '../../reactive/index';
-import { evaluateRaw } from '../evaluate';
+import { evaluate } from '../evaluate';
 import type { DirectiveHandler } from '../types';
 
 type ErrorSource = unknown;
@@ -37,7 +37,7 @@ export const handleError: DirectiveHandler = (el, expression, context, cleanups)
   }
 
   const cleanup = effect(() => {
-    const source = evaluateRaw(expression, context);
+    const source = evaluate(expression, context);
     const message = getErrorMessage(source).trim();
     const hasMessage = message.length > 0;
 

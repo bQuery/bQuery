@@ -243,6 +243,21 @@ describe('View', () => {
       expect(message.hidden).toBe(true);
     });
 
+    it('should auto-unwrap top-level signals inside error expressions', () => {
+      container.innerHTML = `<p bq-error="isValid ? '' : 'Invalid value'"></p>`;
+      const isValid = signal(false);
+
+      view = mount(container, { isValid });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.textContent).toBe('Invalid value');
+      expect(message.hidden).toBe(false);
+
+      isValid.value = true;
+      expect(message.textContent).toBe('');
+      expect(message.hidden).toBe(true);
+    });
+
     it('should preserve existing role and aria-live attributes', () => {
       container.innerHTML =
         '<p bq-error="errorMessage" role="status" aria-live="polite"></p>';
