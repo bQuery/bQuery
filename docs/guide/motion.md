@@ -273,3 +273,56 @@ await x.to(120);
 - `current()` – get current value
 - `stop()` – stop animation
 - `onChange(callback)` – subscribe to updates
+
+## Combining animations
+
+Many real-world scenarios combine multiple motion helpers. Here are common patterns:
+
+### Page transition with staggered content
+
+```ts
+import { transition, animate, stagger, keyframePresets } from '@bquery/bquery/motion';
+import { $ } from '@bquery/bquery/core';
+
+async function navigateToPage(content: string) {
+  await transition(async () => {
+    $('#content').html(content);
+
+    // Stagger-animate the new content items
+    const items = document.querySelectorAll('#content .card');
+    const delay = stagger(60);
+    for (let i = 0; i < items.length; i++) {
+      animate(items[i], {
+        keyframes: keyframePresets.fadeIn(),
+        options: { duration: 300, easing: 'ease-out', delay: delay(i, items.length) },
+      });
+    }
+  });
+}
+```
+
+### Spring-based interactive element
+
+```ts
+import { spring, springPresets } from '@bquery/bquery/motion';
+
+const scale = spring(1, springPresets.snappy);
+const button = document.querySelector('#bounce-btn')!;
+
+scale.onChange((val) => {
+  button.style.transform = `scale(${val})`;
+});
+
+button.addEventListener('pointerdown', () => scale.to(0.92));
+button.addEventListener('pointerup', () => scale.to(1));
+button.addEventListener('pointerleave', () => scale.to(1));
+```
+
+## Tips for beginners
+
+- **Start with `transition()`** — it's the simplest way to animate DOM changes
+- **Use `keyframePresets`** instead of writing keyframes manually — they cover most common animations
+- **Always check `prefersReducedMotion()`** to respect user preferences — for `transition()` you can use `skipOnReducedMotion: true`, and for other helpers use `respectReducedMotion` where supported
+- **`scrollAnimate()` is great for landing pages** — it automatically triggers animations when elements scroll into view
+- **Springs feel more natural** than CSS transitions for interactive elements like drag, resize, and button feedback
+- **Use `sequence()` or `timeline()`** when you need multiple animations to run in a specific order

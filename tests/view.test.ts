@@ -3,6 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, spyOn, type Mock } from 'bun:test';
+import { createForm, required } from '../src/forms/index';
 import { computed, signal } from '../src/reactive/index';
 import { parseObjectExpression } from '../src/view/evaluate';
 import { clearExpressionCache, createTemplate, mount, type View } from '../src/view/index';
@@ -175,6 +176,215 @@ describe('View', () => {
 
       visible.value = false;
       expect(div.style.display).toBe('none');
+    });
+  });
+
+  describe('bq-error', () => {
+    it('should render and toggle a signal-backed error message', () => {
+      container.innerHTML = '<p bq-error="errorMessage"></p>';
+      const errorMessage = signal('');
+
+      view = mount(container, { errorMessage });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.hidden).toBe(true);
+      expect(message.textContent).toBe('');
+      expect(message.getAttribute('role')).toBe('alert');
+      expect(message.getAttribute('aria-live')).toBe('assertive');
+      expect(message.getAttribute('aria-hidden')).toBe('true');
+
+      errorMessage.value = 'Email is required';
+      expect(message.hidden).toBe(false);
+      expect(message.textContent).toBe('Email is required');
+      expect(message.hasAttribute('aria-hidden')).toBe(false);
+
+      errorMessage.value = '';
+      expect(message.hidden).toBe(true);
+      expect(message.textContent).toBe('');
+      expect(message.getAttribute('aria-hidden')).toBe('true');
+    });
+
+    it('should support form field objects by reading their error signal', async () => {
+      container.innerHTML = '<p bq-error="form.fields.email"></p>';
+      const form = createForm({
+        fields: {
+          email: { initialValue: '', validators: [required('Email required')] },
+        },
+      });
+
+      view = mount(container, { form });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.hidden).toBe(true);
+
+      await form.validateField('email');
+      expect(message.hidden).toBe(false);
+      expect(message.textContent).toBe('Email required');
+
+      form.fields.email.value.value = 'ada@example.com';
+      await form.validateField('email');
+      expect(message.hidden).toBe(true);
+      expect(message.textContent).toBe('');
+    });
+
+    it('should support computed error expressions', () => {
+      container.innerHTML = '<p bq-error="validationMessage"></p>';
+      const isValid = signal(false);
+      const validationMessage = computed(() => (isValid.value ? '' : 'Invalid value'));
+
+      view = mount(container, { validationMessage });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.textContent).toBe('Invalid value');
+      expect(message.hidden).toBe(false);
+
+      isValid.value = true;
+      expect(message.textContent).toBe('');
+      expect(message.hidden).toBe(true);
+    });
+
+    it('should auto-unwrap top-level signals inside error expressions', () => {
+      container.innerHTML = `<p bq-error="isValid ? '' : 'Invalid value'"></p>`;
+      const isValid = signal(false);
+
+      view = mount(container, { isValid });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.textContent).toBe('Invalid value');
+      expect(message.hidden).toBe(false);
+
+      isValid.value = true;
+      expect(message.textContent).toBe('');
+      expect(message.hidden).toBe(true);
+    });
+
+    it('should preserve existing role and aria-live attributes', () => {
+      container.innerHTML =
+        '<p bq-error="errorMessage" role="status" aria-live="polite"></p>';
+      const errorMessage = signal('Server error');
+
+      view = mount(container, { errorMessage });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.getAttribute('role')).toBe('status');
+      expect(message.getAttribute('aria-live')).toBe('polite');
+      expect(message.textContent).toBe('Server error');
+    });
+
+    it('should preserve an author-provided aria-hidden attribute', () => {
+      container.innerHTML =
+        '<p bq-error="errorMessage" aria-hidden="true" role="status" aria-live="assertive"></p>';
+      const errorMessage = signal('Server error');
+
+      view = mount(container, { errorMessage });
+
+      const message = container.querySelector('p') as HTMLParagraphElement;
+      expect(message.hidden).toBe(false);
+      expect(message.getAttribute('aria-hidden')).toBe('true');
+
+      errorMessage.value = '';
+      expect(message.hidden).toBe(true);
+      expect(message.getAttribute('aria-hidden')).toBe('true');
+    });
+  });
+
+  describe('bq-aria', () => {
+    it('should bind object syntax ARIA attributes reactively', () => {
+      container.innerHTML = '<button bq-aria="{ expanded: isOpen, label: buttonLabel }"></button>';
+      const isOpen = signal(false);
+      const buttonLabel = signal('Open menu');
+
+      view = mount(container, { isOpen, buttonLabel });
+
+      const button = container.querySelector('button')!;
+      expect(button.getAttribute('aria-expanded')).toBe('false');
+      expect(button.getAttribute('aria-label')).toBe('Open menu');
+
+      isOpen.value = true;
+      buttonLabel.value = 'Close menu';
+      expect(button.getAttribute('aria-expanded')).toBe('true');
+      expect(button.getAttribute('aria-label')).toBe('Close menu');
+    });
+
+    it('should support expression-returned ARIA maps', () => {
+      container.innerHTML = '<div bq-aria="ariaState"></div>';
+      const ariaState = signal<Record<string, string | boolean | number>>({
+        current: 'page',
+        hidden: false,
+        level: 2,
+      });
+
+      view = mount(container, { ariaState });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-current')).toBe('page');
+      expect(div.getAttribute('aria-hidden')).toBe('false');
+      expect(div.getAttribute('aria-level')).toBe('2');
+
+      ariaState.value = {
+        controls: 'menu-panel',
+        hidden: true,
+      };
+      expect(div.hasAttribute('aria-current')).toBe(false);
+      expect(div.getAttribute('aria-controls')).toBe('menu-panel');
+      expect(div.getAttribute('aria-hidden')).toBe('true');
+      expect(div.hasAttribute('aria-level')).toBe(false);
+    });
+
+    it('should ignore prototype-pollution keys in expression-returned ARIA maps', () => {
+      container.innerHTML = '<div bq-aria="ariaState"></div>';
+      const initialState = Object.create(null) as Record<string, string>;
+      initialState.label = 'Safe label';
+      Object.defineProperty(initialState, '__proto__', {
+        value: 'unsafe',
+        enumerable: true,
+        configurable: true,
+      });
+      const ariaState = signal(initialState);
+
+      view = mount(container, { ariaState });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-label')).toBe('Safe label');
+      expect(div.hasAttribute('aria-__proto__')).toBe(false);
+      expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'unsafe')).toBe(false);
+    });
+
+    it('should accept keys that already include the aria- prefix', () => {
+      container.innerHTML = '<div bq-aria="{ \'aria-describedby\': describedById }"></div>';
+      const describedById = signal('hint-id');
+
+      view = mount(container, { describedById });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-describedby')).toBe('hint-id');
+    });
+
+    it('should normalize camelCase keys that start with aria', () => {
+      container.innerHTML = '<div bq-aria="{ ariaExpanded: isExpanded }"></div>';
+      const isExpanded = signal(true);
+
+      view = mount(container, { isExpanded });
+
+      const div = container.querySelector('div')!;
+      expect(div.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('should preserve explicit false values and remove nullish or empty values', () => {
+      container.innerHTML = '<button bq-aria="{ pressed: isPressed, controls: controlsId }"></button>';
+      const isPressed = signal(true);
+      const controlsId = signal('panel-id');
+
+      view = mount(container, { isPressed, controlsId });
+
+      const button = container.querySelector('button')!;
+      expect(button.getAttribute('aria-pressed')).toBe('true');
+      expect(button.getAttribute('aria-controls')).toBe('panel-id');
+
+      isPressed.value = false;
+      controlsId.value = '';
+      expect(button.getAttribute('aria-pressed')).toBe('false');
+      expect(button.hasAttribute('aria-controls')).toBe(false);
     });
   });
 
@@ -854,11 +1064,19 @@ describe('View', () => {
 
   describe('custom prefix', () => {
     it('should support custom directive prefix', () => {
-      container.innerHTML = '<p x-text="message"></p>';
+      container.innerHTML = `
+        <p x-text="message"></p>
+        <span x-error="errorMessage"></span>
+        <button x-aria="{ expanded: expanded }"></button>
+      `;
+      const errorMessage = signal('Needs attention');
+      const expanded = signal(true);
 
-      view = mount(container, { message: 'Custom prefix' }, { prefix: 'x' });
+      view = mount(container, { message: 'Custom prefix', errorMessage, expanded }, { prefix: 'x' });
 
       expect(container.querySelector('p')?.textContent).toBe('Custom prefix');
+      expect(container.querySelector('span')?.textContent).toBe('Needs attention');
+      expect(container.querySelector('button')?.getAttribute('aria-expanded')).toBe('true');
     });
   });
 

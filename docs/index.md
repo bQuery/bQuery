@@ -41,3 +41,11 @@ features:
 ## Why bQuery
 
 bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, async data composables, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, testing, and SSR in a modular, progressive way.
+
+## New to bQuery?
+
+Start with the [Getting Started](/guide/getting-started) guide, then explore the [Examples & Recipes](/guide/examples) for practical, copy-paste-ready code. Coming from jQuery? The [Migration Guide](/guide/migration) maps jQuery patterns to bQuery equivalents.
+
+## Looking for answers?
+
+Check the [FAQ & Troubleshooting](/guide/faq) for common questions, or read the [Best Practices](/guide/best-practices) guide for patterns that scale from small scripts to large applications.

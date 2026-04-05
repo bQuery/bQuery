@@ -10,6 +10,11 @@ import { useDeviceMotion, useDeviceOrientation } from '../src/media/device-senso
 import { useGeolocation } from '../src/media/geolocation';
 import { mediaQuery } from '../src/media/media-query';
 import { useNetworkStatus } from '../src/media/network';
+import {
+  useIntersectionObserver,
+  useMutationObserver,
+  useResizeObserver,
+} from '../src/media/observers';
 import { useViewport } from '../src/media/viewport';
 
 const originalInnerWidth = window.innerWidth;
@@ -918,6 +923,741 @@ describe('media/clipboard', () => {
   });
 });
 
+// ─── useIntersectionObserver ──────────────────────────────────────────────────
+
+describe('media/useIntersectionObserver', () => {
+  it('returns a signal with default state when no target is given', () => {
+    const io = useIntersectionObserver();
+    expect(io.value).toEqual({
+      isIntersecting: false,
+      intersectionRatio: 0,
+      entry: null,
+    });
+    io.destroy();
+  });
+
+  it('returns readonly signal (no setter)', () => {
+    const io = useIntersectionObserver();
+    expect(() => {
+      (io as { value: unknown }).value = {};
+    }).toThrow();
+    io.destroy();
+  });
+
+  it('defines destroy, observe, unobserve as non-enumerable properties', () => {
+    const io = useIntersectionObserver();
+    const keys = Object.keys(io);
+    expect(keys).not.toContain('destroy');
+    expect(keys).not.toContain('observe');
+    expect(keys).not.toContain('unobserve');
+    expect(typeof io.destroy).toBe('function');
+    expect(typeof io.observe).toBe('function');
+    expect(typeof io.unobserve).toBe('function');
+    io.destroy();
+  });
+
+  it('destroy is idempotent (safe to call multiple times)', () => {
+    const io = useIntersectionObserver();
+    io.destroy();
+    expect(() => io.destroy()).not.toThrow();
+  });
+
+  it('accepts a single element target', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const io = useIntersectionObserver(el);
+    expect(io.value.isIntersecting).toBe(false);
+    io.destroy();
+    el.remove();
+  });
+
+  it('accepts an array of element targets', () => {
+    const el1 = document.createElement('div');
+    const el2 = document.createElement('div');
+    document.body.appendChild(el1);
+    document.body.appendChild(el2);
+    const io = useIntersectionObserver([el1, el2]);
+    expect(io.value.isIntersecting).toBe(false);
+    io.destroy();
+    el1.remove();
+    el2.remove();
+  });
+
+  it('accepts null target without throwing', () => {
+    expect(() => {
+      const io = useIntersectionObserver(null);
+      io.destroy();
+    }).not.toThrow();
+  });
+
+  it('accepts options (threshold, rootMargin)', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const io = useIntersectionObserver(el, {
+      threshold: [0, 0.5, 1],
+      rootMargin: '10px',
+    });
+    expect(io.value.isIntersecting).toBe(false);
+    io.destroy();
+    el.remove();
+  });
+
+  it('fails gracefully when IntersectionObserver construction throws', () => {
+    const originalIntersectionObserver = globalThis.IntersectionObserver;
+
+    class MockIntersectionObserver {
+      constructor() {
+        throw new Error('invalid observer options');
+      }
+    }
+
+    globalThis.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+
+    try {
+      const el = document.createElement('div');
+      expect(() =>
+        useIntersectionObserver(el, {
+          rootMargin: 'bad-margin',
+        }),
+      ).not.toThrow();
+
+      const io = useIntersectionObserver(el, {
+        rootMargin: 'bad-margin',
+      });
+      expect(io.value).toEqual({
+        isIntersecting: false,
+        intersectionRatio: 0,
+        entry: null,
+      });
+      expect(() => io.observe(el)).not.toThrow();
+      io.destroy();
+    } finally {
+      globalThis.IntersectionObserver = originalIntersectionObserver;
+    }
+  });
+
+  it('observe() and unobserve() do not throw after creation', () => {
+    const io = useIntersectionObserver();
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    expect(() => io.observe(el)).not.toThrow();
+    expect(() => io.unobserve(el)).not.toThrow();
+    io.destroy();
+    el.remove();
+  });
+
+  it('observe() and unobserve() are no-ops after destroy', () => {
+    const io = useIntersectionObserver();
+    io.destroy();
+    const el = document.createElement('div');
+    expect(() => io.observe(el)).not.toThrow();
+    expect(() => io.unobserve(el)).not.toThrow();
+  });
+});
+
+// ─── useResizeObserver ───────────────────────────────────────────────────────
+
+describe('media/useResizeObserver', () => {
+  it('returns a signal with default state when no target is given', () => {
+    const ro = useResizeObserver();
+    expect(ro.value).toEqual({
+      width: 0,
+      height: 0,
+      entry: null,
+    });
+    ro.destroy();
+  });
+
+  it('returns readonly signal (no setter)', () => {
+    const ro = useResizeObserver();
+    expect(() => {
+      (ro as { value: unknown }).value = {};
+    }).toThrow();
+    ro.destroy();
+  });
+
+  it('defines destroy, observe, unobserve as non-enumerable properties', () => {
+    const ro = useResizeObserver();
+    const keys = Object.keys(ro);
+    expect(keys).not.toContain('destroy');
+    expect(keys).not.toContain('observe');
+    expect(keys).not.toContain('unobserve');
+    expect(typeof ro.destroy).toBe('function');
+    expect(typeof ro.observe).toBe('function');
+    expect(typeof ro.unobserve).toBe('function');
+    ro.destroy();
+  });
+
+  it('destroy is idempotent', () => {
+    const ro = useResizeObserver();
+    ro.destroy();
+    expect(() => ro.destroy()).not.toThrow();
+  });
+
+  it('accepts a single element target', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const ro = useResizeObserver(el);
+    expect(typeof ro.value.width).toBe('number');
+    expect(typeof ro.value.height).toBe('number');
+    ro.destroy();
+    el.remove();
+  });
+
+  it('accepts an array of element targets', () => {
+    const el1 = document.createElement('div');
+    const el2 = document.createElement('div');
+    document.body.appendChild(el1);
+    document.body.appendChild(el2);
+    const ro = useResizeObserver([el1, el2]);
+    expect(ro.value.width).toBe(0);
+    ro.destroy();
+    el1.remove();
+    el2.remove();
+  });
+
+  it('accepts null target without throwing', () => {
+    expect(() => {
+      const ro = useResizeObserver(null);
+      ro.destroy();
+    }).not.toThrow();
+  });
+
+  it('accepts options with box parameter', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const ro = useResizeObserver(el, { box: 'border-box' });
+    expect(ro.value.width).toBe(0);
+    ro.destroy();
+    el.remove();
+  });
+
+  it('uses borderBoxSize when box is border-box', () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    let callback: ResizeObserverCallback | undefined;
+
+    class MockResizeObserver {
+      constructor(cb: ResizeObserverCallback) {
+        callback = cb;
+      }
+
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    try {
+      const el = document.createElement('div');
+      const ro = useResizeObserver(el, { box: 'border-box' });
+
+      callback?.(
+        [
+          {
+            borderBoxSize: [{ inlineSize: 320, blockSize: 180 }],
+            contentBoxSize: [{ inlineSize: 300, blockSize: 160 }],
+            contentRect: { width: 300, height: 160 },
+            target: el,
+          } as unknown as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver
+      );
+
+      expect(ro.value.width).toBe(320);
+      expect(ro.value.height).toBe(180);
+      ro.destroy();
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
+  it('falls back to contentRect when the configured resize box size is unavailable', () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+    let callback: ResizeObserverCallback | undefined;
+
+    class MockResizeObserver {
+      constructor(cb: ResizeObserverCallback) {
+        callback = cb;
+      }
+
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    try {
+      const el = document.createElement('div');
+      const ro = useResizeObserver(el, { box: 'device-pixel-content-box' });
+
+      callback?.(
+        [
+          {
+            borderBoxSize: [{ inlineSize: 320, blockSize: 180 }],
+            contentBoxSize: [{ inlineSize: 300, blockSize: 160 }],
+            contentRect: { width: 280, height: 140 },
+            target: el,
+          } as unknown as ResizeObserverEntry,
+        ],
+        {} as ResizeObserver
+      );
+
+      expect(ro.value.width).toBe(280);
+      expect(ro.value.height).toBe(140);
+      ro.destroy();
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
+  it('fails gracefully when initial resize observation throws', () => {
+    const originalResizeObserver = globalThis.ResizeObserver;
+
+    class MockResizeObserver {
+      observe(): void {
+        throw new Error('invalid box');
+      }
+
+      unobserve(): void {}
+      disconnect(): void {}
+    }
+
+    globalThis.ResizeObserver = MockResizeObserver as unknown as typeof ResizeObserver;
+
+    try {
+      const el = document.createElement('div');
+      expect(() =>
+        useResizeObserver(el, { box: 'border-box' }),
+      ).not.toThrow();
+
+      const ro = useResizeObserver(el, { box: 'border-box' });
+      expect(ro.value).toEqual({
+        width: 0,
+        height: 0,
+        entry: null,
+      });
+      expect(() => ro.observe(el)).not.toThrow();
+      ro.destroy();
+    } finally {
+      globalThis.ResizeObserver = originalResizeObserver;
+    }
+  });
+
+  it('observe() and unobserve() do not throw after creation', () => {
+    const ro = useResizeObserver();
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    expect(() => ro.observe(el)).not.toThrow();
+    expect(() => ro.unobserve(el)).not.toThrow();
+    ro.destroy();
+    el.remove();
+  });
+
+  it('observe() and unobserve() are no-ops after destroy', () => {
+    const ro = useResizeObserver();
+    ro.destroy();
+    const el = document.createElement('div');
+    expect(() => ro.observe(el)).not.toThrow();
+    expect(() => ro.unobserve(el)).not.toThrow();
+  });
+});
+
+// ─── useMutationObserver ─────────────────────────────────────────────────────
+
+describe('media/useMutationObserver', () => {
+  const MUTATION_OBSERVER_TIMEOUT_MS = 50;
+
+  const waitForMutationObserver = () =>
+    new Promise((resolve) => setTimeout(resolve, MUTATION_OBSERVER_TIMEOUT_MS));
+
+  const createMutationProbe = (target: Node, options: MutationObserverInit) => {
+    const MutationObserverCtor = globalThis.MutationObserver;
+    let count = 0;
+    const observer = MutationObserverCtor
+      ? new MutationObserverCtor((mutations) => {
+          count += mutations.length;
+        })
+      : undefined;
+
+    observer?.observe(target, options);
+
+    return {
+      supported: Boolean(observer),
+      get count(): number {
+        return count;
+      },
+      disconnect(): void {
+        observer?.disconnect();
+      },
+    };
+  };
+
+  it('returns a signal with default state when no target is given', () => {
+    const mo = useMutationObserver();
+    expect(mo.value).toEqual({
+      mutations: [],
+      count: 0,
+    });
+    mo.destroy();
+  });
+
+  it('returns readonly signal (no setter)', () => {
+    const mo = useMutationObserver();
+    expect(() => {
+      (mo as { value: unknown }).value = {};
+    }).toThrow();
+    mo.destroy();
+  });
+
+  it('defines destroy, observe, takeRecords as non-enumerable properties', () => {
+    const mo = useMutationObserver();
+    const keys = Object.keys(mo);
+    expect(keys).not.toContain('destroy');
+    expect(keys).not.toContain('observe');
+    expect(keys).not.toContain('takeRecords');
+    expect(typeof mo.destroy).toBe('function');
+    expect(typeof mo.observe).toBe('function');
+    expect(typeof mo.takeRecords).toBe('function');
+    mo.destroy();
+  });
+
+  it('destroy is idempotent', () => {
+    const mo = useMutationObserver();
+    mo.destroy();
+    expect(() => mo.destroy()).not.toThrow();
+  });
+
+  it('accepts a target node and observes mutations', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const mo = useMutationObserver(el, { attributes: true });
+    expect(mo.value.count).toBe(0);
+    mo.destroy();
+    el.remove();
+  });
+
+  it('accepts null target without throwing', () => {
+    expect(() => {
+      const mo = useMutationObserver(null);
+      mo.destroy();
+    }).not.toThrow();
+  });
+
+  it('accepts childList and subtree options', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const mo = useMutationObserver(el, { childList: true, subtree: true, attributes: false });
+    expect(mo.value.count).toBe(0);
+    mo.destroy();
+    el.remove();
+  });
+
+  it('falls back to attributes observation when all primary options are false', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    let observedOptions: MutationObserverInit | undefined;
+
+    class MockMutationObserver {
+      observe(_target: Node, options: MutationObserverInit): void {
+        observedOptions = options;
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      const mo = useMutationObserver(el, {
+        attributes: false,
+        childList: false,
+        characterData: false,
+      });
+
+      expect(observedOptions).toBeDefined();
+      expect(observedOptions?.attributes).toBe(true);
+      expect(observedOptions?.childList).toBe(false);
+      expect(observedOptions?.characterData).toBe(false);
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
+  it('clears attribute-dependent options when attributes observation is disabled', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    let observedOptions: MutationObserverInit | undefined;
+
+    class MockMutationObserver {
+      observe(_target: Node, options: MutationObserverInit): void {
+        observedOptions = options;
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      const mo = useMutationObserver(el, {
+        attributes: false,
+        childList: true,
+        attributeOldValue: true,
+        attributeFilter: ['data-test'],
+      });
+
+      expect(observedOptions).toBeDefined();
+      expect(observedOptions?.attributes).toBe(false);
+      expect(observedOptions?.childList).toBe(true);
+      expect(observedOptions?.attributeOldValue).toBe(false);
+      expect('attributeFilter' in (observedOptions ?? {})).toBe(false);
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
+  it('preserves an empty attributeFilter when attributes observation is enabled', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    let observedOptions: MutationObserverInit | undefined;
+
+    class MockMutationObserver {
+      observe(_target: Node, options: MutationObserverInit): void {
+        observedOptions = options;
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      const mo = useMutationObserver(el, {
+        attributes: true,
+        attributeFilter: [],
+      });
+
+      expect(observedOptions).toBeDefined();
+      expect(observedOptions?.attributes).toBe(true);
+      expect(observedOptions?.attributeFilter).toEqual([]);
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
+  it('clears characterDataOldValue when characterData observation is disabled', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+    let observedOptions: MutationObserverInit | undefined;
+
+    class MockMutationObserver {
+      observe(_target: Node, options: MutationObserverInit): void {
+        observedOptions = options;
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      const mo = useMutationObserver(el, {
+        attributes: true,
+        characterData: false,
+        characterDataOldValue: true,
+      });
+
+      expect(observedOptions).toBeDefined();
+      expect(observedOptions?.attributes).toBe(true);
+      expect(observedOptions?.characterData).toBe(false);
+      expect(observedOptions?.characterDataOldValue).toBe(false);
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
+  it('fails gracefully when initial mutation observation throws', () => {
+    const originalMutationObserver = globalThis.MutationObserver;
+
+    class MockMutationObserver {
+      constructor(_cb: MutationCallback) {}
+
+      observe(): void {
+        throw new Error('invalid mutation options');
+      }
+
+      disconnect(): void {}
+
+      takeRecords(): MutationRecord[] {
+        return [];
+      }
+    }
+
+    globalThis.MutationObserver = MockMutationObserver as unknown as typeof MutationObserver;
+
+    try {
+      const el = document.createElement('div');
+      expect(() =>
+        useMutationObserver(el, {
+          attributes: true,
+        }),
+      ).not.toThrow();
+
+      const mo = useMutationObserver(el, {
+        attributes: true,
+      });
+      expect(mo.value).toEqual({
+        mutations: [],
+        count: 0,
+      });
+      expect(() => mo.observe(el)).not.toThrow();
+      mo.destroy();
+    } finally {
+      globalThis.MutationObserver = originalMutationObserver;
+    }
+  });
+
+  it('accepts characterData and attributeFilter options', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const mo = useMutationObserver(el, {
+      attributes: true,
+      attributeFilter: ['class', 'id'],
+      attributeOldValue: true,
+    });
+    expect(mo.value.count).toBe(0);
+    mo.destroy();
+    el.remove();
+  });
+
+  it('observe() does not throw after creation', () => {
+    const mo = useMutationObserver();
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    expect(() => mo.observe(el)).not.toThrow();
+    mo.destroy();
+    el.remove();
+  });
+
+  it('observe() is a no-op after destroy', () => {
+    const mo = useMutationObserver();
+    mo.destroy();
+    const el = document.createElement('div');
+    expect(() => mo.observe(el)).not.toThrow();
+  });
+
+  it('takeRecords() returns an array', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const mo = useMutationObserver(el, { attributes: true });
+    const records = mo.takeRecords();
+    expect(Array.isArray(records)).toBe(true);
+    mo.destroy();
+    el.remove();
+  });
+
+  it('takeRecords() returns empty array after destroy', () => {
+    const mo = useMutationObserver();
+    mo.destroy();
+    const records = mo.takeRecords();
+    expect(records).toEqual([]);
+  });
+
+  it('updates signal when attribute mutation occurs', async () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const mo = useMutationObserver(el, { attributes: true });
+    const probe = createMutationProbe(el, { attributes: true });
+
+    try {
+      expect(mo.value.count).toBe(0);
+
+      // Trigger an attribute mutation
+      el.setAttribute('data-test', 'hello');
+
+      // MutationObserver callbacks are microtask-based, wait for them
+      await waitForMutationObserver();
+
+      if (!probe.supported || probe.count === 0) {
+        expect(typeof mo.value.count).toBe('number');
+        expect(Array.isArray(mo.value.mutations)).toBe(true);
+        return;
+      }
+
+      expect(mo.value.count).toBeGreaterThan(0);
+      expect(Array.isArray(mo.value.mutations)).toBe(true);
+      expect(mo.value.mutations.some((mutation) => mutation.type === 'attributes')).toBeTruthy();
+    } finally {
+      probe.disconnect();
+      mo.destroy();
+      el.remove();
+    }
+  });
+
+  it('updates signal when child list mutation occurs', async () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    const mo = useMutationObserver(el, { childList: true, attributes: false });
+    const probe = createMutationProbe(el, { childList: true });
+
+    try {
+      expect(mo.value.count).toBe(0);
+
+      // Trigger a childList mutation
+      const child = document.createElement('span');
+      el.appendChild(child);
+
+      await waitForMutationObserver();
+
+      if (!probe.supported || probe.count === 0) {
+        expect(typeof mo.value.count).toBe('number');
+        expect(Array.isArray(mo.value.mutations)).toBe(true);
+        return;
+      }
+
+      expect(mo.value.count).toBeGreaterThan(0);
+      expect(Array.isArray(mo.value.mutations)).toBe(true);
+      expect(mo.value.mutations.some((mutation) => mutation.type === 'childList')).toBeTruthy();
+    } finally {
+      probe.disconnect();
+      mo.destroy();
+      el.remove();
+    }
+  });
+
+  it('defaults to attributes: true when no options given', () => {
+    const el = document.createElement('div');
+    document.body.appendChild(el);
+    // Should not throw — defaults to { attributes: true }
+    const mo = useMutationObserver(el);
+    expect(mo.value.count).toBe(0);
+    mo.destroy();
+    el.remove();
+  });
+});
+
 // ─── Module exports ──────────────────────────────────────────────────────────
 
 describe('media module exports', () => {
@@ -934,6 +1674,9 @@ describe('media module exports', () => {
     expect(typeof mod.clipboard).toBe('object');
     expect(typeof mod.clipboard.read).toBe('function');
     expect(typeof mod.clipboard.write).toBe('function');
+    expect(typeof mod.useIntersectionObserver).toBe('function');
+    expect(typeof mod.useResizeObserver).toBe('function');
+    expect(typeof mod.useMutationObserver).toBe('function');
   });
 
   it('is re-exported from main index', async () => {
@@ -947,6 +1690,9 @@ describe('media module exports', () => {
     expect(typeof mod.useDeviceMotion).toBe('function');
     expect(typeof mod.useDeviceOrientation).toBe('function');
     expect(typeof mod.clipboard).toBe('object');
+    expect(typeof mod.useIntersectionObserver).toBe('function');
+    expect(typeof mod.useResizeObserver).toBe('function');
+    expect(typeof mod.useMutationObserver).toBe('function');
   });
 
   it('is exported from full bundle', async () => {
@@ -960,5 +1706,8 @@ describe('media module exports', () => {
     expect(typeof mod.useDeviceMotion).toBe('function');
     expect(typeof mod.useDeviceOrientation).toBe('function');
     expect(typeof mod.clipboard).toBe('object');
+    expect(typeof mod.useIntersectionObserver).toBe('function');
+    expect(typeof mod.useResizeObserver).toBe('function');
+    expect(typeof mod.useMutationObserver).toBe('function');
   });
 });

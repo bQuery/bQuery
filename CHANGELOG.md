@@ -8,6 +8,10 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[Unreleased\] - 2026-04-04](#unreleased---2026-04-04)
+  - [\[1.9.0\] - 2026-04-04](#190---2026-04-04)
+    - [Added (1.9.0)](#added-190)
+    - [Changed (1.9.0)](#changed-190)
   - [\[1.8.2\] - 2026-04-01](#182---2026-04-01)
     - [Changed (1.8.2)](#changed-182)
   - [\[1.8.1\] - 2026-04-01](#181---2026-04-01)
@@ -56,6 +60,33 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [Unreleased] - 2026-04-04
+
+### Added (Unreleased)
+
+- No changes yet.
+
+### Changed (Unreleased)
+
+- No changes yet.
+
+### Fixed (Unreleased)
+
+- No changes yet.
+
+## [1.9.0] - 2026-04-04
+
+### Added (1.9.0)
+
+- **Reactive / Watch**: Added `watchDebounce()` and `watchThrottle()` so signal watchers can smooth bursty updates with cleanup-safe debounce and throttle timing while keeping the same `(newValue, oldValue)` callback style as `watch()`.
+- **View**: Added `bq-error` for reactive inline error output with sensible alert semantics, plus `bq-aria` for declarative ARIA attribute binding from object expressions or evaluated state.
+- **Media**: Added `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()` to expose DOM observer APIs as cleanup-friendly reactive signals in `@bquery/bquery/media`.
+
+### Changed (1.9.0)
+
+- **Docs**: Expanded the README and VitePress guides to cover the new watch helpers, view directives, media observer composables, and broader module API examples introduced after `1.8.2`.
+- **Docs / Navigation**: Added onboarding-focused guide structure and reorganized the docs sidebar so feature documentation is easier to discover across beginner, intermediate, and advanced workflows.
 
 ## [1.8.2] - 2026-04-01
 

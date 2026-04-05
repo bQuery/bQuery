@@ -26,7 +26,7 @@ export { effectScope, getCurrentScope, onScopeDispose } from './scope';
 export { isComputed, isSignal } from './type-guards';
 export { toValue } from './to-value';
 export { untrack } from './untrack';
-export { watch } from './watch';
+export { watch, watchDebounce, watchThrottle } from './watch';
 export { useEventSource, useWebSocket, useWebSocketChannel } from './websocket';
 
 export type { CleanupFn, Observer } from './internals';
@@ -57,6 +57,7 @@ export type {
   UsePaginatedFetchOptions,
 } from './pagination';
 export type { PollingState, UsePollingOptions } from './polling';
+export type { WatchOptions } from './watch';
 export type {
   IdExtractor,
   ResourceListActions,

@@ -41,6 +41,8 @@ The reactive module now also covers HTTP clients, polling, pagination, WebSocket
 | `.peek()`        | Reads **without** tracking      |
 | `computed()`     | Read-only derived value         |
 | `linkedSignal()` | Read-write derived value        |
+| `watchDebounce()`| Debounced watcher callback      |
+| `watchThrottle()`| Throttled watcher callback      |
 
 ## Files to Consult
 

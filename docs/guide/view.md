@@ -116,6 +116,53 @@ Two-way binding for inputs:
 </select>
 ```
 
+### bq-error
+
+Render validation or error messages from a form field, signal, computed value, or plain expression.
+
+```html
+<!-- Bind a field object -->
+<p bq-error="form.fields.email"></p>
+
+<!-- Bind the error signal directly -->
+<p bq-error="form.fields.email.error"></p>
+
+<!-- Bind any reactive string source -->
+<p bq-error="serverError"></p>
+```
+
+`bq-error` sets `textContent`, hides the element when the message is empty, applies `aria-hidden="true"` only when the message is empty and you did not already provide `aria-hidden`, and adds accessible defaults with `role="alert"` and `aria-live="assertive"` unless you already provided those attributes.
+
+```ts
+const serverError = signal('');
+mount('#app', { form, serverError });
+```
+
+### bq-aria
+
+Bind ARIA attributes from an object literal or an expression that returns an object.
+
+```html
+<!-- Object syntax -->
+<button bq-aria="{ expanded: isOpen, controls: panelId, label: buttonLabel }">
+  Toggle menu
+</button>
+
+<!-- Expression returning an object -->
+<nav bq-aria="navAria"></nav>
+```
+
+`bq-aria` automatically prefixes keys with `aria-`, removes attributes for `null`, `undefined`, or empty strings, serializes booleans as `"true"` / `"false"`, and keeps previously applied ARIA attributes in sync when the object shape changes.
+
+```ts
+const navAria = signal({
+  label: 'Primary navigation',
+  current: 'page',
+});
+
+mount('#app', { isOpen, panelId, buttonLabel, navAria });
+```
+
 ### bq-bind:attr
 
 Bind any attribute:

@@ -28,9 +28,18 @@ export default defineConfig({
     sidebar: {
       '/guide/': [
         {
-          text: 'Guide',
+          text: 'Introduction',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Examples & Recipes', link: '/guide/examples' },
+            { text: 'FAQ & Troubleshooting', link: '/guide/faq' },
+            { text: 'Migrating from jQuery', link: '/guide/migration' },
+            { text: 'Best Practices', link: '/guide/best-practices' },
+          ],
+        },
+        {
+          text: 'Modules',
+          items: [
             { text: 'Core API', link: '/guide/api-core' },
             { text: 'Agents', link: '/guide/agents' },
             { text: 'Reactive', link: '/guide/reactive' },

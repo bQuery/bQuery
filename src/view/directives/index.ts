@@ -1,5 +1,7 @@
+export { handleAria } from './aria';
 export { handleBind } from './bind';
 export { handleClass } from './class';
+export { handleError } from './error';
 export { createForHandler } from './for';
 export { handleHtml } from './html';
 export { handleIf } from './if';

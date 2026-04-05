@@ -22,12 +22,13 @@
 
 bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
 
-> **New in 1.8.0:** the Reactive module now also covers transport-ready workflows such as `createHttp()`, `usePolling()`, `usePaginatedFetch()`, `useInfiniteFetch()`, `useWebSocket()`, `useEventSource()`, `useResource()`, `useSubmit()`, `createRequestQueue()`, and `deduplicateRequest()`.
+> **New in 1.9.0:** `watchDebounce()` / `watchThrottle()` smooth signal watchers, the View module adds `bq-error` and `bq-aria`, and the Media module now includes `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()`.
 
 ## Highlights
 
 - **Zero-build capable**: runs directly in the browser; build tools are optional.
-- **Transport-ready reactive data**: fetch composables, HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, and request coordination plug directly into signals.
+- **Transport-ready reactive data**: fetch composables, HTTP clients, polling, pagination, debounced/throttled watchers, WebSocket / SSE, REST helpers, and request coordination plug directly into signals.
+- **Declarative UI bindings**: built-in directives now cover content, events, forms, error output, and reactive ARIA attributes.
 - **Security-focused**: DOM writes are sanitized by default; Trusted Types supported.
 - **Modular**: the core stays small; extra modules are opt-in.
 - **TypeScript-first**: clear types and strong IDE support.
@@ -154,7 +155,14 @@ import { createForm, required, email } from '@bquery/bquery/forms';
 import { createI18n } from '@bquery/bquery/i18n';
 import { trapFocus, rovingTabIndex } from '@bquery/bquery/a11y';
 import { draggable, droppable, sortable } from '@bquery/bquery/dnd';
-import { mediaQuery, useViewport, clipboard } from '@bquery/bquery/media';
+import {
+  mediaQuery,
+  useViewport,
+  useIntersectionObserver,
+  useResizeObserver,
+  useMutationObserver,
+  clipboard,
+} from '@bquery/bquery/media';
 
 // Plugins, devtools, testing, SSR
 import { use } from '@bquery/bquery/plugin';
@@ -168,27 +176,27 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 
 ## Modules at a glance
 
-| Module        | Description                                                                                                      |
-| ------------- | ---------------------------------------------------------------------------------------------------------------- |
-| **Core**      | Selectors, DOM manipulation, events, traversal, and typed utilities                                              |
-| **Reactive**  | `signal`, `computed`, `effect`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers |
-| **Component** | Typed Web Components with scoped reactivity and configurable Shadow DOM                                          |
-| **Storybook** | Safe story template helpers with boolean-attribute shorthand                                                     |
-| **Motion**    | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                   |
-| **Security**  | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                  |
-| **Platform**  | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                    |
-| **Router**    | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                |
-| **Store**     | Signal-based state management, persistence, migrations, and action hooks                                         |
-| **View**      | Declarative DOM bindings, directives, and plugin-provided custom directives                                      |
-| **Forms**     | Reactive form state with sync/async validation and submit handling                                               |
-| **i18n**      | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                |
-| **A11y**      | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                  |
-| **DnD**       | Draggable elements, droppable zones, and sortable lists                                                          |
-| **Media**     | Reactive browser/device signals for viewport, network, battery, geolocation, and more                            |
-| **Plugin**    | Global plugin registration for custom directives and Web Components                                              |
-| **Devtools**  | Runtime inspection helpers for signals, stores, components, and timelines                                        |
-| **Testing**   | Component mounting, mock signals/router helpers, and async test utilities                                        |
-| **SSR**       | Server-side rendering, hydration, and store-state serialization                                                  |
+| Module        | Description                                                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core**      | Selectors, DOM manipulation, events, traversal, and typed utilities                                                                                |
+| **Reactive**  | `signal`, `computed`, `effect`, `watchDebounce`, `watchThrottle`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers |
+| **Component** | Typed Web Components with scoped reactivity and configurable Shadow DOM                                                                            |
+| **Storybook** | Safe story template helpers with boolean-attribute shorthand                                                                                       |
+| **Motion**    | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                                                     |
+| **Security**  | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                                                    |
+| **Platform**  | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                      |
+| **Router**    | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                                                  |
+| **Store**     | Signal-based state management, persistence, migrations, and action hooks                                                                           |
+| **View**      | Declarative DOM bindings with `bq-*` directives for content, classes, forms, errors, ARIA, and plugins                                             |
+| **Forms**     | Reactive form state with sync/async validation and submit handling                                                                                 |
+| **i18n**      | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                                                  |
+| **A11y**      | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                    |
+| **DnD**       | Draggable elements, droppable zones, and sortable lists                                                                                            |
+| **Media**     | Reactive browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers                                          |
+| **Plugin**    | Global plugin registration for custom directives and Web Components                                                                                |
+| **Devtools**  | Runtime inspection helpers for signals, stores, components, and timelines                                                                          |
+| **Testing**   | Component mounting, mock signals/router helpers, and async test utilities                                                                          |
+| **SSR**       | Server-side rendering, hydration, and store-state serialization                                                                                    |
 
 Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`.
 
@@ -227,6 +235,8 @@ import {
   effect,
   batch,
   watch,
+  watchDebounce,
+  watchThrottle,
   readonly,
   linkedSignal,
 } from '@bquery/bquery/reactive';
@@ -241,6 +251,14 @@ effect(() => {
 watch(count, (newVal, oldVal) => {
   console.log(`Changed from ${oldVal} to ${newVal}`);
 });
+
+watchDebounce(
+  count,
+  (newVal) => {
+    console.log('Debounced count', newVal);
+  },
+  150
+);
 
 const readOnlyCount = readonly(count);
 
@@ -286,6 +304,32 @@ const useApiFetch = createUseFetch({
 const settings = useApiFetch<{ theme: string }>('/settings');
 
 console.log(user.pending.value, user.data.value, settings.error.value);
+```
+
+### View – directives
+
+```ts
+import { mount } from '@bquery/bquery/view';
+import { signal } from '@bquery/bquery/reactive';
+
+const formError = signal('');
+const fieldState = signal({ invalid: false, describedBy: '' });
+
+mount('#profile-form', {
+  formError,
+  fieldState,
+});
+
+formError.value = 'Email is required';
+fieldState.value = { invalid: true, describedBy: 'email-error' };
+```
+
+```html
+<input
+  id="email"
+  bq-aria="{ invalid: fieldState.value.invalid, 'aria-describedby': fieldState.value.describedBy }"
+/>
+<p id="email-error" bq-error="formError"></p>
 ```
 
 ### Reactive – HTTP, streaming & request coordination
@@ -468,6 +512,34 @@ if (permission === 'granted') {
     body: 'Your docs are ready.',
   });
 }
+```
+
+### Media – queries, viewport & observers
+
+```ts
+import {
+  mediaQuery,
+  useViewport,
+  useIntersectionObserver,
+  useResizeObserver,
+  useMutationObserver,
+} from '@bquery/bquery/media';
+import { effect } from '@bquery/bquery/reactive';
+
+const prefersDark = mediaQuery('(prefers-color-scheme: dark)');
+const viewport = useViewport();
+const intersection = useIntersectionObserver(document.querySelector('#hero'));
+const resize = useResizeObserver(document.querySelector('#panel'));
+const mutations = useMutationObserver(document.querySelector('#feed'), {
+  childList: true,
+  subtree: true,
+});
+
+effect(() => {
+  console.log(prefersDark.value, viewport.value.width, intersection.value.isIntersecting);
+});
+
+console.log(resize.value.width, mutations.value.mutations.length);
 ```
 
 ### Router – SPA navigation
