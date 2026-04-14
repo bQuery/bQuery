@@ -223,7 +223,7 @@ export interface ConcurrencySupport {
   worker: boolean;
   /** `Blob` availability for zero-build inline worker scripts. */
   blob: boolean;
-  /** `URL.createObjectURL()` availability. */
+  /** `URL.createObjectURL()` and `URL.revokeObjectURL()` availability. */
   objectUrl: boolean;
   /** `AbortController` availability for cancellation ergonomics. */
   abortController: boolean;

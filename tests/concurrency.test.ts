@@ -164,6 +164,29 @@ describe('concurrency/support', () => {
       expect(isConcurrencySupported()).toBe(true);
     });
   });
+
+  it(
+    'requires revokeObjectURL support for zero-build worker execution',
+    async () => {
+      await withMockWorkerEnvironment(() => {
+        const originalRevokeObjectURL = URL.revokeObjectURL;
+
+        try {
+          URL.revokeObjectURL = undefined as unknown as typeof URL.revokeObjectURL;
+
+          const support = getConcurrencySupport();
+          expect(support.objectUrl).toBe(false);
+          expect(support.supported).toBe(false);
+          expect(isConcurrencySupported()).toBe(false);
+          expect(() => createTaskWorker((value: number) => value * 2)).toThrow(
+            TaskWorkerUnsupportedError
+          );
+        } finally {
+          URL.revokeObjectURL = originalRevokeObjectURL;
+        }
+      });
+    }
+  );
 });
 
 describe('concurrency/runTask', () => {

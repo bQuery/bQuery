@@ -60,7 +60,9 @@ const executeSerializedChunk = async (
   job: SerializedChunk
 ): Promise<Array<IndexedMapResult<unknown>>> => {
   const revive = new Function(`return (${job.handlerSource});`);
-  const handler = revive() as ((value: unknown, index: number) => unknown | Promise<unknown>) | undefined;
+  const handler = revive() as
+    | ((value: unknown, index: number) => unknown | Promise<unknown>)
+    | undefined;
 
   if (typeof handler !== 'function') {
     throw new TypeError('The serialized collection handler did not revive as a function.');
@@ -107,11 +109,15 @@ const normalizeBatchSize = (batchSize: number | undefined, label: string): numbe
   return batchSize;
 };
 
-const createSerializedTaskPool = (options: ParallelOptions): TaskPool<SerializedParallelTask, unknown> => {
+const createSerializedTaskPool = (
+  options: ParallelOptions
+): TaskPool<SerializedParallelTask, unknown> => {
   return createTaskPool(executeSerializedTask, options);
 };
 
-const serializeTask = <TInput, TResult>(task: ParallelTask<TInput, TResult>): SerializedParallelTask => ({
+const serializeTask = <TInput, TResult>(
+  task: ParallelTask<TInput, TResult>
+): SerializedParallelTask => ({
   handlerSource: validateTaskHandler(task.handler),
   input: task.input,
 });
@@ -126,7 +132,9 @@ const runChunkedHandler = async <TInput, TResult>(
     return [];
   }
 
-  const handlerSource = validateTaskHandler(handler as unknown as WorkerTaskHandler<TInput, TResult>);
+  const handlerSource = validateTaskHandler(
+    handler as unknown as WorkerTaskHandler<TInput, TResult>
+  );
   const normalizedBatchSize = normalizeBatchSize(options.batchSize, label);
   const { batchSize: _batchSize, signal, ...poolOptions } = options;
   const pool = createTaskPool(executeSerializedChunk, poolOptions);

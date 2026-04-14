@@ -19,8 +19,11 @@ import type { ConcurrencySupport } from './types';
 export function getConcurrencySupport(): ConcurrencySupport {
   const worker = typeof globalThis.Worker === 'function';
   const blob = typeof globalThis.Blob === 'function';
+  const hasUrl = typeof globalThis.URL !== 'undefined' && globalThis.URL !== null;
   const objectUrl =
-    typeof globalThis.URL !== 'undefined' && typeof globalThis.URL.createObjectURL === 'function';
+    hasUrl &&
+    typeof globalThis.URL.createObjectURL === 'function' &&
+    typeof globalThis.URL.revokeObjectURL === 'function';
   const abortController = typeof globalThis.AbortController === 'function';
 
   return {

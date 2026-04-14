@@ -240,7 +240,10 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
   };
 };
 
-const createWorkerNames = (name: string | undefined, concurrency: number): Array<string | undefined> => {
+const createWorkerNames = (
+  name: string | undefined,
+  concurrency: number
+): Array<string | undefined> => {
   if (!name) {
     return Array.from({ length: concurrency }, () => undefined);
   }
@@ -433,7 +436,9 @@ export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
       input: Parameters<TRoutes[TMethod]>[0],
       runOptions?: TaskRunOptions
     ): Promise<Awaited<ReturnType<TRoutes[TMethod]>>> {
-      return runtime.enqueue({ input, method }, runOptions) as Promise<Awaited<ReturnType<TRoutes[TMethod]>>>;
+      return runtime.enqueue({ input, method }, runOptions) as Promise<
+        Awaited<ReturnType<TRoutes[TMethod]>>
+      >;
     },
     clear(): void {
       runtime.clear();

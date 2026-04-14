@@ -268,7 +268,9 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
       runOptions: TaskRunOptions = {}
     ): Promise<Awaited<ReturnType<TRoutes[TMethod]>>> {
       if (disposed) {
-        return Promise.reject(new TaskWorkerError('The RPC worker has already been terminated.', 'TERMINATED'));
+        return Promise.reject(
+          new TaskWorkerError('The RPC worker has already been terminated.', 'TERMINATED')
+        );
       }
 
       if (pending) {
