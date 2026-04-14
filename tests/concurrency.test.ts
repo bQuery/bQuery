@@ -555,6 +555,21 @@ describe('concurrency/high-level helpers', () => {
     });
   });
 
+  it('filters sparse arrays using the evaluated hole matches', async () => {
+    await withMockWorkerEnvironment(async () => {
+      // Intentionally sparse: preserved hole proves filter uses predicate results for empty slots.
+      const values = [1, , 3] as Array<number | undefined>;
+      const results = await filter(values, (_value, index) => index > 0, {
+        batchSize: 2,
+        concurrency: 2,
+      });
+
+      expect(results).toHaveLength(2);
+      expect(0 in results).toBe(false);
+      expect(results[1]).toBe(3);
+    });
+  });
+
   it('returns some/every/find results from predicate-style helpers', async () => {
     await withMockWorkerEnvironment(async () => {
       await expect(

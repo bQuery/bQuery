@@ -280,9 +280,13 @@ export function createTaskPool<TInput = void, TResult = unknown>(
   handler: WorkerTaskHandler<TInput, TResult>,
   options: CreateTaskPoolOptions = {}
 ): TaskPool<TInput, TResult> {
-  const concurrency = normalizeConcurrency(options.concurrency, 'Task pool');
-  const maxQueue = normalizeMaxQueue(options.maxQueue, 'Task pool');
-  const { concurrency: _concurrency, maxQueue: _maxQueue, ...workerOptions } = options;
+  const {
+    concurrency: concurrencyOption,
+    maxQueue: maxQueueOption,
+    ...workerOptions
+  } = options;
+  const concurrency = normalizeConcurrency(concurrencyOption, 'Task pool');
+  const maxQueue = normalizeMaxQueue(maxQueueOption, 'Task pool');
 
   const runtime = createPoolRuntime<TaskWorker<TInput, TResult>, TInput, TResult>({
     abortedWhileQueuedMessage: 'The queued task was aborted before execution started.',
@@ -370,9 +374,13 @@ export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
   handlers: TRoutes,
   options: CreateRpcPoolOptions = {}
 ): RpcPool<TRoutes> {
-  const concurrency = normalizeConcurrency(options.concurrency, 'RPC pool');
-  const maxQueue = normalizeMaxQueue(options.maxQueue, 'RPC pool');
-  const { concurrency: _concurrency, maxQueue: _maxQueue, ...workerOptions } = options;
+  const {
+    concurrency: concurrencyOption,
+    maxQueue: maxQueueOption,
+    ...workerOptions
+  } = options;
+  const concurrency = normalizeConcurrency(concurrencyOption, 'RPC pool');
+  const maxQueue = normalizeMaxQueue(maxQueueOption, 'RPC pool');
 
   type RpcJob = {
     input: unknown;

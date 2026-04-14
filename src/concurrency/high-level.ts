@@ -135,8 +135,8 @@ const runChunkedHandler = async <TInput, TResult>(
   const handlerSource = validateTaskHandler(
     handler as unknown as WorkerTaskHandler<TInput, TResult>
   );
-  const normalizedBatchSize = normalizeBatchSize(options.batchSize, label);
-  const { batchSize: _batchSize, signal, ...poolOptions } = options;
+  const { batchSize, signal, ...poolOptions } = options;
+  const normalizedBatchSize = normalizeBatchSize(batchSize, label);
   const pool = createTaskPool(executeSerializedChunk, poolOptions);
   const chunks: Array<SerializedChunk<TInput>> = [];
 
@@ -283,7 +283,21 @@ export async function filter<TInput>(
   options: ParallelCollectionOptions = {}
 ): Promise<TInput[]> {
   const matches = await runChunkedHandler(values, predicate, options, 'filter');
-  return values.filter((_, index) => matches[index]);
+  const filtered: TInput[] = [];
+
+  for (let index = 0; index < values.length; index += 1) {
+    if (!matches[index]) {
+      continue;
+    }
+
+    if (index in values) {
+      filtered.push(values[index] as TInput);
+    } else {
+      filtered.length += 1;
+    }
+  }
+
+  return filtered;
 }
 
 /**
