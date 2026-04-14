@@ -10,9 +10,11 @@
  * The function must be self-contained because it is stringified and evaluated
  * in the worker context without access to outer closures.
  *
- * The bivariance wrapper is intentional: object-literal task and RPC handlers
- * should remain ergonomic under strict TypeScript variance checks, including
- * the repository's dedicated test typecheck.
+ * The bivariance wrapper is intentional: TypeScript checks plain function
+ * parameter types contravariantly under `strictFunctionTypes`, but method
+ * signatures remain bivariant. Modeling the public handler as a method-shaped
+ * signature keeps object-literal task and RPC handlers ergonomic in strict
+ * typechecks, including the repository's dedicated test typecheck.
  *
  * @example
  * ```ts
