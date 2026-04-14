@@ -15,9 +15,9 @@
  * const square = (value: number) => value * value;
  * ```
  */
-export type WorkerTaskHandler<TInput = void, TResult = unknown> = (
-  input: TInput
-) => TResult | Promise<TResult>;
+export type WorkerTaskHandler<TInput = void, TResult = unknown> = {
+  bivarianceHack(input: TInput): TResult | Promise<TResult>;
+}['bivarianceHack'];
 
 /** Lifecycle state of a reusable task worker. */
 export type TaskWorkerState = 'idle' | 'running' | 'terminated';
