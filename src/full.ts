@@ -155,6 +155,7 @@ export {
   isConcurrencySupported,
   map,
   parallel,
+  pipeline,
   reduce,
   runTask,
   some,
@@ -165,6 +166,8 @@ export {
   TaskWorkerUnsupportedError,
 } from './concurrency/index';
 export type {
+  ConcurrencyPipeline,
+  ConcurrencyPipelineOptions,
   CallWorkerMethodOptions,
   ConcurrencySupport,
   CreateRpcPoolOptions,

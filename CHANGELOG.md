@@ -72,10 +72,11 @@ and this project adheres to Semantic Versioning.
 - **Concurrency / Pools**: Added `createTaskPool()` and `createRpcPool()` for explicit browser-first worker pools with bounded concurrency, FIFO queueing, and backpressure via `maxQueue`.
 - **Concurrency / High-level helpers**: Added `parallel()` for explicit task lists, `batchTasks()` as the adapted batched-task helper, and `map()` for chunked parallel array mapping on top of the existing worker-pool primitives.
 - **Concurrency / Collection helpers**: Added `filter()`, `reduce()`, `some()`, `every()`, and `find()` as explicit ThreadTS-inspired collection helpers that preserve bQuery's browser-first, zero-build worker model without decorators or hidden runtimes.
+- **Concurrency / Pipelines**: Added `pipeline()` as an optional immutable fluent layer over the existing collection helpers, keeping CSP and serialization limits explicit instead of introducing proxy-based worker magic.
 
 ### Changed (Unreleased)
 
-- **Docs / Agent context**: Synced the README, guides, build/export metadata, and agent context files for the concurrency module's task + RPC + pool + collection-helper scope, including an updated `threadts-universal` parity matrix and phased roadmap.
+- **Docs / Agent context**: Synced the README, guides, build/export metadata, and agent context files for the concurrency module's task + RPC + pool + collection-helper + pipeline scope, including an updated `threadts-universal` parity matrix and phased roadmap.
 
 ### Fixed (Unreleased)
 

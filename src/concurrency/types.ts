@@ -142,6 +142,65 @@ export type ParallelReduceHandler<TAccumulator, TInput> = (
 /** Options for `map()` chunking and cancellation behavior. */
 export type ParallelMapOptions = ParallelCollectionOptions;
 
+/** Shared defaults for the optional fluent concurrency pipeline. */
+export type ConcurrencyPipelineOptions = ParallelCollectionOptions;
+
+/**
+ * Optional fluent pipeline over the existing explicit collection helpers.
+ *
+ * The pipeline is immutable: each transforming stage returns a new pipeline
+ * instead of mutating the previous one in place.
+ */
+export interface ConcurrencyPipeline<TValue> {
+  /**
+   * Maps the current array value through the existing worker-backed `map()` helper.
+   */
+  map<TResult>(
+    mapper: ParallelMapHandler<TValue, TResult>,
+    options?: ParallelCollectionOptions
+  ): ConcurrencyPipeline<TResult>;
+  /**
+   * Filters the current array value through the existing worker-backed `filter()` helper.
+   */
+  filter(
+    predicate: ParallelPredicateHandler<TValue>,
+    options?: ParallelCollectionOptions
+  ): ConcurrencyPipeline<TValue>;
+  /**
+   * Resolves the pipeline to a materialized array.
+   */
+  toArray(): Promise<TValue[]>;
+  /**
+   * Evaluates whether at least one item matches via the existing `some()` helper.
+   */
+  some(
+    predicate: ParallelPredicateHandler<TValue>,
+    options?: ParallelCollectionOptions
+  ): Promise<boolean>;
+  /**
+   * Evaluates whether every item matches via the existing `every()` helper.
+   */
+  every(
+    predicate: ParallelPredicateHandler<TValue>,
+    options?: ParallelCollectionOptions
+  ): Promise<boolean>;
+  /**
+   * Finds the first matching item via the existing `find()` helper.
+   */
+  find(
+    predicate: ParallelPredicateHandler<TValue>,
+    options?: ParallelCollectionOptions
+  ): Promise<TValue | undefined>;
+  /**
+   * Reduces the current array value via the existing `reduce()` helper.
+   */
+  reduce<TAccumulator>(
+    reducer: ParallelReduceHandler<TAccumulator, TValue>,
+    initialValue: TAccumulator,
+    options?: TaskRunOptions
+  ): Promise<TAccumulator>;
+}
+
 /** Result tuple inferred from a `parallel()` or `batchTasks()` task list. */
 export type ParallelResults<TTasks extends readonly ParallelTask<unknown, unknown>[]> = {
   [TIndex in keyof TTasks]: TTasks[TIndex] extends ParallelTask<unknown, infer TResult>

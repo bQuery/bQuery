@@ -151,6 +151,7 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `every(values, predicate, options?)`                  | function  | Evaluate whether all array items match in worker chunks            |
 | `find(values, predicate, options?)`                   | function  | Find the first matching array item after worker-side predicate runs |
 | `reduce(values, reducer, initialValue, options?)`     | function  | Reduce arrays off the main thread with standard accumulator order  |
+| `pipeline(values, options?)`                          | function  | Create an optional immutable fluent pipeline over collection helpers |
 | `getConcurrencySupport()` / `isConcurrencySupported()` | functions | Detect whether inline browser worker tasks are available           |
 | `TaskWorkerError`                                     | class     | Base error with stable `code` values for concurrency failures      |
 | `TaskWorkerAbortError`                                | class     | Error thrown when a task run is aborted                            |

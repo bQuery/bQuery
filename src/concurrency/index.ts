@@ -10,6 +10,7 @@
 
 export { callWorkerMethod, createRpcWorker } from './rpc';
 export { batchTasks, every, filter, find, map, parallel, reduce, some } from './high-level';
+export { pipeline } from './pipeline';
 export { createRpcPool, createTaskPool } from './pool';
 export { createTaskWorker, runTask } from './task';
 export { getConcurrencySupport, isConcurrencySupported } from './support';
@@ -22,6 +23,8 @@ export {
 } from './errors';
 
 export type {
+  ConcurrencyPipeline,
+  ConcurrencyPipelineOptions,
   ConcurrencySupport,
   ParallelCollectionOptions,
   ParallelMapHandler,

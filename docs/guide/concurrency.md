@@ -21,6 +21,7 @@ import {
   isConcurrencySupported,
   map,
   parallel,
+  pipeline,
   reduce,
   runTask,
   some,
@@ -40,6 +41,7 @@ import {
 - Task-list helpers via `parallel()` and `batchTasks()`
 - Array mapping via `map()`
 - Collection helpers via `filter()`, `reduce()`, `some()`, `every()`, and `find()`
+- Optional fluent pipeline builder via `pipeline()`
 - Explicit support detection
 - Timeout handling
 - Abort handling
@@ -50,7 +52,6 @@ import {
 ### Planned for later milestones
 
 - Reactive bindings around worker state
-- Fluent pipeline helpers inspired by `threadts-universal`
 
 ### Intentionally out of scope for bQuery
 
@@ -70,7 +71,7 @@ import {
 | Timeout + cancellation | supported | **Supported** via `timeout` and `AbortSignal` |
 | Support detection | runtime-dependent | **Supported** via `getConcurrencySupport()` / `isConcurrencySupported()` |
 | Array / batch / collection helpers | broad high-level surface | **Adapted** via `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, `some()`, `every()`, and `find()` |
-| Fluent pipelines | pipeline builders | **Planned** as a later optional layer, not as hidden worker magic |
+| Fluent pipelines | pipeline builders | **Adapted** via `pipeline()` as an optional fluent layer over the existing collection helpers |
 | Decorators / implicit magic | broad decorator suite | **Not adopted**; conflicts with bQuery's explicit, lightweight browser-first design |
 | Node / Deno / Bun adapters | universal runtime adapters | **Not adopted** in this browser-focused package |
 
@@ -354,6 +355,32 @@ console.log(total); // 30
 - Executes in one isolated worker run instead of splitting the reducer across multiple workers
 - Returns the provided `initialValue` immediately for empty arrays
 
+## `pipeline()`
+
+Use `pipeline()` when you want a fluent, optional wrapper around the existing collection helpers without changing the explicit low-level runtime model.
+
+```ts
+import { pipeline } from '@bquery/bquery/concurrency';
+
+const results = await pipeline([1, 2, 3, 4], {
+  batchSize: 2,
+  concurrency: 2,
+})
+  .map((value) => value * 2)
+  .filter((value) => value > 4)
+  .toArray();
+
+console.log(results); // [6, 8]
+```
+
+### `pipeline()` behavior
+
+- It is an **optional** fluent layer; low-level workers, pools, and standalone helpers remain first-class
+- The pipeline is **immutable**: each transforming stage returns a new pipeline
+- It delegates to `map()`, `filter()`, `some()`, `every()`, `find()`, and `reduce()` instead of creating hidden global worker infrastructure
+- It keeps the same browser-only serialization boundaries as the underlying helpers
+- Like the rest of the module, it relies on serializable standalone functions and inline worker evaluation
+
 ## Timeout and abort
 
 ```ts
@@ -419,4 +446,4 @@ await runTask((input: ArrayBuffer) => input.byteLength, buffer, {
 - Task handlers must be **standalone functions**; they cannot rely on outer closures
 - The module currently targets **browser worker primitives** (`Worker`, `Blob`, `URL.createObjectURL`)
 - CSP setups may need `worker-src blob:` for inline worker creation
-- Higher-level array/pipeline helpers remain intentionally deferred to later milestones
+- Reactive worker-state bindings remain intentionally deferred to later milestones

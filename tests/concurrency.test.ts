@@ -13,6 +13,7 @@ import {
   isConcurrencySupported,
   map,
   parallel,
+  pipeline,
   reduce,
   runTask,
   some,
@@ -555,6 +556,45 @@ describe('concurrency/high-level helpers', () => {
       await expect(
         reduce([], (accumulator: { total: number }, _value: number) => accumulator, initial)
       ).resolves.toBe(initial);
+    });
+  });
+
+  it('builds immutable fluent pipelines on top of the collection helpers', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const base = pipeline([1, 2, 3, 4], { batchSize: 2, concurrency: 2 });
+      const transformed = base
+        .map(async (value) => {
+          await new Promise((resolve) => setTimeout(resolve, 2));
+          return value * 3;
+        })
+        .filter((value) => value > 6);
+
+      await expect(base.toArray()).resolves.toEqual([1, 2, 3, 4]);
+      await expect(transformed.toArray()).resolves.toEqual([9, 12]);
+    });
+  });
+
+  it('supports terminal pipeline helpers after fluent transformations', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const transformed = pipeline([1, 2, 3, 4], {
+        batchSize: 2,
+        concurrency: 2,
+      }).map((value, index) => value + index);
+
+      await expect(transformed.some((value) => value === 5)).resolves.toBe(true);
+      await expect(transformed.every((value) => value >= 1)).resolves.toBe(true);
+      await expect(transformed.find((value) => value > 4)).resolves.toBe(5);
+      await expect(transformed.reduce((accumulator, value) => accumulator + value, 0)).resolves.toBe(
+        16
+      );
+    });
+  });
+
+  it('surfaces invalid per-stage pipeline options through the underlying helpers', async () => {
+    await withMockWorkerEnvironment(async () => {
+      await expect(
+        pipeline([1, 2, 3]).map((value) => value, { batchSize: 0 }).toArray()
+      ).rejects.toBeInstanceOf(RangeError);
     });
   });
 });
