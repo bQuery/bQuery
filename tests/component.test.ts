@@ -1974,7 +1974,9 @@ describe('component/registerDefaultComponents', () => {
     document.body.appendChild(input);
     const inputEvents: Array<{ value: string | undefined }> = [];
     input.addEventListener('input', (event) => {
-      inputEvents.push({ value: (event as CustomEvent<{ value: string }>).detail?.value });
+      inputEvents.push({
+        value: (event as unknown as CustomEvent<{ value: string }>).detail?.value,
+      });
     });
 
     const inputControl = input.shadowRoot?.querySelector('input') as HTMLInputElement | null;
@@ -1986,7 +1988,9 @@ describe('component/registerDefaultComponents', () => {
     document.body.appendChild(textarea);
     const textareaEvents: Array<{ value: string | undefined }> = [];
     textarea.addEventListener('input', (event) => {
-      textareaEvents.push({ value: (event as CustomEvent<{ value: string }>).detail?.value });
+      textareaEvents.push({
+        value: (event as unknown as CustomEvent<{ value: string }>).detail?.value,
+      });
     });
 
     const textareaControl = textarea.shadowRoot?.querySelector(
@@ -2001,7 +2005,7 @@ describe('component/registerDefaultComponents', () => {
     const checkboxEvents: Array<{ checked: boolean | undefined }> = [];
     checkbox.addEventListener('change', (event) => {
       checkboxEvents.push({
-        checked: (event as CustomEvent<{ checked: boolean }>).detail?.checked,
+        checked: (event as unknown as CustomEvent<{ checked: boolean }>).detail?.checked,
       });
     });
 
