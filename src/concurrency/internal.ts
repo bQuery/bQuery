@@ -47,7 +47,7 @@ export const normalizeTimeout = (timeout?: number): number | undefined => {
 export const validateTaskHandler = <TInput, TResult>(
   handler: WorkerTaskHandler<TInput, TResult>
 ): string => {
-  const source = handler.toString().trim();
+  const source = Function.prototype.toString.call(handler).trim();
 
   if (!source || source.includes('[native code]')) {
     throw new TaskWorkerSerializationError(

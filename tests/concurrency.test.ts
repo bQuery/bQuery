@@ -217,6 +217,23 @@ describe('concurrency/runTask', () => {
       expect(() => createTaskWorker(nativeHandler)).toThrow(TaskWorkerSerializationError);
     });
   });
+
+  it('ignores overridden function toString() values during task validation', async () => {
+    await withMockWorkerEnvironment(async () => {
+      let customToStringCalled = false;
+      const handler = ((value: number) => value * 2) as WorkerTaskHandler<number, number>;
+
+      Object.defineProperty(handler, 'toString', {
+        value: () => {
+          customToStringCalled = true;
+          return '() => { throw new Error("override"); }';
+        },
+      });
+
+      await expect(runTask(handler, 21)).resolves.toBe(42);
+      expect(customToStringCalled).toBe(false);
+    });
+  });
 });
 
 describe('concurrency/createTaskWorker', () => {
@@ -488,6 +505,19 @@ describe('concurrency/high-level helpers', () => {
       );
 
       expect(results).toEqual([1, 3, 5, 7]);
+    });
+  });
+
+  it('maps sparse arrays without crashing chunk execution', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const values = [1, , 3] as Array<number | undefined>;
+      const results = await map(
+        values,
+        (value, index) => (value === undefined ? `hole-${index}` : value * 2),
+        { batchSize: 2, concurrency: 2 }
+      );
+
+      expect(results).toEqual([2, 'hole-1', 6]);
     });
   });
 

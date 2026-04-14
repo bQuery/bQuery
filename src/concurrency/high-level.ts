@@ -141,10 +141,16 @@ const runChunkedHandler = async <TInput, TResult>(
   const chunks: Array<SerializedChunk<TInput>> = [];
 
   for (let index = 0; index < values.length; index += normalizedBatchSize) {
-    const items = values.slice(index, index + normalizedBatchSize).map((value, offset) => ({
-      index: index + offset,
-      value,
-    }));
+    const end = Math.min(index + normalizedBatchSize, values.length);
+    const items: SerializedChunk<TInput>['items'] = [];
+
+    for (let itemIndex = index; itemIndex < end; itemIndex += 1) {
+      items.push({
+        index: itemIndex,
+        value: values[itemIndex],
+      });
+    }
+
     chunks.push({ items, handlerSource });
   }
 
