@@ -20,6 +20,8 @@ features:
     details: Works directly in the browser via CDN or ES modules. Vite is optional, not required.
   - title: Async Data Primitives
     details: Signal-based async data, fetch, HTTP client, polling, pagination, and request-state workflows without framework ceremony.
+  - title: Off-Main-Thread Concurrency
+    details: Zero-build worker tasks, explicit RPC helpers, bounded pools, reactive worker state, and collection helpers for predictable background work.
   - title: Realtime & REST
     details: Typed WebSocket/SSE composables, channel multiplexing, REST helpers, optimistic resources, and reactive submissions.
   - title: Secure by Default
@@ -41,6 +43,10 @@ features:
 ## Why bQuery
 
 bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, async data composables, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, testing, and SSR in a modular, progressive way.
+
+## New in 1.10.0
+
+The concurrency module now covers explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state mirrors, and high-level helpers such as `parallel()`, `map()`, `filter()`, `reduce()`, and `pipeline()` — all without giving up bQuery's browser-first, zero-build model.
 
 ## New to bQuery?
 

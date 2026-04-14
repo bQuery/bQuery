@@ -15,17 +15,14 @@ Makes an element draggable using pointer events with optional axis locking, boun
 ### Signature
 
 ```ts
-function draggable(
-  el: HTMLElement,
-  options?: DraggableOptions
-): DraggableHandle;
+function draggable(el: HTMLElement, options?: DraggableOptions): DraggableHandle;
 ```
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `el` | `HTMLElement` | The element to make draggable |
+| Parameter | Type               | Description                        |
+| --------- | ------------------ | ---------------------------------- |
+| `el`      | `HTMLElement`      | The element to make draggable      |
 | `options` | `DraggableOptions` | Optional configuration (see below) |
 
 ### `DraggableOptions`
@@ -134,17 +131,14 @@ Defines a drop zone that reacts to dragged elements entering, hovering over, lea
 ### Signature
 
 ```ts
-function droppable(
-  el: HTMLElement,
-  options?: DroppableOptions
-): DroppableHandle;
+function droppable(el: HTMLElement, options?: DroppableOptions): DroppableHandle;
 ```
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `el` | `HTMLElement` | The drop zone element |
+| Parameter | Type               | Description                        |
+| --------- | ------------------ | ---------------------------------- |
+| `el`      | `HTMLElement`      | The drop zone element              |
 | `options` | `DroppableOptions` | Optional configuration (see below) |
 
 ### `DroppableOptions`
@@ -223,18 +217,15 @@ Makes the children of a container sortable by dragging, with animated reordering
 ### Signature
 
 ```ts
-function sortable(
-  container: HTMLElement,
-  options?: SortableOptions
-): SortableHandle;
+function sortable(container: HTMLElement, options?: SortableOptions): SortableHandle;
 ```
 
 ### Parameters
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `container` | `HTMLElement` | The container whose children become sortable |
-| `options` | `SortableOptions` | Optional configuration (see below) |
+| Parameter   | Type              | Description                                  |
+| ----------- | ----------------- | -------------------------------------------- |
+| `container` | `HTMLElement`     | The container whose children become sortable |
+| `options`   | `SortableOptions` | Optional configuration (see below)           |
 
 ### `SortableOptions`
 

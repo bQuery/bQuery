@@ -29,10 +29,7 @@ const getResizeDimensions = (
   entry: ResizeObserverEntry,
   box: ResizeObserverBoxOptions
 ): Pick<ResizeObserverState, 'width' | 'height'> => {
-  let boxSize:
-    | ResizeObserverBoxSizeLike
-    | readonly ResizeObserverBoxSizeLike[]
-    | undefined;
+  let boxSize: ResizeObserverBoxSizeLike | readonly ResizeObserverBoxSizeLike[] | undefined;
 
   if (box === 'border-box') {
     boxSize = entry.borderBoxSize;
@@ -100,7 +97,7 @@ const getResizeDimensions = (
  */
 export const useIntersectionObserver = (
   target?: Element | Element[] | null,
-  options?: IntersectionObserverOptions,
+  options?: IntersectionObserverOptions
 ): IntersectionObserverSignal => {
   const initial: IntersectionObserverState = {
     isIntersecting: false,
@@ -130,7 +127,7 @@ export const useIntersectionObserver = (
           root: options?.root ?? null,
           rootMargin: options?.rootMargin ?? '0px',
           threshold: options?.threshold ?? 0,
-        },
+        }
       );
 
       // Observe initial targets
@@ -216,7 +213,7 @@ export const useIntersectionObserver = (
  */
 export const useResizeObserver = (
   target?: Element | Element[] | null,
-  options?: ResizeObserverOptions,
+  options?: ResizeObserverOptions
 ): ResizeObserverSignal => {
   const initial: ResizeObserverState = {
     width: 0,
@@ -326,7 +323,7 @@ export const useResizeObserver = (
  */
 export const useMutationObserver = (
   target?: Node | null,
-  options?: MutationObserverOptions,
+  options?: MutationObserverOptions
 ): MutationObserverSignal => {
   const initial: MutationObserverState = {
     mutations: [],

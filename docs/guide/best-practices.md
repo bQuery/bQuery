@@ -37,7 +37,11 @@ defineBqueryConfig({
   transitions: { skipOnReducedMotion: true },
 });
 setupAuth();
-createRouter({ routes: [/* ... */] });
+createRouter({
+  routes: [
+    /* ... */
+  ],
+});
 ```
 
 ---
@@ -101,8 +105,8 @@ When you need a value inside an effect but don't want to re-run when it changes:
 
 ```ts
 effect(() => {
-  const current = count.value;        // tracks changes
-  const config = appConfig.peek();     // reads once, no tracking
+  const current = count.value; // tracks changes
+  const config = appConfig.peek(); // reads once, no tracking
   console.log(`Count is ${current}, config: ${config.theme}`);
 });
 ```
@@ -113,7 +117,9 @@ Always dispose effects when their UI context is removed:
 
 ```ts
 // Option 1: Manual disposal
-const dispose = effect(() => { /* ... */ });
+const dispose = effect(() => {
+  /* ... */
+});
 // Later:
 dispose();
 
@@ -122,8 +128,12 @@ import { effectScope } from '@bquery/bquery/reactive';
 
 const scope = effectScope();
 scope.run(() => {
-  effect(() => { /* effect A */ });
-  effect(() => { /* effect B */ });
+  effect(() => {
+    /* effect A */
+  });
+  effect(() => {
+    /* effect B */
+  });
 });
 // Clean up everything at once:
 scope.stop();
@@ -154,10 +164,7 @@ card.css('opacity', '1');
 card.attr('aria-expanded', 'true');
 
 // ✅ Chained
-$('#card')
-  .addClass('active')
-  .css('opacity', '1')
-  .attr('aria-expanded', 'true');
+$('#card').addClass('active').css('opacity', '1').attr('aria-expanded', 'true');
 ```
 
 ### Minimize DOM reads inside effects
@@ -235,9 +242,15 @@ component('user-dashboard', {
 });
 
 // ✅ Composed small components
-component('user-avatar', { /* avatar rendering */ });
-component('user-stats', { /* stats display */ });
-component('user-activity', { /* activity feed */ });
+component('user-avatar', {
+  /* avatar rendering */
+});
+component('user-stats', {
+  /* stats display */
+});
+component('user-activity', {
+  /* activity feed */
+});
 ```
 
 ### Use typed props
@@ -269,7 +282,8 @@ component('live-counter', {
   render({ state }) {
     return html`
       <button type="button" class="increment">+</button>
-      <span class="count">${state.count}</span> (doubled: <span class="doubled">${state.doubled}</span>)
+      <span class="count">${state.count}</span> (doubled:
+      <span class="doubled">${state.doubled}</span>)
     `;
   },
   connected() {
@@ -357,8 +371,7 @@ const settings = createPersistedStore(
   },
   {
     version: 1,
-    migrate: (state, oldVersion) =>
-      oldVersion < 1 ? { ...state, language: 'en' } : state,
+    migrate: (state, oldVersion) => (oldVersion < 1 ? { ...state, language: 'en' } : state),
   }
 );
 ```
@@ -494,10 +507,14 @@ import { signal, watchDebounce } from '@bquery/bquery/reactive';
 const searchQuery = signal('');
 const debouncedSearchResults = signal<string[]>([]);
 
-watchDebounce(searchQuery, async (query) => {
-  const results = await fetch(`/api/search?q=${query}`).then((r) => r.json());
-  debouncedSearchResults.value = results;
-}, 300);
+watchDebounce(
+  searchQuery,
+  async (query) => {
+    const results = await fetch(`/api/search?q=${query}`).then((r) => r.json());
+    debouncedSearchResults.value = results;
+  },
+  300
+);
 ```
 
 ### Lazy-load modules
@@ -515,12 +532,12 @@ const showEditor = async () => {
 
 ## Common Mistakes to Avoid
 
-| Mistake | Fix |
-| --- | --- |
-| Using `$()` for elements that may not exist | Use `$$()` instead |
-| Reading `.value` where `.peek()` is intended | Use `.peek()` when you don't need tracking |
-| Using arrow functions in store actions | Use regular functions to preserve `this` |
-| Forgetting to dispose effects | Use `effectScope()` or save the dispose function |
-| Bypassing sanitization for user content | Trust the default sanitized `.html()` |
+| Mistake                                          | Fix                                                |
+| ------------------------------------------------ | -------------------------------------------------- |
+| Using `$()` for elements that may not exist      | Use `$$()` instead                                 |
+| Reading `.value` where `.peek()` is intended     | Use `.peek()` when you don't need tracking         |
+| Using arrow functions in store actions           | Use regular functions to preserve `this`           |
+| Forgetting to dispose effects                    | Use `effectScope()` or save the dispose function   |
+| Bypassing sanitization for user content          | Trust the default sanitized `.html()`              |
 | Using `new Function()` without CSP consideration | Note that the view module requires `'unsafe-eval'` |
-| Not batching multiple signal updates | Wrap related updates in `batch()` |
+| Not batching multiple signal updates             | Wrap related updates in `batch()`                  |

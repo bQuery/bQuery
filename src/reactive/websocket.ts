@@ -8,6 +8,9 @@
 import { computed } from './computed';
 import { Signal, signal } from './core';
 
+/** @internal */
+type WebSocketSendData = string | Blob | BufferSource;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -40,7 +43,7 @@ export type EventSourceReconnectConfig = Pick<
 /** Configuration for keep-alive heartbeats. */
 export interface WebSocketHeartbeatConfig {
   /** Outgoing ping message (default: `'ping'`). */
-  message?: string | ArrayBufferLike | Blob | ArrayBufferView;
+  message?: WebSocketSendData;
   /** Interval in ms between heartbeat pings (default: 30 000). */
   interval?: number;
   /** Time in ms to wait for a pong before assuming the connection is dead (default: 10 000). */
@@ -52,7 +55,7 @@ export interface WebSocketHeartbeatConfig {
 /** Serializer/deserializer for typed messaging. */
 export interface WebSocketSerializer<TSend = unknown, TReceive = unknown> {
   /** Serialize a value before sending over the wire. Default: `JSON.stringify`. */
-  serialize?: (data: TSend) => string | ArrayBufferLike | Blob | ArrayBufferView;
+  serialize?: (data: TSend) => WebSocketSendData;
   /** Deserialize an incoming message. Default: `JSON.parse`. */
   deserialize?: (event: MessageEvent) => TReceive;
 }
@@ -115,7 +118,7 @@ export interface UseWebSocketReturn<TSend = unknown, TReceive = unknown> {
    * Uses the same queuing behavior as {@link send}: data is queued when the
    * socket is not `OPEN` and flushed once a connection is (re)established.
    */
-  sendRaw: (data: string | ArrayBufferLike | Blob | ArrayBufferView) => void;
+  sendRaw: (data: WebSocketSendData) => void;
   /** Manually open / reconnect the WebSocket. */
   open: () => void;
   /** Gracefully close the connection. */
@@ -249,7 +252,7 @@ export const useWebSocket = <TSend = string, TReceive = string>(
   let internalReconnectCount = 0;
   let isAutoReconnecting = false;
   let pingSentAt = 0;
-  const sendQueue: Array<string | ArrayBufferLike | Blob | ArrayBufferView> = [];
+  const sendQueue: WebSocketSendData[] = [];
 
   const reconnectConfig = resolveReconnect(options.autoReconnect);
   const heartbeatConfig = resolveHeartbeat(options.heartbeat);
@@ -460,7 +463,7 @@ export const useWebSocket = <TSend = string, TReceive = string>(
     sendRaw(serialized);
   };
 
-  const sendRaw = (raw: string | ArrayBufferLike | Blob | ArrayBufferView): void => {
+  const sendRaw = (raw: WebSocketSendData): void => {
     if (disposed) return;
     if (ws?.readyState === WebSocket.OPEN) {
       ws.send(raw);

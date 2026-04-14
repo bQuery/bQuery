@@ -21,15 +21,15 @@ $('#increment').on('click', () => count.value++);
 
 ### How is bQuery different from jQuery?
 
-| Feature            | jQuery                   | bQuery                                      |
-| ------------------ | ------------------------ | ------------------------------------------- |
-| Reactivity         | Manual DOM updates       | Signals, computed, effects                  |
-| TypeScript         | Community types          | Built-in strict types                       |
-| Security           | Raw `$(...).html()`      | Sanitized by default                        |
-| Bundle             | ~87 kB minified          | Tree-shakeable, import only what you need   |
-| Components         | None                     | Web Components with typed props             |
-| Async Data         | `$.ajax()`               | Signals, fetch, polling, WebSocket, SSE     |
-| Build Step         | None needed              | None needed (Vite optional)                 |
+| Feature    | jQuery              | bQuery                                    |
+| ---------- | ------------------- | ----------------------------------------- |
+| Reactivity | Manual DOM updates  | Signals, computed, effects                |
+| TypeScript | Community types     | Built-in strict types                     |
+| Security   | Raw `$(...).html()` | Sanitized by default                      |
+| Bundle     | ~87 kB minified     | Tree-shakeable, import only what you need |
+| Components | None                | Web Components with typed props           |
+| Async Data | `$.ajax()`          | Signals, fetch, polling, WebSocket, SSE   |
+| Build Step | None needed         | None needed (Vite optional)               |
 
 ### Do I need a build step?
 
@@ -135,11 +135,11 @@ Make sure you have:
 
 ### When do I use `signal()` vs `computed()` vs `linkedSignal()`?
 
-| Primitive         | Use case                                    | Writable |
-| ----------------- | ------------------------------------------- | -------- |
-| `signal(value)`   | Mutable state that you set directly         | ✅       |
-| `computed(fn)`    | Derived value that auto-updates             | ❌       |
-| `linkedSignal(fn)`| Derived value that you _can_ override       | ✅       |
+| Primitive          | Use case                              | Writable |
+| ------------------ | ------------------------------------- | -------- |
+| `signal(value)`    | Mutable state that you set directly   | ✅       |
+| `computed(fn)`     | Derived value that auto-updates       | ❌       |
+| `linkedSignal(fn)` | Derived value that you _can_ override | ✅       |
 
 ```ts
 const firstName = signal('Ada');
@@ -155,7 +155,7 @@ const fullName = computed(() => `${firstName.value} ${lastName.value}`);
 
 ```ts
 effect(() => {
-  console.log(count.value);  // re-runs when count changes
+  console.log(count.value); // re-runs when count changes
   console.log(count.peek()); // reads current value, but won't trigger re-run
 });
 ```
@@ -201,8 +201,12 @@ import { effectScope } from '@bquery/bquery/reactive';
 
 const scope = effectScope();
 scope.run(() => {
-  effect(() => { /* ... */ });
-  effect(() => { /* ... */ });
+  effect(() => {
+    /* ... */
+  });
+  effect(() => {
+    /* ... */
+  });
 });
 
 // Dispose all effects at once
@@ -259,7 +263,7 @@ const form = createForm({
 });
 
 // Check validation state
-console.log(form.isValid.value);       // false initially
+console.log(form.isValid.value); // false initially
 console.log(form.fields.email.error.value); // 'Required'
 ```
 
@@ -353,20 +357,20 @@ mount('#app', { name, greeting });
 
 ### What directives are available?
 
-| Directive      | Purpose                          |
-| -------------- | -------------------------------- |
-| `bq-text`      | Set text content                 |
-| `bq-html`      | Set inner HTML (sanitized)       |
-| `bq-if`        | Conditionally show/remove        |
-| `bq-show`      | Toggle visibility (CSS)          |
-| `bq-class`     | Toggle CSS classes               |
-| `bq-style`     | Set inline styles                |
-| `bq-for`       | Repeat elements for a list       |
-| `bq-model`     | Two-way input binding            |
-| `bq-bind`      | Bind attributes                  |
-| `bq-on`        | Attach event listeners           |
-| `bq-error`     | Display form validation errors   |
-| `bq-aria`      | Reactive ARIA attribute binding  |
+| Directive  | Purpose                         |
+| ---------- | ------------------------------- |
+| `bq-text`  | Set text content                |
+| `bq-html`  | Set inner HTML (sanitized)      |
+| `bq-if`    | Conditionally show/remove       |
+| `bq-show`  | Toggle visibility (CSS)         |
+| `bq-class` | Toggle CSS classes              |
+| `bq-style` | Set inline styles               |
+| `bq-for`   | Repeat elements for a list      |
+| `bq-model` | Two-way input binding           |
+| `bq-bind`  | Bind attributes                 |
+| `bq-on`    | Attach event listeners          |
+| `bq-error` | Display form validation errors  |
+| `bq-aria`  | Reactive ARIA attribute binding |
 
 ---
 
@@ -419,7 +423,11 @@ import { enableDevtools, inspectSignals, logSignals, trackSignal } from '@bquery
 const count = signal(0);
 
 enableDevtools(true);
-trackSignal('count', () => count.peek(), () => 0);
+trackSignal(
+  'count',
+  () => count.peek(),
+  () => 0
+);
 console.table(inspectSignals());
 logSignals(); // prints all tracked signals to console
 ```

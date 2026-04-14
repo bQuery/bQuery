@@ -2,6 +2,8 @@
 
 The concurrency module adds a small, explicit browser-side worker layer for bQuery's zero-build model.
 
+> **New in 1.10.0:** The module now includes explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
+
 It is intentionally narrower than `threadts-universal`: the current milestones focus on **safe task execution**, **explicit RPC-style method dispatch**, **bounded pools/queueing**, **lifecycle cleanup**, **timeout/abort handling**, and **support detection** without introducing decorators, implicit proxies, or runtime-specific adapters that would bloat the package.
 
 ## Import
@@ -9,6 +11,10 @@ It is intentionally narrower than `threadts-universal`: the current milestones f
 ```ts
 import {
   batchTasks,
+  createReactiveRpcPool,
+  createReactiveRpcWorker,
+  createReactiveTaskPool,
+  createReactiveTaskWorker,
   createTaskWorker,
   createTaskPool,
   createRpcWorker,
@@ -38,6 +44,7 @@ import {
 - Named request/response dispatch via `createRpcWorker()`
 - One-off RPC method execution via `callWorkerMethod()`
 - Reusable RPC pools via `createRpcPool()`
+- Reactive worker and pool wrappers via `createReactiveTaskWorker()`, `createReactiveRpcWorker()`, `createReactiveTaskPool()`, and `createReactiveRpcPool()`
 - Task-list helpers via `parallel()` and `batchTasks()`
 - Array mapping via `map()`
 - Collection helpers via `filter()`, `reduce()`, `some()`, `every()`, and `find()`
@@ -49,9 +56,16 @@ import {
 - FIFO queueing with configurable backpressure
 - Zero-build browser usage via inline `Blob` workers
 
-### Planned for later milestones
+### Reactive bindings
 
-- Reactive bindings around worker state
+The optional reactive wrappers keep the explicit worker and pool APIs intact while
+adding readonly signals for UI bindings and dashboards.
+
+- `createReactiveTaskWorker()` / `createReactiveRpcWorker()` add `state$` and `busy$`
+- `createReactiveTaskPool()` / `createReactiveRpcPool()` add `state$`, `busy$`, `concurrency$`, `pending$`, and `size$`
+
+They are intentionally opt-in so the base worker APIs stay lean when you do not
+need reactive state monitoring.
 
 ### Intentionally out of scope for bQuery
 
@@ -61,19 +75,19 @@ import {
 
 ## ThreadTS parity matrix
 
-| Feature group | `threadts-universal` | bQuery status |
-| --- | --- | --- |
-| One-off task execution | `run()` | **Supported** via `runTask()` |
-| Explicit reusable workers | low-level worker APIs | **Supported** via `createTaskWorker()` |
-| Explicit RPC dispatch | named methods / adapters | **Supported** via `createRpcWorker()` and `callWorkerMethod()` |
-| Pools + queueing | auto-scaling pools / priority queues | **Adapted** via `createTaskPool()` and `createRpcPool()` with explicit bounded concurrency + FIFO queueing |
-| Worker lifecycle | termination / reuse | **Supported** with explicit `terminate()` on workers and pools |
-| Timeout + cancellation | supported | **Supported** via `timeout` and `AbortSignal` |
-| Support detection | runtime-dependent | **Supported** via `getConcurrencySupport()` / `isConcurrencySupported()` |
-| Array / batch / collection helpers | broad high-level surface | **Adapted** via `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, `some()`, `every()`, and `find()` |
-| Fluent pipelines | pipeline builders | **Adapted** via `pipeline()` as an optional fluent layer over the existing collection helpers |
-| Decorators / implicit magic | broad decorator suite | **Not adopted**; conflicts with bQuery's explicit, lightweight browser-first design |
-| Node / Deno / Bun adapters | universal runtime adapters | **Not adopted** in this browser-focused package |
+| Feature group                      | `threadts-universal`                 | bQuery status                                                                                                    |
+| ---------------------------------- | ------------------------------------ | ---------------------------------------------------------------------------------------------------------------- |
+| One-off task execution             | `run()`                              | **Supported** via `runTask()`                                                                                    |
+| Explicit reusable workers          | low-level worker APIs                | **Supported** via `createTaskWorker()`                                                                           |
+| Explicit RPC dispatch              | named methods / adapters             | **Supported** via `createRpcWorker()` and `callWorkerMethod()`                                                   |
+| Pools + queueing                   | auto-scaling pools / priority queues | **Adapted** via `createTaskPool()` and `createRpcPool()` with explicit bounded concurrency + FIFO queueing       |
+| Worker lifecycle                   | termination / reuse                  | **Supported** with explicit `terminate()` on workers and pools                                                   |
+| Timeout + cancellation             | supported                            | **Supported** via `timeout` and `AbortSignal`                                                                    |
+| Support detection                  | runtime-dependent                    | **Supported** via `getConcurrencySupport()` / `isConcurrencySupported()`                                         |
+| Array / batch / collection helpers | broad high-level surface             | **Adapted** via `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, `some()`, `every()`, and `find()` |
+| Fluent pipelines                   | pipeline builders                    | **Adapted** via `pipeline()` as an optional fluent layer over the existing collection helpers                    |
+| Decorators / implicit magic        | broad decorator suite                | **Not adopted**; conflicts with bQuery's explicit, lightweight browser-first design                              |
+| Node / Deno / Bun adapters         | universal runtime adapters           | **Not adopted** in this browser-focused package                                                                  |
 
 ## `runTask()`
 
@@ -209,6 +223,43 @@ pool.terminate();
 - `clear()` only affects queued calls
 - `terminate()` rejects queued and active calls, then tears down all backing workers
 
+## Reactive worker and pool wrappers
+
+Use the reactive wrappers when a UI should observe worker or queue state through
+bQuery signals instead of polling synchronous getters.
+
+```ts
+import { createReactiveTaskPool } from '@bquery/bquery/concurrency';
+import { effect } from '@bquery/bquery/reactive';
+
+const pool = createReactiveTaskPool(
+  async ({ delay, value }: { delay: number; value: number }) => {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return value * 2;
+  },
+  { concurrency: 2, maxQueue: 8 }
+);
+
+effect(() => {
+  console.log(pool.state$.value, pool.pending$.value, pool.size$.value);
+});
+
+await Promise.all([
+  pool.run({ delay: 20, value: 1 }),
+  pool.run({ delay: 20, value: 2 }),
+  pool.run({ delay: 0, value: 3 }),
+]);
+
+pool.terminate();
+```
+
+### Reactive wrapper behavior
+
+- The base sync getters (`state`, `busy`, `pending`, `size`, `concurrency`) still work
+- Signal mirrors update immediately after `run()` / `call()`, `clear()`, and `terminate()`
+- Settled tasks and calls re-sync the wrapper state after success, timeout, abort, and termination
+- One-shot helpers such as `runTask()` and `callWorkerMethod()` intentionally remain non-reactive
+
 ## `callWorkerMethod()`
 
 Use `callWorkerMethod()` when you want one RPC call without manually managing a worker handle.
@@ -234,7 +285,10 @@ import { parallel } from '@bquery/bquery/concurrency';
 
 const results = await parallel([
   { handler: (value: number) => value * 2, input: 5 },
-  { handler: ({ first, last }: { first: string; last: string }) => `${last}, ${first}`, input: { first: 'Ada', last: 'Lovelace' } },
+  {
+    handler: ({ first, last }: { first: string; last: string }) => `${last}, ${first}`,
+    input: { first: 'Ada', last: 'Lovelace' },
+  },
 ]);
 
 console.log(results); // [10, 'Lovelace, Ada']
@@ -275,11 +329,10 @@ Use `map()` when one standalone mapper should process an array in parallel with 
 ```ts
 import { map } from '@bquery/bquery/concurrency';
 
-const results = await map(
-  [1, 2, 3, 4],
-  (value, index) => value + index,
-  { batchSize: 2, concurrency: 2 }
-);
+const results = await map([1, 2, 3, 4], (value, index) => value + index, {
+  batchSize: 2,
+  concurrency: 2,
+});
 
 console.log(results); // [1, 3, 5, 7]
 ```
@@ -298,11 +351,10 @@ Use `filter()` when one standalone predicate should select array items in parall
 ```ts
 import { filter } from '@bquery/bquery/concurrency';
 
-const results = await filter(
-  [5, 2, 9, 4],
-  (value, index) => value % 2 === 1 && index < 3,
-  { batchSize: 2, concurrency: 2 }
-);
+const results = await filter([5, 2, 9, 4], (value, index) => value % 2 === 1 && index < 3, {
+  batchSize: 2,
+  concurrency: 2,
+});
 
 console.log(results); // [5, 9]
 ```
@@ -449,4 +501,4 @@ await runTask((input: ArrayBuffer) => input.byteLength, buffer, {
 - Stricter CSP policies may also require allowing `'unsafe-eval'` because handler
   validation/revival uses `new Function(...)` on the main thread and inside worker scripts
 - If your environment forbids dynamic evaluation, avoid the concurrency module in that deployment
-- Reactive worker-state bindings remain intentionally deferred to later milestones
+- Reactive wrappers are opt-in via `createReactiveTaskWorker()`, `createReactiveRpcWorker()`, `createReactiveTaskPool()`, and `createReactiveRpcPool()`

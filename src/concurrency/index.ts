@@ -8,12 +8,6 @@
  * @module bquery/concurrency
  */
 
-export { callWorkerMethod, createRpcWorker } from './rpc';
-export { batchTasks, every, filter, find, map, parallel, reduce, some } from './high-level';
-export { pipeline } from './pipeline';
-export { createRpcPool, createTaskPool } from './pool';
-export { createTaskWorker, runTask } from './task';
-export { getConcurrencySupport, isConcurrencySupported } from './support';
 export {
   TaskWorkerAbortError,
   TaskWorkerError,
@@ -21,11 +15,28 @@ export {
   TaskWorkerTimeoutError,
   TaskWorkerUnsupportedError,
 } from './errors';
+export { batchTasks, every, filter, find, map, parallel, reduce, some } from './high-level';
+export { pipeline } from './pipeline';
+export { createRpcPool, createTaskPool } from './pool';
+export {
+  createReactiveRpcPool,
+  createReactiveRpcWorker,
+  createReactiveTaskPool,
+  createReactiveTaskWorker,
+} from './reactive';
+export { callWorkerMethod, createRpcWorker } from './rpc';
+export { getConcurrencySupport, isConcurrencySupported } from './support';
+export { createTaskWorker, runTask } from './task';
 
 export type {
+  CallWorkerMethodOptions,
   ConcurrencyPipeline,
   ConcurrencyPipelineOptions,
   ConcurrencySupport,
+  CreateRpcPoolOptions,
+  CreateRpcWorkerOptions,
+  CreateTaskPoolOptions,
+  CreateTaskWorkerOptions,
   ParallelCollectionOptions,
   ParallelMapHandler,
   ParallelMapOptions,
@@ -34,11 +45,10 @@ export type {
   ParallelReduceHandler,
   ParallelResults,
   ParallelTask,
-  CallWorkerMethodOptions,
-  CreateRpcPoolOptions,
-  CreateRpcWorkerOptions,
-  CreateTaskPoolOptions,
-  CreateTaskWorkerOptions,
+  ReactiveRpcPool,
+  ReactiveRpcWorker,
+  ReactiveTaskPool,
+  ReactiveTaskWorker,
   RpcPool,
   RpcWorker,
   RunTaskOptions,

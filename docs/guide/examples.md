@@ -95,9 +95,7 @@ effect(() => {
     $('#users').html(`<p class="error">Failed to load users</p>`);
   } else {
     const users = data.value as Array<{ name: string; email: string }>;
-    const html = users
-      .map((u) => `<li>${u.name} — ${u.email}</li>`)
-      .join('');
+    const html = users.map((u) => `<li>${u.name} — ${u.email}</li>`).join('');
     $('#users').html(`<ul>${html}</ul>`);
   }
 });
@@ -131,7 +129,7 @@ watchDebounce(
       results.value = [];
     }
   },
-  300,
+  300
 );
 
 effect(() => {
@@ -139,9 +137,7 @@ effect(() => {
   if (items.length === 0) {
     $('#results').html('<p>No results</p>');
   } else {
-    $('#results').html(
-      `<ul>${items.map((r) => `<li>${r}</li>`).join('')}</ul>`,
-    );
+    $('#results').html(`<ul>${items.map((r) => `<li>${r}</li>`).join('')}</ul>`);
   }
 });
 ```
@@ -171,7 +167,7 @@ import { usePaginatedFetch } from '@bquery/bquery/reactive';
 import { $, effect } from '@bquery/bquery';
 
 const { data, page, next, prev, pending } = usePaginatedFetch(
-  (p) => `/api/posts?page=${p}&limit=10`,
+  (p) => `/api/posts?page=${p}&limit=10`
 );
 
 effect(() => {
@@ -179,9 +175,7 @@ effect(() => {
     $('#posts').html('<p>Loading...</p>');
   } else if (data.value) {
     const posts = data.value as Array<{ title: string }>;
-    $('#posts').html(
-      posts.map((p) => `<article><h3>${p.title}</h3></article>`).join(''),
-    );
+    $('#posts').html(posts.map((p) => `<article><h3>${p.title}</h3></article>`).join(''));
     $('#page-num').text(`Page ${page.value}`);
   }
 });
@@ -223,7 +217,10 @@ mount('#login-form', { form });
 ```
 
 ```html
-<form id="login-form" bq-on:submit="$event.preventDefault(); void form.handleSubmit().catch((error) => console.error('Login submission failed', error))">
+<form
+  id="login-form"
+  bq-on:submit="$event.preventDefault(); void form.handleSubmit().catch((error) => console.error('Login submission failed', error))"
+>
   <div>
     <label>Email</label>
     <input type="email" bq-model="form.fields.email.value" />
@@ -318,11 +315,7 @@ component('toast-message', {
     window.setTimeout(() => this.remove(), duration);
   },
   render({ props }) {
-    return html`
-      <div class="toast toast-${props.type}">
-        ${props.message}
-      </div>
-    `;
+    return html` <div class="toast toast-${props.type}">${props.message}</div> `;
   },
 });
 
@@ -585,9 +578,15 @@ const counter = createStore({
     isPositive: (state) => state.count > 0,
   },
   actions: {
-    increment() { this.count++; },
-    decrement() { this.count--; },
-    reset() { this.count = 0; },
+    increment() {
+      this.count++;
+    },
+    decrement() {
+      this.count--;
+    },
+    reset() {
+      this.count = 0;
+    },
   },
 });
 
@@ -748,7 +747,7 @@ type OutgoingChatMessage = { text: string };
 
 const messages = signal<ChatMessage[]>([]);
 const { data, send, status } = useWebSocket<OutgoingChatMessage, ChatMessage>(
-  'wss://chat.example.com/ws',
+  'wss://chat.example.com/ws'
 );
 
 // Update messages when new data arrives
@@ -825,8 +824,8 @@ effect(() => {
   $('#item-count').text(i18n.t('items', { count: 5 }));
 });
 
-$('#lang-en').on('click', () => i18n.$locale.value = 'en');
-$('#lang-de').on('click', () => i18n.$locale.value = 'de');
+$('#lang-en').on('click', () => (i18n.$locale.value = 'en'));
+$('#lang-de').on('click', () => (i18n.$locale.value = 'de'));
 ```
 
 ---
@@ -846,7 +845,10 @@ const handle = sortable(taskList, {
   onSortEnd: ({ oldIndex, newIndex }) => {
     const items = Array.from(taskList.querySelectorAll<HTMLElement>('.task-item'));
     console.log('Moved:', { oldIndex, newIndex });
-    console.log('New order:', items.map((el) => el.dataset.id));
+    console.log(
+      'New order:',
+      items.map((el) => el.dataset.id)
+    );
   },
 });
 
@@ -939,9 +941,7 @@ const taskStore = createStore({
       this.tasks = [...this.tasks, { id: Date.now(), title, done: false }];
     },
     toggle(id: number) {
-      this.tasks = this.tasks.map((t) =>
-        t.id === id ? { ...t, done: !t.done } : t,
-      );
+      this.tasks = this.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t));
     },
     remove(id: number) {
       this.tasks = this.tasks.filter((t) => t.id !== id);

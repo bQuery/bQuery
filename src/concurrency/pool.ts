@@ -280,11 +280,7 @@ export function createTaskPool<TInput = void, TResult = unknown>(
   handler: WorkerTaskHandler<TInput, TResult>,
   options: CreateTaskPoolOptions = {}
 ): TaskPool<TInput, TResult> {
-  const {
-    concurrency: concurrencyOption,
-    maxQueue: maxQueueOption,
-    ...workerOptions
-  } = options;
+  const { concurrency: concurrencyOption, maxQueue: maxQueueOption, ...workerOptions } = options;
   const concurrency = normalizeConcurrency(concurrencyOption, 'Task pool');
   const maxQueue = normalizeMaxQueue(maxQueueOption, 'Task pool');
 
@@ -374,11 +370,7 @@ export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
   handlers: TRoutes,
   options: CreateRpcPoolOptions = {}
 ): RpcPool<TRoutes> {
-  const {
-    concurrency: concurrencyOption,
-    maxQueue: maxQueueOption,
-    ...workerOptions
-  } = options;
+  const { concurrency: concurrencyOption, maxQueue: maxQueueOption, ...workerOptions } = options;
   const concurrency = normalizeConcurrency(concurrencyOption, 'RPC pool');
   const maxQueue = normalizeMaxQueue(maxQueueOption, 'RPC pool');
 

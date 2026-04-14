@@ -23,7 +23,10 @@ export class TaskWorkerError extends Error {
 
 /** Thrown when the environment cannot create inline Web Workers. */
 export class TaskWorkerUnsupportedError extends TaskWorkerError {
-  constructor(message = 'Concurrency tasks are not supported in this environment.', cause?: unknown) {
+  constructor(
+    message = 'Concurrency tasks are not supported in this environment.',
+    cause?: unknown
+  ) {
     super(message, 'UNSUPPORTED', cause);
     this.name = 'TaskWorkerUnsupportedError';
   }

@@ -144,6 +144,10 @@ export type {
 export {
   batchTasks,
   callWorkerMethod,
+  createReactiveRpcPool,
+  createReactiveRpcWorker,
+  createReactiveTaskPool,
+  createReactiveTaskWorker,
   createRpcPool,
   createRpcWorker,
   createTaskPool,
@@ -166,9 +170,9 @@ export {
   TaskWorkerUnsupportedError,
 } from './concurrency/index';
 export type {
+  CallWorkerMethodOptions,
   ConcurrencyPipeline,
   ConcurrencyPipelineOptions,
-  CallWorkerMethodOptions,
   ConcurrencySupport,
   CreateRpcPoolOptions,
   CreateRpcWorkerOptions,
@@ -182,6 +186,10 @@ export type {
   ParallelReduceHandler,
   ParallelResults,
   ParallelTask,
+  ReactiveRpcPool,
+  ReactiveRpcWorker,
+  ReactiveTaskPool,
+  ReactiveTaskWorker,
   RpcPool,
   RpcWorker,
   RunTaskOptions,
