@@ -8,10 +8,14 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [\[Unreleased\] - 2026-04-05](#unreleased---2026-04-05)
+  - [\[Unreleased\] - 2026-04-15](#unreleased---2026-04-15)
     - [Added (Unreleased)](#added-unreleased)
     - [Changed (Unreleased)](#changed-unreleased)
     - [Fixed (Unreleased)](#fixed-unreleased)
+  - [\[1.10.0\] - 2026-04-15](#1100---2026-04-15)
+    - [Added (1.10.0)](#added-1100)
+    - [Changed (1.10.0)](#changed-1100)
+    - [Fixed (1.10.0)](#fixed-1100)
   - [\[1.9.0\] - 2026-04-05](#190---2026-04-05)
     - [Added (1.9.0)](#added-190)
     - [Changed (1.9.0)](#changed-190)
@@ -64,21 +68,36 @@ and this project adheres to Semantic Versioning.
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
-## [Unreleased] - 2026-04-05
+## [Unreleased] - 2026-04-15
 
 ### Added (Unreleased)
 
+- No changes yet.
+
+### Changed (Unreleased)
+
+- No changes yet.
+
+### Fixed (Unreleased)
+
+- No changes yet.
+
+## [1.10.0] - 2026-04-15
+
+### Added (1.10.0)
+
 - **Concurrency**: Expanded `@bquery/bquery/concurrency` with Milestone 2 RPC-style communication via `createRpcWorker()` and `callWorkerMethod()`, adding explicit named method dispatch on top of the existing zero-build worker task API.
 - **Concurrency / Pools**: Added `createTaskPool()` and `createRpcPool()` for explicit browser-first worker pools with bounded concurrency, FIFO queueing, and backpressure via `maxQueue`.
+- **Concurrency / Reactive bindings**: Added `createReactiveTaskWorker()`, `createReactiveRpcWorker()`, `createReactiveTaskPool()`, and `createReactiveRpcPool()` so reusable workers and pools can expose readonly signal mirrors such as `state$`, `busy$`, `pending$`, and `size$` for UI monitoring.
 - **Concurrency / High-level helpers**: Added `parallel()` for explicit task lists, `batchTasks()` as the adapted batched-task helper, and `map()` for chunked parallel array mapping on top of the existing worker-pool primitives.
 - **Concurrency / Collection helpers**: Added `filter()`, `reduce()`, `some()`, `every()`, and `find()` as explicit ThreadTS-inspired collection helpers that preserve bQuery's browser-first, zero-build worker model without decorators or hidden runtimes.
 - **Concurrency / Pipelines**: Added `pipeline()` as an optional immutable fluent layer over the existing collection helpers, keeping CSP and serialization limits explicit instead of introducing proxy-based worker magic.
 
-### Changed (Unreleased)
+### Changed (1.10.0)
 
 - **Docs / Agent context**: Synced the README, guides, build/export metadata, and agent context files for the concurrency module's task + RPC + pool + collection-helper + pipeline scope, including an updated `threadts-universal` parity matrix and phased roadmap.
 
-### Fixed (Unreleased)
+### Fixed (1.10.0)
 
 - No changes yet.
 

@@ -22,16 +22,13 @@ import {
 Registers a plugin. The plugin's `install()` function receives a context object for registering directives and components. Plugins are installed at most once (by name) — calling `use()` again with the same plugin name is a safe no-op.
 
 ```ts
-function use<TOptions = unknown>(
-  plugin: BQueryPlugin<TOptions>,
-  options?: TOptions
-): void;
+function use<TOptions = unknown>(plugin: BQueryPlugin<TOptions>, options?: TOptions): void;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `plugin` | `BQueryPlugin<TOptions>` | Plugin object with `name` and `install()` |
-| `options` | `TOptions` | Optional configuration passed to `install()` |
+| Parameter | Type                     | Description                                  |
+| --------- | ------------------------ | -------------------------------------------- |
+| `plugin`  | `BQueryPlugin<TOptions>` | Plugin object with `name` and `install()`    |
+| `options` | `TOptions`               | Optional configuration passed to `install()` |
 
 **Throws:** If the plugin is missing a valid `name` or `install` function.
 
@@ -133,9 +130,9 @@ Retrieves the handler function for a specific custom directive. Returns `undefin
 function getCustomDirective(name: string): CustomDirectiveHandler | undefined;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `name` | `string` | The directive name (without the `bq-` prefix) |
+| Parameter | Type     | Description                                   |
+| --------- | -------- | --------------------------------------------- |
+| `name`    | `string` | The directive name (without the `bq-` prefix) |
 
 ```ts
 const handler = getCustomDirective('tooltip');
@@ -224,12 +221,12 @@ type CustomDirectiveHandler = (
 ) => void;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `el` | `Element` | The DOM element with the directive attribute |
-| `expression` | `string` | The evaluated expression string from the template |
-| `context` | `BindingContext` | The reactive data context from `mount()` |
-| `cleanups` | `CleanupFn[]` | Push cleanup functions here; they run when the view unmounts |
+| Parameter    | Type             | Description                                                  |
+| ------------ | ---------------- | ------------------------------------------------------------ |
+| `el`         | `Element`        | The DOM element with the directive attribute                 |
+| `expression` | `string`         | The evaluated expression string from the template            |
+| `context`    | `BindingContext` | The reactive data context from `mount()`                     |
+| `cleanups`   | `CleanupFn[]`    | Push cleanup functions here; they run when the view unmounts |
 
 ### `CustomDirective`
 
@@ -261,8 +258,12 @@ const tooltipPlugin = {
 
       el.appendChild(tooltip);
 
-      const show = () => { tooltip.style.display = 'block'; };
-      const hide = () => { tooltip.style.display = 'none'; };
+      const show = () => {
+        tooltip.style.display = 'block';
+      };
+      const hide = () => {
+        tooltip.style.display = 'none';
+      };
 
       el.addEventListener('mouseenter', show);
       el.addEventListener('mouseleave', hide);

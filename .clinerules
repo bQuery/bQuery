@@ -4,9 +4,9 @@ You are working on bQuery.js (`@bquery/bquery`), a TypeScript-first, zero-build 
 
 The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.9.0**.
+Current release baseline: **1.10.0**.
 
-Version `1.9.0` adds `watchDebounce()` / `watchThrottle()`, the `bq-error` / `bq-aria` view directives, and the `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()` media composables.
+Version `1.10.0` expands `@bquery/bquery/concurrency` with explicit RPC workers, bounded task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`, while preserving the public `watchDebounce()` / `watchThrottle()`, `bq-error` / `bq-aria`, and media observer APIs introduced in `1.9.0`.
 
 ## Before You Start
 
@@ -41,32 +41,37 @@ Version `1.9.0` adds `watchDebounce()` / `watchThrottle()`, the `bq-error` / `bq
 | `$()`    | Returns `BQueryElement`, **throws** if not found |
 | `$$()`   | Returns `BQueryCollection`, never throws         |
 
-| Signal API        | Behavior                        |
-| ----------------- | ------------------------------- |
-| `.value`          | Reads and **tracks** dependency |
-| `.peek()`         | Reads **without** tracking      |
-| `computed()`      | Read-only derived value         |
-| `linkedSignal()`  | Read-write derived value        |
-| `watchDebounce()` | Debounced watcher callback      |
-| `watchThrottle()` | Throttled watcher callback      |
-| `runTask()`         | One-off zero-build worker task         |
-| `createTaskPool()`  | Bounded task-worker pool with queueing |
-| `createRpcWorker()` | Named worker RPC dispatch              |
-| `createRpcPool()`   | Bounded RPC-worker pool with queueing  |
-| `parallel()`        | Explicit task-list helper over pools          |
-| `batchTasks()`      | Batched task-list helper over pools           |
-| `map()`             | Parallel array mapping with chunking          |
-| `filter()`          | Parallel filtering while preserving order     |
-| `some()` / `every()` | Predicate helpers reduced after chunked runs |
-| `find()`            | First-match lookup after worker predicates    |
-| `reduce()`          | Off-main-thread reduction with stable order   |
-| `pipeline()`        | Optional immutable fluent layer over helpers  |
+| Signal API                   | Behavior                                          |
+| ---------------------------- | ------------------------------------------------- |
+| `.value`                     | Reads and **tracks** dependency                   |
+| `.peek()`                    | Reads **without** tracking                        |
+| `computed()`                 | Read-only derived value                           |
+| `linkedSignal()`             | Read-write derived value                          |
+| `watchDebounce()`            | Debounced watcher callback                        |
+| `watchThrottle()`            | Throttled watcher callback                        |
+| `runTask()`                  | One-off zero-build worker task                    |
+| `createTaskPool()`           | Bounded task-worker pool with queueing            |
+| `createRpcWorker()`          | Named worker RPC dispatch                         |
+| `createRpcPool()`            | Bounded RPC-worker pool with queueing             |
+| `createReactiveTaskWorker()` | Task worker + readonly `state$` / `busy$` signals |
+| `createReactiveRpcWorker()`  | RPC worker + readonly `state$` / `busy$` signals  |
+| `createReactiveTaskPool()`   | Task pool + readonly state / queue / load signals |
+| `createReactiveRpcPool()`    | RPC pool + readonly state / queue / load signals  |
+| `parallel()`                 | Explicit task-list helper over pools              |
+| `batchTasks()`               | Batched task-list helper over pools               |
+| `map()`                      | Parallel array mapping with chunking              |
+| `filter()`                   | Parallel filtering while preserving order         |
+| `some()` / `every()`         | Predicate helpers reduced after chunked runs      |
+| `find()`                     | First-match lookup after worker predicates        |
+| `reduce()`                   | Off-main-thread reduction with stable order       |
+| `pipeline()`                 | Optional immutable fluent layer over helpers      |
 
-| 1.9.0 API                                                                     | Reminder                                              |
-| ----------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `bq-error`                                                                    | Reactive inline error output for the view module      |
-| `bq-aria`                                                                     | Declarative ARIA attribute binding in the view module |
-| `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()` | Cleanup-friendly media observer composables           |
+| 1.10.0 API                                                                                                                       | Reminder                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `createRpcWorker()` / `createRpcPool()` / `createReactiveTaskWorker()` / `createReactiveRpcPool()` / `parallel()` / `pipeline()` | Explicit browser-first concurrency surface with reusable workers and helpers |
+| `bq-error`                                                                                                                       | Reactive inline error output for the view module                             |
+| `bq-aria`                                                                                                                        | Declarative ARIA attribute binding in the view module                        |
+| `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()`                                                    | Cleanup-friendly media observer composables                                  |
 
 ## Files to Consult
 

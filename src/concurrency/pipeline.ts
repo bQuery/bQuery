@@ -97,7 +97,9 @@ class FluentConcurrencyPipeline<TValue> implements ConcurrencyPipeline<TValue> {
     options?: TaskRunOptions
   ): Promise<TAccumulator> {
     const resolvedOptions = mergeTaskRunOptions(this.defaults, options);
-    return this.valuesPromise.then((values) => reduce(values, reducer, initialValue, resolvedOptions));
+    return this.valuesPromise.then((values) =>
+      reduce(values, reducer, initialValue, resolvedOptions)
+    );
   }
 }
 

@@ -223,7 +223,12 @@ Here is a full registration form combining `createForm()`, validators, and the v
 
   <div class="field">
     <label for="email">Email</label>
-    <input id="email" type="email" bq-model="form.fields.email.value" placeholder="you@example.com" />
+    <input
+      id="email"
+      type="email"
+      bq-model="form.fields.email.value"
+      placeholder="you@example.com"
+    />
     <p bq-error="form.fields.email" class="error-text"></p>
   </div>
 

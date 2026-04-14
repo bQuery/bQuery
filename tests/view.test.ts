@@ -259,8 +259,7 @@ describe('View', () => {
     });
 
     it('should preserve existing role and aria-live attributes', () => {
-      container.innerHTML =
-        '<p bq-error="errorMessage" role="status" aria-live="polite"></p>';
+      container.innerHTML = '<p bq-error="errorMessage" role="status" aria-live="polite"></p>';
       const errorMessage = signal('Server error');
 
       view = mount(container, { errorMessage });
@@ -371,7 +370,8 @@ describe('View', () => {
     });
 
     it('should preserve explicit false values and remove nullish or empty values', () => {
-      container.innerHTML = '<button bq-aria="{ pressed: isPressed, controls: controlsId }"></button>';
+      container.innerHTML =
+        '<button bq-aria="{ pressed: isPressed, controls: controlsId }"></button>';
       const isPressed = signal(true);
       const controlsId = signal('panel-id');
 
@@ -1072,7 +1072,11 @@ describe('View', () => {
       const errorMessage = signal('Needs attention');
       const expanded = signal(true);
 
-      view = mount(container, { message: 'Custom prefix', errorMessage, expanded }, { prefix: 'x' });
+      view = mount(
+        container,
+        { message: 'Custom prefix', errorMessage, expanded },
+        { prefix: 'x' }
+      );
 
       expect(container.querySelector('p')?.textContent).toBe('Custom prefix');
       expect(container.querySelector('span')?.textContent).toBe('Needs attention');

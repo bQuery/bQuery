@@ -30,15 +30,12 @@ Sanitizes an HTML string by removing dangerous elements, attributes, and protoco
 `sanitize` and `sanitizeHtml` are aliases — they refer to the same function.
 
 ```ts
-function sanitizeHtml(
-  html: string,
-  options?: SanitizeOptions
-): SanitizedHtml;
+function sanitizeHtml(html: string, options?: SanitizeOptions): SanitizedHtml;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `html` | `string` | The HTML string to sanitize |
+| Parameter | Type              | Description                        |
+| --------- | ----------------- | ---------------------------------- |
+| `html`    | `string`          | The HTML string to sanitize        |
 | `options` | `SanitizeOptions` | Optional configuration (see below) |
 
 #### `SanitizeOptions`
@@ -105,22 +102,22 @@ const text = sanitizeHtml('<p>Hello <strong>world</strong></p>', {
 
 The following elements are removed by default. Tags listed in `DANGEROUS_TAGS` are blocked even if you try to allowlist them. `slot` is **not** in that hard block list: it is disallowed by default, but can be explicitly allowlisted for component/shadow-DOM use cases.
 
-| Category | Elements |
-|----------|----------|
-| Scripts & styles | `script`, `style`, `noscript` |
-| Frames | `iframe`, `frame`, `frameset` |
-| Embedded objects | `object`, `embed`, `applet` |
-| Parsing vectors | `svg`, `math`, `foreignobject` |
-| Template slots | `template` (`slot` is disallowed by default, but can be allowlisted) |
-| Document metadata | `base`, `meta`, `link` |
+| Category          | Elements                                                             |
+| ----------------- | -------------------------------------------------------------------- |
+| Scripts & styles  | `script`, `style`, `noscript`                                        |
+| Frames            | `iframe`, `frame`, `frameset`                                        |
+| Embedded objects  | `object`, `embed`, `applet`                                          |
+| Parsing vectors   | `svg`, `math`, `foreignobject`                                       |
+| Template slots    | `template` (`slot` is disallowed by default, but can be allowlisted) |
+| Document metadata | `base`, `meta`, `link`                                               |
 
 #### Dangerous Attributes
 
-| Pattern | Examples |
-|---------|----------|
+| Pattern        | Examples                             |
+| -------------- | ------------------------------------ |
 | Event handlers | `onclick`, `onload`, `onerror`, etc. |
-| Form actions | `formaction` |
-| XML namespaces | `xlink:*`, `xmlns:*` |
+| Form actions   | `formaction`                         |
+| XML namespaces | `xlink:*`, `xmlns:*`                 |
 
 #### Dangerous URL Protocols
 
@@ -334,9 +331,9 @@ Generates a cryptographically random nonce for inline scripts and styles (CSP co
 function generateNonce(length?: number): string;
 ```
 
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `length` | `number` | `16` | Nonce length in bytes (max: 1024) |
+| Parameter | Type     | Default | Description                       |
+| --------- | -------- | ------- | --------------------------------- |
+| `length`  | `number` | `16`    | Nonce length in bytes (max: 1024) |
 
 **Throws:** `RangeError` if length is less than 1, non-integer, or exceeds 1024.  
 **Throws:** `Error` if `crypto.getRandomValues` or `btoa` are unavailable.

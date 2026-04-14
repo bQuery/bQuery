@@ -48,18 +48,14 @@ Register signals with human-readable labels so you can inspect them later. Track
 ### `trackSignal(label, peek, subscriberCount)`
 
 ```ts
-function trackSignal(
-  label: string,
-  peek: () => unknown,
-  subscriberCount: () => number
-): void;
+function trackSignal(label: string, peek: () => unknown, subscriberCount: () => number): void;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `label` | `string` | A non-empty, human-readable label for the signal |
-| `peek` | `() => unknown` | A function that returns the current value without tracking |
-| `subscriberCount` | `() => number` | A function returning the current subscriber count |
+| Parameter         | Type            | Description                                                |
+| ----------------- | --------------- | ---------------------------------------------------------- |
+| `label`           | `string`        | A non-empty, human-readable label for the signal           |
+| `peek`            | `() => unknown` | A function that returns the current value without tracking |
+| `subscriberCount` | `() => number`  | A function returning the current subscriber count          |
 
 **Throws:** If `label` is empty.
 
@@ -70,7 +66,11 @@ import { trackSignal } from '@bquery/bquery/devtools';
 const count = signal(0);
 
 // Reusing a label replaces the previously tracked entry
-trackSignal('counter', () => count.peek(), () => 0);
+trackSignal(
+  'counter',
+  () => count.peek(),
+  () => 0
+);
 ```
 
 ### `untrackSignal(label)`
@@ -101,7 +101,11 @@ import { signal } from '@bquery/bquery/reactive';
 
 const s = signal('hello');
 const label = generateSignalLabel(); // 'signal_0'
-trackSignal(label, () => s.peek(), () => 0);
+trackSignal(
+  label,
+  () => s.peek(),
+  () => 0
+);
 ```
 
 ---
@@ -167,9 +171,9 @@ Returns a complete snapshot of the devtools module state: whether it's enabled, 
 import { getDevtoolsState } from '@bquery/bquery/devtools';
 
 const state = getDevtoolsState();
-console.log(state.enabled);           // true
+console.log(state.enabled); // true
 console.log(state.options.logToConsole); // true
-console.log(state.timeline.length);   // 5
+console.log(state.timeline.length); // 5
 ```
 
 ---
@@ -237,10 +241,10 @@ function recordEvent(type: TimelineEventType, detail: string): void;
 
 Records a custom event into the timeline. When `logToConsole` is enabled, the event is also printed immediately.
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `type` | `TimelineEventType` | One of `'signal:update'`, `'effect:run'`, `'store:patch'`, `'store:action'`, `'route:change'` |
-| `detail` | `string` | A human-readable description of what happened |
+| Parameter | Type                | Description                                                                                   |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------- |
+| `type`    | `TimelineEventType` | One of `'signal:update'`, `'effect:run'`, `'store:patch'`, `'store:action'`, `'route:change'` |
+| `detail`  | `string`            | A human-readable description of what happened                                                 |
 
 ```ts
 import { recordEvent } from '@bquery/bquery/devtools';
@@ -278,8 +282,8 @@ Pretty-prints the timeline to the console. Optionally limits output to the last 
 ```ts
 import { logTimeline } from '@bquery/bquery/devtools';
 
-logTimeline();    // All entries
-logTimeline(10);  // Only the 10 most recent entries
+logTimeline(); // All entries
+logTimeline(10); // Only the 10 most recent entries
 ```
 
 ### `clearTimeline()`
@@ -388,7 +392,11 @@ enableDevtools(true, { logToConsole: true });
 
 // 2. Create and track a signal
 const count = signal(0);
-trackSignal('count', () => count.peek(), () => 0);
+trackSignal(
+  'count',
+  () => count.peek(),
+  () => 0
+);
 
 // 3. Record events as your app runs
 effect(() => {

@@ -4,6 +4,8 @@
  * @module bquery/concurrency
  */
 
+import type { ReadonlySignalHandle } from '../reactive/index';
+
 /**
  * Standalone task handler executed inside a Web Worker.
  *
@@ -256,6 +258,22 @@ export interface TaskWorker<TInput = void, TResult = unknown> {
   terminate(): void;
 }
 
+/**
+ * Reactive wrapper around a reusable task worker.
+ *
+ * Extends the standard {@link TaskWorker} API with readonly signals so UI code
+ * can observe worker lifecycle changes without polling getters manually.
+ */
+export interface ReactiveTaskWorker<TInput = void, TResult = unknown> extends TaskWorker<
+  TInput,
+  TResult
+> {
+  /** Reactive mirror of {@link TaskWorker.state}. */
+  readonly state$: ReadonlySignalHandle<TaskWorkerState>;
+  /** Reactive mirror of {@link TaskWorker.busy}. */
+  readonly busy$: ReadonlySignalHandle<boolean>;
+}
+
 /** Standalone named RPC handler executed inside a Web Worker. */
 export type WorkerRpcHandler<TInput = void, TResult = unknown> = WorkerTaskHandler<TInput, TResult>;
 
@@ -287,6 +305,21 @@ export interface RpcWorker<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers
   terminate(): void;
 }
 
+/**
+ * Reactive wrapper around a reusable RPC worker.
+ *
+ * Extends the standard {@link RpcWorker} API with readonly signals so UI code
+ * can observe worker lifecycle changes without polling getters manually.
+ */
+export interface ReactiveRpcWorker<
+  TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers,
+> extends RpcWorker<TRoutes> {
+  /** Reactive mirror of {@link RpcWorker.state}. */
+  readonly state$: ReadonlySignalHandle<TaskWorkerState>;
+  /** Reactive mirror of {@link RpcWorker.busy}. */
+  readonly busy$: ReadonlySignalHandle<boolean>;
+}
+
 /** Reusable pool of task workers with bounded concurrency and queueing. */
 export interface TaskPool<TInput = void, TResult = unknown> {
   /** Current lifecycle state. */
@@ -316,6 +349,28 @@ export interface TaskPool<TInput = void, TResult = unknown> {
    * Active and queued tasks reject with termination errors.
    */
   terminate(): void;
+}
+
+/**
+ * Reactive wrapper around a reusable task pool.
+ *
+ * Extends the standard {@link TaskPool} API with readonly signals for pool
+ * state, queue pressure, and configured concurrency.
+ */
+export interface ReactiveTaskPool<TInput = void, TResult = unknown> extends TaskPool<
+  TInput,
+  TResult
+> {
+  /** Reactive mirror of {@link TaskPool.state}. */
+  readonly state$: ReadonlySignalHandle<TaskWorkerState>;
+  /** Reactive mirror of {@link TaskPool.busy}. */
+  readonly busy$: ReadonlySignalHandle<boolean>;
+  /** Reactive mirror of {@link TaskPool.concurrency}. */
+  readonly concurrency$: ReadonlySignalHandle<number>;
+  /** Reactive mirror of {@link TaskPool.pending}. */
+  readonly pending$: ReadonlySignalHandle<number>;
+  /** Reactive mirror of {@link TaskPool.size}. */
+  readonly size$: ReadonlySignalHandle<number>;
 }
 
 /** Reusable pool of RPC workers with bounded concurrency and queueing. */
@@ -352,4 +407,25 @@ export interface RpcPool<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> 
    * Active and queued calls reject with termination errors.
    */
   terminate(): void;
+}
+
+/**
+ * Reactive wrapper around a reusable RPC pool.
+ *
+ * Extends the standard {@link RpcPool} API with readonly signals for pool
+ * state, queue pressure, and configured concurrency.
+ */
+export interface ReactiveRpcPool<
+  TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers,
+> extends RpcPool<TRoutes> {
+  /** Reactive mirror of {@link RpcPool.state}. */
+  readonly state$: ReadonlySignalHandle<TaskWorkerState>;
+  /** Reactive mirror of {@link RpcPool.busy}. */
+  readonly busy$: ReadonlySignalHandle<boolean>;
+  /** Reactive mirror of {@link RpcPool.concurrency}. */
+  readonly concurrency$: ReadonlySignalHandle<number>;
+  /** Reactive mirror of {@link RpcPool.pending}. */
+  readonly pending$: ReadonlySignalHandle<number>;
+  /** Reactive mirror of {@link RpcPool.size}. */
+  readonly size$: ReadonlySignalHandle<number>;
 }

@@ -31,9 +31,9 @@ Creates a reactive boolean signal that tracks whether a CSS media query matches.
 function mediaQuery(query: string): MediaSignalHandle<boolean>;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `query` | `string` | A valid CSS media query string |
+| Parameter | Type     | Description                    |
+| --------- | -------- | ------------------------------ |
+| `query`   | `string` | A valid CSS media query string |
 
 ```ts
 const isDark = mediaQuery('(prefers-color-scheme: dark)');
@@ -62,9 +62,7 @@ isPortrait.destroy();
 Defines named breakpoints and returns reactive boolean signals for each. Each signal is `true` when the viewport width is at least the specified value.
 
 ```ts
-function breakpoints<T extends BreakpointMap>(
-  bp: T
-): BreakpointSignals<T>;
+function breakpoints<T extends BreakpointMap>(bp: T): BreakpointSignals<T>;
 ```
 
 ```ts
@@ -233,9 +231,7 @@ battery.destroy();
 Returns a reactive signal tracking the device's geographic position.
 
 ```ts
-function useGeolocation(
-  options?: GeolocationOptions
-): GeolocationSignal;
+function useGeolocation(options?: GeolocationOptions): GeolocationSignal;
 ```
 
 #### `GeolocationOptions`
@@ -706,7 +702,9 @@ const mo = useMutationObserver(el, {
 
 effect(() => {
   for (const m of mo.value.mutations) {
-    console.log(`${m.attributeName}: ${m.oldValue} → ${(m.target as HTMLElement).getAttribute(m.attributeName!)}`);
+    console.log(
+      `${m.attributeName}: ${m.oldValue} → ${(m.target as HTMLElement).getAttribute(m.attributeName!)}`
+    );
   }
 });
 

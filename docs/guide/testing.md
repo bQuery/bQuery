@@ -22,16 +22,13 @@ import {
 Mounts a custom element for testing. Creates the element, sets stringified attributes from `props`, injects slots, appends it to the DOM, and returns a handle for assertions and cleanup.
 
 ```ts
-function renderComponent(
-  tagName: string,
-  options?: RenderComponentOptions
-): RenderResult;
+function renderComponent(tagName: string, options?: RenderComponentOptions): RenderResult;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `tagName` | `string` | The custom element tag name (must be registered) |
-| `options` | `RenderComponentOptions` | Optional attributes, slots, and container |
+| Parameter | Type                     | Description                                      |
+| --------- | ------------------------ | ------------------------------------------------ |
+| `tagName` | `string`                 | The custom element tag name (must be registered) |
+| `options` | `RenderComponentOptions` | Optional attributes, slots, and container        |
 
 #### `RenderComponentOptions`
 
@@ -253,11 +250,7 @@ interface TestRoute {
 
 ```ts
 const router = mockRouter({
-  routes: [
-    { path: '/' },
-    { path: '/docs' },
-    { path: '/user/:id' },
-  ],
+  routes: [{ path: '/' }, { path: '/docs' }, { path: '/user/:id' }],
   initialPath: '/',
 });
 
@@ -317,18 +310,14 @@ router.destroy();
 Dispatches a synthetic event on an element and flushes any pending reactive effects. This ensures that event handlers and their side effects are fully processed before assertions.
 
 ```ts
-function fireEvent(
-  el: Element,
-  eventName: string,
-  options?: FireEventOptions
-): boolean;
+function fireEvent(el: Element, eventName: string, options?: FireEventOptions): boolean;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `el` | `Element` | The target element |
-| `eventName` | `string` | Event name (e.g., `'click'`, `'input'`, `'submit'`) |
-| `options` | `FireEventOptions` | Optional event configuration |
+| Parameter   | Type               | Description                                         |
+| ----------- | ------------------ | --------------------------------------------------- |
+| `el`        | `Element`          | The target element                                  |
+| `eventName` | `string`           | Event name (e.g., `'click'`, `'input'`, `'submit'`) |
+| `options`   | `FireEventOptions` | Optional event configuration                        |
 
 #### `FireEventOptions`
 
@@ -354,7 +343,9 @@ interface FireEventOptions {
 ```ts
 const button = document.createElement('button');
 let clicked = false;
-button.addEventListener('click', () => { clicked = true; });
+button.addEventListener('click', () => {
+  clicked = true;
+});
 document.body.appendChild(button);
 
 fireEvent(button, 'click');
@@ -445,10 +436,7 @@ interface WaitForOptions {
 **Wait for DOM change:**
 
 ```ts
-await waitFor(
-  () => document.querySelector('[data-ready="true"]') !== null,
-  { timeout: 2000 }
-);
+await waitFor(() => document.querySelector('[data-ready="true"]') !== null, { timeout: 2000 });
 ```
 
 **Wait for async state:**
@@ -458,7 +446,9 @@ import { signal } from '@bquery/bquery/reactive';
 
 const loaded = signal(false);
 
-setTimeout(() => { loaded.value = true; }, 50);
+setTimeout(() => {
+  loaded.value = true;
+}, 50);
 
 await waitFor(() => loaded.value, { timeout: 500, interval: 10 });
 ```
