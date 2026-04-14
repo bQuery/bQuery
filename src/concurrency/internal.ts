@@ -9,6 +9,7 @@ import type { TaskWorkerErrorCode, WorkerTaskHandler } from './types';
 
 /** @internal */
 export interface SerializedWorkerError {
+  /** Untrusted serialized worker payload; validate against TaskWorkerErrorCode before use. */
   code?: string;
   message?: string;
   name?: string;

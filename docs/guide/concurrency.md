@@ -445,5 +445,8 @@ await runTask((input: ArrayBuffer) => input.byteLength, buffer, {
 
 - Task handlers must be **standalone functions**; they cannot rely on outer closures
 - The module currently targets **browser worker primitives** (`Worker`, `Blob`, `URL.createObjectURL`)
-- CSP setups may need `worker-src blob:` for inline worker creation, and stricter policies may also require allowing `'unsafe-eval'` because handler validation/revival uses `new Function(...)` on the main thread and inside worker scripts; if your environment forbids dynamic evaluation, avoid the concurrency module in that deployment
+- CSP setups may need `worker-src blob:` for inline worker creation
+- Stricter CSP policies may also require allowing `'unsafe-eval'` because handler
+  validation/revival uses `new Function(...)` on the main thread and inside worker scripts
+- If your environment forbids dynamic evaluation, avoid the concurrency module in that deployment
 - Reactive worker-state bindings remain intentionally deferred to later milestones
