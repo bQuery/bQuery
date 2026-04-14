@@ -6,11 +6,16 @@ import {
   createRpcWorker,
   createTaskPool,
   createTaskWorker,
+  every,
+  filter,
+  find,
   getConcurrencySupport,
   isConcurrencySupported,
   map,
   parallel,
+  reduce,
   runTask,
+  some,
   TaskWorkerAbortError,
   TaskWorkerSerializationError,
   TaskWorkerTimeoutError,
@@ -464,6 +469,92 @@ describe('concurrency/high-level helpers', () => {
       controller.abort();
 
       await expect(pending).rejects.toBeInstanceOf(TaskWorkerAbortError);
+    });
+  });
+
+  it('filters arrays in parallel and preserves the original order', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const results = await filter(
+        [5, 2, 9, 4, 7],
+        async (value, index) => {
+          await new Promise((resolve) => setTimeout(resolve, 2));
+          return value % 2 === 1 && index !== 4;
+        },
+        { batchSize: 2, concurrency: 2 }
+      );
+
+      expect(results).toEqual([5, 9]);
+    });
+  });
+
+  it('returns some/every/find results from predicate-style helpers', async () => {
+    await withMockWorkerEnvironment(async () => {
+      await expect(
+        some(
+          [1, 3, 4, 7],
+          async (value) => {
+            await new Promise((resolve) => setTimeout(resolve, 2));
+            return value % 2 === 0;
+          },
+          { batchSize: 2, concurrency: 2 }
+        )
+      ).resolves.toBe(true);
+
+      await expect(
+        every(
+          [2, 4, 6],
+          async (value) => {
+            await new Promise((resolve) => setTimeout(resolve, 2));
+            return value % 2 === 0;
+          },
+          { batchSize: 2, concurrency: 2 }
+        )
+      ).resolves.toBe(true);
+
+      await expect(
+        find(
+          [3, 8, 11, 14],
+          async (value) => {
+            await new Promise((resolve) => setTimeout(resolve, 2));
+            return value > 10;
+          },
+          { batchSize: 2, concurrency: 2 }
+        )
+      ).resolves.toBe(11);
+    });
+  });
+
+  it('returns the expected empty-input results for predicate-style helpers', async () => {
+    await withMockWorkerEnvironment(async () => {
+      await expect(filter([], (value: number) => value > 0)).resolves.toEqual([]);
+      await expect(some([], (value: number) => value > 0)).resolves.toBe(false);
+      await expect(every([], (value: number) => value > 0)).resolves.toBe(true);
+      await expect(find([], (value: number) => value > 0)).resolves.toBeUndefined();
+    });
+  });
+
+  it('reduces arrays in one worker while preserving accumulator order', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const result = await reduce(
+        [1, 2, 3, 4],
+        async (accumulator, value, index) => {
+          await new Promise((resolve) => setTimeout(resolve, 2));
+          return accumulator + value * (index + 1);
+        },
+        0,
+        { timeout: 1_000 }
+      );
+
+      expect(result).toBe(30);
+    });
+  });
+
+  it('returns the initial value when reduce() receives an empty array', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const initial = { total: 5 };
+      await expect(
+        reduce([], (accumulator: { total: number }, _value: number) => accumulator, initial)
+      ).resolves.toBe(initial);
     });
   });
 });

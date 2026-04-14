@@ -53,9 +53,13 @@ Version `1.9.0` adds `watchDebounce()` / `watchThrottle()`, the `bq-error` / `bq
 | `createTaskPool()`  | Bounded task-worker pool with queueing |
 | `createRpcWorker()` | Named worker RPC dispatch              |
 | `createRpcPool()`   | Bounded RPC-worker pool with queueing  |
-| `parallel()`        | Explicit task-list helper over pools   |
-| `batchTasks()`      | Batched task-list helper over pools    |
-| `map()`             | Parallel array mapping with chunking   |
+| `parallel()`        | Explicit task-list helper over pools          |
+| `batchTasks()`      | Batched task-list helper over pools           |
+| `map()`             | Parallel array mapping with chunking          |
+| `filter()`          | Parallel filtering while preserving order     |
+| `some()` / `every()` | Predicate helpers reduced after chunked runs |
+| `find()`            | First-match lookup after worker predicates    |
+| `reduce()`          | Off-main-thread reduction with stable order   |
 
 | 1.9.0 API                                                                     | Reminder                                              |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------- |

@@ -146,6 +146,11 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `parallel(tasks, options?)`                           | function  | Execute an explicit list of standalone tasks across a worker pool  |
 | `batchTasks(tasks, batchSize?, options?)`             | function  | Execute task lists in sequential batches using parallel workers    |
 | `map(values, mapper, options?)`                       | function  | Map arrays in parallel with optional chunking via worker pools     |
+| `filter(values, predicate, options?)`                 | function  | Filter arrays in parallel while preserving the original order      |
+| `some(values, predicate, options?)`                   | function  | Evaluate whether any array item matches in worker chunks           |
+| `every(values, predicate, options?)`                  | function  | Evaluate whether all array items match in worker chunks            |
+| `find(values, predicate, options?)`                   | function  | Find the first matching array item after worker-side predicate runs |
+| `reduce(values, reducer, initialValue, options?)`     | function  | Reduce arrays off the main thread with standard accumulator order  |
 | `getConcurrencySupport()` / `isConcurrencySupported()` | functions | Detect whether inline browser worker tasks are available           |
 | `TaskWorkerError`                                     | class     | Base error with stable `code` values for concurrency failures      |
 | `TaskWorkerAbortError`                                | class     | Error thrown when a task run is aborted                            |

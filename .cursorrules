@@ -40,7 +40,7 @@ import {
   useResource,
   useSubmit,
 } from '@bquery/bquery/reactive';
-import { batchTasks, createRpcPool, createRpcWorker, createTaskPool, createTaskWorker, map, parallel, runTask } from '@bquery/bquery/concurrency';
+import { batchTasks, createRpcPool, createRpcWorker, createTaskPool, createTaskWorker, every, filter, find, map, parallel, reduce, runTask, some } from '@bquery/bquery/concurrency';
 import { component, html } from '@bquery/bquery/component';
 import { storyHtml, when } from '@bquery/bquery/storybook';
 import { animate, transition, spring } from '@bquery/bquery/motion';

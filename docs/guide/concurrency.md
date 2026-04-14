@@ -14,11 +14,16 @@ import {
   createRpcWorker,
   createRpcPool,
   callWorkerMethod,
+  every,
+  filter,
+  find,
   getConcurrencySupport,
   isConcurrencySupported,
   map,
   parallel,
+  reduce,
   runTask,
+  some,
 } from '@bquery/bquery/concurrency';
 ```
 
@@ -34,6 +39,7 @@ import {
 - Reusable RPC pools via `createRpcPool()`
 - Task-list helpers via `parallel()` and `batchTasks()`
 - Array mapping via `map()`
+- Collection helpers via `filter()`, `reduce()`, `some()`, `every()`, and `find()`
 - Explicit support detection
 - Timeout handling
 - Abort handling
@@ -44,7 +50,6 @@ import {
 ### Planned for later milestones
 
 - Reactive bindings around worker state
-- Additional collection helpers such as `filter()`, `reduce()`, `some()`, `every()`, and `find()`
 - Fluent pipeline helpers inspired by `threadts-universal`
 
 ### Intentionally out of scope for bQuery
@@ -64,7 +69,8 @@ import {
 | Worker lifecycle | termination / reuse | **Supported** with explicit `terminate()` on workers and pools |
 | Timeout + cancellation | supported | **Supported** via `timeout` and `AbortSignal` |
 | Support detection | runtime-dependent | **Supported** via `getConcurrencySupport()` / `isConcurrencySupported()` |
-| Array / batch / pipeline helpers | broad high-level surface | **Partially adapted** via `parallel()`, `batchTasks()`, and `map()`; more collection helpers + pipelines remain planned |
+| Array / batch / collection helpers | broad high-level surface | **Adapted** via `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, `some()`, `every()`, and `find()` |
+| Fluent pipelines | pipeline builders | **Planned** as a later optional layer, not as hidden worker magic |
 | Decorators / implicit magic | broad decorator suite | **Not adopted**; conflicts with bQuery's explicit, lightweight browser-first design |
 | Node / Deno / Bun adapters | universal runtime adapters | **Not adopted** in this browser-focused package |
 
@@ -283,6 +289,70 @@ console.log(results); // [1, 3, 5, 7]
 - Uses `batchSize` to group several items into one worker run
 - Shares one optional `AbortSignal` across all chunks
 - Requires a standalone mapper that can be reconstructed safely in a worker
+
+## `filter()`
+
+Use `filter()` when one standalone predicate should select array items in parallel while preserving the original order.
+
+```ts
+import { filter } from '@bquery/bquery/concurrency';
+
+const results = await filter(
+  [5, 2, 9, 4],
+  (value, index) => value % 2 === 1 && index < 3,
+  { batchSize: 2, concurrency: 2 }
+);
+
+console.log(results); // [5, 9]
+```
+
+## `some()`, `every()`, and `find()`
+
+Use these helpers when a standalone predicate should be evaluated in worker chunks and then reduced back to a boolean or first-match result on the main thread.
+
+```ts
+import { every, find, some } from '@bquery/bquery/concurrency';
+
+const hasEven = await some([1, 3, 4, 7], (value) => value % 2 === 0, {
+  batchSize: 2,
+  concurrency: 2,
+});
+
+const allEven = await every([2, 4, 6], (value) => value % 2 === 0);
+const firstLarge = await find([3, 8, 11, 14], (value) => value > 10);
+
+console.log(hasEven, allEven, firstLarge); // true, true, 11
+```
+
+### Predicate-helper behavior
+
+- `filter()` preserves source order in the returned array
+- `some()` returns `false` for empty arrays
+- `every()` returns `true` for empty arrays
+- `find()` returns `undefined` when nothing matches
+- Like `map()`, predicate helpers currently evaluate explicit worker chunks and do not rely on hidden speculative cancellation
+
+## `reduce()`
+
+Use `reduce()` when a standard left-to-right accumulator should run off the main thread while keeping familiar reducer semantics.
+
+```ts
+import { reduce } from '@bquery/bquery/concurrency';
+
+const total = await reduce(
+  [1, 2, 3, 4],
+  (accumulator, value, index) => accumulator + value * (index + 1),
+  0
+);
+
+console.log(total); // 30
+```
+
+### `reduce()` behavior
+
+- Preserves standard left-to-right accumulator order
+- Executes in one isolated worker run instead of splitting the reducer across multiple workers
+- Returns the provided `initialValue` immediately for empty arrays
 
 ## Timeout and abort
 

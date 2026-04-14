@@ -5,14 +5,19 @@
  */
 
 import { createTaskPool } from './pool';
+import { runTask } from './task';
 import { validateTaskHandler } from './internal';
 import type {
+  ParallelCollectionOptions,
   ParallelMapHandler,
   ParallelMapOptions,
   ParallelOptions,
+  ParallelPredicateHandler,
+  ParallelReduceHandler,
   ParallelResults,
   ParallelTask,
   TaskPool,
+  TaskRunOptions,
   WorkerTaskHandler,
 } from './types';
 
@@ -21,12 +26,12 @@ interface SerializedParallelTask {
   input: unknown;
 }
 
-interface SerializedMapChunk<TInput = unknown> {
+interface SerializedChunk<TInput = unknown> {
   items: Array<{
     index: number;
     value: TInput;
   }>;
-  mapperSource: string;
+  handlerSource: string;
 }
 
 interface IndexedMapResult<TResult> {
@@ -45,25 +50,49 @@ const executeSerializedTask = async (job: SerializedParallelTask): Promise<unkno
   return await handler(job.input);
 };
 
-const executeSerializedMapChunk = async (
-  job: SerializedMapChunk
-): Promise<Array<IndexedMapResult<unknown>>> => {
-  const revive = new Function(`return (${job.mapperSource});`);
-  const mapper = revive() as ((value: unknown, index: number) => unknown | Promise<unknown>) | undefined;
+interface SerializedReduceJob<TInput = unknown, TAccumulator = unknown> {
+  initialValue: TAccumulator;
+  reducerSource: string;
+  values: readonly TInput[];
+}
 
-  if (typeof mapper !== 'function') {
-    throw new TypeError('The serialized mapper did not revive as a function.');
+const executeSerializedChunk = async (
+  job: SerializedChunk
+): Promise<Array<IndexedMapResult<unknown>>> => {
+  const revive = new Function(`return (${job.handlerSource});`);
+  const handler = revive() as ((value: unknown, index: number) => unknown | Promise<unknown>) | undefined;
+
+  if (typeof handler !== 'function') {
+    throw new TypeError('The serialized collection handler did not revive as a function.');
   }
 
   const results: Array<IndexedMapResult<unknown>> = [];
   for (const item of job.items) {
     results.push({
       index: item.index,
-      value: await mapper(item.value, item.index),
+      value: await handler(item.value, item.index),
     });
   }
 
   return results;
+};
+
+const executeSerializedReduce = async (job: SerializedReduceJob): Promise<unknown> => {
+  const revive = new Function(`return (${job.reducerSource});`);
+  const reducer = revive() as
+    | ((accumulator: unknown, value: unknown, index: number) => unknown | Promise<unknown>)
+    | undefined;
+
+  if (typeof reducer !== 'function') {
+    throw new TypeError('The serialized reducer did not revive as a function.');
+  }
+
+  let accumulator = job.initialValue;
+  for (let index = 0; index < job.values.length; index++) {
+    accumulator = await reducer(accumulator, job.values[index], index);
+  }
+
+  return accumulator;
 };
 
 const normalizeBatchSize = (batchSize: number | undefined, label: string): number => {
@@ -86,6 +115,48 @@ const serializeTask = <TInput, TResult>(task: ParallelTask<TInput, TResult>): Se
   handlerSource: validateTaskHandler(task.handler),
   input: task.input,
 });
+
+const runChunkedHandler = async <TInput, TResult>(
+  values: readonly TInput[],
+  handler: (value: TInput, index: number) => TResult | Promise<TResult>,
+  options: ParallelCollectionOptions = {},
+  label: string
+): Promise<TResult[]> => {
+  if (values.length === 0) {
+    return [];
+  }
+
+  const handlerSource = validateTaskHandler(handler as unknown as WorkerTaskHandler<TInput, TResult>);
+  const normalizedBatchSize = normalizeBatchSize(options.batchSize, label);
+  const { batchSize: _batchSize, signal, ...poolOptions } = options;
+  const pool = createTaskPool(executeSerializedChunk, poolOptions);
+  const chunks: Array<SerializedChunk<TInput>> = [];
+
+  for (let index = 0; index < values.length; index += normalizedBatchSize) {
+    const items = values.slice(index, index + normalizedBatchSize).map((value, offset) => ({
+      index: index + offset,
+      value,
+    }));
+    chunks.push({ items, handlerSource });
+  }
+
+  try {
+    const chunkResults = await Promise.all(
+      chunks.map((chunk) => pool.run(chunk, signal ? { signal } : undefined))
+    );
+    const mapped = new Array<TResult>(values.length);
+
+    for (const chunk of chunkResults) {
+      for (const item of chunk) {
+        mapped[item.index] = item.value as TResult;
+      }
+    }
+
+    return mapped;
+  } finally {
+    pool.terminate();
+  }
+};
 
 /**
  * Executes multiple standalone tasks in parallel using a bounded worker pool.
@@ -186,40 +257,103 @@ export async function map<TInput, TResult>(
   mapper: ParallelMapHandler<TInput, TResult>,
   options: ParallelMapOptions = {}
 ): Promise<TResult[]> {
+  return runChunkedHandler(values, mapper, options, 'map');
+}
+
+/**
+ * Filters an array in parallel using a standalone predicate with optional chunking.
+ */
+export async function filter<TInput>(
+  values: readonly TInput[],
+  predicate: ParallelPredicateHandler<TInput>,
+  options: ParallelCollectionOptions = {}
+): Promise<TInput[]> {
+  const matches = await runChunkedHandler(values, predicate, options, 'filter');
+  return values.filter((_, index) => matches[index]);
+}
+
+/**
+ * Returns whether at least one array item matches a standalone predicate.
+ *
+ * The current implementation evaluates predicate chunks explicitly and reduces
+ * the final boolean result on the main thread instead of using hidden globals
+ * or speculative worker cancellation.
+ */
+export async function some<TInput>(
+  values: readonly TInput[],
+  predicate: ParallelPredicateHandler<TInput>,
+  options: ParallelCollectionOptions = {}
+): Promise<boolean> {
   if (values.length === 0) {
-    return [];
+    return false;
   }
 
-  const mapperSource = validateTaskHandler(
-    mapper as unknown as WorkerTaskHandler<TInput, TResult>
+  const matches = await runChunkedHandler(values, predicate, options, 'some');
+  return matches.some(Boolean);
+}
+
+/**
+ * Returns whether every array item matches a standalone predicate.
+ *
+ * The current implementation evaluates predicate chunks explicitly and reduces
+ * the final boolean result on the main thread instead of using hidden globals
+ * or speculative worker cancellation.
+ */
+export async function every<TInput>(
+  values: readonly TInput[],
+  predicate: ParallelPredicateHandler<TInput>,
+  options: ParallelCollectionOptions = {}
+): Promise<boolean> {
+  if (values.length === 0) {
+    return true;
+  }
+
+  const matches = await runChunkedHandler(values, predicate, options, 'every');
+  return matches.every(Boolean);
+}
+
+/**
+ * Finds the first array item that matches a standalone predicate.
+ */
+export async function find<TInput>(
+  values: readonly TInput[],
+  predicate: ParallelPredicateHandler<TInput>,
+  options: ParallelCollectionOptions = {}
+): Promise<TInput | undefined> {
+  if (values.length === 0) {
+    return undefined;
+  }
+
+  const matches = await runChunkedHandler(values, predicate, options, 'find');
+  const index = matches.findIndex(Boolean);
+  return index === -1 ? undefined : values[index];
+}
+
+/**
+ * Reduces an array inside one isolated worker while preserving standard
+ * left-to-right accumulator semantics.
+ */
+export async function reduce<TInput, TAccumulator>(
+  values: readonly TInput[],
+  reducer: ParallelReduceHandler<TAccumulator, TInput>,
+  initialValue: TAccumulator,
+  options: TaskRunOptions = {}
+): Promise<TAccumulator> {
+  if (values.length === 0) {
+    return initialValue;
+  }
+
+  const reducerSource = validateTaskHandler(
+    reducer as unknown as WorkerTaskHandler<unknown, unknown>
   );
-  const normalizedBatchSize = normalizeBatchSize(options.batchSize, 'map');
-  const { batchSize: _batchSize, signal, ...poolOptions } = options;
-  const pool = createTaskPool(executeSerializedMapChunk, poolOptions);
-  const chunks: Array<SerializedMapChunk<TInput>> = [];
 
-  for (let index = 0; index < values.length; index += normalizedBatchSize) {
-    const items = values.slice(index, index + normalizedBatchSize).map((value, offset) => ({
-      index: index + offset,
-      value,
-    }));
-    chunks.push({ items, mapperSource });
-  }
-
-  try {
-    const chunkResults = await Promise.all(
-      chunks.map((chunk) => pool.run(chunk, signal ? { signal } : undefined))
-    );
-    const mapped = new Array<TResult>(values.length);
-
-    for (const chunk of chunkResults) {
-      for (const item of chunk) {
-        mapped[item.index] = item.value as TResult;
-      }
-    }
-
-    return mapped;
-  } finally {
-    pool.terminate();
-  }
+  return runTask(
+    executeSerializedReduce,
+    {
+      initialValue,
+      reducerSource,
+      values,
+    },
+    options
+  ) as Promise<TAccumulator>;
 }

@@ -107,7 +107,18 @@ export interface ParallelTask<TInput = unknown, TResult = unknown> {
 }
 
 /** Shared pool options for high-level parallel task helpers. */
-export interface ParallelOptions extends CreateTaskPoolOptions {}
+export type ParallelOptions = CreateTaskPoolOptions;
+
+/** Shared options for chunked collection helpers such as `map()` and `filter()`. */
+export interface ParallelCollectionOptions extends CreateTaskPoolOptions {
+  /**
+   * Number of array items grouped into each worker run.
+   * Defaults to `1`.
+   */
+  batchSize?: number;
+  /** AbortSignal shared across all queued or running chunks. */
+  signal?: AbortSignal;
+}
 
 /** Callback signature used by `map()` for parallel array processing. */
 export type ParallelMapHandler<TInput, TResult> = (
@@ -115,20 +126,25 @@ export type ParallelMapHandler<TInput, TResult> = (
   index: number
 ) => TResult | Promise<TResult>;
 
+/** Callback signature used by predicate-style helpers such as `filter()`. */
+export type ParallelPredicateHandler<TInput> = (
+  value: TInput,
+  index: number
+) => boolean | Promise<boolean>;
+
+/** Callback signature used by `reduce()` for sequential accumulation inside a worker. */
+export type ParallelReduceHandler<TAccumulator, TInput> = (
+  accumulator: TAccumulator,
+  value: TInput,
+  index: number
+) => TAccumulator | Promise<TAccumulator>;
+
 /** Options for `map()` chunking and cancellation behavior. */
-export interface ParallelMapOptions extends CreateTaskPoolOptions {
-  /**
-   * Number of array items grouped into each worker run.
-   * Defaults to `1`.
-   */
-  batchSize?: number;
-  /** AbortSignal shared across all queued or running map chunks. */
-  signal?: AbortSignal;
-}
+export type ParallelMapOptions = ParallelCollectionOptions;
 
 /** Result tuple inferred from a `parallel()` or `batchTasks()` task list. */
-export type ParallelResults<TTasks extends readonly ParallelTask[]> = {
-  [TIndex in keyof TTasks]: TTasks[TIndex] extends ParallelTask<any, infer TResult>
+export type ParallelResults<TTasks extends readonly ParallelTask<unknown, unknown>[]> = {
+  [TIndex in keyof TTasks]: TTasks[TIndex] extends ParallelTask<unknown, infer TResult>
     ? Awaited<TResult>
     : never;
 };
