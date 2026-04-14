@@ -198,6 +198,19 @@ describe('concurrency/runTask', () => {
     });
   });
 
+  it('normalizes unknown worker error codes back to WORKER', async () => {
+    await withMockWorkerEnvironment(async () => {
+      await expect(
+        runTask(() => {
+          throw Object.assign(new Error('boom'), { code: 'NOT_PUBLIC' });
+        }, undefined)
+      ).rejects.toMatchObject({
+        code: 'WORKER',
+        message: 'boom',
+      });
+    });
+  });
+
   it('rejects native functions that cannot be reconstructed safely', async () => {
     await withMockWorkerEnvironment(() => {
       const nativeHandler = Math.max as unknown as WorkerTaskHandler<number, number>;

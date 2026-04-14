@@ -4,20 +4,34 @@
  * @internal
  */
 
-import {
-  TaskWorkerError,
-  TaskWorkerSerializationError,
-  TaskWorkerTimeoutError,
-} from './errors';
+import { TaskWorkerError, TaskWorkerSerializationError, TaskWorkerTimeoutError } from './errors';
 import type { TaskWorkerErrorCode, WorkerTaskHandler } from './types';
 
 /** @internal */
 export interface SerializedWorkerError {
-  code?: TaskWorkerErrorCode;
+  code?: string;
   message?: string;
   name?: string;
   stack?: string;
 }
+
+const TASK_WORKER_ERROR_CODES = new Set<TaskWorkerErrorCode>([
+  'ABORT',
+  'BUSY',
+  'METHOD_NOT_FOUND',
+  'QUEUE_CLEARED',
+  'QUEUE_FULL',
+  'SERIALIZATION',
+  'TERMINATED',
+  'TIMEOUT',
+  'UNSUPPORTED',
+  'WORKER',
+]);
+
+/** @internal */
+export const isTaskWorkerErrorCode = (code: string | undefined): code is TaskWorkerErrorCode => {
+  return typeof code === 'string' && TASK_WORKER_ERROR_CODES.has(code as TaskWorkerErrorCode);
+};
 
 /** @internal */
 export const normalizeTimeout = (timeout?: number): number | undefined => {
@@ -70,10 +84,9 @@ export const createWorkerInstance = (scriptSource: string, name?: string): Worke
 /** @internal */
 export const restoreWorkerError = (payload: SerializedWorkerError | undefined): TaskWorkerError => {
   const message = payload?.message || 'Worker task failed.';
+  const code = isTaskWorkerErrorCode(payload?.code) ? payload.code : 'WORKER';
   const error =
-    payload?.code === 'TIMEOUT'
-      ? new TaskWorkerTimeoutError(message)
-      : new TaskWorkerError(message, payload?.code ?? 'WORKER');
+    code === 'TIMEOUT' ? new TaskWorkerTimeoutError(message) : new TaskWorkerError(message, code);
 
   error.name = payload?.name || error.name;
   if (payload?.stack) {
