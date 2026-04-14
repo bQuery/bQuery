@@ -10,6 +10,10 @@
  * The function must be self-contained because it is stringified and evaluated
  * in the worker context without access to outer closures.
  *
+ * The bivariance wrapper is intentional: object-literal task and RPC handlers
+ * should remain ergonomic under strict TypeScript variance checks, including
+ * the repository's dedicated test typecheck.
+ *
  * @example
  * ```ts
  * const square = (value: number) => value * value;
