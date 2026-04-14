@@ -6,6 +6,10 @@ reactive:
   - changed-files:
       - any-glob-to-any-file: 'src/reactive/**'
 
+concurrency:
+  - changed-files:
+      - any-glob-to-any-file: 'src/concurrency/**'
+
 component:
   - changed-files:
       - any-glob-to-any-file: 'src/component/**'
