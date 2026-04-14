@@ -656,6 +656,25 @@ describe('concurrency/high-level helpers', () => {
     });
   });
 
+  it('preserves sparse arrays when pipelines snapshot and materialize values', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const values = [1, , 3] as Array<number | undefined>;
+      const base = pipeline(values, { batchSize: 2, concurrency: 2 });
+      const filtered = base.filter((_value, index) => index > 0);
+      const baseResult = await base.toArray();
+      const filteredResult = await filtered.toArray();
+
+      expect(baseResult).toHaveLength(3);
+      expect(1 in baseResult).toBe(false);
+      expect(baseResult[0]).toBe(1);
+      expect(baseResult[2]).toBe(3);
+
+      expect(filteredResult).toHaveLength(2);
+      expect(0 in filteredResult).toBe(false);
+      expect(filteredResult[1]).toBe(3);
+    });
+  });
+
   it('supports terminal pipeline helpers after fluent transformations', async () => {
     await withMockWorkerEnvironment(async () => {
       const transformed = pipeline([1, 2, 3, 4], {
@@ -669,6 +688,24 @@ describe('concurrency/high-level helpers', () => {
       await expect(transformed.reduce((accumulator, value) => accumulator + value, 0)).resolves.toBe(
         16
       );
+    });
+  });
+
+  it('lets reduce() stages explicitly clear pipeline timeout and signal defaults', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        pipeline([1, 2], { signal: controller.signal, timeout: 1 }).reduce(
+          async (accumulator, value) => {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+            return accumulator + value;
+          },
+          0,
+          { signal: undefined, timeout: undefined }
+        )
+      ).resolves.toBe(3);
     });
   });
 

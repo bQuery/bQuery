@@ -27,8 +27,8 @@ const mergeTaskRunOptions = (
   defaults: ConcurrencyPipelineOptions,
   overrides: TaskRunOptions = {}
 ): TaskRunOptions => ({
-  signal: overrides.signal ?? defaults.signal,
-  timeout: overrides.timeout ?? defaults.timeout,
+  signal: 'signal' in overrides ? overrides.signal : defaults.signal,
+  timeout: 'timeout' in overrides ? overrides.timeout : defaults.timeout,
   transfer: overrides.transfer,
 });
 
@@ -64,7 +64,7 @@ class FluentConcurrencyPipeline<TValue> implements ConcurrencyPipeline<TValue> {
   }
 
   toArray(): Promise<TValue[]> {
-    return this.valuesPromise.then((values) => Array.from(values));
+    return this.valuesPromise.then((values) => values.slice());
   }
 
   some(
@@ -127,5 +127,5 @@ export function pipeline<TValue>(
   values: readonly TValue[],
   options: ConcurrencyPipelineOptions = {}
 ): ConcurrencyPipeline<TValue> {
-  return new FluentConcurrencyPipeline(Promise.resolve(Array.from(values)), options);
+  return new FluentConcurrencyPipeline(Promise.resolve(values.slice()), options);
 }
