@@ -20,14 +20,15 @@
 
 **The jQuery for the modern Web Platform.**
 
-bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
+bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
 
-> **New in 1.9.0:** `watchDebounce()` / `watchThrottle()` smooth signal watchers, the View module adds `bq-error` and `bq-aria`, and the Media module now includes `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()`.
+> **New in 1.10.0:** The Concurrency module now adds explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
 
 ## Highlights
 
 - **Zero-build capable**: runs directly in the browser; build tools are optional.
 - **Transport-ready reactive data**: fetch composables, HTTP clients, polling, pagination, debounced/throttled watchers, WebSocket / SSE, REST helpers, and request coordination plug directly into signals.
+- **Explicit concurrency primitives**: zero-build worker tasks, RPC helpers, bounded pools, reactive worker state mirrors, and collection helpers keep off-main-thread work predictable.
 - **Declarative UI bindings**: built-in directives now cover content, events, forms, error output, and reactive ARIA attributes.
 - **Security-focused**: DOM writes are sanitized by default; Trusted Types supported.
 - **Modular**: the core stays small; extra modules are opt-in.
@@ -127,6 +128,30 @@ import {
   deduplicateRequest,
 } from '@bquery/bquery/reactive';
 
+// Concurrency only
+import {
+  batchTasks,
+  callWorkerMethod,
+  createReactiveRpcPool,
+  createReactiveRpcWorker,
+  createReactiveTaskPool,
+  createReactiveTaskWorker,
+  createRpcPool,
+  createRpcWorker,
+  createTaskPool,
+  createTaskWorker,
+  every,
+  filter,
+  find,
+  getConcurrencySupport,
+  map,
+  parallel,
+  pipeline,
+  reduce,
+  runTask,
+  some,
+} from '@bquery/bquery/concurrency';
+
 // Components only
 import {
   bool,
@@ -176,29 +201,32 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 
 ## Modules at a glance
 
-| Module        | Description                                                                                                                                        |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Core**      | Selectors, DOM manipulation, events, traversal, and typed utilities                                                                                |
-| **Reactive**  | `signal`, `computed`, `effect`, `watchDebounce`, `watchThrottle`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers |
-| **Component** | Typed Web Components with scoped reactivity and configurable Shadow DOM                                                                            |
-| **Storybook** | Safe story template helpers with boolean-attribute shorthand                                                                                       |
-| **Motion**    | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                                                     |
-| **Security**  | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                                                    |
-| **Platform**  | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                      |
-| **Router**    | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                                                  |
-| **Store**     | Signal-based state management, persistence, migrations, and action hooks                                                                           |
-| **View**      | Declarative DOM bindings with `bq-*` directives for content, classes, forms, errors, ARIA, and plugins                                             |
-| **Forms**     | Reactive form state with sync/async validation and submit handling                                                                                 |
-| **i18n**      | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                                                  |
-| **A11y**      | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                    |
-| **DnD**       | Draggable elements, droppable zones, and sortable lists                                                                                            |
-| **Media**     | Reactive browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers                                          |
-| **Plugin**    | Global plugin registration for custom directives and Web Components                                                                                |
-| **Devtools**  | Runtime inspection helpers for signals, stores, components, and timelines                                                                          |
-| **Testing**   | Component mounting, mock signals/router helpers, and async test utilities                                                                          |
-| **SSR**       | Server-side rendering, hydration, and store-state serialization                                                                                    |
+| Module          | Description                                                                                                                                                                 |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core**        | Selectors, DOM manipulation, events, traversal, and typed utilities                                                                                                         |
+| **Reactive**    | `signal`, `computed`, `effect`, `watchDebounce`, `watchThrottle`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers                          |
+| **Concurrency** | Zero-build worker tasks, explicit RPC helpers, optional reactive state wrappers, bounded worker pools, high-level collection helpers, and an optional fluent pipeline layer |
+| **Component**   | Typed Web Components with scoped reactivity and configurable Shadow DOM                                                                                                     |
+| **Storybook**   | Safe story template helpers with boolean-attribute shorthand                                                                                                                |
+| **Motion**      | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                                                                              |
+| **Security**    | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                                                                             |
+| **Platform**    | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                                               |
+| **Router**      | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                                                                           |
+| **Store**       | Signal-based state management, persistence, migrations, and action hooks                                                                                                    |
+| **View**        | Declarative DOM bindings with `bq-*` directives for content, classes, forms, errors, ARIA, and plugins                                                                      |
+| **Forms**       | Reactive form state with sync/async validation and submit handling                                                                                                          |
+| **i18n**        | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                                                                           |
+| **A11y**        | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                                             |
+| **DnD**         | Draggable elements, droppable zones, and sortable lists                                                                                                                     |
+| **Media**       | Reactive browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers                                                                   |
+| **Plugin**      | Global plugin registration for custom directives and Web Components                                                                                                         |
+| **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
+| **Testing**     | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
+| **SSR**         | Server-side rendering, hydration, and store-state serialization                                                                                                             |
 
-Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`.
+Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`.
+
+Reusable workers and pools can also opt into readonly signal mirrors such as `state$`, `busy$`, `pending$`, and `size$` through the `createReactive*()` concurrency wrappers.
 
 ## Quick examples
 
@@ -281,6 +309,134 @@ const fullName = linkedSignal(
 );
 
 fullName.value = 'Grace Hopper';
+```
+
+### Concurrency – worker tasks
+
+```ts
+import { runTask } from '@bquery/bquery/concurrency';
+
+const total = await runTask(
+  ({ values }: { values: number[] }) => values.reduce((sum, value) => sum + value, 0),
+  { values: [1, 2, 3, 4] },
+  { timeout: 1_000 }
+);
+
+console.log(total); // 10
+```
+
+### Concurrency – RPC-style worker methods
+
+```ts
+import { createRpcWorker } from '@bquery/bquery/concurrency';
+
+const rpc = createRpcWorker({
+  formatUser: ({ first, last }: { first: string; last: string }) => `${last}, ${first}`,
+  sum: ({ values }: { values: number[] }) => values.reduce((total, value) => total + value, 0),
+});
+
+console.log(await rpc.call('formatUser', { first: 'Ada', last: 'Lovelace' }));
+console.log(await rpc.call('sum', { values: [1, 2, 3] }));
+
+rpc.terminate();
+```
+
+### Concurrency – pooled worker execution
+
+```ts
+import { createTaskPool } from '@bquery/bquery/concurrency';
+
+const pool = createTaskPool(({ value }: { value: number }) => value * 2, {
+  concurrency: 4,
+  maxQueue: 16,
+  name: 'double-pool',
+});
+
+const results = await Promise.all([
+  pool.run({ value: 1 }),
+  pool.run({ value: 2 }),
+  pool.run({ value: 3 }),
+]);
+
+console.log(results); // [2, 4, 6]
+pool.terminate();
+```
+
+### Concurrency – reactive pool state
+
+```ts
+import { createReactiveTaskPool } from '@bquery/bquery/concurrency';
+import { effect } from '@bquery/bquery/reactive';
+
+const pool = createReactiveTaskPool(
+  async ({ delay, value }: { delay: number; value: number }) => {
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    return value * 2;
+  },
+  { concurrency: 2, maxQueue: 8 }
+);
+
+effect(() => {
+  console.log(pool.state$.value, pool.pending$.value, pool.size$.value);
+});
+
+await Promise.all([
+  pool.run({ delay: 20, value: 1 }),
+  pool.run({ delay: 20, value: 2 }),
+  pool.run({ delay: 0, value: 3 }),
+]);
+
+pool.terminate();
+```
+
+### Concurrency – task lists, collection helpers & pipelines
+
+```ts
+import {
+  batchTasks,
+  every,
+  filter,
+  find,
+  map,
+  parallel,
+  pipeline,
+  reduce,
+  some,
+} from '@bquery/bquery/concurrency';
+
+const tasks = await parallel([
+  { handler: (value: number) => value * 2, input: 5 },
+  {
+    handler: ({ first, last }: { first: string; last: string }) => `${last}, ${first}`,
+    input: { first: 'Ada', last: 'Lovelace' },
+  },
+]);
+
+const batched = await batchTasks(
+  [
+    { handler: (value: number) => value * 2, input: 1 },
+    { handler: (value: number) => value * 2, input: 2 },
+    { handler: (value: number) => value * 2, input: 3 },
+  ],
+  2
+);
+
+const mapped = await map([1, 2, 3, 4], (value, index) => value + index, {
+  batchSize: 2,
+  concurrency: 2,
+});
+
+const filtered = await filter([5, 2, 9, 4], (value) => value % 2 === 1);
+const hasEven = await some([1, 3, 4], (value) => value % 2 === 0);
+const allEven = await every([2, 4, 6], (value) => value % 2 === 0);
+const firstLarge = await find([3, 8, 11, 14], (value) => value > 10);
+const reduced = await reduce([1, 2, 3, 4], (accumulator, value) => accumulator + value, 0);
+const piped = await pipeline([1, 2, 3, 4], { batchSize: 2, concurrency: 2 })
+  .map((value) => value * 2)
+  .filter((value) => value > 4)
+  .toArray();
+
+console.log(tasks, batched, mapped, filtered, hasEven, allEven, firstLarge, reduced, piped);
 ```
 
 ### Reactive – async data & fetch

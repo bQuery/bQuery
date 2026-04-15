@@ -1011,14 +1011,15 @@ describe('media/useIntersectionObserver', () => {
       }
     }
 
-    globalThis.IntersectionObserver = MockIntersectionObserver as unknown as typeof IntersectionObserver;
+    globalThis.IntersectionObserver =
+      MockIntersectionObserver as unknown as typeof IntersectionObserver;
 
     try {
       const el = document.createElement('div');
       expect(() =>
         useIntersectionObserver(el, {
           rootMargin: 'bad-margin',
-        }),
+        })
       ).not.toThrow();
 
       const io = useIntersectionObserver(el, {
@@ -1228,9 +1229,7 @@ describe('media/useResizeObserver', () => {
 
     try {
       const el = document.createElement('div');
-      expect(() =>
-        useResizeObserver(el, { box: 'border-box' }),
-      ).not.toThrow();
+      expect(() => useResizeObserver(el, { box: 'border-box' })).not.toThrow();
 
       const ro = useResizeObserver(el, { box: 'border-box' });
       expect(ro.value).toEqual({
@@ -1522,7 +1521,7 @@ describe('media/useMutationObserver', () => {
       expect(() =>
         useMutationObserver(el, {
           attributes: true,
-        }),
+        })
       ).not.toThrow();
 
       const mo = useMutationObserver(el, {

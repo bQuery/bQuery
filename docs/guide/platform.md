@@ -153,15 +153,12 @@ console.log(config.fetch?.baseUrl); // 'https://api.example.com'
 Creates a reactive signal backed by `document.cookie`. Changes to the signal's `.value` are automatically persisted to the cookie.
 
 ```ts
-function useCookie<T>(
-  name: string,
-  options?: UseCookieOptions<T>
-): Signal<T | null>;
+function useCookie<T>(name: string, options?: UseCookieOptions<T>): Signal<T | null>;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `name` | `string` | Cookie name |
+| Parameter | Type                  | Description            |
+| --------- | --------------------- | ---------------------- |
+| `name`    | `string`              | Cookie name            |
 | `options` | `UseCookieOptions<T>` | Optional configuration |
 
 #### `UseCookieOptions<T>`
@@ -236,9 +233,7 @@ consent.value = { analytics: true, marketing: false };
 Updates the document title, meta tags, link tags, and temporary `html`/`body` attributes. Returns a cleanup function so route transitions or page swaps can revert state cleanly.
 
 ```ts
-function definePageMeta(
-  definition: PageMetaDefinition
-): PageMetaCleanup;
+function definePageMeta(definition: PageMetaDefinition): PageMetaCleanup;
 ```
 
 #### `PageMetaDefinition`
@@ -314,9 +309,7 @@ const cleanup = definePageMeta({
     { property: 'og:type', content: 'article' },
     { property: 'og:image', content: 'https://example.com/image.jpg' },
   ],
-  link: [
-    { rel: 'canonical', href: 'https://example.com/blog/post' },
-  ],
+  link: [{ rel: 'canonical', href: 'https://example.com/blog/post' }],
   htmlAttributes: { lang: 'en' },
   bodyAttributes: { 'data-page': 'blog-post' },
 });
@@ -344,9 +337,7 @@ definePageMeta({ title: 'Settings' });
 Creates or reuses an ARIA live region for screen-reader-friendly announcements. Configuration defaults come from `defineBqueryConfig()`.
 
 ```ts
-function useAnnouncer(
-  options?: UseAnnouncerOptions
-): AnnouncerHandle;
+function useAnnouncer(options?: UseAnnouncerOptions): AnnouncerHandle;
 ```
 
 #### `UseAnnouncerOptions`

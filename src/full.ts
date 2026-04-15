@@ -139,6 +139,71 @@ export type {
 } from './reactive/index';
 
 // ============================================================================
+// Concurrency Module: Zero-build worker task helpers
+// ============================================================================
+export {
+  batchTasks,
+  callWorkerMethod,
+  createReactiveRpcPool,
+  createReactiveRpcWorker,
+  createReactiveTaskPool,
+  createReactiveTaskWorker,
+  createRpcPool,
+  createRpcWorker,
+  createTaskPool,
+  createTaskWorker,
+  every,
+  filter,
+  find,
+  getConcurrencySupport,
+  isConcurrencySupported,
+  map,
+  parallel,
+  pipeline,
+  reduce,
+  runTask,
+  some,
+  TaskWorkerAbortError,
+  TaskWorkerError,
+  TaskWorkerSerializationError,
+  TaskWorkerTimeoutError,
+  TaskWorkerUnsupportedError,
+} from './concurrency/index';
+export type {
+  CallWorkerMethodOptions,
+  ConcurrencyPipeline,
+  ConcurrencyPipelineOptions,
+  ConcurrencySupport,
+  CreateRpcPoolOptions,
+  CreateRpcWorkerOptions,
+  CreateTaskPoolOptions,
+  CreateTaskWorkerOptions,
+  ParallelCollectionOptions,
+  ParallelMapHandler,
+  ParallelMapOptions,
+  ParallelOptions,
+  ParallelPredicateHandler,
+  ParallelReduceHandler,
+  ParallelResults,
+  ParallelTask,
+  ReactiveRpcPool,
+  ReactiveRpcWorker,
+  ReactiveTaskPool,
+  ReactiveTaskWorker,
+  RpcPool,
+  RpcWorker,
+  RunTaskOptions,
+  TaskPool,
+  TaskRunOptions,
+  TaskWorker,
+  TaskWorkerErrorCode,
+  TaskWorkerState,
+  WorkerRpcHandler,
+  WorkerRpcHandlers,
+  WorkerTaskHandler,
+} from './concurrency/index';
+
+// ============================================================================
 // Component Module: Web Components helper with Shadow DOM
 // ============================================================================
 export {

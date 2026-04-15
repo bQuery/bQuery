@@ -5,18 +5,18 @@
 
 ## Identity
 
-| Field       | Value                                                                                                                                                                                                                                                        |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Name        | bQuery.js                                                                                                                                                                                                                                                    |
-| Package     | `@bquery/bquery`                                                                                                                                                                                                                                             |
-| Version     | 1.9.0                                                                                                                                                                                                                                                        |
-| License     | MIT                                                                                                                                                                                                                                                          |
-| Language    | TypeScript (strict)                                                                                                                                                                                                                                          |
-| Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                                                                                                 |
-| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.11`                                                                                                                                                                                                                           |
-| Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                                                                           |
-| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                                                                             |
-| Description | jQuery-style DOM library with reactivity, async data, HTTP clients, polling / pagination, realtime transports, REST helpers, Web Components, motion, routing, stores, declarative views, and shared runtime config — zero-build capable, security-by-default |
+| Field       | Value                                                                                                                                                                                                                                                                                 |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name        | bQuery.js                                                                                                                                                                                                                                                                             |
+| Package     | `@bquery/bquery`                                                                                                                                                                                                                                                                      |
+| Version     | 1.10.0                                                                                                                                                                                                                                                                                |
+| License     | MIT                                                                                                                                                                                                                                                                                   |
+| Language    | TypeScript (strict)                                                                                                                                                                                                                                                                   |
+| Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                                                                                                                          |
+| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.11`                                                                                                                                                                                                                                                    |
+| Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                                                                                                    |
+| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                                                                                                      |
+| Description | jQuery-style DOM library with reactivity, zero-build worker tasks, async data, HTTP clients, polling / pagination, realtime transports, REST helpers, Web Components, motion, routing, stores, declarative views, and shared runtime config — zero-build capable, security-by-default |
 
 ---
 
@@ -32,8 +32,9 @@ bun run storybook     # Storybook dev server
 bun run dev           # VitePress docs server
 ```
 
-## Version 1.9.0 Highlights
+## Version 1.10.0 Highlights
 
+- The concurrency module's public surface now includes explicit RPC workers, task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `some()`, `every()`, `find()`, `reduce()`, and `pipeline()`.
 - `watchDebounce()` and `watchThrottle()` are public reactive APIs and should preserve the same cleanup-safe callback semantics as `watch()`.
 - View directive inventories must include `bq-error` and `bq-aria` when describing the declarative binding layer.
 - Media guidance should treat `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()` as first-class public composables.
@@ -49,6 +50,7 @@ src/
 ├── full.ts             # Full bundle with explicit named exports (CDN)
 ├── core/               # $, $$, BQueryElement, BQueryCollection, utils
 ├── reactive/           # signal, computed, effect, scopes, watch/watchDebounce/watchThrottle, async data/fetch, HTTP, polling, pagination, realtime, REST
+├── concurrency/        # runTask(), workers/pools, RPC helpers, reactive wrappers, collection helpers, support/lifecycle helpers
 ├── component/          # component(), defineComponent(), scoped reactivity, defaults
 ├── storybook/          # storyHtml(), when() helpers for Storybook stories
 ├── motion/             # animate, transition, flip, morph, spring, timeline, scroll
@@ -131,6 +133,36 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `readonly(sig)`                          | function  | Read-only wrapper around a signal                                   |
 | `isSignal`, `isComputed`                 | functions | Type guards                                                         |
 | `Signal`, `Computed`                     | classes   | Signal and Computed value classes                                   |
+
+### Concurrency (`@bquery/bquery/concurrency`)
+
+| Export                                                 | Kind      | Description                                                            |
+| ------------------------------------------------------ | --------- | ---------------------------------------------------------------------- |
+| `runTask(handler, input, options?)`                    | function  | Execute one task in a fresh zero-build Web Worker                      |
+| `createTaskWorker(handler, options?)`                  | function  | Create a reusable single-task worker with explicit lifecycle           |
+| `createTaskPool(handler, options?)`                    | function  | Create a bounded reusable task-worker pool with FIFO queueing          |
+| `createRpcWorker(handlers, options?)`                  | function  | Create a reusable named-method worker for explicit RPC-style calls     |
+| `callWorkerMethod(handlers, method, input, options?)`  | function  | Execute one named worker method in a fresh worker                      |
+| `createRpcPool(handlers, options?)`                    | function  | Create a bounded reusable RPC-worker pool with FIFO queueing           |
+| `createReactiveTaskWorker(handler, options?)`          | function  | Wrap a reusable task worker with readonly `state$` / `busy$` signals   |
+| `createReactiveRpcWorker(handlers, options?)`          | function  | Wrap a reusable RPC worker with readonly `state$` / `busy$` signals    |
+| `createReactiveTaskPool(handler, options?)`            | function  | Wrap a reusable task pool with readonly state, queue, and load signals |
+| `createReactiveRpcPool(handlers, options?)`            | function  | Wrap a reusable RPC pool with readonly state, queue, and load signals  |
+| `parallel(tasks, options?)`                            | function  | Execute an explicit list of standalone tasks across a worker pool      |
+| `batchTasks(tasks, batchSize?, options?)`              | function  | Execute task lists in sequential batches using parallel workers        |
+| `map(values, mapper, options?)`                        | function  | Map arrays in parallel with optional chunking via worker pools         |
+| `filter(values, predicate, options?)`                  | function  | Filter arrays in parallel while preserving the original order          |
+| `some(values, predicate, options?)`                    | function  | Evaluate whether any array item matches in worker chunks               |
+| `every(values, predicate, options?)`                   | function  | Evaluate whether all array items match in worker chunks                |
+| `find(values, predicate, options?)`                    | function  | Find the first matching array item after worker-side predicate runs    |
+| `reduce(values, reducer, initialValue, options?)`      | function  | Reduce arrays off the main thread with standard accumulator order      |
+| `pipeline(values, options?)`                           | function  | Create an optional immutable fluent pipeline over collection helpers   |
+| `getConcurrencySupport()` / `isConcurrencySupported()` | functions | Detect whether inline browser worker tasks are available               |
+| `TaskWorkerError`                                      | class     | Base error with stable `code` values for concurrency failures          |
+| `TaskWorkerAbortError`                                 | class     | Error thrown when a task run is aborted                                |
+| `TaskWorkerTimeoutError`                               | class     | Error thrown when a task exceeds its timeout                           |
+| `TaskWorkerSerializationError`                         | class     | Error thrown when a handler or payload cannot be serialized safely     |
+| `TaskWorkerUnsupportedError`                           | class     | Error thrown when required worker primitives are unavailable           |
 
 ### Component (`@bquery/bquery/component`)
 
@@ -407,6 +439,14 @@ it('should add class', () => {
 4. Add test in `tests/signal.test.ts`
 5. Run `bun test`
 
+### Adding reactive concurrency wrappers
+
+1. Keep `createTaskWorker()` / `createRpcWorker()` / pool APIs backward compatible
+2. Prefer additive wrapper factories (e.g. `createReactiveTaskPool()`) over mutating existing handles
+3. Mirror sync getters such as `state`, `busy`, `pending`, and `size` into readonly signals
+4. Extend `tests/concurrency.test.ts` using the existing mock worker environment
+5. Sync `src/full.ts`, `README.md`, `llms.txt`, and `docs/guide/concurrency.md`
+
 ### Updating runtime-config-aware APIs
 
 1. Check `src/platform/config.ts` for existing config surfaces and defaults
@@ -439,7 +479,7 @@ it('should add class', () => {
 | ------------------------------- | --------------------------------------------------------------------------------------- |
 | `src/index.ts`                  | Default entry point — re-exports all modules                                            |
 | `src/full.ts`                   | Full bundle with explicit named exports (CDN); keep in sync with public runtime exports |
-| `vite.config.ts`                | Library build config (21 entry points, ESM)                                             |
+| `vite.config.ts`                | Library build config (22 entry points, ESM)                                             |
 | `vite.umd.config.ts`            | UMD bundle config for CDN/script tags                                                   |
 | `tsconfig.json`                 | TypeScript config (strict, ES2020, Bundler)                                             |
 | `tsconfig.test.json`            | Test-specific TypeScript config                                                         |

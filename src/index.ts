@@ -14,6 +14,9 @@ export * from './core/index';
 // Reactive module: signals, computed, effects, binding
 export * from './reactive/index';
 
+// Concurrency module: zero-build worker task helpers
+export * from './concurrency/index';
+
 // Component module: Web Components helper
 export * from './component/index';
 

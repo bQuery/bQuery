@@ -495,9 +495,13 @@ describe('watch', () => {
     const count = signal(0);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchDebounce(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, 30);
+    const cleanup = watchDebounce(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      30
+    );
 
     count.value = 1;
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -514,9 +518,14 @@ describe('watch', () => {
     const count = signal(5);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchDebounce(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, 20, { immediate: true });
+    const cleanup = watchDebounce(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      20,
+      { immediate: true }
+    );
 
     count.value = 6;
     await new Promise((resolve) => setTimeout(resolve, 30));
@@ -534,9 +543,13 @@ describe('watch', () => {
     const count = signal(0);
     let callCount = 0;
 
-    const cleanup = watchDebounce(count, () => {
-      callCount++;
-    }, 30);
+    const cleanup = watchDebounce(
+      count,
+      () => {
+        callCount++;
+      },
+      30
+    );
 
     count.value = 1;
     cleanup();
@@ -552,9 +565,13 @@ describe('watch', () => {
     let callCount = 0;
 
     scope.run(() => {
-      watchDebounce(count, () => {
-        callCount++;
-      }, 30);
+      watchDebounce(
+        count,
+        () => {
+          callCount++;
+        },
+        30
+      );
     });
 
     count.value = 1;
@@ -575,9 +592,13 @@ describe('watch', () => {
     };
 
     try {
-      const cleanup = watchDebounce(count, () => {
-        throw new Error('debounce failure');
-      }, 10);
+      const cleanup = watchDebounce(
+        count,
+        () => {
+          throw new Error('debounce failure');
+        },
+        10
+      );
 
       count.value = 1;
       await new Promise((resolve) => setTimeout(resolve, 30));
@@ -596,9 +617,14 @@ describe('watch', () => {
     const count = signal(0);
 
     expect(() => {
-      watchDebounce(count, () => {
-        throw new Error('immediate debounce failure');
-      }, 10, { immediate: true });
+      watchDebounce(
+        count,
+        () => {
+          throw new Error('immediate debounce failure');
+        },
+        10,
+        { immediate: true }
+      );
     }).toThrow('immediate debounce failure');
   });
 
@@ -607,9 +633,13 @@ describe('watch', () => {
     const count = signal(0);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchDebounce(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, Number.NaN);
+    const cleanup = watchDebounce(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      Number.NaN
+    );
 
     count.value = 1;
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -629,9 +659,13 @@ describe('watch', () => {
     const count = signal(0);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchThrottle(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, 30);
+    const cleanup = watchThrottle(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      30
+    );
 
     count.value = 1;
     count.value = 2;
@@ -651,9 +685,14 @@ describe('watch', () => {
     const count = signal(10);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchThrottle(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, 30, { immediate: true });
+    const cleanup = watchThrottle(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      30,
+      { immediate: true }
+    );
 
     cleanup();
     count.value = 11;
@@ -666,9 +705,14 @@ describe('watch', () => {
     const count = signal(10);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchThrottle(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, 30, { immediate: true });
+    const cleanup = watchThrottle(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      30,
+      { immediate: true }
+    );
 
     count.value = 11;
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -685,9 +729,13 @@ describe('watch', () => {
     const count = signal(0);
     const changes: [number, number | undefined][] = [];
 
-    const cleanup = watchThrottle(count, (newVal, oldVal) => {
-      changes.push([newVal, oldVal]);
-    }, Number.NaN);
+    const cleanup = watchThrottle(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      Number.NaN
+    );
 
     count.value = 1;
     count.value = 2;

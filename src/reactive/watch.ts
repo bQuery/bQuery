@@ -188,20 +188,21 @@ export const watchThrottle = <T>(
 ): CleanupFn => {
   const { immediate = false, equals = Object.is } = options;
   const normalizedIntervalMs = Number.isFinite(intervalMs) ? Math.max(0, intervalMs) : 0;
-  const notify = throttle(
-    (newValue: T, oldValue: T | undefined) => {
-      callback(newValue, oldValue);
-    },
-    normalizedIntervalMs
-  );
+  const notify = throttle((newValue: T, oldValue: T | undefined) => {
+    callback(newValue, oldValue);
+  }, normalizedIntervalMs);
 
   if (immediate) {
     notify(source.peek(), undefined);
   }
 
-  const cleanup = watch(source, (newValue, oldValue) => {
-    notify(newValue, oldValue);
-  }, { equals });
+  const cleanup = watch(
+    source,
+    (newValue, oldValue) => {
+      notify(newValue, oldValue);
+    },
+    { equals }
+  );
 
   return () => {
     cleanup();

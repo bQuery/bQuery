@@ -22,18 +22,14 @@ import {
 Renders a bQuery template with reactive context into a static HTML string. Signals and computed values in the context are automatically unwrapped.
 
 ```ts
-function renderToString(
-  template: string,
-  data: BindingContext,
-  options?: RenderOptions
-): SSRResult;
+function renderToString(template: string, data: BindingContext, options?: RenderOptions): SSRResult;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `template` | `string` | HTML template with `bq-*` directives |
-| `data` | `BindingContext` | Data object (signals are unwrapped automatically) |
-| `options` | `RenderOptions` | Optional rendering configuration |
+| Parameter  | Type             | Description                                       |
+| ---------- | ---------------- | ------------------------------------------------- |
+| `template` | `string`         | HTML template with `bq-*` directives              |
+| `data`     | `BindingContext` | Data object (signals are unwrapped automatically) |
+| `options`  | `RenderOptions`  | Optional rendering configuration                  |
 
 #### `RenderOptions`
 
@@ -61,26 +57,25 @@ type SSRResult = {
 
 #### Supported SSR Directives
 
-| Directive | Description |
-|-----------|-------------|
-| `bq-text` | Sets text content from a context value |
-| `bq-html` | Sets innerHTML from a context value |
-| `bq-if` | Conditionally includes the element |
-| `bq-show` | Toggles `display: none` based on a condition |
-| `bq-for` | Repeats the element for each array item |
-| `bq-class` | Applies CSS classes from an object or string |
-| `bq-style` | Applies inline styles from an object or string |
-| `bq-bind:*` | Binds any attribute (e.g., `bq-bind:href`) |
+| Directive   | Description                                    |
+| ----------- | ---------------------------------------------- |
+| `bq-text`   | Sets text content from a context value         |
+| `bq-html`   | Sets innerHTML from a context value            |
+| `bq-if`     | Conditionally includes the element             |
+| `bq-show`   | Toggles `display: none` based on a condition   |
+| `bq-for`    | Repeats the element for each array item        |
+| `bq-class`  | Applies CSS classes from an object or string   |
+| `bq-style`  | Applies inline styles from an object or string |
+| `bq-bind:*` | Binds any attribute (e.g., `bq-bind:href`)     |
 
 #### Examples
 
 **Basic rendering:**
 
 ```ts
-const { html } = renderToString(
-  '<div id="app"><h1 bq-text="title"></h1></div>',
-  { title: 'Hello SSR' }
-);
+const { html } = renderToString('<div id="app"><h1 bq-text="title"></h1></div>', {
+  title: 'Hello SSR',
+});
 
 console.log(html);
 // <div id="app"><h1>Hello SSR</h1></div>
@@ -138,9 +133,7 @@ console.log(storeState);
 Serializes all or selected stores to a JSON string and a `<script>` tag ready for embedding in server-rendered HTML. The output is sanitized to prevent XSS.
 
 ```ts
-function serializeStoreState(
-  options?: SerializeOptions
-): SerializeResult;
+function serializeStoreState(options?: SerializeOptions): SerializeResult;
 ```
 
 #### `SerializeOptions`
@@ -198,16 +191,13 @@ const serverHtml = `
 Reads store state from the global variable set by the SSR script tag. Automatically cleans up the global key and script element after reading.
 
 ```ts
-function deserializeStoreState(
-  globalKey?: string,
-  scriptId?: string
-): DeserializedStoreState;
+function deserializeStoreState(globalKey?: string, scriptId?: string): DeserializedStoreState;
 ```
 
-| Parameter | Type | Default |
-|-----------|------|---------|
+| Parameter   | Type     | Default                      |
+| ----------- | -------- | ---------------------------- |
 | `globalKey` | `string` | `'__BQUERY_INITIAL_STATE__'` |
-| `scriptId` | `string` | `'__BQUERY_STORE_STATE__'` |
+| `scriptId`  | `string` | `'__BQUERY_STORE_STATE__'`   |
 
 #### `DeserializedStoreState`
 
@@ -228,10 +218,7 @@ const state = deserializeStoreState();
 Applies pre-serialized state to a single store using its `$patch` method.
 
 ```ts
-function hydrateStore(
-  storeId: string,
-  state: Record<string, unknown>
-): void;
+function hydrateStore(storeId: string, state: Record<string, unknown>): void;
 ```
 
 ```ts
@@ -243,9 +230,7 @@ hydrateStore('settings', { theme: 'dark', locale: 'en' });
 Convenience wrapper that calls `hydrateStore()` for each entry in the deserialized state map.
 
 ```ts
-function hydrateStores(
-  stateMap: DeserializedStoreState
-): void;
+function hydrateStores(stateMap: DeserializedStoreState): void;
 ```
 
 ```ts
@@ -280,10 +265,14 @@ type HydrateMountOptions = MountOptions & {
 import { hydrateMount } from '@bquery/bquery/ssr';
 
 // Hydrate the server-rendered DOM
-const view = hydrateMount('#app', {
-  title: 'Dashboard',
-  items: ['A', 'B', 'C'],
-}, { hydrate: true });
+const view = hydrateMount(
+  '#app',
+  {
+    title: 'Dashboard',
+    items: ['A', 'B', 'C'],
+  },
+  { hydrate: true }
+);
 ```
 
 ---

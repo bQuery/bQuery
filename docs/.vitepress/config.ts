@@ -43,6 +43,7 @@ export default defineConfig({
             { text: 'Core API', link: '/guide/api-core' },
             { text: 'Agents', link: '/guide/agents' },
             { text: 'Reactive', link: '/guide/reactive' },
+            { text: 'Concurrency', link: '/guide/concurrency' },
             { text: 'Components', link: '/guide/components' },
             { text: 'Storybook', link: '/guide/storybook' },
             { text: 'Motion', link: '/guide/motion' },

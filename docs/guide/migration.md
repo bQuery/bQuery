@@ -419,7 +419,9 @@ const counter = createStore({
     doubled: (state) => state.count * 2,
   },
   actions: {
-    increment() { this.count++; },
+    increment() {
+      this.count++;
+    },
   },
 });
 ```

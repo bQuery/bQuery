@@ -2,7 +2,7 @@
 
 You are working on bQuery.js, a TypeScript-first, zero-build DOM library.
 
-Current release baseline: **1.9.0**.
+Current release baseline: **1.10.0**.
 
 ## Critical Rules
 
@@ -17,7 +17,9 @@ Current release baseline: **1.9.0**.
 - Signal `.value` tracks dependencies → use `.peek()` to avoid tracking.
 - `useSignal()`, `useComputed()`, and `useEffect()` from `@bquery/bquery/component` must be called from component lifecycle hooks, not from `render()`.
 
-## 1.9.0 API Notes
+## 1.10.0 API Notes
+
+- `@bquery/bquery/concurrency` now includes explicit RPC workers, task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
 
 - `watchDebounce()` and `watchThrottle()` are part of the public reactive surface and should keep `watch()`-style callback semantics.
 - View directive lists should include `bq-error` and `bq-aria` when documenting or extending the declarative binding layer.
@@ -40,6 +42,7 @@ import {
   useResource,
   useSubmit,
 } from '@bquery/bquery/reactive';
+import { batchTasks, createReactiveRpcPool, createReactiveRpcWorker, createReactiveTaskPool, createReactiveTaskWorker, createRpcPool, createRpcWorker, createTaskPool, createTaskWorker, every, filter, find, map, parallel, pipeline, reduce, runTask, some } from '@bquery/bquery/concurrency';
 import { component, html } from '@bquery/bquery/component';
 import { storyHtml, when } from '@bquery/bquery/storybook';
 import { animate, transition, spring } from '@bquery/bquery/motion';

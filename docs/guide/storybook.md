@@ -15,16 +15,13 @@ A tagged template literal for authoring Storybook stories safely. It sanitizes i
 ### Signature
 
 ```ts
-function storyHtml(
-  strings: TemplateStringsArray,
-  ...values: StoryValue[]
-): string;
+function storyHtml(strings: TemplateStringsArray, ...values: StoryValue[]): string;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `strings` | `TemplateStringsArray` | The static parts of the template literal |
-| `...values` | `StoryValue[]` | Interpolated values — strings, numbers, booleans, `null`, `undefined`, arrays of values, or callbacks returning values |
+| Parameter   | Type                   | Description                                                                                                            |
+| ----------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `strings`   | `TemplateStringsArray` | The static parts of the template literal                                                                               |
+| `...values` | `StoryValue[]`         | Interpolated values — strings, numbers, booleans, `null`, `undefined`, arrays of values, or callbacks returning values |
 
 **Returns:** A sanitized HTML string ready for Storybook rendering.
 
@@ -41,8 +38,7 @@ function storyHtml(
 ```ts
 export const Primary = {
   args: { label: 'Save' },
-  render: ({ label }: { label: string }) =>
-    storyHtml`<ui-button>${label}</ui-button>`,
+  render: ({ label }: { label: string }) => storyHtml`<ui-button>${label}</ui-button>`,
 };
 ```
 
@@ -113,18 +109,14 @@ A conditional helper for readable inline fragments inside stories. Returns a str
 ### Signature
 
 ```ts
-function when(
-  condition: unknown,
-  truthyValue: StoryValue,
-  falsyValue?: StoryValue
-): string;
+function when(condition: unknown, truthyValue: StoryValue, falsyValue?: StoryValue): string;
 ```
 
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `condition` | `unknown` | Any truthy or falsy value |
+| Parameter     | Type         | Description                                                                             |
+| ------------- | ------------ | --------------------------------------------------------------------------------------- |
+| `condition`   | `unknown`    | Any truthy or falsy value                                                               |
 | `truthyValue` | `StoryValue` | Rendered when `condition` is truthy — a string, callback, array, `null`, or `undefined` |
-| `falsyValue` | `StoryValue` | Optional — rendered when `condition` is falsy |
+| `falsyValue`  | `StoryValue` | Optional — rendered when `condition` is falsy                                           |
 
 **Returns:** The resolved string fragment, or an empty string.
 

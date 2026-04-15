@@ -2,12 +2,12 @@
 
 > The jQuery for the modern Web Platform.
 
-bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
+bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), zero-build worker tasks, async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
 
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.9.0
+- Version: 1.10.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bQuery.flausch-code.de
@@ -16,8 +16,9 @@ bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combi
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.11`
 
-## Version 1.9.0 Highlights
+## Version 1.10.0 Highlights
 
+- Concurrency: explicit RPC workers, reusable task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()` are now part of the public surface.
 - Reactive: `watchDebounce()` and `watchThrottle()` extend the watcher API with cleanup-safe debounce and throttle timing.
 - View: `bq-error` and `bq-aria` expand declarative bindings for inline error output and ARIA attribute wiring.
 - Media: `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()` expose DOM observers as cleanup-friendly reactive APIs.
@@ -31,6 +32,9 @@ DOM selection, manipulation, events, utilities. `$()` selects one element (throw
 
 ### Reactive (`@bquery/bquery/reactive`)
 Fine-grained reactivity system plus a transport-ready data layer. `signal(value)` creates a reactive value. `computed(fn)` derives values with auto-tracking. `effect(fn)` runs side effects. `batch(fn)` groups updates. `watch(signal, callback)` observes changes, while `watchDebounce(signal, callback, ms)` and `watchThrottle(signal, callback, ms)` tame bursty updates. `linkedSignal(get, set)` creates writable computed values. `persistedSignal(key, init)` syncs to localStorage. `useAsyncData(handler)` wraps arbitrary async work in signal-driven `data` / `error` / `status` state. `useFetch(input, options)` adds query/header/body helpers and response parsing. `createUseFetch(defaults)` creates preconfigured fetch composables. `createHttp()` / `http` expose interceptable imperative HTTP clients. `usePolling()`, `usePaginatedFetch()`, and `useInfiniteFetch()` cover interval, page, and cursor workflows. `useWebSocket()`, `useWebSocketChannel()`, and `useEventSource()` handle realtime streams. `useResource()`, `useResourceList()`, `useSubmit()`, `createRestClient()`, `createRequestQueue()`, and `deduplicateRequest()` cover CRUD and request coordination. `readonly(signal)` creates a read-only wrapper. Access via `.value` (tracks), `.peek()` (no tracking).
+
+### Concurrency (`@bquery/bquery/concurrency`)
+Zero-build browser worker helpers. `runTask(handler, input, options)` executes one isolated task in a fresh worker. `createTaskWorker(handler, options)` creates a reusable worker handle with explicit `run()` / `terminate()` lifecycle. `createTaskPool(handler, options)` adds bounded parallelism plus FIFO queueing for repeated task execution. `createRpcWorker(handlers, options)` adds explicit named request/response dispatch for RPC-style worker calls, `callWorkerMethod()` provides the one-off variant, and `createRpcPool()` extends that explicit model to multiple workers with queueing/backpressure. Optional reactive wrappers `createReactiveTaskWorker()`, `createReactiveRpcWorker()`, `createReactiveTaskPool()`, and `createReactiveRpcPool()` mirror worker and pool getters into readonly signals such as `state$`, `busy$`, `pending$`, `size$`, and `concurrency$` for dashboards and UI bindings. High-level helpers include `parallel(tasks, options)`, `batchTasks(tasks, batchSize?, options)`, `map(values, mapper, options)`, `filter(values, predicate, options)`, `some(values, predicate, options)`, `every(values, predicate, options)`, `find(values, predicate, options)`, `reduce(values, reducer, initialValue, options)`, and `pipeline(values, options)` as thin, explicit layers over the same worker primitives. `pipeline()` is just an optional immutable fluent wrapper around the existing collection helpers; it does not add proxies, decorators, or hidden worker runtimes. `getConcurrencySupport()` and `isConcurrencySupported()` expose browser capability checks. Timeout, abort, serialization, unsupported-environment, lifecycle, missing-method, queue-full, and queue-cleared failures are surfaced through structured worker errors.
 
 ### Component (`@bquery/bquery/component`)
 Lightweight Web Components helper. `component(tag, definition)` creates and auto-registers a custom element with typed props, typed optional state, declared `signals`, configurable `shadow` mode (`true`, `false`, `'open'`, `'closed'`), lifecycle hooks (`beforeMount`, `connected`, `disconnected`, `onAdopted`, `onAttributeChanged`, `beforeUpdate`, `updated`, `onError`), and automatic HTML sanitization of rendered output. `defineComponent()` returns the class without registering. `registerDefaultComponents()` registers a dependency-free default component library (`button`, `card`, `input`, `textarea`, `checkbox`). `html`, `safeHtml`, and `bool()` help author safe templates and boolean attributes. `useSignal()`, `useComputed()`, and `useEffect()` create component-scoped reactive resources that auto-dispose on disconnect.

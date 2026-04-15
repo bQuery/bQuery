@@ -144,9 +144,7 @@ Bind ARIA attributes from an object literal or an expression that returns an obj
 
 ```html
 <!-- Object syntax -->
-<button bq-aria="{ expanded: isOpen, controls: panelId, label: buttonLabel }">
-  Toggle menu
-</button>
+<button bq-aria="{ expanded: isOpen, controls: panelId, label: buttonLabel }">Toggle menu</button>
 
 <!-- Expression returning an object -->
 <nav bq-aria="navAria"></nav>

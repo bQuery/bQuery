@@ -505,13 +505,21 @@ import { signal, watchDebounce, watchThrottle } from '@bquery/bquery/reactive';
 const query = signal('');
 const scrollY = signal(0);
 
-watchDebounce(query, (nextQuery, previousQuery) => {
-  console.log('Search changed from', previousQuery, 'to', nextQuery);
-}, 250);
+watchDebounce(
+  query,
+  (nextQuery, previousQuery) => {
+    console.log('Search changed from', previousQuery, 'to', nextQuery);
+  },
+  250
+);
 
-watchThrottle(scrollY, (nextY) => {
-  console.log('Sampled scroll position', nextY);
-}, 100);
+watchThrottle(
+  scrollY,
+  (nextY) => {
+    console.log('Sampled scroll position', nextY);
+  },
+  100
+);
 ```
 
 ## Readonly

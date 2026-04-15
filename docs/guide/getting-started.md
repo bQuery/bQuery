@@ -1,6 +1,6 @@
 # Getting Started
 
-bQuery.js is designed for zero-build usage and modern build setups alike. You can start with plain HTML or use Vite for a fast dev server. Since `1.8.0`, the Reactive module also covers HTTP clients, polling, pagination, realtime transports, REST helpers, and request coordination utilities.
+bQuery.js is designed for zero-build usage and modern build setups alike. You can start with plain HTML or use Vite for a fast dev server. Since `1.8.0`, the Reactive module also covers HTTP clients, polling, pagination, realtime transports, REST helpers, and request coordination utilities. Since `1.10.0`, the Concurrency module also covers explicit RPC workers, bounded pools, opt-in reactive worker state wrappers, and high-level collection helpers.
 
 ## Installation
 
@@ -97,6 +97,19 @@ import {
   useResource,
 } from '@bquery/bquery/reactive';
 
+// Concurrency only (zero-build worker tasks, pools, and helpers)
+import {
+  callWorkerMethod,
+  createReactiveTaskPool,
+  createRpcPool,
+  createRpcWorker,
+  createTaskPool,
+  createTaskWorker,
+  isConcurrencySupported,
+  parallel,
+  runTask,
+} from '@bquery/bquery/concurrency';
+
 // Components only (Web Components + default library)
 import { bool, component, html, registerDefaultComponents } from '@bquery/bquery/component';
 
@@ -137,27 +150,28 @@ import { renderToString, hydrateMount } from '@bquery/bquery/ssr';
 
 ## Modules at a glance
 
-| Module        | Description                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------------- |
-| **Core**      | Selectors, DOM manipulation, traversal, events, and typed utilities                                 |
-| **Reactive**  | Signals, computed values, effects, batching, HTTP clients, polling, streaming, and REST composables |
-| **Component** | Typed Web Components with scoped reactivity and Shadow DOM control                                  |
-| **Storybook** | Safe string-template helpers for stories and boolean attributes                                     |
-| **Motion**    | Transitions, morphing, parallax, typewriter, FLIP, scroll, and springs                              |
-| **Security**  | Sanitization, Trusted Types, CSP helpers, and trusted fragments                                     |
-| **Platform**  | Storage, cache, cookies, page metadata, announcers, and shared config                               |
-| **Router**    | SPA routing, redirects, constrained params, guards, and declarative links                           |
-| **Store**     | Signal-based state, persistence, migrations, and action lifecycle hooks                             |
-| **View**      | Declarative bindings, directives, and plugin-powered custom directives                              |
-| **Forms**     | Reactive form state, validation, and submit orchestration                                           |
-| **i18n**      | Reactive locale state, translation, pluralization, and Intl formatting                              |
-| **A11y**      | Focus management, skip navigation, live regions, media preferences, and audits                      |
-| **DnD**       | Draggable elements, drop zones, and sortable lists                                                  |
-| **Media**     | Viewport, network, battery, geolocation, sensors, and clipboard wrappers                            |
-| **Plugin**    | Global plugin registration for custom directives and components                                     |
-| **Devtools**  | Runtime inspection helpers for signals, stores, components, and timelines                           |
-| **Testing**   | Component mounts, mock signals/router, event helpers, and async assertions                          |
-| **SSR**       | HTML rendering, hydration, and serialized store-state handoff                                       |
+| Module          | Description                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| **Core**        | Selectors, DOM manipulation, traversal, events, and typed utilities                                                             |
+| **Reactive**    | Signals, computed values, effects, batching, HTTP clients, polling, streaming, and REST composables                             |
+| **Concurrency** | Zero-build worker tasks, explicit RPC helpers, bounded pools, reactive worker state wrappers, and high-level collection helpers |
+| **Component**   | Typed Web Components with scoped reactivity and Shadow DOM control                                                              |
+| **Storybook**   | Safe string-template helpers for stories and boolean attributes                                                                 |
+| **Motion**      | Transitions, morphing, parallax, typewriter, FLIP, scroll, and springs                                                          |
+| **Security**    | Sanitization, Trusted Types, CSP helpers, and trusted fragments                                                                 |
+| **Platform**    | Storage, cache, cookies, page metadata, announcers, and shared config                                                           |
+| **Router**      | SPA routing, redirects, constrained params, guards, and declarative links                                                       |
+| **Store**       | Signal-based state, persistence, migrations, and action lifecycle hooks                                                         |
+| **View**        | Declarative bindings, directives, and plugin-powered custom directives                                                          |
+| **Forms**       | Reactive form state, validation, and submit orchestration                                                                       |
+| **i18n**        | Reactive locale state, translation, pluralization, and Intl formatting                                                          |
+| **A11y**        | Focus management, skip navigation, live regions, media preferences, and audits                                                  |
+| **DnD**         | Draggable elements, drop zones, and sortable lists                                                                              |
+| **Media**       | Viewport, network, battery, geolocation, sensors, and clipboard wrappers                                                        |
+| **Plugin**      | Global plugin registration for custom directives and components                                                                 |
+| **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                       |
+| **Testing**     | Component mounts, mock signals/router, event helpers, and async assertions                                                      |
+| **SSR**         | HTML rendering, hydration, and serialized store-state handoff                                                                   |
 
 ## Quick Examples
 
