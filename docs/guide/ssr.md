@@ -337,3 +337,175 @@ hydrateMount('#app', { title: 'Welcome' }, { hydrate: true });
 - Hydration reuses existing markup and attaches view bindings instead of replacing the DOM wholesale.
 - `renderToString` works in non-browser environments that provide a DOM-like API (e.g., `happy-dom`, `linkedom`).
 - Prototype-pollution keys (`__proto__`, `constructor`, `prototype`) are filtered during serialization.
+
+---
+
+## Runtime-Agnostic SSR (Bun, Deno, Node ≥ 24)
+
+Starting with v1.11, the SSR module ships a **DOM-free renderer** that activates automatically when no `DOMParser` is available in the runtime. That makes the same `renderToString()`/`renderToStringAsync()`/`renderToStream()`/`renderToResponse()` calls work seamlessly on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 — without any external dependency, polyfill or build-time branching.
+
+### Backend selection
+
+```ts
+import { configureSSR, getSSRConfig } from '@bquery/bquery/ssr';
+
+// Force the DOM-free renderer everywhere (recommended for cross-runtime apps):
+configureSSR({ backend: 'pure' });
+
+// Or inject a custom DOMParser implementation:
+import { DOMParser } from 'linkedom';
+configureSSR({ backend: 'dom', documentImpl: { DOMParser } });
+
+// Default ('auto') uses DOM if available, otherwise the pure renderer.
+```
+
+The pure renderer is CSP-safe: it never calls `eval` or `new Function()` and parses expressions through a tightly-scoped Pratt parser supporting property access (`a.b`, `a?.b`, `a[0]`), comparisons, ternary, `&&`/`||`/`??`, unary `!`/`+`/`-`/`typeof`, function calls on context-bound functions and basic arithmetic.
+
+### Runtime detection
+
+```ts
+import { detectRuntime, isServerRuntime, getSSRRuntimeFeatures } from '@bquery/bquery/ssr';
+
+detectRuntime();          // 'bun' | 'deno' | 'node' | 'browser' | 'workerd' | 'unknown'
+isServerRuntime();        // true on Bun/Deno/Node/workerd
+getSSRRuntimeFeatures();  // { fetchApi, webStreams, textEncoder, subtleCrypto, randomUuid, domParser }
+```
+
+### Async render with SSR context
+
+```ts
+import { createSSRContext, renderToStringAsync, defer } from '@bquery/bquery/ssr';
+
+const ctx = createSSRContext({ request });
+
+// Loader-style data — Promises in the context are awaited automatically.
+const result = await renderToStringAsync(template, {
+  user: defer(fetch('/api/user').then((r) => r.json()), { name: 'Guest' }),
+  posts: fetchPosts(),
+}, { context: ctx });
+
+console.log(result.html);
+console.log(result.headHtml);
+console.log(result.assetsHtml);
+```
+
+`SSRContext` exposes `request`, `url`, `headers`, `cookies`, `locale`, `userAgent`, `signal` (for cancellation), `nonce` (auto-generated CSP nonce), `head`, `assets`, `responseHeaders` and `status`.
+
+### Streaming render
+
+```ts
+import { renderToStream } from '@bquery/bquery/ssr';
+
+const stream = renderToStream(template, data, { context: ctx });
+return new Response(stream, { headers: { 'content-type': 'text/html' } });
+```
+
+`renderToStream()` returns a Web `ReadableStream<Uint8Array>` and respects `SSRContext.signal` for graceful cancellation.
+
+### `renderToResponse()`
+
+```ts
+import { renderToResponse } from '@bquery/bquery/ssr';
+
+return renderToResponse(template, data, {
+  cacheControl: 'public, max-age=60',
+  etag: true, // weak ETag from SHA-1; replies 304 when If-None-Match matches
+});
+```
+
+### Head & assets management
+
+```ts
+import { createSSRContext } from '@bquery/bquery/ssr';
+
+const ctx = createSSRContext();
+
+ctx.head.add({
+  title: 'Dashboard',
+  titleTemplate: '%s | Acme',
+  meta: [{ name: 'description', content: 'My app' }],
+  link: [{ rel: 'icon', href: '/favicon.ico' }],
+  script: [{ src: '/app.js', module: true }],
+});
+
+ctx.assets.module('/app.js');
+ctx.assets.preload('/font.woff2', { as: 'font', type: 'font/woff2', crossorigin: 'anonymous' });
+ctx.assets.style('/main.css');
+```
+
+When `renderToStringAsync()` / `renderToResponse()` see the `<head>` / `</body>` markers in the template, they automatically inject the head, asset and store-state HTML in the right places. CSP nonces from `SSRContext.nonce` are propagated to all generated `<script>` tags.
+
+### Progressive hydration & islands
+
+```ts
+import {
+  hydrateIsland,
+  hydrateOnVisible,
+  hydrateOnIdle,
+  hydrateOnInteraction,
+  hydrateOnMedia,
+} from '@bquery/bquery/ssr';
+
+// Eager island hydration:
+hydrateIsland('#cart', { items });
+
+// Defer until the island scrolls into view:
+const handle = hydrateOnVisible('#newsletter', { email });
+handle.cancel(); // optional — cancel before it triggers
+await handle.ready; // resolves with the View
+
+// Defer until the browser is idle / first interaction / a media query matches:
+hydrateOnIdle('#chat', { messages });
+hydrateOnInteraction('#search', { query }, { events: ['focusin', 'pointerdown'] });
+hydrateOnMedia('#sidebar', { layout }, '(min-width: 960px)');
+```
+
+All four progressive helpers fall back to immediate hydration on runtimes lacking the underlying API (`IntersectionObserver`, `requestIdleCallback`, `matchMedia`).
+
+### Runtime adapters
+
+Drop-in helpers for the major server runtimes share a single fetch-style handler signature:
+
+```ts
+import {
+  createNodeHandler,
+  createBunHandler,
+  createDenoHandler,
+  createWebHandler,
+  createSSRHandler,
+  renderToResponse,
+} from '@bquery/bquery/ssr';
+
+const handler = (request: Request) =>
+  renderToResponse('<div bq-text="msg"></div>', { msg: 'Hello' });
+
+// Bun
+Bun.serve({ fetch: createBunHandler(handler), port: 3000 });
+
+// Deno
+Deno.serve(createDenoHandler(handler));
+
+// Node (node:http)
+import { createServer } from 'node:http';
+createServer(createNodeHandler(handler)).listen(3000);
+
+// Hono / Elysia / Cloudflare Workers / generic web hosts
+export default { fetch: createWebHandler(handler) };
+
+// Or let bQuery pick the right one based on runtime detection:
+const wrapped = createSSRHandler(handler);
+```
+
+`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes.
+
+### CSP & security defaults
+
+- The DOM-free renderer is fully CSP-safe (no `'unsafe-eval'` required).
+- `serializeStoreState()` keeps its `</script>`/Unicode-line-terminator escaping. With `renderToStringAsync()`/`renderToResponse()`, the generated `<script>` tag automatically receives the `nonce` from `SSRContext.nonce`.
+- `sanitizeHtml()` from `@bquery/bquery/security` is reused for `bq-html` interpolation on both backends.
+- Inline event-handler attributes (`onclick=`, …) and `javascript:` URLs are stripped by both renderers.
+- Inline `<script>` bodies added through the head manager have `</script>`/`<!--` sequences and `\u2028`/`\u2029` line terminators escaped.
+
+### Backwards compatibility
+
+`renderToString()`, `hydrateMount()`, `serializeStoreState()`, `deserializeStoreState()`, `hydrateStore()` and `hydrateStores()` keep their previous signatures and behaviour. The DOM-free renderer is only used as a fallback when the legacy `DOMParser`-based pipeline cannot run, or when `configureSSR({ backend: 'pure' })` is set explicitly.

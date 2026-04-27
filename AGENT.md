@@ -341,13 +341,26 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 
 ### SSR (`@bquery/bquery/ssr`)
 
-| Export                              | Kind      | Description                              |
-| ----------------------------------- | --------- | ---------------------------------------- |
-| `renderToString()`                  | function  | Render directive-aware templates to HTML |
-| `hydrateMount()`                    | function  | Hydrate existing server-rendered DOM     |
-| `serializeStoreState()`             | function  | Serialize registered store state         |
-| `deserializeStoreState()`           | function  | Read serialized client bootstrap state   |
-| `hydrateStore()`, `hydrateStores()` | functions | Apply SSR state to one or many stores    |
+Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 with no external deps. The DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs keep their original behaviour.
+
+| Export                                                                                          | Kind      | Description                                                                       |
+| ----------------------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------------------------- |
+| `renderToString()`                                                                              | function  | Synchronous render to HTML (DOM- or DOM-free backend)                             |
+| `renderToStringAsync()`                                                                         | function  | Awaits Promises / `defer()` values in the binding context                         |
+| `renderToStream()`                                                                              | function  | Returns a Web `ReadableStream<Uint8Array>` for the rendered HTML                  |
+| `renderToResponse()`                                                                            | function  | Returns a `Response` with content-type, ETag, head/asset/store-state injection    |
+| `hydrateMount()`                                                                                | function  | Hydrate existing server-rendered DOM                                              |
+| `hydrateOnVisible()` / `hydrateOnIdle()` / `hydrateOnInteraction()` / `hydrateOnMedia()`        | functions | Progressive hydration strategies (`HydrationHandle`)                              |
+| `hydrateIsland()`                                                                               | function  | Explicit island hydration (alias for `hydrateMount` with island semantics)        |
+| `serializeStoreState()`                                                                         | function  | Serialize registered store state                                                  |
+| `deserializeStoreState()`                                                                       | function  | Read serialized client bootstrap state                                            |
+| `hydrateStore()`, `hydrateStores()`                                                             | functions | Apply SSR state to one or many stores                                             |
+| `createSSRContext()`                                                                            | function  | Build an `SSRContext` (request, url, headers, cookies, locale, signal, nonce, …) |
+| `createHeadManager()` / `createAssetManager()`                                                  | functions | Collect head/asset entries and serialise them as HTML                             |
+| `defer(promise, fallback?)` / `defineLoader(fn)`                                                | functions | Async data helpers consumed by `renderToStringAsync()`                            |
+| `configureSSR()` / `getSSRConfig()`                                                             | functions | Switch backend (`'auto'` / `'pure'` / `'dom'`) or inject a custom `DOMParser`     |
+| `detectRuntime()` / `isServerRuntime()` / `isBrowserRuntime()` / `getSSRRuntimeFeatures()`      | functions | Runtime detection helpers                                                         |
+| `createWebHandler()` / `createBunHandler()` / `createDenoHandler()` / `createNodeHandler()`     | functions | Runtime adapters; `createSSRHandler()` auto-detects                               |
 
 ### View (`@bquery/bquery/view`)
 

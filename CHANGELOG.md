@@ -72,11 +72,22 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
-- No changes yet.
+- **SSR / Runtime-agnostic pipeline**: Massive expansion of `@bquery/bquery/ssr` so it now runs seamlessly on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 with zero external dependencies. New DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs (`renderToString`, `hydrateMount`, `serializeStoreState`, `deserializeStoreState`, `hydrateStore(s)`) are unchanged.
+- **SSR / Async render**: New `renderToStringAsync(template, data, ctx?)` awaits Promise- and `defer()`-valued binding context entries before rendering and respects `SSRContext.signal` cancellation.
+- **SSR / Streaming**: New `renderToStream(template, data, ctx?)` returns a Web `ReadableStream<Uint8Array>` honouring abort signals.
+- **SSR / Response**: New `renderToResponse(template, data, ctx?)` returns a `Response` with content-type, optional weak ETag (with `If-None-Match` 304 short-circuit), `Cache-Control`, and automatic head/asset/store-state injection.
+- **SSR / Context**: New `createSSRContext()` exposing `request`, `url`, `headers`, `cookies`, `locale`, `userAgent`, `signal`, `nonce`, `head`, `assets`, `responseHeaders`, `status` and `reportError()`.
+- **SSR / Head & Assets**: New `createHeadManager()` / `createAssetManager()` collect `<title>`, `<meta>`, `<link>`, `<script>`, preload, modulepreload and stylesheet entries; CSP nonces from `SSRContext.nonce` are auto-propagated.
+- **SSR / Async helpers**: New `defer(promise, fallback?)` and `defineLoader(fn)` utilities consumed by `renderToStringAsync()`.
+- **SSR / Hydration strategies**: New `hydrateOnVisible()`, `hydrateOnIdle()`, `hydrateOnInteraction()`, `hydrateOnMedia()` and `hydrateIsland()` for progressive island hydration. Each returns a `HydrationHandle` with `cancel()` and a `ready` Promise.
+- **SSR / Configuration**: New `configureSSR({ backend, documentImpl })` and `getSSRConfig()` to pick between `'auto'`, `'pure'` (DOM-free) and `'dom'` backends or inject a custom `DOMParser` (e.g. `linkedom`/`happy-dom`/`jsdom`).
+- **SSR / Runtime detection**: New `detectRuntime()`, `isServerRuntime()`, `isBrowserRuntime()`, `getSSRRuntimeFeatures()`.
+- **SSR / Runtime adapters**: New `createWebHandler`, `createBunHandler`, `createDenoHandler`, `createNodeHandler` (translates `node:http` IncomingMessage/ServerResponse into Web `Request`/`Response`), and `createSSRHandler` auto-picking the right adapter.
+- **SSR / Security**: Pure renderer is fully CSP-safe — its expression evaluator is a tightly-scoped Pratt parser with no `eval` or `new Function()`. Inline event handlers, `javascript:` URLs and `<script>` tags are stripped on both backends. Head-injected `<script>` bodies escape `</script>`, `<!--`, `\u2028` and `\u2029`.
 
 ### Changed (Unreleased)
 
-- No changes yet.
+- `renderToString()` now falls back to the DOM-free pure renderer when no `DOMParser` is available, instead of throwing. Existing tests using `happy-dom` keep using the DOM backend.
 
 ### Fixed (Unreleased)
 
