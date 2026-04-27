@@ -129,12 +129,17 @@ export const runRouteLoaders = async <T = unknown>(
  *
  * @example
  * ```ts
- * import { createSSRRouterContext, renderToResponse } from '@bquery/bquery/ssr';
+ * import {
+ *   createSSRContext,
+ *   createSSRRouterContext,
+ *   renderToResponse,
+ * } from '@bquery/bquery/ssr';
  *
- * const router = await createSSRRouterContext({ url: request.url, routes });
+ * const ctx = createSSRContext();
+ * const router = await createSSRRouterContext({ url: request.url, routes, ctx });
  * if (router.isRedirect) return Response.redirect(router.redirectTo!, 302);
  *
- * return renderToResponse(template, { ...router.bindings }, { context: router.ctx });
+ * return renderToResponse(template, { ...router.bindings }, { context: ctx });
  * ```
  */
 export const createSSRRouterContext = async (options: {

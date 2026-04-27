@@ -41,6 +41,10 @@ interface SuspenseSlot {
   promise: Promise<unknown>;
 }
 
+type SettledSuspenseSlot =
+  | { slot: SuspenseSlot; ok: true; value: unknown }
+  | { slot: SuspenseSlot; ok: false; error: unknown };
+
 /**
  * Whitelist regex for slot/template IDs. The IDs end up inside an inline
  * `<script>` patch, and while `escapeScriptBody()` already protects against
@@ -362,28 +366,26 @@ export const renderToStreamSuspense = (
         // Resolve slots in arrival order so the network can flush as soon as
         // each promise settles. Track entries by array position because
         // multiple slots may intentionally share the same promise instance.
-        const pending = slots.map((slot) => ({ promise: slot.promise, slot }));
+        const pending = slots.map((slot) => ({
+          slot,
+          settled: slot.promise.then<SettledSuspenseSlot, SettledSuspenseSlot>(
+            (value) => ({ slot, ok: true, value }),
+            (error) => ({ slot, ok: false, error })
+          ),
+        }));
 
         while (pending.length > 0) {
           if (ctx.signal.aborted) {
             return;
           }
-          const racers = pending.map((entry) =>
-            entry.promise.then(
-              (value) => ({ entry, value, error: undefined as unknown }),
-              (error) => ({ entry, value: undefined, error })
-            )
-          );
-          const settled = await Promise.race(racers);
-          const settledIndex = pending.indexOf(settled.entry);
-          // Defensive only: settled entries are expected to remain pending
-          // until removed here, but ignore stale races if a runtime schedules
-          // already-settled callbacks in an unexpected order.
+          const settled = await Promise.race(pending.map((entry) => entry.settled));
+          const settledIndex = pending.findIndex((entry) => entry.slot.id === settled.slot.id);
           if (settledIndex === -1) continue;
-          const { slot } = pending.splice(settledIndex, 1)[0];
+          pending.splice(settledIndex, 1);
+          const { slot } = settled;
           const resolvedId = `${resolvedIdPrefix}-${slot.id.split('-').pop()}`;
           let resolvedHtml: string;
-          if (settled.error !== undefined) {
+          if (!settled.ok) {
             ctx.reportError(settled.error);
             resolvedHtml = '';
           } else {

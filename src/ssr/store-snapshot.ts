@@ -176,8 +176,7 @@ export const hydrateStoreSnapshot = (
   const unknownIds: string[] = [];
   for (const [id, state] of Object.entries(snapshot.state)) {
     if (isPrototypePollutionKey(id) || !isStateObject(state)) continue;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const store = getStore<{ $patch?: (partial: any) => void }>(id);
+    const store = getStore<{ $patch?: (partial: Record<string, unknown>) => void }>(id);
     if (!store || typeof store.$patch !== 'function') {
       unknownIds.push(id);
       if (options.strict) {

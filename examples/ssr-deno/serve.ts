@@ -7,13 +7,24 @@
  */
 import { handle } from '../shared/app.ts';
 
+interface RuntimeGlobals {
+  Deno?: {
+    serve?: (
+      options: { port: number },
+      handler: (request: Request) => Response | Promise<Response>
+    ) => unknown;
+  };
+  process?: {
+    exit?: (code?: number) => never | void;
+  };
+}
+
 // `Deno.serve` is part of the global Deno API.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const Deno = (globalThis as any).Deno;
+const runtimeGlobals = globalThis as unknown as RuntimeGlobals;
+const Deno = runtimeGlobals.Deno;
 if (!Deno?.serve) {
   console.error('This example must be run with Deno.');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (globalThis as any).process?.exit?.(1);
+  runtimeGlobals.process?.exit?.(1);
   throw new Error('Not running in Deno.');
 }
 
