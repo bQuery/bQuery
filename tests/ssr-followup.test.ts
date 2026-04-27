@@ -53,6 +53,16 @@ const collectStreamChunks = async (stream: ReadableStream<Uint8Array>): Promise<
   return out.filter((s) => s.length > 0);
 };
 
+const appendRenderedHtml = (root: Element, html: string): void => {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const fragment = document.createDocumentFragment();
+  for (const child of Array.from(doc.body.childNodes)) {
+    fragment.appendChild(document.importNode(child, true));
+  }
+  root.replaceChildren(fragment);
+};
+
 describe('hydration mismatch detection', () => {
   it('emits data-bq-h annotations on directive elements with annotateHydration', () => {
     const { html } = renderToString(
@@ -82,11 +92,10 @@ describe('hydration mismatch detection', () => {
 
   it('verifyHydration returns no mismatches when DOM matches the annotation', () => {
     const root = document.createElement('div');
-    root.innerHTML = renderToString(
-      '<p bq-text="msg"></p>',
-      { msg: 'hello' },
-      { annotateHydration: true }
-    ).html;
+    appendRenderedHtml(
+      root,
+      renderToString('<p bq-text="msg"></p>', { msg: 'hello' }, { annotateHydration: true }).html
+    );
     document.body.appendChild(root);
     const mismatches = verifyHydration(root, { warn: false });
     expect(mismatches).toHaveLength(0);
@@ -95,11 +104,10 @@ describe('hydration mismatch detection', () => {
 
   it('verifyHydration flags mismatches when directives diverge', () => {
     const root = document.createElement('div');
-    root.innerHTML = renderToString(
-      '<p bq-text="msg"></p>',
-      { msg: 'hello' },
-      { annotateHydration: true }
-    ).html;
+    appendRenderedHtml(
+      root,
+      renderToString('<p bq-text="msg"></p>', { msg: 'hello' }, { annotateHydration: true }).html
+    );
     document.body.appendChild(root);
     // Mutate the directive on the live DOM to simulate divergence.
     const p = root.querySelector('p') as HTMLElement;

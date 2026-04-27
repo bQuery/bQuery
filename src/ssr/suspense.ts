@@ -118,10 +118,13 @@ export interface SuspenseStreamOptions extends AsyncRenderOptions {
   slotTag?: string;
 }
 
+const PATCH_SCRIPT_BODY = escapeScriptBody(
+  '(()=>{var c=document.currentScript;if(!c)return;var slotId=c.getAttribute("data-bq-slot");var templateId=c.getAttribute("data-bq-template");if(!slotId||!templateId)return;var s=document.getElementById(slotId);var t=document.getElementById(templateId);if(!s||!t)return;var f=t.content?t.content.cloneNode(true):t;while(s.firstChild)s.removeChild(s.firstChild);s.appendChild(f);t.parentNode&&t.parentNode.removeChild(t);s.parentNode&&s.replaceWith(...s.childNodes);})();'
+);
+
 const buildPatchScript = (slotId: string, resolvedId: string, nonce?: string): string => {
-  const body = `(()=>{var s=document.getElementById(${JSON.stringify(slotId)});var t=document.getElementById(${JSON.stringify(resolvedId)});if(!s||!t)return;var f=t.content?t.content.cloneNode(true):t;while(s.firstChild)s.removeChild(s.firstChild);s.appendChild(f);t.parentNode&&t.parentNode.removeChild(t);s.parentNode&&s.replaceWith(...s.childNodes);})();`;
   const nonceAttr = nonce ? ` nonce="${escapeAttr(nonce)}"` : '';
-  return `<script${nonceAttr}>${escapeScriptBody(body)}</script>`;
+  return `<script${nonceAttr} data-bq-slot="${escapeAttr(slotId)}" data-bq-template="${escapeAttr(resolvedId)}">${PATCH_SCRIPT_BODY}</script>`;
 };
 
 const renderResolvedFragment = (
