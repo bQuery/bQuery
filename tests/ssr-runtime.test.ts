@@ -127,6 +127,12 @@ describe('pure renderer (DOM-free)', () => {
     expect(result.html).toContain('href="/about"');
   });
 
+  it('parses unquoted attributes before self-closing custom elements', () => {
+    configureSSR({ backend: 'pure' });
+    const result = renderToString('<main><my-el a=b/><span>after</span></main>', {});
+    expect(result.html).toContain('<my-el a="b"></my-el><span>after</span>');
+  });
+
   it('drops javascript: URLs from bq-bind:href', () => {
     configureSSR({ backend: 'pure' });
     const result = renderToString('<a href="javascript:alert(1)">x</a>', {});
@@ -476,6 +482,47 @@ describe('runtime adapters', () => {
     expect(ended).toBe(true);
   });
 
+  it('createNodeHandler preserves Node request bodies', async () => {
+    const res = {
+      statusCode: 0,
+      setHeader(_name: string, _value: string | number | readonly string[]) {
+        /* no-op */
+      },
+      write(_chunk: string | Uint8Array) {
+        return true;
+      },
+      end(_chunk?: string | Uint8Array) {
+        /* no-op */
+      },
+    };
+    const req: NodeIncomingMessage = {
+      url: '/submit',
+      method: 'POST',
+      headers: { host: 'example.com', 'content-type': 'application/json' },
+      on(
+        event: 'data' | 'end' | 'error',
+        listener:
+          | ((chunk: Uint8Array | string) => void)
+          | (() => void)
+          | ((err: unknown) => void)
+      ) {
+        if (event === 'data') {
+          (listener as (chunk: string) => void)('{"ok":true}');
+        }
+        if (event === 'end') {
+          (listener as () => void)();
+        }
+      },
+    };
+    const wrapped = createNodeHandler(async (request) => {
+      expect(request.method).toBe('POST');
+      expect(request.headers.get('content-type')).toBe('application/json');
+      expect(await request.text()).toBe('{"ok":true}');
+      return new Response('ok');
+    });
+    await wrapped(req, res);
+  });
+
   it('createSSRHandler returns a runtime-appropriate adapter', () => {
     const handler = (_req: Request) => new Response('ok');
     const wrapped = createSSRHandler(handler);
@@ -528,5 +575,47 @@ describe('hydration strategies', () => {
     expect(handle.cancel).toBeFunction();
     handle.cancel();
     document.body.removeChild(div);
+  });
+
+  it('hydration strategies resolve null for missing targets', async () => {
+    const visible = hydrateOnVisible('#missing-visible', { title: signal('v') });
+    const idle = hydrateOnIdle('#missing-idle', { title: signal('i') });
+    const interaction = hydrateOnInteraction('#missing-interaction', { title: signal('x') });
+    const originalMatchMedia = window.matchMedia;
+    Object.defineProperty(window, 'matchMedia', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      const media = hydrateOnMedia('#missing-media', { title: signal('x') }, '(min-width: 1px)');
+      expect(await visible.ready).toBeNull();
+      expect(await idle.ready).toBeNull();
+      expect(await interaction.ready).toBeNull();
+      expect(await media.ready).toBeNull();
+    } finally {
+      Object.defineProperty(window, 'matchMedia', {
+        value: originalMatchMedia,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it('hydrateOnIdle resolves null when document is unavailable', async () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+    try {
+      const handle = hydrateOnIdle('#server-only', { title: signal('i') });
+      expect(await handle.ready).toBeNull();
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, 'document', descriptor);
+      }
+    }
   });
 });

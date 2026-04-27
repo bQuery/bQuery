@@ -359,23 +359,22 @@ export const renderToStreamSuspense = (
         controller.enqueue(encoder.encode(wrapped));
 
         // Resolve slots in arrival order so the network can flush as soon as
-        // each promise settles. We use Promise.race with a tracking map.
-        const pending = new Map<Promise<unknown>, SuspenseSlot>();
-        for (const slot of slots) pending.set(slot.promise, slot);
+        // each promise settles. Track entries by array position because
+        // multiple slots may intentionally share the same promise instance.
+        const pending = slots.map((slot) => ({ promise: slot.promise, slot }));
 
-        while (pending.size > 0) {
+        while (pending.length > 0) {
           if (ctx.signal.aborted) {
             return;
           }
-          const racers = Array.from(pending.keys()).map((p) =>
-            p.then(
-              (value) => ({ p, value, error: undefined as unknown }),
-              (error) => ({ p, value: undefined, error })
+          const racers = pending.map((entry, index) =>
+            entry.promise.then(
+              (value) => ({ index, value, error: undefined as unknown }),
+              (error) => ({ index, value: undefined, error })
             )
           );
           const settled = await Promise.race(racers);
-          const slot = pending.get(settled.p)!;
-          pending.delete(settled.p);
+          const [{ slot }] = pending.splice(settled.index, 1);
           const resolvedId = `${resolvedIdPrefix}-${slot.id.split('-').pop()}`;
           let resolvedHtml: string;
           if (settled.error !== undefined) {

@@ -77,7 +77,30 @@ export interface NodeServerResponse {
   end(chunk?: Uint8Array | string): void;
 }
 
-const buildRequestFromNode = (req: NodeIncomingMessage): Request => {
+const shouldReadNodeBody = (method: string): boolean => method !== 'GET' && method !== 'HEAD';
+
+const readNodeBody = (req: NodeIncomingMessage): Promise<ArrayBuffer> =>
+  new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = [];
+    req.on('data', (chunk) => {
+      chunks.push(typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk);
+    });
+    req.on('end', () => {
+      let total = 0;
+      for (const chunk of chunks) total += chunk.byteLength;
+      const buffer = new ArrayBuffer(total);
+      const body = new Uint8Array(buffer);
+      let offset = 0;
+      for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      resolve(buffer);
+    });
+    req.on('error', reject);
+  });
+
+const buildRequestFromNode = async (req: NodeIncomingMessage): Promise<Request> => {
   // Only honour `x-forwarded-proto` when it advertises a known protocol.
   // This adapter assumes deployment behind a trusted reverse proxy; callers
   // exposing `node:http` directly to the public internet should strip
@@ -101,10 +124,17 @@ const buildRequestFromNode = (req: NodeIncomingMessage): Request => {
     }
   }
 
-  return new Request(url.toString(), {
-    method: req.method ?? 'GET',
+  const method = req.method ?? 'GET';
+  const init: RequestInit = {
+    method,
     headers,
-  });
+  };
+
+  if (shouldReadNodeBody(method.toUpperCase())) {
+    init.body = await readNodeBody(req);
+  }
+
+  return new Request(url.toString(), init);
 };
 
 const writeResponseToNode = async (response: Response, res: NodeServerResponse): Promise<void> => {
@@ -146,7 +176,7 @@ export const createNodeHandler = (
   handler: SSRRequestHandler
 ): ((req: NodeIncomingMessage, res: NodeServerResponse) => Promise<void>) => {
   return async (req, res) => {
-    const request = buildRequestFromNode(req);
+    const request = await buildRequestFromNode(req);
     const response = await Promise.resolve(handler(request));
     await writeResponseToNode(response, res);
   };

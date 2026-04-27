@@ -18,6 +18,16 @@ const resolveElement = (selector: string | Element): Element | null => {
   return document.querySelector(selector);
 };
 
+const hydrateResolved = (
+  selector: string | Element,
+  context: BindingContext,
+  options: HydrateMountOptions
+): View | null => {
+  const el = resolveElement(selector);
+  if (!el) return null;
+  return hydrateMount(el, context, options);
+};
+
 const noop = (): void => {};
 
 const defer = (cb: () => void): (() => void) => {
@@ -122,7 +132,7 @@ export const hydrateOnVisible = (
     return () => observer.disconnect();
   });
 
-  arm(() => hydrateMount(selector, context, mountOptions));
+  arm(() => hydrateResolved(selector, context, mountOptions));
   return handle;
 };
 
@@ -133,7 +143,7 @@ export const hydrateOnIdle = (
   options: HydrateMountOptions = {}
 ): HydrationHandle => {
   const { handle, arm } = buildHandle((resolve) => defer(resolve));
-  arm(() => hydrateMount(selector, context, options));
+  arm(() => hydrateResolved(selector, context, options));
   return handle;
 };
 
@@ -165,7 +175,7 @@ export const hydrateOnInteraction = (
     }
     return cleanup;
   });
-  arm(() => hydrateMount(selector, context, mountOptions));
+  arm(() => hydrateResolved(selector, context, mountOptions));
   return handle;
 };
 
@@ -195,7 +205,7 @@ export const hydrateOnMedia = (
     mql.addEventListener('change', listener);
     return () => mql.removeEventListener('change', listener);
   });
-  arm(() => hydrateMount(selector, context, options));
+  arm(() => hydrateResolved(selector, context, options));
   return handle;
 };
 

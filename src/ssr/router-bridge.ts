@@ -76,7 +76,13 @@ export const resolveSSRRoute = (options: {
     typeof options.url === 'string' ? new URL(options.url, 'http://localhost/') : options.url;
   const base = options.base ?? '';
   let pathname = url.pathname;
-  if (base && pathname.startsWith(base)) pathname = pathname.slice(base.length) || '/';
+  if (base) {
+    if (pathname === base) {
+      pathname = '/';
+    } else if (pathname.startsWith(`${base}/`)) {
+      pathname = pathname.slice(base.length) || '/';
+    }
+  }
 
   const result = matchRoute(pathname, options.routes);
   const route: Route = {

@@ -251,6 +251,19 @@ describe('renderToStreamSuspense', () => {
     const scriptMatches = out.match(/<script[^>]*>/gi) ?? [];
     expect(scriptMatches.length).toBe(1);
   });
+
+  it('patches every slot when multiple deferred values share a promise', async () => {
+    const shared = Promise.resolve('done');
+    const stream = renderToStreamSuspense('<main></main>', {
+      first: defer(shared, 'one'),
+      second: defer(shared, 'two'),
+    });
+    const out = await collectStream(stream);
+    expect(out).toContain('<bq-slot id="bq-s-0">');
+    expect(out).toContain('<bq-slot id="bq-s-1">');
+    expect(out).toContain('<template id="bq-r-0">done</template>');
+    expect(out).toContain('<template id="bq-r-1">done</template>');
+  });
 });
 
 describe('router-bridge', () => {
@@ -292,6 +305,18 @@ describe('router-bridge', () => {
     const r = resolveSSRRoute({ url: 'http://x/app/user/7', routes, base: '/app' });
     expect(r.matched).toBe(true);
     expect(r.route.params.id).toBe('7');
+  });
+
+  it('resolveSSRRoute does not strip partial base path collisions', () => {
+    const r = resolveSSRRoute({ url: 'http://x/application', routes, base: '/app' });
+    expect(r.matched).toBe(false);
+    expect(r.route.path).toBe('/application');
+  });
+
+  it('resolveSSRRoute maps the exact base path to root', () => {
+    const r = resolveSSRRoute({ url: 'http://x/app', routes, base: '/app' });
+    expect(r.matched).toBe(true);
+    expect(r.route.path).toBe('/');
   });
 
   it('runRouteLoaders invokes meta.loader with the route + ctx', async () => {

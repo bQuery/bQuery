@@ -155,7 +155,7 @@ const readAttrValue = (s: ParseState): string => {
   const start = s.pos;
   while (s.pos < s.src.length) {
     const c = s.src[s.pos];
-    if (isWs(c) || c === '>') break;
+    if (isWs(c) || c === '>' || (c === '/' && s.src[s.pos + 1] === '>')) break;
     s.pos++;
   }
   return decodeEntities(s.src.slice(start, s.pos));
