@@ -495,6 +495,7 @@ Deno.serve(createDenoHandler(handler));
 // Node (node:http)
 import { createServer } from 'node:http';
 createServer(createNodeHandler(handler)).listen(3000);
+createServer(createNodeHandler(handler, { maxBodyBytes: 1024 * 1024 })).listen(3001);
 
 // Hono / Elysia / Cloudflare Workers / generic web hosts
 export default { fetch: createWebHandler(handler) };
@@ -503,7 +504,7 @@ export default { fetch: createWebHandler(handler) };
 const wrapped = createSSRHandler(handler);
 ```
 
-`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes.
+`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes. When needed, pass `{ maxBodyBytes }` to reject oversized buffered request bodies with HTTP 413; malformed `Host` headers fall back to `localhost` instead of crashing URL construction.
 
 ### CSP & security defaults
 

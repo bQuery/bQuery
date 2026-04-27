@@ -255,6 +255,27 @@ describe('renderToStreamSuspense', () => {
     expect(out).toContain('</x-slot>');
   });
 
+  it('wraps marked elements structurally when nested tags share the same name', async () => {
+    const stream = renderToStreamSuspense(
+      '<div><section bq-defer="user"><section><span bq-text="user"></span></section></section></div>',
+      { user: defer(Promise.resolve('ada'), 'loading') }
+    );
+    const out = await collectStream(stream);
+    expect(out).toContain(
+      '<section><bq-slot id="bq-s-0"><section><span bq-text="user">loading</span></section></bq-slot></section>'
+    );
+  });
+
+  it('preserves quoted > characters while wrapping marked elements', async () => {
+    const stream = renderToStreamSuspense(
+      '<main><section data-note="a > b" bq-defer="user"><span bq-text="user"></span></section></main>',
+      { user: defer(Promise.resolve('ada'), 'loading') }
+    );
+    const out = await collectStream(stream);
+    expect(out).toContain('<section data-note="a > b"><bq-slot id="bq-s-0">');
+    expect(out).not.toContain('data-bq-defer');
+  });
+
   it('honours the SSRContext nonce on patch scripts', async () => {
     const ctx = createSSRContext({ nonce: 'NONCE123' });
     const stream = renderToStreamSuspense(

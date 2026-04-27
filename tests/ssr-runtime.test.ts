@@ -526,6 +526,86 @@ describe('runtime adapters', () => {
     await wrapped(req, res);
   });
 
+  it('createNodeHandler falls back to localhost for invalid host headers', async () => {
+    const res = {
+      statusCode: 0,
+      setHeader(_name: string, _value: string | number | readonly string[]) {
+        /* no-op */
+      },
+      write(_chunk: string | Uint8Array) {
+        return true;
+      },
+      end(_chunk?: string | Uint8Array) {
+        /* no-op */
+      },
+    };
+    const req: NodeIncomingMessage = {
+      url: '/bad-host',
+      method: 'GET',
+      headers: { host: 'bad host' },
+      on(
+        _event: 'data' | 'end' | 'error',
+        _listener:
+          | ((chunk: Uint8Array | string) => void)
+          | (() => void)
+          | ((err: unknown) => void)
+      ): NodeIncomingMessage {
+        return this as NodeIncomingMessage;
+      },
+    };
+    const wrapped = createNodeHandler(async (request) => {
+      expect(request.url).toBe('http://localhost/bad-host');
+      return new Response('ok');
+    });
+    await wrapped(req, res);
+  });
+
+  it('createNodeHandler returns 413 when request bodies exceed the configured limit', async () => {
+    let body = '';
+    const res = {
+      statusCode: 0,
+      setHeader(_name: string, _value: string | number | readonly string[]) {
+        /* no-op */
+      },
+      write(chunk: string | Uint8Array) {
+        body += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+        return true;
+      },
+      end(chunk?: string | Uint8Array) {
+        if (chunk) body += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
+      },
+    };
+    const req: NodeIncomingMessage = {
+      url: '/upload',
+      method: 'POST',
+      headers: { host: 'example.com', 'content-length': '11' },
+      on(
+        event: 'data' | 'end' | 'error',
+        listener:
+          | ((chunk: Uint8Array | string) => void)
+          | (() => void)
+          | ((err: unknown) => void)
+      ): NodeIncomingMessage {
+        if (event === 'data') {
+          (listener as (chunk: string) => void)('hello world');
+        }
+        if (event === 'end') {
+          (listener as () => void)();
+        }
+        return this as NodeIncomingMessage;
+      },
+    };
+    const wrapped = createNodeHandler(
+      async () => {
+        throw new Error('handler should not run');
+      },
+      { maxBodyBytes: 10 }
+    );
+    await wrapped(req, res);
+    expect(res.statusCode).toBe(413);
+    expect(body).toContain('Request body exceeds 10 bytes.');
+  });
+
   it('createSSRHandler returns a runtime-appropriate adapter', () => {
     const handler = (_req: Request) => new Response('ok');
     const wrapped = createSSRHandler(handler);

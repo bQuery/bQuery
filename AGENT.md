@@ -360,7 +360,7 @@ Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 
 | `defer(promise, fallback?)` / `defineLoader(fn)`                                            | functions | Async data helpers consumed by `renderToStringAsync()`                           |
 | `configureSSR()` / `getSSRConfig()`                                                         | functions | Switch backend (`'auto'` / `'pure'` / `'dom'`) or inject a custom `DOMParser`    |
 | `detectRuntime()` / `isServerRuntime()` / `isBrowserRuntime()` / `getSSRRuntimeFeatures()`  | functions | Runtime detection helpers                                                        |
-| `createWebHandler()` / `createBunHandler()` / `createDenoHandler()` / `createNodeHandler()` | functions | Runtime adapters; `createSSRHandler()` auto-detects                              |
+| `createWebHandler()` / `createBunHandler()` / `createDenoHandler()` / `createNodeHandler()` | functions | Runtime adapters; Node supports optional `maxBodyBytes`, and `createSSRHandler()` auto-detects |
 | `verifyHydration()` / `HYDRATION_HASH_ATTR`                                                 | function  | Walk `[data-bq-h]` and report mismatches; pair with `RenderOptions.annotateHydration` |
 | `renderToStreamSuspense()`                                                                  | function  | Out-of-order streaming with `defer()` placeholders + CSP-nonce-aware patch scripts    |
 | `resolveSSRRoute()` / `runRouteLoaders()` / `createSSRRouterContext()`                      | functions | Match URLs and run `meta.loader` data loaders before render                            |

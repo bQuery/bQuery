@@ -77,17 +77,57 @@ export interface NodeServerResponse {
   end(chunk?: Uint8Array | string): void;
 }
 
+/** Optional hardening settings for the `node:http` adapter. */
+export interface NodeHandlerOptions {
+  /** Reject request bodies that exceed this many bytes. Default: unlimited. */
+  maxBodyBytes?: number;
+}
+
 const shouldReadNodeBody = (method: string): boolean => method !== 'GET' && method !== 'HEAD';
 
-const readNodeBody = (req: NodeIncomingMessage): Promise<ArrayBuffer> =>
+class NodeRequestLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NodeRequestLimitError';
+  }
+}
+
+const getSingleHeader = (
+  headers: NodeIncomingMessage['headers'],
+  name: string
+): string | undefined => {
+  const value = headers[name];
+  if (Array.isArray(value)) return value[0];
+  return value;
+};
+
+const getContentLength = (req: NodeIncomingMessage): number | null => {
+  const header = getSingleHeader(req.headers, 'content-length');
+  if (!header) return null;
+  const value = Number.parseInt(header, 10);
+  return Number.isSafeInteger(value) && value >= 0 ? value : null;
+};
+
+const readNodeBody = (req: NodeIncomingMessage, maxBodyBytes?: number): Promise<ArrayBuffer> =>
   new Promise((resolve, reject) => {
+    const declaredLength = getContentLength(req);
+    if (maxBodyBytes !== undefined && declaredLength !== null && declaredLength > maxBodyBytes) {
+      reject(new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`));
+      return;
+    }
+
     const chunks: Uint8Array[] = [];
+    let total = 0;
     req.on('data', (chunk) => {
-      chunks.push(typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk);
+      const bytes = typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk;
+      total += bytes.byteLength;
+      if (maxBodyBytes !== undefined && total > maxBodyBytes) {
+        reject(new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`));
+        return;
+      }
+      chunks.push(bytes);
     });
     req.on('end', () => {
-      let total = 0;
-      for (const chunk of chunks) total += chunk.byteLength;
       const buffer = new ArrayBuffer(total);
       const body = new Uint8Array(buffer);
       let offset = 0;
@@ -100,19 +140,38 @@ const readNodeBody = (req: NodeIncomingMessage): Promise<ArrayBuffer> =>
     req.on('error', reject);
   });
 
-const buildRequestFromNode = async (req: NodeIncomingMessage): Promise<Request> => {
+const buildNodeUrl = (req: NodeIncomingMessage, protocol: string): URL => {
+  const fallbackOrigin = `${protocol}://localhost`;
+  const host = getSingleHeader(req.headers, 'host') || 'localhost';
+  try {
+    return new URL(req.url ?? '/', `${protocol}://${host}`);
+  } catch {
+    try {
+      return new URL(req.url ?? '/', fallbackOrigin);
+    } catch {
+      return new URL('/', fallbackOrigin);
+    }
+  }
+};
+
+const buildRequestFromNode = async (
+  req: NodeIncomingMessage,
+  options: NodeHandlerOptions = {}
+): Promise<Request> => {
   // Only honour `x-forwarded-proto` when it advertises a known protocol.
   // This adapter assumes deployment behind a trusted reverse proxy; callers
   // exposing `node:http` directly to the public internet should strip
   // `x-forwarded-*` headers in their proxy layer.
   const forwardedProto =
-    typeof req.headers['x-forwarded-proto'] === 'string'
-      ? (req.headers['x-forwarded-proto'] as string).split(',')[0].trim().toLowerCase()
+    typeof getSingleHeader(req.headers, 'x-forwarded-proto') === 'string'
+      ? (getSingleHeader(req.headers, 'x-forwarded-proto') as string)
+          .split(',')[0]
+          .trim()
+          .toLowerCase()
       : '';
   const protocol =
     forwardedProto === 'http' || forwardedProto === 'https' ? forwardedProto : 'http';
-  const host = (typeof req.headers.host === 'string' && req.headers.host) || 'localhost';
-  const url = new URL(req.url ?? '/', `${protocol}://${host}`);
+  const url = buildNodeUrl(req, protocol);
 
   const headers = new Headers();
   for (const [name, value] of Object.entries(req.headers)) {
@@ -131,7 +190,7 @@ const buildRequestFromNode = async (req: NodeIncomingMessage): Promise<Request> 
   };
 
   if (shouldReadNodeBody(upperMethod)) {
-    init.body = await readNodeBody(req);
+    init.body = await readNodeBody(req, options.maxBodyBytes);
   }
 
   return new Request(url.toString(), init);
@@ -173,10 +232,20 @@ const writeResponseToNode = async (response: Response, res: NodeServerResponse):
  * ```
  */
 export const createNodeHandler = (
-  handler: SSRRequestHandler
+  handler: SSRRequestHandler,
+  options: NodeHandlerOptions = {}
 ): ((req: NodeIncomingMessage, res: NodeServerResponse) => Promise<void>) => {
   return async (req, res) => {
-    const request = await buildRequestFromNode(req);
+    let request: Request;
+    try {
+      request = await buildRequestFromNode(req, options);
+    } catch (error) {
+      if (error instanceof NodeRequestLimitError) {
+        await writeResponseToNode(new Response(error.message, { status: 413 }), res);
+        return;
+      }
+      throw error;
+    }
     const response = await Promise.resolve(handler(request));
     await writeResponseToNode(response, res);
   };

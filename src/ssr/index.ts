@@ -155,4 +155,9 @@ export {
   createSSRHandler,
   createWebHandler,
 } from './adapters';
-export type { NodeIncomingMessage, NodeServerResponse, SSRRequestHandler } from './adapters';
+export type {
+  NodeHandlerOptions,
+  NodeIncomingMessage,
+  NodeServerResponse,
+  SSRRequestHandler,
+} from './adapters';

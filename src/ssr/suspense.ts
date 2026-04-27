@@ -16,6 +16,7 @@
 import { isComputed, isSignal, type Signal } from '../reactive/index';
 import type { BindingContext } from '../view/types';
 import { createSSRContext, type SSRContext } from './context';
+import { parseTemplate, serializeTree, type SSRElement, type SSRNode } from './html-parser';
 import { renderToString } from './render';
 import type { AsyncRenderOptions } from './render-async';
 
@@ -44,12 +45,6 @@ interface SuspenseSlot {
 type SettledSuspenseSlot =
   | { index: number; slot: SuspenseSlot; ok: true; value: unknown }
   | { index: number; slot: SuspenseSlot; ok: false; error: unknown };
-
-interface PendingSuspenseEntry {
-  index: number;
-  slot: SuspenseSlot;
-  settled: Promise<SettledSuspenseSlot>;
-}
 
 /**
  * Whitelist regex for slot/template IDs. The IDs end up inside an inline
@@ -199,6 +194,41 @@ const renderResolvedFragment = (
   // bindings; rich nested rendering can be done by passing a slot template.
 };
 
+const removeAttr = (el: SSRElement, name: string): void => {
+  if (!(name in el.attributes)) return;
+  delete el.attributes[name];
+  const index = el.attributeOrder.indexOf(name);
+  if (index !== -1) el.attributeOrder.splice(index, 1);
+};
+
+const createSlotWrapper = (slotTag: string, slotId: string, children: SSRNode[] = []): SSRElement => ({
+  type: 'element',
+  tag: slotTag,
+  attributes: { id: slotId },
+  attributeOrder: ['id'],
+  children,
+  void: false,
+  raw: false,
+});
+
+const visitElements = (nodes: SSRNode[], visit: (element: SSRElement) => void): void => {
+  for (const node of nodes) {
+    if (node.type !== 'element') continue;
+    visit(node);
+    visitElements(node.children, visit);
+  }
+};
+
+const findElementByTag = (nodes: SSRNode[], tag: string): SSRElement | null => {
+  for (const node of nodes) {
+    if (node.type !== 'element') continue;
+    if (node.tag === tag) return node;
+    const nested = findElementByTag(node.children, tag);
+    if (nested) return nested;
+  }
+  return null;
+};
+
 const replaceSlotsInShell = (
   html: string,
   context: BindingContext,
@@ -215,40 +245,34 @@ const replaceSlotsInShell = (
   // Without such a marker, the slot fallback is already inlined and we
   // append the resolved templates at the end of <body>.
   const slotTag = sanitizeSlotTag(options.slotTag, 'bq-slot');
-  let out = html;
-  for (const slot of slots) {
-    const markerValue = escapeRegExp(escapeAttr(slot.key));
-    const markerPattern = `\\s+data-bq-defer\\s*=\\s*(?:"${markerValue}"|'${markerValue}'|${markerValue}(?=[\\s/>]))`;
-    // Preserve `<tag ... data-bq-defer="key" ...>...</tag>` and wrap only its
-    // children in the slot wrapper. We do a tolerant match: any element whose
-    // attributes contain the protected defer marker, regardless of quote style.
-    const re = new RegExp(
-      `<([a-zA-Z][\\w-]*)([^>]*${markerPattern}[^>]*)>([\\s\\S]*?)<\\/\\1>`,
-      'g'
-    );
-    out = out.replace(re, (_match, tag: string, attrs: string, inner: string) => {
-      const markerAttr = new RegExp(markerPattern, 'g');
-      const cleanAttrs = attrs.replace(markerAttr, '');
-      return `<${tag}${cleanAttrs}><${slotTag} id="${escapeAttr(slot.id)}">${inner}</${slotTag}></${tag}>`;
-    });
-  }
+  const root = parseTemplate(html);
+  const slotsByKey = new Map(slots.map((slot) => [slot.key, slot]));
+  const placed = new Set<string>();
+
+  visitElements(root.children, (element) => {
+    const marker = element.attributes['data-bq-defer'];
+    if (!marker) return;
+    const slot = slotsByKey.get(marker);
+    if (!slot || placed.has(slot.id)) return;
+    removeAttr(element, 'data-bq-defer');
+    const wrappedChildren = element.children;
+    element.children = [createSlotWrapper(slotTag, slot.id, wrappedChildren)];
+    placed.add(slot.id);
+  });
+
   // If we didn't find any markers but slots exist, append placeholders at the
   // end of <body> (or the end of html) so the user can still see updates.
+  const body = findElementByTag(root.children, 'body');
+  const appendTarget = body?.children ?? root.children;
   for (const slot of slots) {
-    if (!out.includes(`id="${slot.id}"`)) {
-      const placeholder = `<${slotTag} id="${escapeAttr(slot.id)}"></${slotTag}>`;
-      const idx = out.toLowerCase().lastIndexOf('</body>');
-      if (idx === -1) out += placeholder;
-      else out = out.slice(0, idx) + placeholder + out.slice(idx);
-    }
+    if (placed.has(slot.id)) continue;
+    appendTarget.push(createSlotWrapper(slotTag, slot.id));
   }
   // `context` reference suppressed to keep the function side-effect free
   // for the static analysis; the render uses syncContext where needed.
   void context;
-  return out;
+  return serializeTree(root);
 };
-
-const escapeRegExp = (input: string): string => input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /** Returns true for characters that can appear immediately before an attribute name. */
 const canPrecedeAttributeName = (ch: string | undefined): boolean =>
@@ -379,26 +403,39 @@ export const renderToStreamSuspense = (
         // Resolve slots in arrival order so the network can flush as soon as
         // each promise settles. Track entries by array position because
         // multiple slots may intentionally share the same promise instance.
-        const pending = new Map<number, PendingSuspenseEntry>(
-          slots.map((slot, index) => [
-            index,
-            {
-              index,
-              slot,
-              settled: slot.promise.then<SettledSuspenseSlot, SettledSuspenseSlot>(
-                (value) => ({ index, slot, ok: true, value }),
-                (error) => ({ index, slot, ok: false, error })
-              ),
-            },
-          ])
-        );
+        const settledQueue: SettledSuspenseSlot[] = [];
+        const waiters: Array<(settled: SettledSuspenseSlot) => void> = [];
+        let remaining = slots.length;
+        const enqueueSettled = (settled: SettledSuspenseSlot): void => {
+          const waiter = waiters.shift();
+          if (waiter) {
+            waiter(settled);
+            return;
+          }
+          settledQueue.push(settled);
+        };
 
-        while (pending.size > 0) {
+        for (const [index, slot] of slots.entries()) {
+          slot.promise.then<SettledSuspenseSlot, SettledSuspenseSlot>(
+            (value) => ({ index, slot, ok: true, value }),
+            (error) => ({ index, slot, ok: false, error })
+          ).then(enqueueSettled);
+        }
+
+        const nextSettled = async (): Promise<SettledSuspenseSlot> => {
+          const queued = settledQueue.shift();
+          if (queued) return queued;
+          return new Promise<SettledSuspenseSlot>((resolve) => {
+            waiters.push(resolve);
+          });
+        };
+
+        while (remaining > 0) {
           if (ctx.signal.aborted) {
             return;
           }
-          const settled = await Promise.race(Array.from(pending.values(), (entry) => entry.settled));
-          if (!pending.delete(settled.index)) continue;
+          const settled = await nextSettled();
+          remaining--;
           const { slot } = settled;
           const resolvedId = `${resolvedIdPrefix}-${slot.id.split('-').pop()}`;
           let resolvedHtml: string;
