@@ -505,6 +505,26 @@ describe('versioned store snapshots', () => {
     );
   });
 
+  it('renderToStringAsync reuses one serialized store snapshot for storeState and HTML', async () => {
+    let reads = 0;
+    createStore({
+      id: 'counter',
+      state: () => ({
+        get count() {
+          reads += 1;
+          return reads;
+        },
+      }),
+    });
+    const { html, storeState } = await renderToStringAsync(
+      '<html><head></head><body><main></main></body></html>',
+      {},
+      { includeStoreState: true }
+    );
+    expect(storeState).toBe('{"counter":{"count":1}}');
+    expect(html).toContain('window["__BQUERY_INITIAL_STATE__"]={"counter":{"count":1}}');
+  });
+
   it('hydrateStoreSnapshot rejects invalid shapes', () => {
     const r = hydrateStoreSnapshot({ wrong: true });
     expect(r.applied).toBe(false);

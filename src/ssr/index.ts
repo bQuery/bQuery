@@ -19,8 +19,8 @@
  * - **`renderToResponse(template, data, ctx?)`** — high-level `Response`
  *   wrapper with ETag, Cache-Control, head & store-state injection.
  * - **`createSSRContext(...)`** — request/response context bag.
- * - **`createHeadManager()` / `useHead(...)`** — `<title>`, `<meta>`,
- *   `<link>` and `<script>` collection.
+ * - **`createHeadManager()`** — `<title>`, `<meta>`, `<link>` and
+ *   `<script>` collection.
  * - **`hydrateMount` / `hydrateOnVisible` / `hydrateOnIdle` /
  *   `hydrateOnInteraction` / `hydrateOnMedia` / `hydrateIsland`** — full
  *   progressive-hydration toolkit.

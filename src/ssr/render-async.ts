@@ -116,7 +116,7 @@ export const renderToStringAsync = async (
   const baseOptions: RenderOptions = {
     prefix: options.prefix,
     stripDirectives: options.stripDirectives,
-    includeStoreState: options.includeStoreState,
+    includeStoreState: false,
     annotateHydration: options.annotateHydration,
   };
 
@@ -135,6 +135,7 @@ export const renderToStringAsync = async (
       scriptId: options.storeScriptId,
       globalKey: options.storeGlobalKey,
     });
+    storeState = result.stateJson;
     storeScriptTag = result.scriptTag;
     if (context.nonce) {
       // Inject nonce into the script tag.

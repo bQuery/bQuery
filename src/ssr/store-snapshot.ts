@@ -5,7 +5,7 @@
  * to give applications a way to:
  * - tag the snapshot with a schema version so a stale client can refuse to
  *   apply server data that no longer matches its store shape;
- * - opt into strict mode where unknown keys cause a warning (or throw);
+ * - opt into strict mode where unknown keys cause a warning;
  * - selectively serialize / hydrate a subset of stores.
  *
  * Backwards compatible: the existing helpers stay untouched and remain the

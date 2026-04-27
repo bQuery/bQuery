@@ -3,8 +3,8 @@
  *
  * Collects `<title>`, `<meta>`, `<link>` and inline `<script>` directives that
  * a render path wants to inject into the document head, then serialises them
- * as a single HTML string. Mirrors the behaviour of `useHead()` so the same
- * data shape works on the server and client.
+ * as a single HTML string. The same descriptor shape is reused by the
+ * server-side head manager methods across SSR entry points.
  *
  * @module bquery/ssr
  */
@@ -58,7 +58,7 @@ export interface SSRScript {
   module?: boolean;
 }
 
-/** Options accepted by `useHead()`. */
+/** Options accepted by `HeadManager.add()`. */
 export interface UseHeadOptions {
   title?: string;
   titleTemplate?: string;

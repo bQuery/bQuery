@@ -53,7 +53,7 @@ export interface SSRContext {
   nonce: string;
   /** Render mode hint. */
   mode: 'string' | 'stream';
-  /** Head manager — call `useHead()` or read `headManager.state()`. */
+  /** Head manager — call `head.add(...)`, `head.render()`, or read `head.state()`. */
   head: HeadManager;
   /** Asset manifest — call `assets.preload()`/`module()`/`style()`. */
   assets: AssetManager;
