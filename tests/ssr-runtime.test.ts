@@ -33,6 +33,7 @@ import {
   renderToStream,
   renderToString,
   renderToStringAsync,
+  type NodeIncomingMessage,
 } from '../src/ssr/index';
 
 afterEach(() => {
@@ -417,7 +418,6 @@ describe('runtime adapters', () => {
   });
 
   it('createNodeHandler converts Node http req/res into a fetch handler', async () => {
-    type Listener = (...args: unknown[]) => void;
     const headerStore: Record<string, string | number | readonly string[]> = {};
     let body = '';
     let ended = false;
@@ -437,11 +437,17 @@ describe('runtime adapters', () => {
         ended = true;
       },
     };
-    const req = {
+    const req: NodeIncomingMessage = {
       url: '/path?q=1',
       method: 'GET',
       headers: { host: 'example.com', 'x-test': 'value' },
-      on(_: string, _l: Listener) {
+      on(
+        _event: 'data' | 'end' | 'error',
+        _listener:
+          | ((chunk: Uint8Array | string) => void)
+          | (() => void)
+          | ((err: unknown) => void)
+      ) {
         /* no-op */
       },
     };
