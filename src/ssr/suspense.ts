@@ -228,10 +228,10 @@ const replaceSlotsInShell = (
 
 const escapeRegExp = (input: string): string => input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-const isAttributeBoundary = (ch: string | undefined): boolean =>
+const canPrecedeAttributeName = (ch: string | undefined): boolean =>
   ch === undefined || ch === '<' || ch === '/' || /\s/.test(ch);
 
-const isAttributeNameEnd = (ch: string | undefined): boolean =>
+const canFollowAttributeName = (ch: string | undefined): boolean =>
   ch === undefined || ch === '=' || ch === '>' || ch === '/' || /\s/.test(ch);
 
 /**
@@ -280,8 +280,8 @@ const protectDeferMarkers = (template: string): string => {
 
     if (
       template.startsWith(marker, i) &&
-      isAttributeBoundary(template[i - 1]) &&
-      isAttributeNameEnd(template[i + marker.length])
+      canPrecedeAttributeName(template[i - 1]) &&
+      canFollowAttributeName(template[i + marker.length])
     ) {
       out += 'data-bq-defer';
       i += marker.length;

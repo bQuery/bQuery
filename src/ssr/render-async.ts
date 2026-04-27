@@ -20,6 +20,23 @@ import { renderToString } from './render';
 import { serializeStoreState } from './serialize';
 import type { RenderOptions, SSRResult } from './types';
 
+const isHtmlWhitespace = (ch: string | undefined): boolean =>
+  ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' || ch === '\f';
+
+const injectScriptNonce = (scriptTag: string, nonce: string): string => {
+  const scriptPrefix = '<script';
+  if (scriptTag.slice(0, scriptPrefix.length).toLowerCase() !== scriptPrefix) {
+    return scriptTag;
+  }
+
+  const next = scriptTag[scriptPrefix.length];
+  if (next !== '>' && !isHtmlWhitespace(next)) {
+    return scriptTag;
+  }
+
+  return `<script nonce="${nonce}"${scriptTag.slice(scriptPrefix.length)}`;
+};
+
 /**
  * Options accepted by the async render APIs. Extends the base `RenderOptions`
  * with response-shaping switches.
@@ -113,10 +130,7 @@ export const renderToStringAsync = async (
     storeScriptTag = result.scriptTag;
     if (context.nonce) {
       // Inject nonce into the script tag.
-      storeScriptTag = storeScriptTag.replace(
-        /^<script(\s|>)/,
-        (_match, suffix: string) => `<script nonce="${context.nonce}"${suffix}`
-      );
+      storeScriptTag = injectScriptNonce(storeScriptTag, context.nonce);
     }
   }
 
