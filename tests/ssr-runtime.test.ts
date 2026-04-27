@@ -468,6 +468,7 @@ describe('runtime adapters', () => {
           | ((err: unknown) => void)
       ) {
         /* no-op */
+        return this;
       },
     };
     const wrapped = createNodeHandler(async (request) => {
@@ -512,6 +513,7 @@ describe('runtime adapters', () => {
         if (event === 'end') {
           (listener as () => void)();
         }
+        return this;
       },
     };
     const wrapped = createNodeHandler(async (request) => {
@@ -583,7 +585,15 @@ describe('hydration strategies', () => {
     const interaction = hydrateOnInteraction('#missing-interaction', { title: signal('x') });
     const originalMatchMedia = window.matchMedia;
     Object.defineProperty(window, 'matchMedia', {
-      value: undefined,
+      value: (() => ({
+        matches: true,
+        addEventListener() {
+          /* no-op */
+        },
+        removeEventListener() {
+          /* no-op */
+        },
+      })) as unknown as typeof window.matchMedia,
       configurable: true,
       writable: true,
     });

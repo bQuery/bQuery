@@ -374,7 +374,8 @@ export const renderToStreamSuspense = (
             )
           );
           const settled = await Promise.race(racers);
-          const [{ slot }] = pending.splice(settled.index, 1);
+          const removed = pending.splice(settled.index, 1);
+          const { slot } = removed[0];
           const resolvedId = `${resolvedIdPrefix}-${slot.id.split('-').pop()}`;
           let resolvedHtml: string;
           if (settled.error !== undefined) {

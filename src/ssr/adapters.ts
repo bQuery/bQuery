@@ -125,12 +125,13 @@ const buildRequestFromNode = async (req: NodeIncomingMessage): Promise<Request> 
   }
 
   const method = req.method ?? 'GET';
+  const upperMethod = method.toUpperCase();
   const init: RequestInit = {
     method,
     headers,
   };
 
-  if (shouldReadNodeBody(method.toUpperCase())) {
+  if (shouldReadNodeBody(upperMethod)) {
     init.body = await readNodeBody(req);
   }
 
