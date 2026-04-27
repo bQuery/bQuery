@@ -233,6 +233,17 @@ describe('renderToStreamSuspense', () => {
     expect(out).not.toContain('<script type="text/javascript"');
   });
 
+  it('falls back to bq-slot when slotTag uses uppercase characters', async () => {
+    const stream = renderToStreamSuspense(
+      '<main><section bq-defer="user"><span bq-text="user"></span></section></main>',
+      { user: defer(Promise.resolve('ada'), 'loading') },
+      { slotTag: 'X-Slot' }
+    );
+    const out = await collectStream(stream);
+    expect(out).toContain('<bq-slot id="bq-s-0">');
+    expect(out).not.toContain('<X-Slot');
+  });
+
   it('accepts valid custom-element slot tags', async () => {
     const stream = renderToStreamSuspense(
       '<main><section bq-defer="user"><span bq-text="user"></span></section></main>',

@@ -58,6 +58,7 @@ interface PendingSuspenseEntry {
  * depth. Allows ASCII letters, digits, `-` and `_`.
  */
 const SAFE_ID_RE = /^[A-Za-z][\w-]*$/;
+/** Enforces a lowercase custom-element-style tag name with a required hyphen. */
 const SAFE_SLOT_TAG_RE = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/;
 
 const sanitizeSlotPrefix = (prefix: string, fallback: string): string => {
