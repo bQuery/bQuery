@@ -58,9 +58,13 @@ const sanitizeSlotPrefix = (prefix: string, fallback: string): string => {
  * Derives a template ID prefix that cannot collide with placeholder slot IDs.
  * The default `bq-s` becomes `bq-r`; custom prefixes without that suffix get
  * `-r` appended, so `slot` produces `slot-r` instead of a duplicate `slot`.
+ * Prefixes already ending in `-r` get `-template` to avoid `-r-r`.
  */
 const getResolvedIdPrefix = (slotIdPrefix: string): string => {
   const candidate = slotIdPrefix.replace(/-s$/, '-r');
+  if (candidate === slotIdPrefix && slotIdPrefix.endsWith('-r')) {
+    return `${slotIdPrefix}-template`;
+  }
   return candidate === slotIdPrefix ? `${slotIdPrefix}-r` : candidate;
 };
 
@@ -228,9 +232,11 @@ const replaceSlotsInShell = (
 
 const escapeRegExp = (input: string): string => input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+/** Returns true for characters that can appear immediately before an attribute name. */
 const canPrecedeAttributeName = (ch: string | undefined): boolean =>
   ch === undefined || ch === '<' || ch === '/' || /\s/.test(ch);
 
+/** Returns true for characters that can terminate an attribute name in a start tag. */
 const canFollowAttributeName = (ch: string | undefined): boolean =>
   ch === undefined || ch === '=' || ch === '>' || ch === '/' || /\s/.test(ch);
 

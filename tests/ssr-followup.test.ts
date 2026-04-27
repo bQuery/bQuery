@@ -197,6 +197,17 @@ describe('renderToStreamSuspense', () => {
     expect(out).toContain('data-bq-slot="slot-0" data-bq-template="slot-r-0"');
   });
 
+  it('does not double the resolved suffix for custom -r slot prefixes', async () => {
+    const stream = renderToStreamSuspense(
+      '<main><h1>Hello</h1></main>',
+      { later: defer(Promise.resolve('boom'), undefined) },
+      { slotIdPrefix: 'slot-r' }
+    );
+    const out = await collectStream(stream);
+    expect(out).toContain('<bq-slot id="slot-r-0">');
+    expect(out).toContain('<template id="slot-r-template-0">boom</template>');
+  });
+
   it('honours the SSRContext nonce on patch scripts', async () => {
     const ctx = createSSRContext({ nonce: 'NONCE123' });
     const stream = renderToStreamSuspense(
@@ -390,13 +401,15 @@ describe('versioned store snapshots', () => {
 
   it('renderToStringAsync injects CSP nonces into store-state scripts', async () => {
     createStore({ id: 'counter', state: () => ({ count: 1 }) });
-    const context = createSSRContext({ nonce: 'ASYNC_NONCE' });
+    const context = createSSRContext({ nonce: 'ASYNC_"<&' });
     const { html } = await renderToStringAsync(
       '<html><head></head><body><main></main></body></html>',
       {},
       { context, includeStoreState: true }
     );
-    expect(html).toContain('<script nonce="ASYNC_NONCE" id="__BQUERY_STORE_STATE__">');
+    expect(html).toContain(
+      '<script nonce="ASYNC_&quot;&lt;&amp;" id="__BQUERY_STORE_STATE__">'
+    );
   });
 
   it('hydrateStoreSnapshot rejects invalid shapes', () => {

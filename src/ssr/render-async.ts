@@ -20,6 +20,14 @@ import { renderToString } from './render';
 import { serializeStoreState } from './serialize';
 import type { RenderOptions, SSRResult } from './types';
 
+const escapeAttr = (value: string): string =>
+  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+/**
+ * HTML ASCII whitespace used between tag names and attributes. Includes form
+ * feed (`\f`) because the HTML tokenizer treats it as whitespace alongside
+ * spaces, tabs, CR and LF.
+ */
 const isHtmlWhitespace = (ch: string | undefined): boolean =>
   ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r' || ch === '\f';
 
@@ -34,7 +42,7 @@ const injectScriptNonce = (scriptTag: string, nonce: string): string => {
     return scriptTag;
   }
 
-  return `<script nonce="${nonce}"${scriptTag.slice(scriptPrefix.length)}`;
+  return `<script nonce="${escapeAttr(nonce)}"${scriptTag.slice(scriptPrefix.length)}`;
 };
 
 /**
