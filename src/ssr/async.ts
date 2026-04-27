@@ -40,7 +40,7 @@ interface DeferredValue<T> {
  * Marks a promise as "may resolve in parallel". When `renderToStringAsync()`
  * sees a deferred value in the context, it awaits the underlying promise.
  * Streaming renderers can flush a fallback first and patch the resolved value
- * later (see `renderToStream()`).
+ * later (see `renderToStreamSuspense()`).
  */
 export const defer = <T>(promise: Promise<T> | T, fallback?: unknown): DeferredValue<T> => {
   const p = promise instanceof Promise ? promise : Promise.resolve(promise);

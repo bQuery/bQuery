@@ -233,6 +233,19 @@ describe('renderToStreamSuspense', () => {
     expect(out).toContain('<template id="slot-r-template-0">boom</template>');
   });
 
+  it('does not rewrite custom-element tag names named bq-defer', async () => {
+    const stream = renderToStreamSuspense(
+      '<main><bq-defer>keep me</bq-defer><section bq-defer="user"><span bq-text="user"></span></section></main>',
+      { user: defer(Promise.resolve('ada'), 'loading') }
+    );
+    const out = await collectStream(stream);
+    expect(out).toContain('<bq-defer>keep me</bq-defer>');
+    expect(out).toContain('<section><bq-slot id="bq-s-0">');
+    expect(out).not.toContain('bq-defer="user"');
+    expect(out).not.toContain('<data-bq-defer');
+    expect(out).not.toContain('</data-bq-defer>');
+  });
+
   it('falls back to bq-slot when slotTag is invalid', async () => {
     const stream = renderToStreamSuspense(
       '<main><section bq-defer="user"><span bq-text="user"></span></section></main>',

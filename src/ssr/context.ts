@@ -185,7 +185,7 @@ const createHeadersLike = (): Headers =>
  * @example
  * ```ts
  * const ctx = createSSRContext({ request });
- * const { html } = await renderToStringAsync(template, data, ctx);
+ * const { html } = await renderToStringAsync(template, data, { context: ctx });
  * ```
  */
 export const createSSRContext = (options: CreateSSRContextOptions = {}): SSRContext => {

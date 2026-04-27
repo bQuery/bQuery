@@ -274,8 +274,7 @@ const replaceSlotsInShell = (
 };
 
 /** Returns true for characters that can appear immediately before an attribute name. */
-const canPrecedeAttributeName = (ch: string | undefined): boolean =>
-  ch === undefined || ch === '<' || ch === '/' || /\s/.test(ch);
+const canPrecedeAttributeName = (ch: string | undefined): boolean => ch !== undefined && /\s/.test(ch);
 
 /** Returns true for characters that can terminate an attribute name in a start tag. */
 const canFollowAttributeName = (ch: string | undefined): boolean =>
@@ -292,13 +291,21 @@ const protectDeferMarkers = (template: string): string => {
   let i = 0;
   let inTag = false;
   let quote: '"' | "'" | '' = '';
+  let tagNameEnded = false;
+  let tagLeadSeen = false;
+  let allowAttributeRewrite = true;
   const marker = 'bq-defer';
 
   while (i < template.length) {
     const ch = template[i];
 
     if (!inTag) {
-      inTag = ch === '<';
+      if (ch === '<') {
+        inTag = true;
+        tagNameEnded = false;
+        tagLeadSeen = false;
+        allowAttributeRewrite = true;
+      }
       out += ch;
       i++;
       continue;
@@ -325,7 +332,27 @@ const protectDeferMarkers = (template: string): string => {
       continue;
     }
 
+    if (!tagNameEnded) {
+      out += ch;
+      i++;
+
+      if (!tagLeadSeen) {
+        if (/\s/.test(ch)) continue;
+        tagLeadSeen = true;
+        if (ch === '/' || ch === '!' || ch === '?') {
+          allowAttributeRewrite = false;
+        }
+        continue;
+      }
+
+      if (allowAttributeRewrite && /\s/.test(ch)) {
+        tagNameEnded = true;
+      }
+      continue;
+    }
+
     if (
+      allowAttributeRewrite &&
       template.startsWith(marker, i) &&
       canPrecedeAttributeName(template[i - 1]) &&
       canFollowAttributeName(template[i + marker.length])
