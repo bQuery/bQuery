@@ -188,7 +188,7 @@ describe('safe expression evaluator', () => {
 
   it('supports ternary expressions', () => {
     configureSSR({ backend: 'pure' });
-    const result = renderToString('<p bq-text="ok ? \'yes\' : \'no\'"></p>', { ok: true });
+    const result = renderToString("<p bq-text=\"ok ? 'yes' : 'no'\"></p>", { ok: true });
     expect(result.html).toContain('yes');
   });
 
@@ -339,9 +339,7 @@ describe('renderToStringAsync', () => {
     const ac = new AbortController();
     ac.abort();
     const ctx = createSSRContext({ signal: ac.signal });
-    expect(
-      renderToStringAsync('<p></p>', {}, { context: ctx })
-    ).rejects.toThrow();
+    expect(renderToStringAsync('<p></p>', {}, { context: ctx })).rejects.toThrow();
   });
 });
 
@@ -379,11 +377,7 @@ describe('renderToResponse', () => {
   });
 
   it('honours the Cache-Control option', async () => {
-    const response = await renderToResponse(
-      '<p>x</p>',
-      {},
-      { cacheControl: 'public, max-age=60' }
-    );
+    const response = await renderToResponse('<p>x</p>', {}, { cacheControl: 'public, max-age=60' });
     expect(response.headers.get('cache-control')).toBe('public, max-age=60');
   });
 

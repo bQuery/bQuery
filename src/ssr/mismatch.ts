@@ -13,11 +13,7 @@
  * @module bquery/ssr
  */
 
-import {
-  cheapHash,
-  collectDirectiveSignatureFromElement,
-  HYDRATION_HASH_ATTR,
-} from './hash';
+import { cheapHash, collectDirectiveSignatureFromElement, HYDRATION_HASH_ATTR } from './hash';
 
 /** A single hydration mismatch entry returned by `verifyHydration()`. */
 export interface HydrationMismatch {
@@ -104,7 +100,6 @@ export const verifyHydration = (
       mismatches.push(mismatch);
       onMismatch?.(mismatch);
       if (warn) {
-        // eslint-disable-next-line no-console
         console.warn(
           `[bQuery SSR] Hydration mismatch on <${el.tagName.toLowerCase()}>: ` +
             `server="${expected}" client="${actual}" signature="${signature}".`,

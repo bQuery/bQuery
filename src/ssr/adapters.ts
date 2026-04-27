@@ -12,7 +12,10 @@ import type { SSRContext } from './context';
 import { detectRuntime } from './runtime';
 
 /** A handler that turns a request into a Response (Web-fetch style). */
-export type SSRRequestHandler = (request: Request, context?: SSRContext) => Promise<Response> | Response;
+export type SSRRequestHandler = (
+  request: Request,
+  context?: SSRContext
+) => Promise<Response> | Response;
 
 /* ---------------------------------------------------------------------------
  * Web (generic fetch) adapter
@@ -83,10 +86,9 @@ const buildRequestFromNode = (req: NodeIncomingMessage): Request => {
     typeof req.headers['x-forwarded-proto'] === 'string'
       ? (req.headers['x-forwarded-proto'] as string).split(',')[0].trim().toLowerCase()
       : '';
-  const protocol = forwardedProto === 'http' || forwardedProto === 'https' ? forwardedProto : 'http';
-  const host =
-    (typeof req.headers.host === 'string' && req.headers.host) ||
-    'localhost';
+  const protocol =
+    forwardedProto === 'http' || forwardedProto === 'https' ? forwardedProto : 'http';
+  const host = (typeof req.headers.host === 'string' && req.headers.host) || 'localhost';
   const url = new URL(req.url ?? '/', `${protocol}://${host}`);
 
   const headers = new Headers();
@@ -105,10 +107,7 @@ const buildRequestFromNode = (req: NodeIncomingMessage): Request => {
   });
 };
 
-const writeResponseToNode = async (
-  response: Response,
-  res: NodeServerResponse
-): Promise<void> => {
+const writeResponseToNode = async (response: Response, res: NodeServerResponse): Promise<void> => {
   res.statusCode = response.status;
   response.headers.forEach((value, name) => {
     res.setHeader(name, value);
@@ -164,9 +163,7 @@ export const createNodeHandler = (
  */
 export const createSSRHandler = (
   handler: SSRRequestHandler
-):
-  | SSRRequestHandler
-  | ((req: NodeIncomingMessage, res: NodeServerResponse) => Promise<void>) => {
+): SSRRequestHandler | ((req: NodeIncomingMessage, res: NodeServerResponse) => Promise<void>) => {
   const runtime = detectRuntime();
   switch (runtime) {
     case 'node':

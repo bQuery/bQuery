@@ -11,12 +11,7 @@
  */
 
 import { generateNonce } from '../security/csp';
-import {
-  createAssetManager,
-  createHeadManager,
-  type AssetManager,
-  type HeadManager,
-} from './head';
+import { createAssetManager, createHeadManager, type AssetManager, type HeadManager } from './head';
 
 /** Options for `createSSRContext()`. */
 export interface CreateSSRContextOptions {
@@ -131,14 +126,17 @@ export const createSSRContext = (options: CreateSSRContextOptions = {}): SSRCont
   // methods should ensure the runtime ships them.
   const request =
     options.request ??
-    (typeof Request === 'function' ? new Request(String(options.url ?? 'http://localhost/')) : ({
-      url: 'http://localhost/',
-      headers: new Headers(),
-      signal: new AbortController().signal,
-    } as unknown as Request));
+    (typeof Request === 'function'
+      ? new Request(String(options.url ?? 'http://localhost/'))
+      : ({
+          url: 'http://localhost/',
+          headers: new Headers(),
+          signal: new AbortController().signal,
+        } as unknown as Request));
 
   const urlSource = options.url ?? request.url;
-  const url = urlSource instanceof URL ? urlSource : new URL(String(urlSource), 'http://localhost/');
+  const url =
+    urlSource instanceof URL ? urlSource : new URL(String(urlSource), 'http://localhost/');
 
   const headers = request.headers ?? new Headers();
   const cookies = parseCookies(headers.get('cookie') ?? '');

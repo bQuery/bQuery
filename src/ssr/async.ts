@@ -53,7 +53,9 @@ export const defer = <T>(promise: Promise<T> | T, fallback?: unknown): DeferredV
 };
 
 const isDeferred = (value: unknown): value is DeferredValue<unknown> =>
-  typeof value === 'object' && value !== null && (value as Record<symbol, unknown>)[DEFER_BRAND] === true;
+  typeof value === 'object' &&
+  value !== null &&
+  (value as Record<symbol, unknown>)[DEFER_BRAND] === true;
 
 /**
  * Walks the binding context, awaits all promises and deferred values, and

@@ -15,12 +15,14 @@ import { DANGEROUS_PROTOCOLS } from '../security/constants';
 import { sanitizeHtml } from '../security/sanitize';
 import type { BindingContext } from '../view/types';
 import { evaluateExpression } from './expression';
+import { cheapHash, collectDirectiveSignatureFromAttrs, HYDRATION_HASH_ATTR } from './hash';
 import {
-  cheapHash,
-  collectDirectiveSignatureFromAttrs,
-  HYDRATION_HASH_ATTR,
-} from './hash';
-import { cloneNode, parseTemplate, serializeTree, type SSRElement, type SSRNode } from './html-parser';
+  cloneNode,
+  parseTemplate,
+  serializeTree,
+  type SSRElement,
+  type SSRNode,
+} from './html-parser';
 
 const isUnsafeUrlAttribute = (name: string): boolean => {
   const n = name.toLowerCase();
@@ -136,11 +138,7 @@ const setHtml = (el: SSRElement, raw: string): void => {
   el.children = fragment.children;
 };
 
-const evaluateChildren = (
-  parent: SSRElement,
-  context: BindingContext,
-  opts: RenderOpts
-): void => {
+const evaluateChildren = (parent: SSRElement, context: BindingContext, opts: RenderOpts): void => {
   const out: SSRNode[] = [];
   for (const child of parent.children) {
     if (child.type !== 'element') {
@@ -243,7 +241,10 @@ const evaluateElement = (
       for (const pair of pairs) {
         const colon = pair.indexOf(':');
         if (colon < 0) continue;
-        const name = pair.slice(0, colon).trim().replace(/^['"]|['"]$/g, '');
+        const name = pair
+          .slice(0, colon)
+          .trim()
+          .replace(/^['"]|['"]$/g, '');
         const cond = evaluateExpression<unknown>(pair.slice(colon + 1), context);
         if (cond) setClass(el, name);
       }

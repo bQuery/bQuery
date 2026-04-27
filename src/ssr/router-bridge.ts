@@ -24,9 +24,10 @@ import type { SSRContext } from './context';
  * `RouteDefinition` and `runRouteLoaders()` will invoke it with the matched
  * route + the active SSR context.
  */
-export type SSRRouteLoader<T = unknown> = (
-  args: { route: Route; ctx: SSRContext }
-) => T | Promise<T>;
+export type SSRRouteLoader<T = unknown> = (args: {
+  route: Route;
+  ctx: SSRContext;
+}) => T | Promise<T>;
 
 const getLoader = (route: RouteDefinition | null): SSRRouteLoader | undefined => {
   if (!route || !route.meta) return undefined;
@@ -71,7 +72,8 @@ export const resolveSSRRoute = (options: {
   /** Strip a base path before matching. Default: `''`. */
   base?: string;
 }): ResolvedSSRRoute => {
-  const url = typeof options.url === 'string' ? new URL(options.url, 'http://localhost/') : options.url;
+  const url =
+    typeof options.url === 'string' ? new URL(options.url, 'http://localhost/') : options.url;
   const base = options.base ?? '';
   let pathname = url.pathname;
   if (base && pathname.startsWith(base)) pathname = pathname.slice(base.length) || '/';
@@ -86,7 +88,8 @@ export const resolveSSRRoute = (options: {
   };
   const matched = result !== null;
   const matchedDef = result?.matched ?? null;
-  const isRedirect = !!matchedDef && 'redirectTo' in matchedDef && typeof matchedDef.redirectTo === 'string';
+  const isRedirect =
+    !!matchedDef && 'redirectTo' in matchedDef && typeof matchedDef.redirectTo === 'string';
   return {
     route,
     matched,
@@ -141,10 +144,12 @@ export const createSSRRouterContext = async (options: {
   data: unknown;
   bindings: Record<string, unknown>;
 }> => {
-  const resolved = resolveSSRRoute({ url: options.url, routes: options.routes, base: options.base });
-  const data = resolved.matched
-    ? await runRouteLoaders(resolved.route, options.ctx)
-    : undefined;
+  const resolved = resolveSSRRoute({
+    url: options.url,
+    routes: options.routes,
+    base: options.base,
+  });
+  const data = resolved.matched ? await runRouteLoaders(resolved.route, options.ctx) : undefined;
   return {
     route: resolved.route,
     matched: resolved.matched,

@@ -102,7 +102,8 @@ interface ParseState {
   pos: number;
 }
 
-const isWs = (ch: string): boolean => ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f';
+const isWs = (ch: string): boolean =>
+  ch === ' ' || ch === '\t' || ch === '\n' || ch === '\r' || ch === '\f';
 
 const skipWs = (s: ParseState): void => {
   while (s.pos < s.src.length && isWs(s.src[s.pos])) s.pos++;
@@ -323,8 +324,7 @@ export const parseTemplate = (template: string): SSRDocumentFragment => {
 const escapeText = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const escapeAttr = (value: string): string =>
-  value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+const escapeAttr = (value: string): string => value.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
 
 /** Serialises a virtual node tree to an HTML string. */
 export const serializeTree = (node: SSRNode): string => {

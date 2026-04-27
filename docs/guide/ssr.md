@@ -366,9 +366,9 @@ The pure renderer is CSP-safe: it never calls `eval` or `new Function()` and par
 ```ts
 import { detectRuntime, isServerRuntime, getSSRRuntimeFeatures } from '@bquery/bquery/ssr';
 
-detectRuntime();          // 'bun' | 'deno' | 'node' | 'browser' | 'workerd' | 'unknown'
-isServerRuntime();        // true on Bun/Deno/Node/workerd
-getSSRRuntimeFeatures();  // { fetchApi, webStreams, textEncoder, subtleCrypto, randomUuid, domParser }
+detectRuntime(); // 'bun' | 'deno' | 'node' | 'browser' | 'workerd' | 'unknown'
+isServerRuntime(); // true on Bun/Deno/Node/workerd
+getSSRRuntimeFeatures(); // { fetchApi, webStreams, textEncoder, subtleCrypto, randomUuid, domParser }
 ```
 
 ### Async render with SSR context
@@ -379,10 +379,17 @@ import { createSSRContext, renderToStringAsync, defer } from '@bquery/bquery/ssr
 const ctx = createSSRContext({ request });
 
 // Loader-style data — Promises in the context are awaited automatically.
-const result = await renderToStringAsync(template, {
-  user: defer(fetch('/api/user').then((r) => r.json()), { name: 'Guest' }),
-  posts: fetchPosts(),
-}, { context: ctx });
+const result = await renderToStringAsync(
+  template,
+  {
+    user: defer(
+      fetch('/api/user').then((r) => r.json()),
+      { name: 'Guest' }
+    ),
+    posts: fetchPosts(),
+  },
+  { context: ctx }
+);
 
 console.log(result.html);
 console.log(result.headHtml);
@@ -509,3 +516,107 @@ const wrapped = createSSRHandler(handler);
 ### Backwards compatibility
 
 `renderToString()`, `hydrateMount()`, `serializeStoreState()`, `deserializeStoreState()`, `hydrateStore()` and `hydrateStores()` keep their previous signatures and behaviour. The DOM-free renderer is only used as a fallback when the legacy `DOMParser`-based pipeline cannot run, or when `configureSSR({ backend: 'pure' })` is set explicitly.
+
+## Hydration mismatch dev-warnings
+
+Set `annotateHydration: true` on `renderToString()` / `renderToStringAsync()` / `renderToResponse()` to emit a small `data-bq-h="<hash>"` attribute on every element that carries a `bq-*` directive. On the client, call `verifyHydration()` after hydration to compare the recorded hash against a hash recomputed from the live DOM.
+
+```ts
+import { renderToString, verifyHydration } from '@bquery/bquery/ssr';
+
+// Server
+const { html } = renderToString(template, data, { annotateHydration: true });
+
+// Client (dev only)
+import { hydrateMount } from '@bquery/bquery/ssr';
+hydrateMount('#app', data);
+if (process.env.NODE_ENV !== 'production') {
+  verifyHydration(document.getElementById('app')!);
+}
+```
+
+`verifyHydration()` returns the list of `HydrationMismatch` entries and emits a `console.warn` for each by default (gated by `NODE_ENV`). Pass `{ warn: false, onMismatch }` for full control. The check is collision-tolerant — false positives are impossible, only false negatives.
+
+## Suspense out-of-order streaming
+
+`renderToStreamSuspense()` flushes the synchronous shell first (with each `defer(...)` value's fallback), then streams `<template id="bq-r-N">…</template>` + a tiny CSP-nonce-aware patch script per resolved promise. Add `bq-defer="key"` on the wrapping element to mark where each placeholder should be installed; without a marker the patches append at the end of `<body>`.
+
+```ts
+import { defer, renderToStreamSuspense } from '@bquery/bquery/ssr';
+
+const stream = renderToStreamSuspense(template, {
+  user: defer(loadUser(), { loading: true }), // fallback while pending
+});
+
+return new Response(stream, { headers: { 'content-type': 'text/html' } });
+```
+
+Honours `SSRContext.signal` for cancellation, escapes the resolved value, and reports loader errors via `SSRContext.onError` without aborting the stream.
+
+## Router ↔ SSR bridge
+
+Match URLs against your route table without instantiating a full router. Loaders attached as `meta.loader` run automatically when you use `createSSRRouterContext()`.
+
+```ts
+import {
+  createSSRContext,
+  createSSRRouterContext,
+  renderToResponse,
+} from '@bquery/bquery/ssr';
+
+const ctx = createSSRContext({ request });
+const router = await createSSRRouterContext({ url: ctx.url, routes, ctx });
+
+if (router.isRedirect) return Response.redirect(router.redirectTo!, 302);
+if (!router.matched) return new Response('Not Found', { status: 404 });
+
+return renderToResponse(template, { ...router.bindings }, { context: ctx });
+```
+
+`resolveSSRRoute()` and `runRouteLoaders()` are also exported for finer-grained control. Loaders receive `{ route, ctx }` and may return any JSON-serialisable value.
+
+## Versioned store snapshots
+
+`serializeStoreSnapshot({ version, storeIds?, nonce? })` produces `{ snapshot, json, scriptTag }` — a versioned snapshot of every (or a subset of) registered stores, ready to embed via the `scriptTag`. On the client, `hydrateStoreSnapshot(snapshot, { expectedVersion, strict })` skips the apply step on version mismatch and warns on unknown store IDs in strict mode. The simple `serializeStoreState()` / `hydrateStore()` pair stays available for cases that don't need versioning.
+
+```ts
+// Server
+const { scriptTag } = serializeStoreSnapshot({ version: '1.0.0', nonce: ctx.nonce });
+
+// Client
+import { hydrateStoreSnapshot, readStoreSnapshot } from '@bquery/bquery/ssr';
+const snapshot = readStoreSnapshot();
+if (snapshot) hydrateStoreSnapshot(snapshot, { expectedVersion: '1.0.0', strict: true });
+```
+
+## Resumability hooks
+
+`createResumableState()` is a tiny key/value collector for JSON-serialisable values that the server wants the client to read back without re-running the producer. The output is a CSP-nonce-aware `<script>` tag that publishes the snapshot on `window.__BQUERY_RESUME__`. `resumeState()` reads it back and cleans up.
+
+```ts
+// Server
+import { createResumableState } from '@bquery/bquery/ssr';
+const resume = createResumableState();
+resume.set('user', user);
+resume.set('preferences', prefs);
+const tag = resume.render({ nonce: ctx.nonce });
+
+// Client
+import { resumeState } from '@bquery/bquery/ssr';
+const { get, hasSnapshot } = resumeState();
+if (hasSnapshot) {
+  const user = get<User>('user');
+}
+```
+
+## Cross-runtime examples
+
+Three minimal SSR servers — one per runtime — live in [`examples/`](https://github.com/bQuery/bQuery/tree/main/examples). All three share `examples/shared/app.ts` and serve <http://localhost:3000/>:
+
+| Runtime | Folder         | Run                                                     |
+| ------- | -------------- | ------------------------------------------------------- |
+| Bun     | `ssr-bun/`     | `bun examples/ssr-bun/serve.ts`                         |
+| Deno    | `ssr-deno/`    | `deno run -A examples/ssr-deno/serve.ts`                |
+| Node    | `ssr-node/`    | `node --experimental-strip-types examples/ssr-node/serve.ts` |
+
+The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.3 and Deno 2 to guard the runtime-agnostic surface.

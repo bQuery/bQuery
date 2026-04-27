@@ -140,10 +140,9 @@ describe('renderToStreamSuspense', () => {
   });
 
   it('appends a placeholder when no bq-defer marker is present', async () => {
-    const stream = renderToStreamSuspense(
-      '<main><h1>Hello</h1></main>',
-      { later: defer(Promise.resolve('boom'), undefined) }
-    );
+    const stream = renderToStreamSuspense('<main><h1>Hello</h1></main>', {
+      later: defer(Promise.resolve('boom'), undefined),
+    });
     const out = await collectStream(stream);
     expect(out).toContain('<bq-slot id="bq-s-0">');
     expect(out).toContain('<template id="bq-r-0">boom</template>');
@@ -182,15 +181,14 @@ describe('renderToStreamSuspense', () => {
   });
 
   it('escapes HTML in resolved text fragments', async () => {
-    const stream = renderToStreamSuspense(
-      '<div></div>',
-      { x: defer(Promise.resolve('<script>alert(1)</script>')) }
-    );
+    const stream = renderToStreamSuspense('<div></div>', {
+      x: defer(Promise.resolve('<script>alert(1)</script>')),
+    });
     const out = await collectStream(stream);
     expect(out).toContain('&lt;script&gt;');
     // The ONLY <script> tag in the output should be the patch script, not the
     // injected payload.
-    const scriptMatches = out.match(/<script[^>]*>/g) ?? [];
+    const scriptMatches = out.match(/<script[^>]*>/gi) ?? [];
     expect(scriptMatches.length).toBe(1);
   });
 });
@@ -198,7 +196,15 @@ describe('renderToStreamSuspense', () => {
 describe('router-bridge', () => {
   const routes = [
     { path: '/', component: () => null },
-    { path: '/user/:id', component: () => null, meta: { loader: async ({ route }: { route: { params: Record<string, string> } }) => ({ id: route.params.id }) } },
+    {
+      path: '/user/:id',
+      component: () => null,
+      meta: {
+        loader: async ({ route }: { route: { params: Record<string, string> } }) => ({
+          id: route.params.id,
+        }),
+      },
+    },
     { path: '/old', redirectTo: '/new' },
   ];
 
@@ -243,7 +249,15 @@ describe('router-bridge', () => {
       params: {},
       query: {},
       hash: '',
-      matched: { path: '/x', component: () => null, meta: { loader: () => { throw new Error('nope'); } } },
+      matched: {
+        path: '/x',
+        component: () => null,
+        meta: {
+          loader: () => {
+            throw new Error('nope');
+          },
+        },
+      },
     };
     const data = await runRouteLoaders(r as never, ctx);
     expect(data).toBeUndefined();
@@ -265,7 +279,11 @@ describe('router-bridge', () => {
 
 describe('versioned store snapshots', () => {
   afterEach(() => {
-    try { destroyStore('counter'); } catch { /* ok */ }
+    try {
+      destroyStore('counter');
+    } catch {
+      /* ok */
+    }
   });
 
   it('serializeStoreSnapshot captures all registered store states with a version', () => {
@@ -307,7 +325,9 @@ describe('versioned store snapshots', () => {
   it('hydrateStoreSnapshot reports unknown ids in strict mode', () => {
     const original = console.warn;
     const calls: string[] = [];
-    console.warn = (...args: unknown[]) => { calls.push(args.map(String).join(' ')); };
+    console.warn = (...args: unknown[]) => {
+      calls.push(args.map(String).join(' '));
+    };
     try {
       const snap: SSRStoreSnapshot = { version: '1', state: { ghost: { x: 1 } } };
       const r = hydrateStoreSnapshot(snap, { strict: true });

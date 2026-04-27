@@ -116,9 +116,7 @@ export interface SSRRuntimeFeatures {
  */
 export const getSSRRuntimeFeatures = (): SSRRuntimeFeatures => {
   const g = safeGlobal();
-  const crypto = g.crypto as
-    | { subtle?: unknown; randomUUID?: () => string }
-    | undefined;
+  const crypto = g.crypto as { subtle?: unknown; randomUUID?: () => string } | undefined;
   return {
     fetchApi:
       typeof g.Request === 'function' &&

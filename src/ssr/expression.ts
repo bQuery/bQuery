@@ -42,12 +42,7 @@ const unwrap = (value: unknown): unknown => {
  * Tokenizer
  * ------------------------------------------------------------------------- */
 
-type TokenKind =
-  | 'number'
-  | 'string'
-  | 'ident'
-  | 'punct'
-  | 'eof';
+type TokenKind = 'number' | 'string' | 'ident' | 'punct' | 'eof';
 
 interface Token {
   kind: TokenKind;
@@ -55,18 +50,7 @@ interface Token {
   start: number;
 }
 
-const PUNCT_MULTI = [
-  '===',
-  '!==',
-  '==',
-  '!=',
-  '<=',
-  '>=',
-  '&&',
-  '||',
-  '??',
-  '?.',
-];
+const PUNCT_MULTI = ['===', '!==', '==', '!=', '<=', '>=', '&&', '||', '??', '?.'];
 
 const PUNCT_SINGLE = '+-*/%<>!?:,.()[]';
 
@@ -268,11 +252,11 @@ const applyBinary = (op: string, l: unknown, r: unknown): unknown => {
       // Intentional loose equality: the SSR expression grammar mirrors the
       // JavaScript operators users write in templates. `===` and `!==` are
       // available for strict comparisons.
-       
+
       return l == r;
     case '!=':
       // Intentional loose inequality (see `==` note above).
-       
+
       return l != r;
     case '===':
       return l === r;
@@ -456,10 +440,7 @@ const parsePrimary = (s: ParserState): unknown => {
  *
  * @internal
  */
-export const evaluateExpression = <T = unknown>(
-  expression: string,
-  context: BindingContext
-): T => {
+export const evaluateExpression = <T = unknown>(expression: string, context: BindingContext): T => {
   const trimmed = expression.trim();
   if (trimmed === '') return undefined as T;
 

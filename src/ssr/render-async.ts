@@ -102,7 +102,9 @@ export const renderToStringAsync = async (
 
   let storeScriptTag = '';
   if (options.includeStoreState) {
-    const storeIds = Array.isArray(options.includeStoreState) ? options.includeStoreState : undefined;
+    const storeIds = Array.isArray(options.includeStoreState)
+      ? options.includeStoreState
+      : undefined;
     const result = serializeStoreState({
       storeIds,
       scriptId: options.storeScriptId,
@@ -111,10 +113,7 @@ export const renderToStringAsync = async (
     storeScriptTag = result.scriptTag;
     if (context.nonce) {
       // Inject nonce into the script tag.
-      storeScriptTag = storeScriptTag.replace(
-        /^<script /,
-        `<script nonce="${context.nonce}" `
-      );
+      storeScriptTag = storeScriptTag.replace(/^<script /, `<script nonce="${context.nonce}" `);
     }
   }
 

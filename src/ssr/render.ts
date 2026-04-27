@@ -13,11 +13,7 @@ import { DANGEROUS_PROTOCOLS } from '../security/constants';
 import { sanitizeHtml } from '../security/sanitize';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
-import {
-  cheapHash,
-  collectDirectiveSignatureFromElement,
-  HYDRATION_HASH_ATTR,
-} from './hash';
+import { cheapHash, collectDirectiveSignatureFromElement, HYDRATION_HASH_ATTR } from './hash';
 import { renderTemplatePure } from './renderer';
 import type { RenderOptions, SSRResult } from './types';
 import { serializeStoreState } from './serialize';
@@ -219,9 +215,7 @@ const processSSRElement = (
 ): boolean => {
   // Capture directive signature *before* we mutate any directive attributes,
   // so the resulting hash matches what the DOM-free renderer would emit.
-  const signature = annotateHydration
-    ? collectDirectiveSignatureFromElement(el, prefix)
-    : '';
+  const signature = annotateHydration ? collectDirectiveSignatureFromElement(el, prefix) : '';
 
   // Handle bq-if: remove element if condition is falsy
   const ifExpr = el.getAttribute(`${prefix}-if`);

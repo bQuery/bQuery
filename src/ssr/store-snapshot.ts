@@ -38,11 +38,7 @@ const escapeForScript = (str: string): string =>
     .replace(/\u2029/g, '\\u2029');
 
 const escapeForHtmlAttribute = (str: string): string =>
-  str
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Versioned store snapshot. */
 export interface SSRStoreSnapshot {
@@ -91,7 +87,9 @@ export const serializeStoreSnapshot = (
   } = options;
 
   if (typeof version !== 'string' || version.length === 0) {
-    throw new Error('serializeStoreSnapshot: `version` is required and must be a non-empty string.');
+    throw new Error(
+      'serializeStoreSnapshot: `version` is required and must be a non-empty string.'
+    );
   }
   if (isPrototypePollutionKey(scriptId) || isPrototypePollutionKey(globalKey)) {
     throw new Error('serializeStoreSnapshot: invalid scriptId/globalKey.');
@@ -160,18 +158,13 @@ export const hydrateStoreSnapshot = (
 ): HydrateSnapshotResult => {
   if (!isStoreSnapshot(snapshot)) {
     if (options.strict) {
-      // eslint-disable-next-line no-console
       console.warn('[bQuery SSR] hydrateStoreSnapshot: snapshot has invalid shape.');
     }
     return { applied: false, reason: 'invalid-shape', appliedIds: [], unknownIds: [] };
   }
 
-  if (
-    typeof options.expectedVersion === 'string' &&
-    options.expectedVersion !== snapshot.version
-  ) {
+  if (typeof options.expectedVersion === 'string' && options.expectedVersion !== snapshot.version) {
     if (options.strict) {
-      // eslint-disable-next-line no-console
       console.warn(
         `[bQuery SSR] hydrateStoreSnapshot: version mismatch — server="${snapshot.version}" client="${options.expectedVersion}". Skipping.`
       );
@@ -188,7 +181,6 @@ export const hydrateStoreSnapshot = (
     if (!store || typeof store.$patch !== 'function') {
       unknownIds.push(id);
       if (options.strict) {
-        // eslint-disable-next-line no-console
         console.warn(
           `[bQuery SSR] hydrateStoreSnapshot: store "${id}" is not registered; skipping.`
         );

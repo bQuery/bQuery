@@ -28,7 +28,8 @@ interface DeferredLike<T = unknown> {
 }
 
 const isDeferredLike = (value: unknown): value is DeferredLike =>
-  typeof value === 'object' && value !== null &&
+  typeof value === 'object' &&
+  value !== null &&
   (value as Record<symbol, unknown>)[DEFER_BRAND] === true;
 
 const isReactive = (value: unknown): boolean => isSignal(value) || isComputed(value);
@@ -39,6 +40,19 @@ interface SuspenseSlot {
   key: string;
   promise: Promise<unknown>;
 }
+
+/**
+ * Whitelist regex for slot/template IDs. The IDs end up inside an inline
+ * `<script>` patch, and while `escapeScriptBody()` already protects against
+ * `</script>` injection, validating the prefix at the boundary is defense in
+ * depth. Allows ASCII letters, digits, `-` and `_`.
+ */
+const SAFE_ID_RE = /^[A-Za-z][\w-]*$/;
+
+const sanitizeSlotPrefix = (prefix: string, fallback: string): string => {
+  if (typeof prefix !== 'string' || !SAFE_ID_RE.test(prefix)) return fallback;
+  return prefix;
+};
 
 /**
  * Build a synchronous rendering context where every `defer(...)` value is
@@ -80,8 +94,7 @@ const splitDeferred = (
 const escapeHtml = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-const escapeAttr = (s: string): string =>
-  escapeHtml(s).replace(/"/g, '&quot;');
+const escapeAttr = (s: string): string => escapeHtml(s).replace(/"/g, '&quot;');
 
 const escapeScriptBody = (s: string): string =>
   s
@@ -189,8 +202,7 @@ const replaceSlotsInShell = (
   return out;
 };
 
-const escapeRegExp = (input: string): string =>
-  input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const escapeRegExp = (input: string): string => input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const getEncoder = (): TextEncoder => {
   if (typeof TextEncoder === 'undefined') {
@@ -217,10 +229,9 @@ export const renderToStreamSuspense = (
     throw new Error('bQuery SSR: ReadableStream is not available in this runtime.');
   }
   const encoder = getEncoder();
-  const ctx: SSRContext =
-    options.context ?? createSSRContext({ ...options, mode: 'stream' });
-  const slotIdPrefix = options.slotIdPrefix ?? 'bq-s';
-  const resolvedIdPrefix = `${slotIdPrefix.replace(/-s$/, '-r') || 'bq-r'}`;
+  const ctx: SSRContext = options.context ?? createSSRContext({ ...options, mode: 'stream' });
+  const slotIdPrefix = sanitizeSlotPrefix(options.slotIdPrefix ?? 'bq-s', 'bq-s');
+  const resolvedIdPrefix = sanitizeSlotPrefix(slotIdPrefix.replace(/-s$/, '-r') || 'bq-r', 'bq-r');
 
   return new ReadableStream<Uint8Array>({
     async start(controller) {

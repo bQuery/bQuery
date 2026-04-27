@@ -26,11 +26,7 @@ const escapeForScript = (str: string): string =>
     .replace(/\u2029/g, '\\u2029');
 
 const escapeForHtmlAttribute = (str: string): string =>
-  str
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+  str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 /** Server-side resumable state collector. */
 export interface ResumableState {
@@ -62,9 +58,7 @@ export interface CreateResumableStateOptions {
  * const tag = resume.render({ nonce: ctx.nonce });
  * ```
  */
-export const createResumableState = (
-  options: CreateResumableStateOptions = {}
-): ResumableState => {
+export const createResumableState = (options: CreateResumableStateOptions = {}): ResumableState => {
   const data: Record<string, unknown> = Object.create(null);
   if (options.initial) {
     for (const [k, v] of Object.entries(options.initial)) {
