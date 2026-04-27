@@ -11,6 +11,7 @@
  */
 
 import { generateNonce } from '../security/csp';
+import { isPrototypePollutionKey } from '../core/utils/object';
 import { createAssetManager, createHeadManager, type AssetManager, type HeadManager } from './head';
 
 /** Options for `createSSRContext()`. */
@@ -66,14 +67,14 @@ export interface SSRContext {
 }
 
 const parseCookies = (header: string): Record<string, string> => {
-  const out: Record<string, string> = {};
+  const out = Object.create(null) as Record<string, string>;
   if (!header) return out;
   for (const pair of header.split(/;\s*/)) {
     const idx = pair.indexOf('=');
     if (idx === -1) continue;
     const name = pair.slice(0, idx).trim();
     const value = pair.slice(idx + 1).trim();
-    if (!name) continue;
+    if (!name || isPrototypePollutionKey(name)) continue;
     try {
       out[name] = decodeURIComponent(value);
     } catch {

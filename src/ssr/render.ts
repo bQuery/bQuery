@@ -213,16 +213,22 @@ const processSSRElement = (
   doc: Document,
   annotateHydration = false
 ): boolean => {
-  // Capture directive signature *before* we mutate any directive attributes,
-  // so the resulting hash matches what the DOM-free renderer would emit.
-  const signature = annotateHydration ? collectDirectiveSignatureFromElement(el, prefix) : '';
-
   // Handle bq-for before other directives so each clone gets an item-scoped context.
   const forExpr = el.getAttribute(`${prefix}-for`);
+  const parsedFor = forExpr !== null ? parseForExpression(forExpr) : null;
+  if (forExpr !== null && !parsedFor) {
+    // Remove invalid directives before signature capture so hydration hashes
+    // match the DOM-free renderer's normalized output.
+    el.removeAttribute(`${prefix}-for`);
+  }
+
+  // Capture directive signature after normalizing invalid directives, but
+  // before mutating any still-effective directive attributes.
+  const signature = annotateHydration ? collectDirectiveSignatureFromElement(el, prefix) : '';
+
   if (forExpr !== null) {
-    const parsed = parseForExpression(forExpr);
-    if (parsed) {
-      const list = evaluateSSR<unknown[]>(parsed.listExpr, context);
+    if (parsedFor) {
+      const list = evaluateSSR<unknown[]>(parsedFor.listExpr, context);
       if (el.parentNode) {
         const parent = el.parentNode;
         if (!Array.isArray(list)) {
@@ -242,10 +248,10 @@ const processSSRElement = (
           // Create item context
           const itemContext: BindingContext = {
             ...context,
-            [parsed.itemName]: item,
+            [parsedFor.itemName]: item,
           };
-          if (parsed.indexName) {
-            itemContext[parsed.indexName] = i;
+          if (parsedFor.indexName) {
+            itemContext[parsedFor.indexName] = i;
           }
 
           // Recursively process the clone

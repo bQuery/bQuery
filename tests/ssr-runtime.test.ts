@@ -113,6 +113,46 @@ describe('configureSSR', () => {
     expect(result.html).not.toContain('template');
     expect(result.html).not.toContain('bq-for');
   });
+
+  it('strips invalid DOM-backend bq-for attributes like the pure renderer', () => {
+    configureSSR({ backend: 'dom' });
+    const result = renderToString('<ul><li bq-for="item items"><span>template</span></li></ul>', {});
+
+    expect(result.html).toContain('<ul><li><span>template</span></li></ul>');
+    expect(result.html).not.toContain('bq-for');
+  });
+
+  it('strips invalid DOM-backend bq-for attributes even when similarly named context data exists', () => {
+    configureSSR({ backend: 'dom' });
+    const result = renderToString('<ul><li bq-for="item items"><span>template</span></li></ul>', {
+      items: ['A', 'B'],
+    });
+
+    expect(result.html).toContain('<ul><li><span>template</span></li></ul>');
+    expect(result.html).not.toContain('bq-for');
+  });
+
+  it('normalizes invalid DOM-backend bq-for before hydration signature capture', () => {
+    configureSSR({ backend: 'dom' });
+    const invalid = renderToString(
+      '<ul><li bq-for="item items" bq-text="label"></li></ul>',
+      { items: ['A', 'B'], label: 'template' },
+      { annotateHydration: true }
+    );
+    const normalized = renderToString(
+      '<ul><li bq-text="label"></li></ul>',
+      { label: 'template' },
+      { annotateHydration: true }
+    );
+
+    const domHash = invalid.html.match(/\bdata-bq-h="([^"]+)"/)?.[1];
+    const normalizedHash = normalized.html.match(/\bdata-bq-h="([^"]+)"/)?.[1];
+
+    expect(domHash).toBeDefined();
+    expect(domHash).toBe(normalizedHash);
+    expect(invalid.html).not.toContain('bq-for');
+    expect(invalid.html).toContain('template');
+  });
 });
 
 describe('pure renderer (DOM-free)', () => {
@@ -233,6 +273,36 @@ describe('safe expression evaluator', () => {
     expect(result.html).toContain('<p');
   });
 
+  it('does not evaluate skipped optional-chain index expressions', () => {
+    configureSSR({ backend: 'pure' });
+    let calls = 0;
+    const result = renderToString('<p bq-text="user?.[trackKey()] ?? \'fallback\'"></p>', {
+      user: undefined,
+      trackKey() {
+        calls++;
+        return 'name';
+      },
+    });
+
+    expect(result.html).toContain('fallback');
+    expect(calls).toBe(0);
+  });
+
+  it('does not evaluate skipped optional-chain call arguments', () => {
+    configureSSR({ backend: 'pure' });
+    let calls = 0;
+    const result = renderToString('<p bq-text="user?.format(trackArg()) ?? \'fallback\'"></p>', {
+      user: undefined,
+      trackArg() {
+        calls++;
+        return 'Ada';
+      },
+    });
+
+    expect(result.html).toContain('fallback');
+    expect(calls).toBe(0);
+  });
+
   it('supports null coalescing', () => {
     configureSSR({ backend: 'pure' });
     const result = renderToString('<p bq-text="value ?? \'default\'"></p>', { value: null });
@@ -275,6 +345,21 @@ describe('SSRContext', () => {
     expect(ctx.locale).toBe('de-DE');
     expect(ctx.userAgent).toBe('TestBot/1.0');
     expect(ctx.url.pathname).toBe('/page');
+  });
+
+  it('ignores prototype-polluting cookie names', () => {
+    const request = new Request('http://example.com/page', {
+      headers: {
+        cookie: 'sid=abc; __proto__=polluted; constructor=bad; prototype=oops',
+      },
+    });
+    const ctx = createSSRContext({ request });
+
+    expect(ctx.cookies.sid).toBe('abc');
+    expect(Object.keys(ctx.cookies)).toEqual(['sid']);
+    for (const key of ['__proto__', 'constructor', 'prototype']) {
+      expect(Object.prototype.hasOwnProperty.call(ctx.cookies, key)).toBe(false);
+    }
   });
 
   it('generates a CSP nonce', () => {

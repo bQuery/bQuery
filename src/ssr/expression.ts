@@ -178,6 +178,76 @@ const matchPunct = (s: ParserState, value: string): boolean => {
   return false;
 };
 
+const skipBalancedGroup = (s: ParserState, open: '(' | '[', close: ')' | ']'): void => {
+  expectPunct(s, open);
+  const stack: Array<'(' | '['> = [open];
+  while (stack.length > 0) {
+    const t = advance(s);
+    if (!t || t.kind === 'eof') {
+      throw new Error(`Unterminated "${open}${close}" group in SSR expression`);
+    }
+    if (t.kind !== 'punct') continue;
+    if (t.value === '(' || t.value === '[') {
+      stack.push(t.value);
+      continue;
+    }
+    if (t.value === ')' || t.value === ']') {
+      const current = stack[stack.length - 1];
+      const expected = current === '(' ? ')' : ']';
+      if (t.value !== expected) {
+        throw new Error(`Mismatched "${current}${expected}" group in SSR expression`);
+      }
+      stack.pop();
+    }
+  }
+};
+
+const skipShortCircuitedChainTarget = (s: ParserState): void => {
+  const next = peek(s);
+  if (next.kind === 'punct' && next.value === '[') {
+    skipBalancedGroup(s, '[', ']');
+    return;
+  }
+  if (next.kind === 'punct' && next.value === '(') {
+    skipBalancedGroup(s, '(', ')');
+    return;
+  }
+  if (next.kind === 'ident') {
+    s.pos++;
+    return;
+  }
+  throw new Error('Invalid optional chain in SSR expression');
+};
+
+const skipShortCircuitedChainRemainder = (s: ParserState): void => {
+  while (true) {
+    const t = peek(s);
+    if (t.kind !== 'punct') break;
+    if (t.value === '.') {
+      s.pos++;
+      const id = advance(s);
+      if (id.kind !== 'ident') {
+        throw new Error('Expected identifier after "."');
+      }
+      continue;
+    }
+    if (t.value === '[') {
+      skipBalancedGroup(s, '[', ']');
+      continue;
+    }
+    if (t.value === '(') {
+      skipBalancedGroup(s, '(', ')');
+      continue;
+    }
+    if (t.value === '?.') {
+      s.pos++;
+      skipShortCircuitedChainTarget(s);
+      continue;
+    }
+    break;
+  }
+};
+
 const lookupIdent = (s: ParserState, name: string): unknown => {
   if (name === 'true') return true;
   if (name === 'false') return false;
@@ -334,25 +404,8 @@ const parsePostfix = (s: ParserState): unknown => {
     if (t.value === '?.') {
       s.pos++;
       if (value == null) {
-        // Skip the rest of this chain step but still consume tokens.
-        const next = peek(s);
-        if (next.kind === 'punct' && next.value === '[') {
-          // Skip [...]
-          s.pos++;
-          parseExpression(s, 0);
-          expectPunct(s, ']');
-        } else if (next.kind === 'punct' && next.value === '(') {
-          s.pos++;
-          while (!matchPunct(s, ')')) {
-            parseExpression(s, 0);
-            if (!matchPunct(s, ',')) {
-              expectPunct(s, ')');
-              break;
-            }
-          }
-        } else if (next.kind === 'ident') {
-          s.pos++;
-        }
+        skipShortCircuitedChainTarget(s);
+        skipShortCircuitedChainRemainder(s);
         value = undefined;
         thisArg = undefined;
         continue;
