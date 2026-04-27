@@ -217,6 +217,60 @@ const processSSRElement = (
   // so the resulting hash matches what the DOM-free renderer would emit.
   const signature = annotateHydration ? collectDirectiveSignatureFromElement(el, prefix) : '';
 
+  // Handle bq-for before other directives so each clone gets an item-scoped context.
+  const forExpr = el.getAttribute(`${prefix}-for`);
+  if (forExpr !== null) {
+    const parsed = parseForExpression(forExpr);
+    if (parsed) {
+      const list = evaluateSSR<unknown[]>(parsed.listExpr, context);
+      if (el.parentNode) {
+        const parent = el.parentNode;
+        if (!Array.isArray(list)) {
+          parent.removeChild(el);
+          return true;
+        }
+
+        for (let i = 0; i < list.length; i++) {
+          const item = list[i];
+          const clone = el.cloneNode(true) as Element;
+
+          // Remove the bq-for attribute from clones
+          clone.removeAttribute(`${prefix}-for`);
+          clone.removeAttribute(':key');
+          clone.removeAttribute(`${prefix}-key`);
+
+          // Create item context
+          const itemContext: BindingContext = {
+            ...context,
+            [parsed.itemName]: item,
+          };
+          if (parsed.indexName) {
+            itemContext[parsed.indexName] = i;
+          }
+
+          // Recursively process the clone
+          const shouldRenderClone = processSSRElement(
+            clone,
+            itemContext,
+            prefix,
+            doc,
+            annotateHydration
+          );
+          if (!shouldRenderClone) {
+            continue;
+          }
+          processSSRChildren(clone, itemContext, prefix, doc, annotateHydration);
+
+          parent.insertBefore(clone, el);
+        }
+
+        // Remove the original template element
+        parent.removeChild(el);
+        return true; // Already handled children
+      }
+    }
+  }
+
   // Handle bq-if: remove element if condition is falsy
   const ifExpr = el.getAttribute(`${prefix}-if`);
   if (ifExpr !== null) {
@@ -315,46 +369,6 @@ const processSSRElement = (
         el.setAttribute(attrName, '');
       } else {
         el.setAttribute(attrName, String(value));
-      }
-    }
-  }
-
-  // Handle bq-for: list rendering
-  const forExpr = el.getAttribute(`${prefix}-for`);
-  if (forExpr !== null) {
-    const parsed = parseForExpression(forExpr);
-    if (parsed) {
-      const list = evaluateSSR<unknown[]>(parsed.listExpr, context);
-      if (Array.isArray(list) && el.parentNode) {
-        const parent = el.parentNode;
-        for (let i = 0; i < list.length; i++) {
-          const item = list[i];
-          const clone = el.cloneNode(true) as Element;
-
-          // Remove the bq-for attribute from clones
-          clone.removeAttribute(`${prefix}-for`);
-          clone.removeAttribute(':key');
-          clone.removeAttribute(`${prefix}-key`);
-
-          // Create item context
-          const itemContext: BindingContext = {
-            ...context,
-            [parsed.itemName]: item,
-          };
-          if (parsed.indexName) {
-            itemContext[parsed.indexName] = i;
-          }
-
-          // Recursively process the clone
-          processSSRElement(clone, itemContext, prefix, doc, annotateHydration);
-          processSSRChildren(clone, itemContext, prefix, doc, annotateHydration);
-
-          parent.insertBefore(clone, el);
-        }
-
-        // Remove the original template element
-        parent.removeChild(el);
-        return true; // Already handled children
       }
     }
   }

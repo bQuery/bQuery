@@ -86,6 +86,33 @@ describe('configureSSR', () => {
     const result = renderToString('<div bq-text="msg"></div>', { msg: 'custom' });
     expect(result.html).toContain('custom');
   });
+
+  it('skips DOM-backend bq-for clones when clone directives remove them', () => {
+    configureSSR({ backend: 'dom' });
+    const result = renderToString(
+      '<ul><li bq-for="(item, index) in items" bq-if="item"><span bq-text="index"></span></li></ul>',
+      { items: [true, false, true] },
+      { stripDirectives: true }
+    );
+
+    expect(result.html).toContain('0');
+    expect(result.html).toContain('2');
+    expect(result.html).not.toContain('1');
+    expect(result.html).not.toContain('bq-if');
+  });
+
+  it('renders zero DOM-backend bq-for items when the list is not an array', () => {
+    configureSSR({ backend: 'dom' });
+    const result = renderToString(
+      '<ul><li bq-for="item in missingItems"><span>template</span></li></ul>',
+      {},
+      { stripDirectives: true }
+    );
+
+    expect(result.html).toContain('<ul></ul>');
+    expect(result.html).not.toContain('template');
+    expect(result.html).not.toContain('bq-for');
+  });
 });
 
 describe('pure renderer (DOM-free)', () => {
