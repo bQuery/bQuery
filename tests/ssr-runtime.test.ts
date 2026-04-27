@@ -466,9 +466,9 @@ describe('runtime adapters', () => {
           | ((chunk: Uint8Array | string) => void)
           | (() => void)
           | ((err: unknown) => void)
-      ) {
+      ): NodeIncomingMessage {
         /* no-op */
-        return this;
+        return this as NodeIncomingMessage;
       },
     };
     const wrapped = createNodeHandler(async (request) => {
@@ -506,14 +506,14 @@ describe('runtime adapters', () => {
           | ((chunk: Uint8Array | string) => void)
           | (() => void)
           | ((err: unknown) => void)
-      ) {
+      ): NodeIncomingMessage {
         if (event === 'data') {
           (listener as (chunk: string) => void)('{"ok":true}');
         }
         if (event === 'end') {
           (listener as () => void)();
         }
-        return this;
+        return this as NodeIncomingMessage;
       },
     };
     const wrapped = createNodeHandler(async (request) => {

@@ -124,10 +124,9 @@ const buildRequestFromNode = async (req: NodeIncomingMessage): Promise<Request> 
     }
   }
 
-  const method = req.method ?? 'GET';
-  const upperMethod = method.toUpperCase();
+  const upperMethod = (req.method ?? 'GET').toUpperCase();
   const init: RequestInit = {
-    method,
+    method: upperMethod,
     headers,
   };
 

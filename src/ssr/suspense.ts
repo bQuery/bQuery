@@ -375,6 +375,9 @@ export const renderToStreamSuspense = (
           );
           const settled = await Promise.race(racers);
           const settledIndex = pending.indexOf(settled.entry);
+          // Defensive only: settled entries are expected to remain pending
+          // until removed here, but ignore stale races if a runtime schedules
+          // already-settled callbacks in an unexpected order.
           if (settledIndex === -1) continue;
           const { slot } = pending.splice(settledIndex, 1)[0];
           const resolvedId = `${resolvedIdPrefix}-${slot.id.split('-').pop()}`;
