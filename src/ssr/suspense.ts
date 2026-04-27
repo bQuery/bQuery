@@ -378,7 +378,7 @@ export const renderToStreamSuspense = (
             {
               index,
               slot,
-          settled: slot.promise.then<SettledSuspenseSlot, SettledSuspenseSlot>(
+              settled: slot.promise.then<SettledSuspenseSlot, SettledSuspenseSlot>(
                 (value) => ({ index, slot, ok: true, value }),
                 (error) => ({ index, slot, ok: false, error })
               ),
