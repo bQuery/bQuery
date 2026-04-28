@@ -128,8 +128,15 @@ const escapeScriptBody = (s: string): string =>
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 
-/** Options for `renderToStreamSuspense`. */
-export interface SuspenseStreamOptions extends AsyncRenderOptions {
+/**
+ * Options for `renderToStreamSuspense`.
+ *
+ * Only `context`, `prefix`, `stripDirectives`, and `annotateHydration` are
+ * inherited from the base async render options. Head/store injection and other
+ * response-shaping options are intentionally unsupported here.
+ */
+export interface SuspenseStreamOptions
+  extends Pick<AsyncRenderOptions, 'context' | 'prefix' | 'stripDirectives' | 'annotateHydration'> {
   /**
    * Prefix used for slot/template IDs. Default: `'bq-s'` for placeholders
    * and `'bq-r'` for resolved templates.

@@ -20,7 +20,10 @@ import {
   serializeStoreSnapshot,
   verifyHydration,
   type SSRStoreSnapshot,
+  type SuspenseStreamOptions,
 } from '../src/ssr/index';
+
+const expectType = <T>(_value: T): void => {};
 
 const collectStream = async (stream: ReadableStream<Uint8Array>): Promise<string> => {
   const reader = stream.getReader();
@@ -188,6 +191,24 @@ describe('hydration mismatch detection', () => {
 });
 
 describe('renderToStreamSuspense', () => {
+  it('accepts only the supported suspense stream options at compile time', () => {
+    expectType<SuspenseStreamOptions>({
+      context: createSSRContext(),
+      prefix: 'bq',
+      stripDirectives: true,
+      annotateHydration: true,
+      slotIdPrefix: 'slot',
+      slotTag: 'x-slot',
+    });
+
+    // @ts-expect-error renderToStreamSuspense does not support async head injection options
+    expectType<SuspenseStreamOptions>({ injectHead: false });
+    // @ts-expect-error renderToStreamSuspense does not support store serialization options
+    expectType<SuspenseStreamOptions>({ storeScriptId: 'bq-store' });
+    // @ts-expect-error renderToStreamSuspense does not support store serialization options
+    expectType<SuspenseStreamOptions>({ storeGlobalKey: '__BQUERY_STORE__' });
+  });
+
   it('flushes the synchronous shell with the deferred fallback first', async () => {
     let resolve!: (v: string) => void;
     const promise = new Promise<string>((r) => (resolve = r));
