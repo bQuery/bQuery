@@ -75,6 +75,8 @@ app.get('/dashboard', (ctx) =>
 
 `ctx.render()` appends serialized store state when `includeStoreState` is enabled, so the response can be sent directly to the client.
 
+`ctx.render()` uses the existing SSR `renderToString()` implementation. If your backend runtime does not provide a global `DOMParser` (for example plain Node.js without a DOM-compatible layer), install and register a compatible implementation such as `happy-dom` before calling SSR helpers.
+
 ---
 
 ## Security defaults

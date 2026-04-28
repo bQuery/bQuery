@@ -5,7 +5,7 @@ import type { BindingContext } from '../view/index';
  * Repeated query parameters are represented as arrays.
  */
 export interface ServerQuery {
-  [key: string]: string | string[];
+  [key: string]: string | string[] | undefined;
 }
 
 /**

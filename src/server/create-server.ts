@@ -107,7 +107,16 @@ const normalizeMethods = (method?: string | string[]): Set<string> | null => {
     throw new Error('route method must be specified - received empty array');
   }
 
-  return new Set(values.map((value) => value.trim().toUpperCase()).filter(Boolean));
+  const normalizedMethods = new Set(
+    values.map((value) => value.trim().toUpperCase()).filter(Boolean)
+  );
+  if (normalizedMethods.size === 0) {
+    throw new Error(
+      `route method must include at least one non-empty method string; received ${JSON.stringify(method)}`
+    );
+  }
+
+  return normalizedMethods;
 };
 
 const parseQuery = (url: URL): ServerQuery => {

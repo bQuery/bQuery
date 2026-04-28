@@ -5,7 +5,7 @@ import { createStore, destroyStore, listStores } from '../src/store/index';
 const SSR_TEST_STORE_ID = 'server-ssr-test';
 
 afterEach(() => {
-  if (listStores().some((store) => store.$id === SSR_TEST_STORE_ID)) {
+  if (listStores().includes(SSR_TEST_STORE_ID)) {
     destroyStore(SSR_TEST_STORE_ID);
   }
 });
@@ -149,6 +149,14 @@ describe('server/createServer', () => {
 
     expect(response.status).toBe(418);
     expect(await response.text()).toBe('teapot');
+  });
+
+  it('rejects routes whose configured methods normalize to an empty set', () => {
+    const app = createServer();
+
+    expect(() => app.add({ path: '/bad', method: '   ', handler: (ctx) => ctx.text('bad') })).toThrow(
+      'route method must include at least one non-empty method string'
+    );
   });
 
   it('escapes unsafe characters in json responses', async () => {
