@@ -222,7 +222,7 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **Plugin**      | Global plugin registration for custom directives and Web Components                                                                                                         |
 | **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
 | **Testing**     | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
-| **SSR**         | Server-side rendering, hydration, and store-state serialization                                                                                                             |
+| **SSR**         | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
 
 Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`.
 
@@ -807,6 +807,17 @@ fireEvent(mounted.el, 'click');
 
 const { html } = renderToString('<p bq-text="label"></p>', { label: 'Hello SSR' });
 console.log(html);
+
+// Runtime-agnostic async render with head injection (works on Node, Deno, Bun):
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+const ctx = createSSRContext({ request: new Request('http://localhost/') });
+ctx.head.add({ title: 'Home' });
+ctx.assets.module('/app.js');
+const response = await renderToResponse(
+  '<html><head></head><body><p bq-text="label"></p></body></html>',
+  { label: 'Hello' },
+  { context: ctx, etag: true }
+);
 
 mounted.unmount();
 ```

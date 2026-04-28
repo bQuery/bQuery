@@ -209,7 +209,7 @@ describe('renderToString', () => {
     expect(result.html).toContain('Custom');
   });
 
-  it('throws a clear error when DOMParser is unavailable', () => {
+  it('falls back to the DOM-free pure renderer when DOMParser is unavailable', () => {
     const originalDOMParser = globalThis.DOMParser;
 
     try {
@@ -219,7 +219,10 @@ describe('renderToString', () => {
         writable: true,
       });
 
-      expect(() => renderToString('<div></div>', {})).toThrow('DOMParser is not available');
+      const result = renderToString('<div><span bq-text="title"></span></div>', {
+        title: 'Pure',
+      });
+      expect(result.html).toContain('Pure');
     } finally {
       Object.defineProperty(globalThis, 'DOMParser', {
         value: originalDOMParser,
