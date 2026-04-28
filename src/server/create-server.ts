@@ -234,7 +234,7 @@ const runPipeline = async (
     return await current(context, async () => {
       if (advanced) {
         throw new Error(
-          'middleware next() called multiple times - each middleware must call next() exactly once'
+          'middleware next() called multiple times - if a middleware calls next(), it may only do so once'
         );
       }
       advanced = true;
@@ -284,7 +284,8 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
 
   const onError =
     options.onError ??
-    ((_: unknown, context: ServerContext) => {
+    ((error: unknown, context: ServerContext) => {
+      void error;
       return context.text('Internal Server Error', { status: 500 });
     });
 
