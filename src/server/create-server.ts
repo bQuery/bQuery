@@ -71,9 +71,12 @@ const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'pat
   const paramNames: string[] = [];
   let source = '^';
 
-  for (const segment of segments) {
+  for (const [index, segment] of segments.entries()) {
     source += '/';
     if (segment === '*') {
+      if (index !== segments.length - 1) {
+        throw new Error(`invalid route path: "*" must be the final segment in "${normalizedPath}"`);
+      }
       source += '.*';
       break;
     }
@@ -222,7 +225,14 @@ const matchRoute = (route: CompiledRoute, method: string, path: string): Record<
 
   const params: Record<string, string> = {};
   for (const [index, paramName] of route.paramNames.entries()) {
-    params[paramName] = decodeURIComponent(match[index + 1] ?? '');
+    try {
+      params[paramName] = decodeURIComponent(match[index + 1] ?? '');
+    } catch (error) {
+      if (error instanceof URIError) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   return params;

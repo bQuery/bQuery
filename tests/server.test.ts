@@ -159,6 +159,24 @@ describe('server/createServer', () => {
     );
   });
 
+  it('rejects wildcard route segments unless they are final', () => {
+    const app = createServer();
+
+    expect(() => app.get('/a/*/b', (ctx) => ctx.text('bad'))).toThrow(
+      'invalid route path: "*" must be the final segment'
+    );
+  });
+
+  it('treats malformed percent-encoded params as non-matches', async () => {
+    const app = createServer();
+    app.get('/users/:id', (ctx) => ctx.text(ctx.params.id));
+
+    const response = await app.handle('/users/%E0%A4%A');
+
+    expect(response.status).toBe(404);
+    expect(await response.text()).toBe('Not Found');
+  });
+
   it('escapes unsafe characters in json responses', async () => {
     const app = createServer();
     app.get('/json', (ctx) => ctx.json({ html: '<script>alert(1)</script>' }));
