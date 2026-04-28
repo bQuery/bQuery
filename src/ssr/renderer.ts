@@ -175,7 +175,8 @@ const evaluateElement = (
     const parsed = parseForExpression(forExpr);
     if (!parsed) {
       removeAttr(el, `${prefix}-for`);
-    } else {
+    }
+    if (parsed) {
       const list = evaluateExpression<unknown>(parsed.listExpr, context);
       if (!Array.isArray(list)) return null;
       const out: SSRNode[] = [];
