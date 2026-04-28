@@ -41,7 +41,7 @@ const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]
 
 const normalizePath = (path: string): string => {
   if (!path) {
-    throw new Error('route path must be a non-empty string');
+    throw new Error(`route path must be a non-empty string; received ${String(path)}`);
   }
 
   if (path === '*' || path === '/*') {
@@ -81,7 +81,9 @@ const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'pat
     if (segment.startsWith(':')) {
       const paramName = segment.slice(1);
       if (!/^[A-Za-z_$][\w$]*$/.test(paramName)) {
-        throw new Error(`invalid route param name: ${paramName}`);
+        throw new Error(
+          `invalid route param name: ${paramName} - must start with a letter, $, or _ and contain only word characters`
+        );
       }
       paramNames.push(paramName);
       source += '([^/]+)';
@@ -102,7 +104,7 @@ const normalizeMethods = (method?: string | string[]): Set<string> | null => {
 
   const values = Array.isArray(method) ? method : [method];
   if (values.length === 0) {
-    throw new Error('route method list must not be empty');
+    throw new Error('route method must be specified - received empty array');
   }
 
   return new Set(values.map((value) => value.trim().toUpperCase()).filter(Boolean));
@@ -231,7 +233,9 @@ const runPipeline = async (
     let advanced = false;
     return await current(context, async () => {
       if (advanced) {
-        throw new Error('next() called multiple times');
+        throw new Error(
+          'middleware next() called multiple times - each middleware must call next() exactly once'
+        );
       }
       advanced = true;
       return await dispatch(index + 1);
