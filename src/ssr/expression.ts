@@ -273,6 +273,7 @@ const skipPrimary = (s: ParserState): void => {
   throw new Error(`Unexpected token "${t.value}" in SSR expression`);
 };
 
+/** Skips a function-call argument list without evaluating any argument expressions. */
 const skipCall = (s: ParserState): void => {
   expectPunct(s, '(');
   if (!matchPunct(s, ')')) {
@@ -285,6 +286,7 @@ const skipCall = (s: ParserState): void => {
   }
 };
 
+/** Skips postfix chains such as member access, indexing, optional chaining, and calls. */
 const skipPostfix = (s: ParserState): void => {
   skipPrimary(s);
 
@@ -323,6 +325,7 @@ const skipPostfix = (s: ParserState): void => {
   }
 };
 
+/** Skips unary operators before delegating to the postfix-skipping parser path. */
 const skipUnary = (s: ParserState): void => {
   const t = peek(s);
   if (t.kind === 'punct' && (t.value === '!' || t.value === '-' || t.value === '+')) {
@@ -338,6 +341,7 @@ const skipUnary = (s: ParserState): void => {
   skipPostfix(s);
 };
 
+/** Skips a full expression subtree while preserving operator precedence and token position. */
 const skipExpression = (s: ParserState, minPrec = 0): void => {
   skipUnary(s);
 
