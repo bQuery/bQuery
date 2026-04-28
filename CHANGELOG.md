@@ -72,7 +72,7 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
-- No changes yet.
+- **Server**: Added `@bquery/bquery/server`, a lightweight Express-inspired backend entry point with dependency-free routing, middleware composition, route params, query parsing, safe JSON/HTML response helpers, redirects, and SSR-aware request rendering via `createServer()`.
 
 ### Changed (Unreleased)
 

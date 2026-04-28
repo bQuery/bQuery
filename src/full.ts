@@ -629,3 +629,22 @@ export type {
   SerializeResult,
   SSRResult,
 } from './ssr/index';
+
+// ---------------------------------------------------------------------------
+// Server module
+// ---------------------------------------------------------------------------
+export { createServer } from './server/index';
+export type {
+  CreateServerOptions,
+  ServerApp,
+  ServerContext,
+  ServerHandler,
+  ServerHtmlResponseInit,
+  ServerMiddleware,
+  ServerNext,
+  ServerQuery,
+  ServerRenderResponseOptions,
+  ServerRequestInit,
+  ServerResponseInit,
+  ServerRoute,
+} from './server/index';

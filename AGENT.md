@@ -67,7 +67,8 @@ src/
 ├── plugin/             # plugin registry for directives/components
 ├── devtools/           # runtime inspection and timeline helpers
 ├── testing/            # renderComponent(), mockSignal(), waitFor()
-└── ssr/                # renderToString(), hydrateMount(), store-state bridge
+├── ssr/                # renderToString(), hydrateMount(), store-state bridge
+└── server/             # createServer(), middleware, route params, SSR responses
 
 tests/                  # Bun test suites (one file per module)
 .storybook/            # Storybook config
@@ -349,6 +350,15 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 | `deserializeStoreState()`           | function  | Read serialized client bootstrap state   |
 | `hydrateStore()`, `hydrateStores()` | functions | Apply SSR state to one or many stores    |
 
+### Server (`@bquery/bquery/server`)
+
+| Export           | Kind      | Description                                                         |
+| ---------------- | --------- | ------------------------------------------------------------------- |
+| `createServer()` | function  | Create a lightweight Express-inspired backend app                   |
+| `ServerApp`      | interface | App-like handle with `use()`, method helpers, `add()`, and `handle()` |
+| `ServerContext`  | interface | Request context with params, query, state, and response helpers     |
+| `ServerRoute`    | interface | Route definition with `path`, optional `method`, middleware, handler |
+
 ### View (`@bquery/bquery/view`)
 
 | Export                   | Kind     | Description                           |
@@ -479,7 +489,7 @@ it('should add class', () => {
 | ------------------------------- | --------------------------------------------------------------------------------------- |
 | `src/index.ts`                  | Default entry point — re-exports all modules                                            |
 | `src/full.ts`                   | Full bundle with explicit named exports (CDN); keep in sync with public runtime exports |
-| `vite.config.ts`                | Library build config (22 entry points, ESM)                                             |
+| `vite.config.ts`                | Library build config (23 entry points, ESM)                                             |
 | `vite.umd.config.ts`            | UMD bundle config for CDN/script tags                                                   |
 | `tsconfig.json`                 | TypeScript config (strict, ES2020, Bundler)                                             |
 | `tsconfig.test.json`            | Test-specific TypeScript config                                                         |

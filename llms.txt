@@ -2,7 +2,7 @@
 
 > The jQuery for the modern Web Platform.
 
-bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), zero-build worker tasks, async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
+bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), zero-build worker tasks, async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, lightweight server middleware, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
 
 ## Package
 
@@ -86,6 +86,9 @@ Testing helpers. `renderComponent()` mounts custom elements, `flushEffects()` fl
 
 ### SSR (`@bquery/bquery/ssr`)
 Server-side rendering and hydration. `renderToString()` renders directive-aware templates to HTML strings. `hydrateMount()` attaches bindings to existing SSR markup. `serializeStoreState()`, `deserializeStoreState()`, `hydrateStore()`, and `hydrateStores()` bridge store state between server and client.
+
+### Server (`@bquery/bquery/server`)
+Express-inspired backend helpers. `createServer()` creates a dependency-free request pipeline with `use()`, `get()` / `post()` / `put()` / `patch()` / `delete()` / `all()`, route params, repeated-query parsing, safe `text()` / `html()` / `json()` helpers, redirects, and SSR-aware `render()` responses.
 
 ## Installation
 

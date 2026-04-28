@@ -109,3 +109,6 @@ export type {
 
 // SSR module: server-side rendering, hydration, store state serialization
 export * from './ssr/index';
+
+// Server module: lightweight backend routing and middleware helpers
+export * from './server/index';
