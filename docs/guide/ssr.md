@@ -513,7 +513,7 @@ const wrapped = createSSRHandler(handler);
 
 - The DOM-free renderer is fully CSP-safe (no `'unsafe-eval'` required).
 - `serializeStoreState()` keeps its `</script>`/Unicode-line-terminator escaping. With `renderToStringAsync()`/`renderToResponse()`, the generated `<script>` tag automatically receives the `nonce` from `SSRContext.nonce`.
-- `sanitizeHtml()` from `@bquery/bquery/security` is reused for `bq-html` interpolation on both backends.
+- `bq-html` interpolation is sanitized through SSR's internal `sanitizeHtmlForSSR()` path on both backends, so it stays consistent and works in DOM-less runtimes without relying on global `document` / `DOMParser`.
 - Inline event-handler attributes (`onclick=`, …) and `javascript:` URLs are stripped by both renderers.
 - Inline `<script>` bodies added through the head manager have `</script>`/`<!--` sequences and `\u2028`/`\u2029` line terminators escaped.
 
