@@ -1,14 +1,17 @@
 # SSR
 
-The SSR module renders bQuery templates to HTML strings on the server, serializes store state for transfer, and hydrates the client-side DOM back into a live reactive application.
+The SSR module renders bQuery templates to HTML strings, streams, or full `Response` objects on the server, serializes store state for transfer, and hydrates the client-side DOM back into a live reactive application.
 
 ```ts
 import {
+  createSSRContext,
   deserializeStoreState,
   hydrateMount,
   hydrateStore,
   hydrateStores,
+  renderToResponse,
   renderToString,
+  renderToStringAsync,
   serializeStoreState,
 } from '@bquery/bquery/ssr';
 ```
@@ -162,7 +165,7 @@ type SerializeResult = {
 };
 ```
 
-#### Example
+#### Example: read embedded state
 
 ```ts
 const { scriptTag, stateJson } = serializeStoreState({
@@ -205,7 +208,7 @@ function deserializeStoreState(globalKey?: string, scriptId?: string): Deseriali
 type DeserializedStoreState = Record<string, Record<string, unknown>>;
 ```
 
-#### Example
+#### Example: hydrate the root
 
 ```ts
 // On the client, after the page loads:
@@ -335,14 +338,14 @@ hydrateMount('#app', { title: 'Welcome' }, { hydrate: true });
 - Serialized script output escapes dangerous content to avoid XSS when embedding state into HTML.
 - `globalKey` can be customized when integrating with existing server frameworks (e.g., Express, Hono, Elysia).
 - Hydration reuses existing markup and attaches view bindings instead of replacing the DOM wholesale.
-- `renderToString` works in non-browser environments that provide a DOM-like API (e.g., `happy-dom`, `linkedom`).
+- `renderToString()` automatically falls back to the DOM-free renderer when no `DOMParser` is available; only explicitly forcing the DOM backend requires a custom DOM implementation such as `happy-dom` or `linkedom`.
 - Prototype-pollution keys (`__proto__`, `constructor`, `prototype`) are filtered during serialization.
 
 ---
 
 ## Runtime-Agnostic SSR (Bun, Deno, Node ≥ 24)
 
-The SSR module ships a **DOM-free renderer** that activates automatically when no `DOMParser` is available in the runtime. That makes the same `renderToString()`/`renderToStringAsync()`/`renderToStream()`/`renderToResponse()` calls work seamlessly on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 — without any external dependency, polyfill or build-time branching.
+The SSR module ships a **DOM-free renderer** that activates automatically when no `DOMParser` is available in the runtime. That makes the same `renderToString()`/`renderToStringAsync()`/`renderToStream()`/`renderToResponse()` calls work seamlessly on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 — without any external dependency, polyfill or build-time branching.
 
 ### Backend selection
 
@@ -612,12 +615,12 @@ if (hasSnapshot) {
 
 ## Cross-runtime examples
 
-Three minimal SSR servers — one per runtime — live in [`examples/`](https://github.com/bQuery/bQuery/tree/main/examples). All three share `examples/shared/app.ts` and serve <http://localhost:3000/>:
+Three minimal SSR servers — one per runtime — live in [`examples/`](https://github.com/bQuery/bQuery/tree/main/examples). All three share `examples/shared/app.ts` and serve `http://localhost:3000/`:
 
-| Runtime | Folder         | Run                                                     |
-| ------- | -------------- | ------------------------------------------------------- |
-| Bun     | `ssr-bun/`     | `bun examples/ssr-bun/serve.ts`                         |
-| Deno    | `ssr-deno/`    | `deno run -A examples/ssr-deno/serve.ts`                |
-| Node    | `ssr-node/`    | `node --experimental-strip-types examples/ssr-node/serve.ts` |
+| Runtime | Folder      | Run                                                          |
+| ------- | ----------- | ------------------------------------------------------------ |
+| Bun     | `ssr-bun/`  | `bun examples/ssr-bun/serve.ts`                              |
+| Deno    | `ssr-deno/` | `deno run -A examples/ssr-deno/serve.ts`                     |
+| Node    | `ssr-node/` | `node --experimental-strip-types examples/ssr-node/serve.ts` |
 
 The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.3 and Deno 2 to guard the runtime-agnostic surface.

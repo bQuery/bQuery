@@ -1,10 +1,6 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg" alt="bQuery.js Logo" width="120" />
-</p>
+# bQuery.js
 
-<h1 align="center">bQuery.js</h1>
-
-<p align="center">
+![bQuery.js Logo](https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg)
 
 [![Repo](https://img.shields.io/badge/github-bquery%2Fbquery-24292f?logo=github)](https://github.com/bQuery/bQuery)
 [![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/stargazers)
@@ -16,13 +12,11 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
 [![JsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
 
-</p>
-
 **The jQuery for the modern Web Platform.**
 
 bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, lightweight server middleware and WebSocket session routing, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
 
-> **New in 1.10.0:** The Concurrency module now adds explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
+> **New in 1.11.0:** Runtime-agnostic SSR now adds DOM-free fallback rendering, `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, hydration strategies, store snapshots, and resumability hooks, alongside the new `@bquery/bquery/server` entry point for dependency-free backend routing and WebSocket sessions.
 
 ## Highlights
 
@@ -901,10 +895,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
 
@@ -935,6 +929,8 @@ mount('#app', {
 
 ## Local Development
 
+The cross-runtime SSR examples in [`examples/`](examples/) import directly from `src/`, so you can run them from a repo checkout without building `dist/` first.
+
 ```bash
 # Install dependencies
 bun install
@@ -951,11 +947,19 @@ bun test
 # Build library
 bun run build
 
+# Verify AI guidance / release metadata sync
+bun run check:ai-guidance
+
 # Build docs
 bun run build:docs
 
 # Generate API documentation
 bun run docs:api
+
+# Run the cross-runtime SSR examples directly from source
+bun examples/ssr-bun/serve.ts
+deno run -A examples/ssr-deno/serve.ts
+node --experimental-strip-types examples/ssr-node/serve.ts
 ```
 
 ## Project Structure
@@ -965,6 +969,7 @@ bQuery.js
 ├── src/
 │   ├── core/       # Selectors, DOM ops, events, utils
 │   ├── reactive/   # Signals, computed, effects, async data
+│   ├── concurrency/ # Zero-build worker tasks, RPC, pools, collection helpers
 │   ├── component/  # Web Components helper + default library
 │   ├── storybook/  # Story template helpers
 │   ├── motion/     # View transitions, FLIP, springs
@@ -981,7 +986,8 @@ bQuery.js
 │   ├── plugin/     # Global plugin system
 │   ├── devtools/   # Runtime inspection helpers
 │   ├── testing/    # Test utilities
-│   └── ssr/        # Server-side rendering + hydration
+│   ├── ssr/        # Runtime-agnostic server-side rendering + hydration
+│   └── server/     # Backend helpers and WebSocket sessions
 ├── docs/           # VitePress documentation
 ├── .storybook/     # Storybook config
 ├── stories/        # Component stories
@@ -1000,6 +1006,7 @@ This project provides dedicated context files for AI coding agents:
 - **[AGENT.md](AGENT.md)** — Architecture, module API reference, coding conventions, common tasks
 - **[llms.txt](llms.txt)** — Compact LLM-optimized project summary
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — GitHub Copilot context
+- **`bun run check:ai-guidance`** — Lightweight sync check for version / engine / AI guidance drift
 
 ## License
 

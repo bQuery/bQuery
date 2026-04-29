@@ -58,7 +58,7 @@ Response helpers:
 - `ctx.html(body, init?)` — sanitizes by default
 - `ctx.json(data, init?)`
 - `ctx.redirect(location, status?)`
-- `ctx.render(template, data, options?)` — wraps `renderToString()`
+- `ctx.render(template, data, options?)` — wraps `renderToString()` with the same DOM-free fallback used by `@bquery/bquery/ssr`
 
 ---
 
@@ -145,7 +145,28 @@ app.get('/dashboard', (ctx) =>
 
 `ctx.render()` appends serialized store state when `includeStoreState` is enabled, so the response can be sent directly to the client.
 
-`ctx.render()` uses the existing SSR `renderToString()` implementation. If your backend runtime does not provide a global `DOMParser` (for example plain Node.js without a DOM-compatible layer), install and register a compatible implementation such as `happy-dom` before calling SSR helpers.
+`ctx.render()` uses the existing SSR `renderToString()` implementation and inherits its `1.11.0` DOM-free fallback. Plain Node.js ≥ 24, Deno, and Bun can therefore render without installing a DOM shim unless you explicitly force the DOM backend via `configureSSR({ backend: 'dom' })`.
+
+If you need head injection, asset management, caching headers, or ETag handling, pair `createServer()` with `renderToResponse()` directly:
+
+```ts
+import { createServer } from '@bquery/bquery/server';
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+
+const app = createServer();
+
+app.get('/', (ctx) => {
+  const ssr = createSSRContext({ request: ctx.request });
+  ssr.head.add({ title: 'Home' });
+  ssr.assets.module('/client.js');
+
+  return renderToResponse(
+    '<html><head></head><body><main><h1 bq-text="title"></h1></main></body></html>',
+    { title: 'Home' },
+    { context: ssr, etag: true, cacheControl: 'public, max-age=60' }
+  );
+});
+```
 
 ---
 
@@ -157,9 +178,9 @@ app.get('/dashboard', (ctx) =>
 
 If you already have trusted HTML and need to skip sanitization, pass `{ trusted: true }` to `ctx.html()`.
 
-Like SSR rendering, `ctx.html()` sanitization relies on DOM-compatible globals. If your Node runtime does not provide `document` / `DOMParser`, install and register a compatible implementation before returning sanitized HTML, or pass `{ trusted: true }` only when the HTML is already known to be safe.
+Unlike `ctx.render()`, `ctx.html()` sanitization still relies on DOM-compatible globals. If your Node runtime does not provide `document` / `DOMParser`, install and register a compatible implementation before returning sanitized HTML, or pass `{ trusted: true }` only when the HTML is already known to be safe.
 
-Register the DOM shim once during application startup before handling any requests that call `ctx.html()` without `{ trusted: true }` or use `ctx.render()`.
+Register the DOM shim once during application startup before handling any requests that call `ctx.html()` without `{ trusted: true }`.
 
 For example, install `happy-dom` separately (`bun add happy-dom` / `npm install happy-dom`) and register it like this, or use another compatible DOM implementation.
 

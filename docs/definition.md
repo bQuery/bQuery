@@ -1,4 +1,4 @@
-# bQuery.js — Framework Specification v1.0
+# bQuery.js — Framework Specification v1.11.0
 
 > _"The jQuery for the Modern Web Platform"_
 
@@ -8,7 +8,7 @@
 
 ### 1.1 Mission Statement
 
-bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offers modern features (reactivity, async data, HTTP clients, polling, pagination, realtime transports, REST helpers, components, motion, routing, stores, declarative views, forms, i18n, accessibility, media signals, plugins, testing, and SSR) with the simplicity and directness that made jQuery successful.
+bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offers modern features (reactivity, zero-build concurrency, async data, HTTP clients, polling, pagination, realtime transports, REST helpers, lightweight backend routing, runtime-agnostic SSR, components, motion, routing, stores, declarative views, forms, i18n, accessibility, media signals, plugins, testing, and WebSocket sessions) with the simplicity and directness that made jQuery successful.
 
 ### 1.2 Core Principles
 
@@ -39,6 +39,7 @@ bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offer
 bQuery.js
 ├── core/       (selectors, DOM ops, events, utils)
 ├── reactive/   (signals, computed, effects, async data/fetch, HTTP, polling, pagination, realtime)
+├── concurrency/ (zero-build worker tasks, RPC helpers, pools, collection pipelines)
 ├── component/  (custom elements, props, lifecycle, shadow DOM, defaults)
 ├── storybook/  (template helpers for Storybook web-component stories)
 ├── motion/     (view transitions, FLIP, springs)
@@ -55,7 +56,8 @@ bQuery.js
 ├── plugin/     (global plugin registration)
 ├── devtools/   (runtime inspection helpers)
 ├── testing/    (mounting and assertion helpers)
-└── ssr/        (server rendering and hydration)
+├── ssr/        (runtime-agnostic server rendering, streaming, hydration, adapters)
+└── server/     (dependency-free backend routing, middleware, WebSocket sessions)
 ```
 
 ### 2.2 Import Strategies
@@ -70,6 +72,8 @@ import { $ } from '@bquery/bquery/core';
 // À la carte
 import { $, $$ } from '@bquery/bquery/core';
 import { signal, computed } from '@bquery/bquery/reactive';
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
 ```
 
 ### 2.3 OOP Core Contracts
@@ -207,6 +211,26 @@ const events = useEventSource('/api/profile/events');
 - `computed<T>` is **pure and lazy**; no side-effects inside.
 - `effect` is **side-effect only**; no state writes unless wrapped in `batch`.
 - Transport helpers reuse the same signal-based lifecycle conventions (`data`, `error`, `status`, `pending`) as `useAsyncData()`.
+
+### 3.2.2 Concurrency Module (`@concurrency`)
+
+```ts
+import { createTaskPool, parallel, pipeline } from '@bquery/bquery/concurrency';
+
+const pool = createTaskPool(({ value }: { value: number }) => value * 2, {
+  concurrency: 4,
+  maxQueue: 16,
+});
+
+const results = await parallel([
+  { handler: (value: number) => value + 1, input: 1 },
+  { handler: (value: number) => value + 1, input: 2 },
+]);
+
+const transformed = await pipeline([1, 2, 3, 4]).map((value) => value * 2).toArray();
+```
+
+The concurrency layer keeps worker-based parallelism explicit: no decorators, no proxy magic, and no hidden build step.
 
 ---
 
@@ -389,6 +413,28 @@ theme.value = 'dark';
 
 ---
 
+### 3.7 SSR & Server Modules (`@ssr`, `@server`)
+
+```ts
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
+
+const app = createServer();
+
+app.get('/', (ctx) => {
+  const ssr = createSSRContext({ request: ctx.request });
+  return renderToResponse(
+    '<html><head></head><body><h1 bq-text="title"></h1></body></html>',
+    { title: 'Hello 1.11.0' },
+    { context: ssr, etag: true }
+  );
+});
+```
+
+The SSR pipeline is runtime-agnostic: `renderToString()`, `renderToStringAsync()`, `renderToStream()`, and `renderToResponse()` all work on Bun, Deno, and Node.js ≥ 24, automatically falling back to a DOM-free renderer when `DOMParser` is unavailable. The server module layers lightweight routing, middleware, and WebSocket session handling on top of that surface.
+
+---
+
 ---
 
 ## 4. Implementation Notes
@@ -442,10 +488,12 @@ This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript
 - `bun run preview` — Preview docs
 - `bun run storybook` — Storybook dev server
 - `bun test` — Run tests
+- `bun run check:ai-guidance` — Verify version / engine / guidance sync
 
 ### 5.2 Tooling Contracts
 
 - **Bun** is the runtime and test runner. No Node-only globals in source.
+- Supported validation floor is **Node.js ≥ 24.0.0** and **Bun ≥ 1.3.13**.
 - **Vite** powers the library builds and Storybook builder.
 - **VitePress** builds the documentation site from `docs/`.
 - **Storybook** is the primary component preview/development environment.
@@ -457,6 +505,7 @@ This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript
 2. `bun run dev` (docs)
 3. `bun run storybook` (components)
 4. `bun test` (verify behavior)
+5. `bun run check:ai-guidance` (release / metadata sync)
 
 ---
 
@@ -471,9 +520,9 @@ This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
