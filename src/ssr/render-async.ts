@@ -80,14 +80,14 @@ export interface AsyncSSRResult extends SSRResult {
 const injectIntoHead = (html: string, fragment: string): string => {
   if (!fragment) return html;
   const idx = html.toLowerCase().indexOf('</head>');
-  if (idx === -1) return fragment + html;
+  if (idx === -1) return html;
   return html.slice(0, idx) + fragment + html.slice(idx);
 };
 
 const injectBeforeBodyEnd = (html: string, fragment: string): string => {
   if (!fragment) return html;
   const idx = html.toLowerCase().lastIndexOf('</body>');
-  if (idx === -1) return html + fragment;
+  if (idx === -1) return html;
   return html.slice(0, idx) + fragment + html.slice(idx);
 };
 

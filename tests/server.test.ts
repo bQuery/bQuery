@@ -258,6 +258,16 @@ describe('server/createServer', () => {
     expect(body).not.toContain('<script>');
   });
 
+  it('serializes non-JSON top-level values as null', async () => {
+    const app = createServer();
+    app.get('/json-null', (ctx) => ctx.json(Symbol('x')));
+
+    const response = await app.handle('/json-null');
+
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(await response.text()).toBe('null');
+  });
+
   it('detects websocket upgrade requests', () => {
     const request = createWebSocketRequest('http://localhost/socket');
 

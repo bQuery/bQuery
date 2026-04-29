@@ -721,6 +721,23 @@ describe('renderToStringAsync', () => {
     expect(result.html.indexOf('<title>')).toBeLessThan(result.html.indexOf('</head>'));
   });
 
+  it('skips head and store-state injection when </head> and </body> markers are missing', async () => {
+    configureSSR({ backend: 'pure' });
+    const ctx = createSSRContext();
+    ctx.head.add({ title: 'Hello' });
+    ctx.assets.module('/app.js');
+    const result = await renderToStringAsync('<main><p bq-text="msg"></p></main>', { msg: 'x' }, {
+      context: ctx,
+      includeStoreState: true,
+      stripDirectives: true,
+    });
+
+    expect(result.headHtml).toContain('<title>Hello</title>');
+    expect(result.assetsHtml).toContain('rel="modulepreload"');
+    expect(result.storeScriptTag).toContain('__BQUERY_STORE_STATE__');
+    expect(result.html).toBe('<main><p>x</p></main>');
+  });
+
   it('respects an aborted signal', async () => {
     const ac = new AbortController();
     ac.abort();
@@ -795,6 +812,20 @@ describe('renderToResponse', () => {
     });
     const second = await renderToResponse('<p>etag</p>', {}, { etag: true, context: ctx });
     expect(second.status).toBe(304);
+  });
+
+  it('does not inject head or store-state fragments into templates without head/body markers', async () => {
+    configureSSR({ backend: 'pure' });
+    const ctx = createSSRContext();
+    ctx.head.add({ title: 'Hello' });
+    ctx.assets.module('/app.js');
+    const response = await renderToResponse('<main><p bq-text="msg"></p></main>', { msg: 'resp' }, {
+      context: ctx,
+      includeStoreState: true,
+      stripDirectives: true,
+    });
+
+    expect(await response.text()).toBe('<main><p>resp</p></main>');
   });
 });
 

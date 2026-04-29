@@ -247,7 +247,8 @@ const html = (body: string, init: ServerHtmlResponseInit = {}): Response => {
 
 const json = (data: unknown, init: ServerResponseInit = {}): Response => {
   const headers = withContentType(createHeaders(init.headers), 'application/json; charset=utf-8');
-  return response(escapeJsonString(JSON.stringify(data ?? null)), { ...init, headers });
+  const serialized = JSON.stringify(data);
+  return response(escapeJsonString(serialized ?? 'null'), { ...init, headers });
 };
 
 const redirect = (location: string | URL, status = 302): Response => {

@@ -595,12 +595,13 @@ describe('versioned store snapshots', () => {
   it('renderToStringAsync injects CSP nonces into store-state scripts', async () => {
     createStore({ id: 'counter', state: () => ({ count: 1 }) });
     const context = createSSRContext({ nonce: 'ASYNC_"<&' });
-    const { html } = await renderToStringAsync(
+    const { html, storeScriptTag } = await renderToStringAsync(
       '<html><head></head><body><main></main></body></html>',
       {},
       { context, includeStoreState: true }
     );
-    expect(html).toContain(
+    expect(html).toBe('<main></main>');
+    expect(storeScriptTag).toContain(
       '<script nonce="ASYNC_&quot;&lt;&amp;" id="__BQUERY_STORE_STATE__">'
     );
   });
@@ -616,13 +617,14 @@ describe('versioned store snapshots', () => {
         },
       }),
     });
-    const { html, storeState } = await renderToStringAsync(
+    const { html, storeScriptTag, storeState } = await renderToStringAsync(
       '<html><head></head><body><main></main></body></html>',
       {},
       { includeStoreState: true }
     );
+    expect(html).toBe('<main></main>');
     expect(storeState).toBe('{"counter":{"count":1}}');
-    expect(html).toContain('window["__BQUERY_INITIAL_STATE__"]={"counter":{"count":1}}');
+    expect(storeScriptTag).toContain('window["__BQUERY_INITIAL_STATE__"]={"counter":{"count":1}}');
   });
 
   it('hydrateStoreSnapshot rejects invalid shapes', () => {
