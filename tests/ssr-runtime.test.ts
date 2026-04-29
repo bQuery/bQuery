@@ -43,6 +43,12 @@ type LegacyMediaQueryList = MediaQueryList & {
   removeListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
 };
 
+type GlobalWithOptionalDOM = typeof globalThis & {
+  document?: Document;
+  DOMParser?: typeof DOMParser;
+  NodeFilter?: typeof NodeFilter;
+};
+
 afterEach(() => {
   // Reset SSR config so individual tests don't bleed.
   configureSSR({ backend: 'auto', documentImpl: null });
@@ -120,9 +126,10 @@ describe('configureSSR', () => {
       documentImpl: { DOMParser: globalThis.DOMParser },
     });
 
-    delete (globalThis as typeof globalThis & { document?: Document }).document;
-    delete (globalThis as typeof globalThis & { DOMParser?: typeof DOMParser }).DOMParser;
-    delete (globalThis as typeof globalThis & { NodeFilter?: typeof NodeFilter }).NodeFilter;
+    const runtimeGlobals = globalThis as GlobalWithOptionalDOM;
+    delete runtimeGlobals.document;
+    delete runtimeGlobals.DOMParser;
+    delete runtimeGlobals.NodeFilter;
 
     try {
       const result = renderToString('<div><span bq-html="content"></span></div>', {
@@ -754,6 +761,8 @@ describe('renderToStringAsync', () => {
 
     expect(result.html).toBe('<p></p>');
     expect(errors).toHaveLength(1);
+    expect(errors[0]).toBeInstanceOf(Error);
+    expect((errors[0] as Error).message).toBe('loader boom');
   });
 
   it('injects head and asset HTML into </head>', async () => {
