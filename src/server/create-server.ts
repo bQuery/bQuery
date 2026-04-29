@@ -247,7 +247,12 @@ const html = (body: string, init: ServerHtmlResponseInit = {}): Response => {
 
 const json = (data: unknown, init: ServerResponseInit = {}): Response => {
   const headers = withContentType(createHeaders(init.headers), 'application/json; charset=utf-8');
-  const serialized = JSON.stringify(data);
+  let serialized: string | undefined;
+  try {
+    serialized = JSON.stringify(data);
+  } catch {
+    serialized = undefined;
+  }
   return response(escapeJsonString(serialized === undefined ? 'null' : serialized), { ...init, headers });
 };
 

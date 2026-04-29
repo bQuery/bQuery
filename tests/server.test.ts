@@ -268,6 +268,20 @@ describe('server/createServer', () => {
     expect(await response.text()).toBe('null');
   });
 
+  it('serializes JSON stringify failures as null', async () => {
+    const app = createServer();
+    app.get('/json-circular', (ctx) => {
+      const value: { self?: unknown } = {};
+      value.self = value;
+      return ctx.json(value);
+    });
+
+    const response = await app.handle('/json-circular');
+
+    expect(response.headers.get('content-type')).toContain('application/json');
+    expect(await response.text()).toBe('null');
+  });
+
   it('detects websocket upgrade requests', () => {
     const request = createWebSocketRequest('http://localhost/socket');
 

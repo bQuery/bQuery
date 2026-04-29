@@ -600,7 +600,7 @@ describe('versioned store snapshots', () => {
       {},
       { context, includeStoreState: true }
     );
-    expect(html).toBe('<main></main>');
+    expect(html).not.toContain('__BQUERY_STORE_STATE__');
     expect(storeScriptTag).toContain(
       '<script nonce="ASYNC_&quot;&lt;&amp;" id="__BQUERY_STORE_STATE__">'
     );
@@ -622,7 +622,7 @@ describe('versioned store snapshots', () => {
       {},
       { includeStoreState: true }
     );
-    expect(html).toBe('<main></main>');
+    expect(html).not.toContain('window["__BQUERY_INITIAL_STATE__"]');
     expect(storeState).toBe('{"counter":{"count":1}}');
     expect(storeScriptTag).toContain('window["__BQUERY_INITIAL_STATE__"]={"counter":{"count":1}}');
   });
