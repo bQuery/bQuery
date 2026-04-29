@@ -372,7 +372,7 @@ describe('renderToStreamSuspense', () => {
       { user: defer(Promise.resolve('ada'), 'loading') }
     );
     const out = await collectStream(stream);
-    expect(out).toContain('<section data-note="a > b"><bq-slot id="bq-s-0">');
+    expect(out).toContain('<section data-note="a &gt; b"><bq-slot id="bq-s-0">');
     expect(out).not.toContain('data-bq-defer');
   });
 
