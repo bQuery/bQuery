@@ -33,14 +33,10 @@ interface CompiledRoute {
   pattern: RegExp;
 }
 
-interface CompiledWebSocketRoute {
+type CompiledWebSocketRoute = Omit<CompiledRoute, 'handler' | 'middlewares'> & {
   handler: ServerWebSocketRouteHandler<unknown>;
-  methods: Set<string> | null;
   middlewares: ServerWebSocketMiddleware[];
-  paramNames: string[];
-  path: string;
-  pattern: RegExp;
-}
+};
 
 type PipelineHandler = (context: ServerContext, next: ServerNext) => Response | Promise<Response>;
 type WebSocketPipelineHandler = (

@@ -471,7 +471,7 @@ describe('server/createServer', () => {
     expect(result.protocols).toEqual([]);
   });
 
-  it('rejects websocket session lookalikes that do not expose function handlers', () => {
+  it('rejects websocket session look-alikes that do not expose function handlers', () => {
     expect(isServerWebSocketSession(null)).toBe(false);
     expect(
       isServerWebSocketSession({
