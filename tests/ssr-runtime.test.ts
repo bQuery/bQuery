@@ -786,9 +786,9 @@ describe('renderToStringAsync', () => {
     const context = createSSRContext();
     const data = Object.create(null) as Record<string, unknown>;
     data.msg = Promise.resolve('safe');
-    data.__proto__ = Promise.resolve('polluted');
-    data.constructor = Promise.resolve('polluted-constructor');
-    data.prototype = Promise.resolve('polluted-prototype');
+    data['__proto__'] = Promise.resolve('polluted');
+    data['constructor'] = Promise.resolve('polluted-constructor');
+    data['prototype'] = Promise.resolve('polluted-prototype');
 
     const resolved = await resolveContext(data, context);
 
