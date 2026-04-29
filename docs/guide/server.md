@@ -1,6 +1,6 @@
 # Server
 
-The server module adds a lightweight, Express-inspired backend layer to bQuery without introducing runtime dependencies. It focuses on the smallest useful primitives for request pipelines: middleware, route params, query parsing, safe response helpers, and direct SSR rendering.
+The server module adds a lightweight, Express-inspired backend layer to bQuery without introducing runtime dependencies. It focuses on the smallest useful primitives for request pipelines: middleware, route params, query parsing, safe response helpers, direct SSR rendering, and runtime-agnostic WebSocket session routing.
 
 ```ts
 import { createServer } from '@bquery/bquery/server';
@@ -10,7 +10,7 @@ import { createServer } from '@bquery/bquery/server';
 
 ## `createServer()`
 
-Creates an app-like request handler with `use()`, `get()`, `post()`, `put()`, `patch()`, `delete()`, `all()`, `add()`, and `handle()`.
+Creates an app-like request handler with `use()`, `get()`, `post()`, `put()`, `patch()`, `delete()`, `all()`, `add()`, `ws()`, `handle()`, and `handleWebSocket()`.
 
 ```ts
 const app = createServer();
@@ -49,6 +49,7 @@ Each handler receives a `ServerContext` with:
 - `params` — values captured from `:param` segments
 - `query` — parsed query params (`string` or `string[]` for repeated keys)
 - `state` — mutable per-request bag for middleware coordination
+- `isWebSocketRequest` — `true` for upgrade handshakes
 
 Response helpers:
 
@@ -58,6 +59,75 @@ Response helpers:
 - `ctx.json(data, init?)`
 - `ctx.redirect(location, status?)`
 - `ctx.render(template, data, options?)` — wraps `renderToString()`
+
+---
+
+## WebSocket routes
+
+Register WebSocket endpoints with `app.ws(path, handlerSetOrFactory, middlewares?)`.
+
+`handleWebSocket()` resolves upgrade requests into a runtime-agnostic session object:
+
+- `null` — request is not a WebSocket handshake or no WebSocket route matched
+- `Response` — middleware or error handling short-circuited the upgrade
+- `ServerWebSocketSession` — ready to attach to your runtime socket
+
+```ts
+import {
+  createServer,
+  isServerWebSocketSession,
+  isWebSocketRequest,
+} from '@bquery/bquery/server';
+
+const app = createServer();
+
+app.ws('/chat/:room', (ctx) => ({
+  protocols: ['chat'],
+  onOpen(socket) {
+    socket.sendJson({ type: 'ready', room: ctx.params.room });
+  },
+  onMessage(message, socket) {
+    socket.sendJson({ type: 'echo', message });
+  },
+}));
+
+export default async function handler(request: Request) {
+  if (isWebSocketRequest(request)) {
+    const result = await app.handleWebSocket(request);
+
+    if (result instanceof Response || result === null) {
+      return result ?? new Response('Not Found', { status: 404 });
+    }
+
+    if (isServerWebSocketSession(result)) {
+      const { socket, response } = Deno.upgradeWebSocket(request, {
+        protocol: result.protocols[0],
+      });
+
+      socket.onopen = () => {
+        void result.open(socket);
+      };
+      socket.onmessage = (event) => {
+        void result.message(socket, event);
+      };
+      socket.onclose = (event) => {
+        void result.close(socket, event);
+      };
+      socket.onerror = (event) => {
+        void result.error(socket, event);
+      };
+
+      return response;
+    }
+  }
+
+  return app.handle(request);
+}
+```
+
+Use `socket.send(...)` for raw frames or `socket.sendJson(...)` for JSON payloads. Incoming string frames are parsed with `JSON.parse()` by default and fall back to the raw string when parsing fails; provide `deserialize(event)` on the route to override that behavior.
+
+Middleware still runs for WebSocket routes, so auth, logging, and per-request state can be shared between HTTP and upgrade flows. Middleware may also short-circuit a WebSocket request by returning a normal `Response`.
 
 ---
 

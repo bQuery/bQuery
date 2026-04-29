@@ -20,7 +20,7 @@
 
 **The jQuery for the modern Web Platform.**
 
-bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, lightweight server middleware, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
+bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, lightweight server middleware and WebSocket session routing, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
 
 > **New in 1.10.0:** The Concurrency module now adds explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
 
@@ -224,9 +224,9 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
 | **Testing**     | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
 | **SSR**         | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
-| **Server**      | Express-inspired backend routing, middleware, safe response helpers, and SSR-aware request handling                                                                         |
+| **Server**      | Express-inspired backend routing, middleware, safe response helpers, SSR-aware request handling, and runtime-agnostic WebSocket sessions                                    |
 
-Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`. Server-side middleware and routing helpers ship as a dedicated entry point via `@bquery/bquery/server`.
+Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`. Server-side middleware, HTTP routing, and runtime-agnostic WebSocket session helpers ship as a dedicated entry point via `@bquery/bquery/server`.
 
 Reusable workers and pools can also opt into readonly signal mirrors such as `state$`, `busy$`, `pending$`, and `size$` through the `createReactive*()` concurrency wrappers.
 

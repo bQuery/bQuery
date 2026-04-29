@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { createServer } from '../src/server/index';
+import {
+  createServer,
+  isServerWebSocketSession,
+  isWebSocketRequest,
+} from '../src/server/index';
+import type { ServerWebSocketPeer } from '../src/server/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 
 const SSR_TEST_STORE_ID = 'server-ssr-test';
@@ -9,6 +14,26 @@ afterEach(() => {
     destroyStore(SSR_TEST_STORE_ID);
   }
 });
+
+class MockServerWebSocket implements ServerWebSocketPeer {
+  protocol = '';
+  readyState = 1;
+
+  constructor(
+    public url = 'ws://localhost/test',
+    readonly sentMessages: unknown[] = [],
+    readonly closeCalls: Array<{ code?: number; reason?: string }> = []
+  ) {}
+
+  send(data: unknown): void {
+    this.sentMessages.push(data);
+  }
+
+  close(code?: number, reason?: string): void {
+    this.readyState = 3;
+    this.closeCalls.push({ code, reason });
+  }
+}
 
 describe('server/createServer', () => {
   it('handles static routes via method helpers', async () => {
@@ -220,5 +245,179 @@ describe('server/createServer', () => {
     expect(response.headers.get('content-type')).toContain('application/json');
     expect(body).toContain('\\u003Cscript\\u003Ealert(1)\\u003C/script\\u003E');
     expect(body).not.toContain('<script>');
+  });
+
+  it('detects websocket upgrade requests', () => {
+    const request = new Request('http://localhost/socket', {
+      headers: {
+        connection: 'keep-alive, Upgrade',
+        upgrade: 'websocket',
+      },
+      method: 'GET',
+    });
+
+    expect(isWebSocketRequest(request)).toBe(true);
+    expect(isWebSocketRequest(new Request('http://localhost/socket'))).toBe(false);
+  });
+
+  it('resolves websocket sessions with middleware, params, query, and lifecycle callbacks', async () => {
+    const app = createServer();
+    const events: Array<{ type: string; value?: unknown }> = [];
+
+    app.use(async (ctx, next) => {
+      ctx.state.steps = ['global'];
+      return await next();
+    });
+
+    app.ws(
+      '/rooms/:room',
+      (ctx) => ({
+        headers: {
+          'x-room': ctx.params.room,
+        },
+        protocols: [' chat ', 'json', 'chat'],
+        onOpen(socket, innerCtx) {
+          const steps = innerCtx.state.steps as string[];
+          steps.push('open');
+          events.push({ type: 'open', value: innerCtx.params.room });
+          socket.sendJson({
+            room: innerCtx.params.room,
+            user: innerCtx.query.user,
+          });
+        },
+        onMessage(data, socket, innerCtx) {
+          const steps = innerCtx.state.steps as string[];
+          steps.push('message');
+          events.push({ type: 'message', value: data });
+          socket.sendJson({
+            echo: data,
+            steps,
+          });
+        },
+        onClose(event, _socket, innerCtx) {
+          events.push({ type: 'close', value: { code: event.code, room: innerCtx.params.room } });
+        },
+        onError(_event, _socket, innerCtx) {
+          events.push({ type: 'error', value: innerCtx.query.user });
+        },
+      }),
+      [
+        async (ctx, next) => {
+          const steps = ctx.state.steps as string[];
+          steps.push('route');
+          return await next();
+        },
+      ]
+    );
+
+    const result = await app.handleWebSocket(
+      new Request('http://localhost/rooms/general?user=alice', {
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+        },
+      })
+    );
+
+    expect(isServerWebSocketSession(result)).toBe(true);
+    if (!isServerWebSocketSession(result)) {
+      throw new Error('expected a websocket session');
+    }
+
+    expect(result.context.isWebSocketRequest).toBe(true);
+    expect(result.context.params.room).toBe('general');
+    expect(result.context.query.user).toBe('alice');
+    expect(result.protocols).toEqual(['chat', 'json']);
+    expect(new Headers(result.headers).get('x-room')).toBe('general');
+
+    const socket = new MockServerWebSocket('ws://localhost/rooms/general');
+    await result.open(socket);
+    await result.message(socket, new MessageEvent('message', { data: '{"text":"hi"}' }));
+    const closeEvent = new Event('close') as CloseEvent;
+    Object.defineProperty(closeEvent, 'code', { value: 1000 });
+    await result.close(socket, closeEvent);
+    await result.error(socket, new Event('error'));
+
+    expect(socket.sentMessages).toEqual([
+      '{"room":"general","user":"alice"}',
+      '{"echo":{"text":"hi"},"steps":["global","route","open","message"]}',
+    ]);
+    expect(events).toEqual([
+      { type: 'open', value: 'general' },
+      { type: 'message', value: { text: 'hi' } },
+      { type: 'close', value: { code: 1000, room: 'general' } },
+      { type: 'error', value: 'alice' },
+    ]);
+  });
+
+  it('allows middleware to short-circuit websocket requests with a response', async () => {
+    const app = createServer();
+    app.use((ctx) => ctx.text(`blocked:${ctx.path}`, { status: 401 }));
+    app.ws('/secure', {
+      onOpen() {
+        throw new Error('should not open');
+      },
+    });
+
+    const result = await app.handleWebSocket(
+      new Request('http://localhost/secure', {
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+        },
+      })
+    );
+
+    expect(result instanceof Response).toBe(true);
+    if (!(result instanceof Response)) {
+      throw new Error('expected a response');
+    }
+    expect(result.status).toBe(401);
+    expect(await result.text()).toBe('blocked:/secure');
+  });
+
+  it('returns null for non-websocket requests and unmatched websocket routes', async () => {
+    const app = createServer();
+    app.ws('/chat', {});
+
+    expect(await app.handleWebSocket('/chat')).toBeNull();
+    expect(
+      await app.handleWebSocket(
+        new Request('http://localhost/missing', {
+          headers: {
+            connection: 'Upgrade',
+            upgrade: 'websocket',
+          },
+        })
+      )
+    ).toBeNull();
+  });
+
+  it('falls back to raw string payloads when websocket messages are not valid json', async () => {
+    const app = createServer();
+    let received: unknown;
+
+    app.ws('/raw', {
+      onMessage(data) {
+        received = data;
+      },
+    });
+
+    const result = await app.handleWebSocket(
+      new Request('http://localhost/raw', {
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+        },
+      })
+    );
+
+    expect(isServerWebSocketSession(result)).toBe(true);
+    if (!isServerWebSocketSession(result)) {
+      throw new Error('expected a websocket session');
+    }
+
+    await result.message(new MockServerWebSocket(), new MessageEvent('message', { data: 'plain-text' }));
+    expect(received).toBe('plain-text');
   });
 });

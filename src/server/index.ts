@@ -7,12 +7,13 @@
  * @module bquery/server
  */
 
-export { createServer } from './create-server';
+export { createServer, isServerWebSocketSession, isWebSocketRequest } from './create-server';
 export type {
   CreateServerOptions,
   ServerApp,
   ServerContext,
   ServerHandler,
+  ServerResult,
   ServerHtmlResponseInit,
   ServerMiddleware,
   ServerNext,
@@ -21,4 +22,10 @@ export type {
   ServerRequestInit,
   ServerResponseInit,
   ServerRoute,
+  ServerWebSocketConnection,
+  ServerWebSocketData,
+  ServerWebSocketHandlerSet,
+  ServerWebSocketPeer,
+  ServerWebSocketRouteHandler,
+  ServerWebSocketSession,
 } from './types';

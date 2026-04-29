@@ -72,7 +72,7 @@ Version `1.10.0` expands `@bquery/bquery/concurrency` with explicit RPC workers,
 | `bq-error`                                                                                                                       | Reactive inline error output for the view module                             |
 | `bq-aria`                                                                                                                        | Declarative ARIA attribute binding in the view module                        |
 | `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()`                                                    | Cleanup-friendly media observer composables                                  |
-| `createServer()`                                                                                                                 | Dependency-free backend middleware/router with SSR-aware responses            |
+| `createServer()` / `handleWebSocket()` / `isServerWebSocketSession()`                                                            | Dependency-free backend routing plus runtime-agnostic WebSocket session flow  |
 
 ## Files to Consult
 

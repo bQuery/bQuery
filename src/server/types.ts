@@ -72,6 +72,51 @@ export interface ServerRenderResponseOptions extends RenderOptions {
 }
 
 /**
+ * Binary/text payloads accepted by WebSocket peers.
+ */
+export type ServerWebSocketData = string | Blob | ArrayBufferLike | ArrayBufferView;
+
+/**
+ * Minimal runtime WebSocket peer shape consumed by server-side WebSocket sessions.
+ */
+export interface ServerWebSocketPeer {
+  /**
+   * Negotiated sub-protocol, when available.
+   */
+  protocol?: string;
+
+  /**
+   * Current readyState, when the runtime exposes it.
+   */
+  readyState?: number;
+
+  /**
+   * Remote URL, when the runtime exposes it.
+   */
+  url?: string;
+
+  /**
+   * Send a raw payload to the connected peer.
+   */
+  send(data: ServerWebSocketData): void;
+
+  /**
+   * Close the connection.
+   */
+  close(code?: number, reason?: string): void;
+}
+
+/**
+ * Wrapped WebSocket connection exposed to route handlers.
+ */
+export interface ServerWebSocketConnection extends ServerWebSocketPeer {
+  /**
+   * Serialize a value with `JSON.stringify()` and send it to the peer.
+   */
+  sendJson(data: unknown): void;
+}
+
+/**
  * Request/response context passed through the server pipeline.
  */
 export interface ServerContext {
@@ -173,6 +218,11 @@ export interface ServerContext {
     data: BindingContext,
     options?: ServerRenderResponseOptions
   ): Response;
+
+  /**
+   * `true` when the incoming request is a WebSocket upgrade handshake.
+   */
+  isWebSocketRequest: boolean;
 }
 
 /**
@@ -183,17 +233,126 @@ export interface ServerHandler {
 }
 
 /**
+ * WebSocket route lifecycle callbacks.
+ */
+export interface ServerWebSocketHandlerSet<TReceive = unknown> {
+  /**
+   * Requested sub-protocols for the handshake.
+   */
+  protocols?: string | string[];
+
+  /**
+   * Additional handshake headers used by compatible runtimes.
+   */
+  headers?: HeadersInit;
+
+  /**
+   * Deserialize incoming WebSocket messages.
+   *
+   * Defaults to JSON.parse for string payloads with a raw-string fallback.
+   */
+  deserialize?: (event: MessageEvent) => TReceive;
+
+  /**
+   * Called after the runtime accepts the upgrade.
+   */
+  onOpen?: (socket: ServerWebSocketConnection, context: ServerContext) => void | Promise<void>;
+
+  /**
+   * Called for each incoming message after deserialization.
+   */
+  onMessage?: (
+    data: TReceive,
+    socket: ServerWebSocketConnection,
+    context: ServerContext,
+    event: MessageEvent
+  ) => void | Promise<void>;
+
+  /**
+   * Called when the connection closes.
+   */
+  onClose?: (
+    event: CloseEvent,
+    socket: ServerWebSocketConnection,
+    context: ServerContext
+  ) => void | Promise<void>;
+
+  /**
+   * Called when the runtime reports a socket error.
+   */
+  onError?: (
+    event: Event,
+    socket: ServerWebSocketConnection,
+    context: ServerContext
+  ) => void | Promise<void>;
+}
+
+/**
+ * WebSocket route definition or per-request factory.
+ */
+export type ServerWebSocketRouteHandler<TReceive = unknown> =
+  | ServerWebSocketHandlerSet<TReceive>
+  | ((
+      context: ServerContext
+    ) => ServerWebSocketHandlerSet<TReceive> | Promise<ServerWebSocketHandlerSet<TReceive>>);
+
+/**
+ * Runtime-agnostic WebSocket session returned by `handleWebSocket()`.
+ */
+export interface ServerWebSocketSession {
+  /**
+   * Request context captured during route matching and middleware execution.
+   */
+  context: ServerContext;
+
+  /**
+   * Normalized requested sub-protocols.
+   */
+  protocols: string[];
+
+  /**
+   * Additional handshake headers requested by the route.
+   */
+  headers?: HeadersInit;
+
+  /**
+   * Notify the session that the runtime accepted the connection.
+   */
+  open(socket: ServerWebSocketPeer): Promise<void>;
+
+  /**
+   * Deliver an incoming message event to the session.
+   */
+  message(socket: ServerWebSocketPeer, event: MessageEvent): Promise<void>;
+
+  /**
+   * Notify the session about a close event.
+   */
+  close(socket: ServerWebSocketPeer, event: CloseEvent): Promise<void>;
+
+  /**
+   * Notify the session about a socket error.
+   */
+  error(socket: ServerWebSocketPeer, event: Event): Promise<void>;
+}
+
+/**
+ * Result type used by middleware and WebSocket handling.
+ */
+export type ServerResult = Response | ServerWebSocketSession | null;
+
+/**
  * Middleware continuation callback.
  */
 export interface ServerNext {
-  (): Promise<Response>;
+  (): Promise<ServerResult>;
 }
 
 /**
  * Express-inspired middleware for request pipelines.
  */
 export interface ServerMiddleware {
-  (context: ServerContext, next: ServerNext): Response | Promise<Response>;
+  (context: ServerContext, next: ServerNext): ServerResult | Promise<ServerResult>;
 }
 
 /**
@@ -292,7 +451,24 @@ export interface ServerApp {
   all(path: string, handler: ServerHandler, middlewares?: ServerMiddleware[]): ServerApp;
 
   /**
+   * Register a WebSocket route.
+   */
+  ws<TReceive = unknown>(
+    path: string,
+    handler: ServerWebSocketRouteHandler<TReceive>,
+    middlewares?: ServerMiddleware[]
+  ): ServerApp;
+
+  /**
    * Handle a normalized request.
    */
   handle(input: Request | string | URL | ServerRequestInit): Promise<Response>;
+
+  /**
+   * Resolve a WebSocket upgrade request into a runtime-agnostic session.
+   *
+   * Returns `null` when the request is not a WebSocket handshake or no matching
+   * WebSocket route exists. Middleware may also short-circuit with a `Response`.
+   */
+  handleWebSocket(input: Request | string | URL | ServerRequestInit): Promise<ServerResult>;
 }

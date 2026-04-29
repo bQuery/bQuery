@@ -68,7 +68,7 @@ src/
 ├── devtools/           # runtime inspection and timeline helpers
 ├── testing/            # renderComponent(), mockSignal(), waitFor()
 ├── ssr/                # renderToString(), hydrateMount(), store-state bridge
-└── server/             # createServer(), middleware, route params, SSR responses
+└── server/             # createServer(), middleware, route params, SSR responses, WebSocket sessions
 
 tests/                  # Bun test suites (one file per module)
 .storybook/            # Storybook config
@@ -372,10 +372,11 @@ Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 
 
 | Export           | Kind      | Description                                                         |
 | ---------------- | --------- | ------------------------------------------------------------------- |
-| `createServer()` | function  | Create a lightweight Express-inspired backend app                   |
-| `ServerApp`      | interface | App-like handle with `use()`, method helpers, `add()`, and `handle()` |
-| `ServerContext`  | interface | Request context with params, query, state, and response helpers     |
+| `createServer()` / `isWebSocketRequest()` / `isServerWebSocketSession()` | functions | Create a lightweight backend app and inspect WebSocket upgrade flow |
+| `ServerApp`      | interface | App-like handle with `use()`, HTTP method helpers, `ws()`, `handle()`, and `handleWebSocket()` |
+| `ServerContext`  | interface | Request context with params, query, state, response helpers, and `isWebSocketRequest` |
 | `ServerRoute`    | interface | Route definition with `path`, optional `method`, middleware, handler |
+| `ServerWebSocketSession` / `ServerWebSocketHandlerSet` | interfaces | Runtime-agnostic WebSocket session descriptor and route lifecycle callbacks |
 
 ### View (`@bquery/bquery/view`)
 

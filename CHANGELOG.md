@@ -72,7 +72,7 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
-- **Server**: Added `@bquery/bquery/server`, a lightweight Express-inspired backend entry point with dependency-free routing, middleware composition, route params, query parsing, safe JSON/HTML response helpers, redirects, and SSR-aware request rendering via `createServer()`.
+- **Server**: Added `@bquery/bquery/server`, a lightweight Express-inspired backend entry point with dependency-free routing, middleware composition, route params, query parsing, safe JSON/HTML response helpers, redirects, SSR-aware request rendering via `createServer()`, and runtime-agnostic WebSocket routing via `ws()` + `handleWebSocket()`.
 - **SSR / Runtime-agnostic pipeline**: Massive expansion of `@bquery/bquery/ssr` so it now runs seamlessly on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 with zero external dependencies. New DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs (`renderToString`, `hydrateMount`, `serializeStoreState`, `deserializeStoreState`, `hydrateStore(s)`) are unchanged.
 - **SSR / Async render**: New `renderToStringAsync(template, data, ctx?)` awaits Promise- and `defer()`-valued binding context entries before rendering and respects `SSRContext.signal` cancellation.
 - **SSR / Streaming**: New `renderToStream(template, data, ctx?)` returns a Web `ReadableStream<Uint8Array>` honouring abort signals.
