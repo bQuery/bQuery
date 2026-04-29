@@ -61,6 +61,7 @@ export default defineConfig({
             { text: 'Devtools', link: '/guide/devtools' },
             { text: 'Testing', link: '/guide/testing' },
             { text: 'SSR', link: '/guide/ssr' },
+            { text: 'Server', link: '/guide/server' },
           ],
         },
       ],

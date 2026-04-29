@@ -65,6 +65,7 @@ import { use } from '@bquery/bquery/plugin';
 import { enableDevtools } from '@bquery/bquery/devtools';
 import { renderComponent } from '@bquery/bquery/testing';
 import { renderToString } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
 ```
 
 ## Test Pattern

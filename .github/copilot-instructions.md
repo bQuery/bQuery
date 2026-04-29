@@ -14,7 +14,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 ## Quick orientation
 
-bQuery.js is modular, tree-shakeable, has zero runtime dependencies, and currently ships **22 public entry points**.
+bQuery.js is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
 Current release baseline: **1.10.0**.
 
@@ -101,7 +101,7 @@ Public modules live under `src/<module>/index.ts`. Important module groups:
 - `router` — SPA routing, guards, params, navigation utilities, route signals
 - `store` — signal-based state management and persistence
 - `view` — declarative bindings with `bq-*` directives including `bq-error` and `bq-aria`
-- `storybook`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `ssr` — feature modules with their own public barrels and guides
+- `storybook`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `ssr`, `server` — feature modules with their own public barrels and guides
 
 Entry points:
 

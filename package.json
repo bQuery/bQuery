@@ -98,6 +98,10 @@
     "./ssr": {
       "import": "./dist/ssr.es.mjs",
       "types": "./dist/ssr/index.d.ts"
+    },
+    "./server": {
+      "import": "./dist/server.es.mjs",
+      "types": "./dist/server/index.d.ts"
     }
   },
   "files": [
