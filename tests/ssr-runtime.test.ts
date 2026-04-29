@@ -303,7 +303,7 @@ describe('pure renderer (DOM-free)', () => {
     configureSSR({ backend: 'pure' });
     const result = renderToString('<div><span bq-html="content"></span></div>', {
       content:
-        '<a href="//cdn.example.com/app.js">cdn</a><a href="https://bquery.dev/docs">external</a><a href="/local">local</a><a href="http://[::1">broken</a>',
+        '<a href="//cdn.example.com/app.js">cdn</a><a href="https://bquery.dev/docs">external</a><a href="/local">local</a><a href="http://[::1">broken</a><a href="http://[::1]/ok">ipv6</a>',
     });
 
     expect(result.html).toContain('<a href="//cdn.example.com/app.js" rel="noopener noreferrer">cdn</a>');
@@ -311,6 +311,7 @@ describe('pure renderer (DOM-free)', () => {
     expect(result.html).toContain('<a href="/local">local</a>');
     // Malformed absolute URLs are treated as external if URL parsing fails.
     expect(result.html).toContain('<a href="http://[::1" rel="noopener noreferrer">broken</a>');
+    expect(result.html).toContain('<a href="http://[::1]/ok" rel="noopener noreferrer">ipv6</a>');
   });
 
   it('trims pure-renderer templates like the DOM backend', () => {

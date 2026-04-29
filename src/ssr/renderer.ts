@@ -59,7 +59,7 @@ const isUnsafeUrlValue = (value: string): boolean => {
   return DANGEROUS_PROTOCOLS.some((protocol) => normalized.startsWith(protocol));
 };
 
-const URL_PROTOCOL_PATTERN = /^[a-z][a-z0-9+.-]*:/i;
+const URL_PROTOCOL_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const REL_SPLIT_PATTERN = /\s+/;
 
 const isAllowedHtmlAttribute = (name: string): boolean => {
@@ -83,13 +83,11 @@ const isExternalHtmlUrl = (url: string): boolean => {
     if (trimmedUrl.startsWith('//')) return true;
 
     const lowerUrl = trimmedUrl.toLowerCase();
-    const hasProtocol = URL_PROTOCOL_PATTERN.test(trimmedUrl);
-    if (hasProtocol && !lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
-      return true;
-    }
-
     if (!lowerUrl.startsWith('http://') && !lowerUrl.startsWith('https://')) {
-      return false;
+      if (!URL_PROTOCOL_PATTERN.test(trimmedUrl)) {
+        return false;
+      }
+      return true;
     }
 
     if (typeof window === 'undefined' || !window.location) {
