@@ -664,7 +664,12 @@ describe('resumability hooks', () => {
   it('resumeState.entries filters prototype-pollution keys into a null-prototype copy', () => {
     const snapshot = Object.create(null) as Record<string, unknown>;
     snapshot.safe = 'ok';
-    snapshot['__proto__'] = 'polluted';
+    Object.defineProperty(snapshot, '__proto__', {
+      value: 'polluted',
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
     snapshot['constructor'] = 'polluted';
     snapshot['prototype'] = 'polluted';
     (window as unknown as Record<string, unknown>).__BQUERY_RESUME__ = snapshot;
