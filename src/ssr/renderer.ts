@@ -186,7 +186,7 @@ const setHtml = (el: SSRElement, raw: string): void => {
   el.children = fragment.children;
 };
 
-const sanitizeHtmlForSSR = (raw: string): string => {
+export const sanitizeHtmlForSSR = (raw: string): string => {
   const sanitizeNode = (node: SSRNode): SSRNode | null => {
     if (node.type === 'fragment') {
       node.children = node.children.flatMap((child) => {

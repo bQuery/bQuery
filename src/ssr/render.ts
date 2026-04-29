@@ -10,11 +10,10 @@
 
 import { isComputed, isSignal, type Signal } from '../reactive/index';
 import { DANGEROUS_PROTOCOLS } from '../security/constants';
-import { sanitizeHtml } from '../security/sanitize';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
 import { cheapHash, collectDirectiveSignatureFromElement, HYDRATION_HASH_ATTR } from './hash';
-import { renderTemplatePure } from './renderer';
+import { renderTemplatePure, sanitizeHtmlForSSR } from './renderer';
 import type { RenderOptions, SSRResult } from './types';
 import { serializeStoreState } from './serialize';
 
@@ -312,7 +311,7 @@ const processSSRElement = (
   const htmlExpr = el.getAttribute(`${prefix}-html`);
   if (htmlExpr !== null) {
     const value = evaluateSSR(htmlExpr, context);
-    el.innerHTML = String(sanitizeHtml(String(value ?? '')));
+    el.innerHTML = sanitizeHtmlForSSR(String(value ?? ''));
   }
 
   // Handle bq-class: add classes

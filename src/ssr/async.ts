@@ -98,7 +98,12 @@ export const resolveContext = async (
         (value as unknown as { [DEFER_BRAND]?: unknown })[DEFER_BRAND]
       ) {
         // Allow loader-style functions tagged via defineLoader to opt in.
-        out[key] = await Promise.resolve((value as SSRLoader)(ctx));
+        try {
+          out[key] = await Promise.resolve((value as SSRLoader)(ctx));
+        } catch (error) {
+          ctx.reportError(error);
+          out[key] = undefined;
+        }
         return;
       }
       out[key] = value;

@@ -110,6 +110,41 @@ describe('configureSSR', () => {
     }
   });
 
+  it('sanitizes DOM-backend bq-html with a configured DOMParser even when DOM globals are unavailable', () => {
+    const originalDocumentDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    const originalDOMParserDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'DOMParser');
+    const originalNodeFilterDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'NodeFilter');
+
+    configureSSR({
+      backend: 'dom',
+      documentImpl: { DOMParser: globalThis.DOMParser },
+    });
+
+    delete (globalThis as typeof globalThis & { document?: Document }).document;
+    delete (globalThis as typeof globalThis & { DOMParser?: typeof DOMParser }).DOMParser;
+    delete (globalThis as typeof globalThis & { NodeFilter?: typeof NodeFilter }).NodeFilter;
+
+    try {
+      const result = renderToString('<div><span bq-html="content"></span></div>', {
+        content: '<strong onclick="alert(1)">Bold</strong><script>alert(1)</script>',
+      });
+
+      expect(result.html).toContain('<strong>Bold</strong>');
+      expect(result.html).not.toContain('onclick=');
+      expect(result.html).not.toContain('<script');
+    } finally {
+      if (originalDocumentDescriptor) {
+        Object.defineProperty(globalThis, 'document', originalDocumentDescriptor);
+      }
+      if (originalDOMParserDescriptor) {
+        Object.defineProperty(globalThis, 'DOMParser', originalDOMParserDescriptor);
+      }
+      if (originalNodeFilterDescriptor) {
+        Object.defineProperty(globalThis, 'NodeFilter', originalNodeFilterDescriptor);
+      }
+    }
+  });
+
   it('skips DOM-backend bq-for clones when clone directives remove them', () => {
     configureSSR({ backend: 'dom' });
     const result = renderToString(
@@ -703,6 +738,22 @@ describe('renderToStringAsync', () => {
     const loader = defineLoader(async () => 'loaded');
     const result = await renderToStringAsync('<p bq-text="msg"></p>', { msg: loader });
     expect(result.html).toContain('loaded');
+  });
+
+  it('reports defineLoader rejections and continues rendering with an empty value', async () => {
+    const errors: unknown[] = [];
+    const ctx = createSSRContext({ onError: (error) => errors.push(error) });
+    const loader = defineLoader(async () => {
+      throw new Error('loader boom');
+    });
+
+    const result = await renderToStringAsync('<p bq-text="msg"></p>', { msg: loader }, {
+      context: ctx,
+      stripDirectives: true,
+    });
+
+    expect(result.html).toBe('<p></p>');
+    expect(errors).toHaveLength(1);
   });
 
   it('injects head and asset HTML into </head>', async () => {
