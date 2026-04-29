@@ -15,7 +15,11 @@ import { hydrateMount, type HydrateMountOptions } from './hydrate';
 const resolveElement = (selector: string | Element): Element | null => {
   if (typeof selector !== 'string') return selector;
   if (typeof document === 'undefined') return null;
-  return document.querySelector(selector);
+  try {
+    return document.querySelector(selector);
+  } catch {
+    return null;
+  }
 };
 
 const hydrateResolved = (

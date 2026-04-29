@@ -8,6 +8,7 @@
  */
 import { afterEach, describe, expect, it } from 'bun:test';
 import { signal } from '../src/reactive/index';
+import { resolveContext } from '../src/ssr/async';
 import { parseTemplate, serializeTree } from '../src/ssr/html-parser';
 import {
   configureSSR,
@@ -354,6 +355,22 @@ describe('pure renderer (DOM-free)', () => {
     // Malformed absolute URLs are treated as external if URL parsing fails.
     expect(result.html).toContain('<a href="http://[::1" rel="noopener noreferrer">broken</a>');
     expect(result.html).toContain('<a href="http://[::1]/ok" rel="noopener noreferrer">ipv6</a>');
+  });
+
+  it('matches DOM rendering for mixed-case directive attributes', () => {
+    const template =
+      '<div><span BQ-TEXT="title" bQ-cLaSs="{ active: on }" BQ-IF="show"></span></div>';
+    const data = { title: 'Mixed', on: true, show: true };
+
+    configureSSR({ backend: 'pure' });
+    const pure = renderToString(template, data, { stripDirectives: true }).html;
+
+    configureSSR({ backend: 'dom' });
+    const dom = renderToString(template, data, { stripDirectives: true }).html;
+
+    expect(pure).toBe(dom);
+    expect(pure).toContain('Mixed');
+    expect(pure).toContain('active');
   });
 
   it('trims pure-renderer templates like the DOM backend', () => {
@@ -763,6 +780,24 @@ describe('renderToStringAsync', () => {
     expect(errors).toHaveLength(1);
     expect(errors[0]).toBeInstanceOf(Error);
     expect((errors[0] as Error).message).toBe('loader boom');
+  });
+
+  it('resolveContext returns a null-prototype object and ignores prototype-pollution keys', async () => {
+    const context = createSSRContext();
+    const data = Object.create(null) as Record<string, unknown>;
+    data.msg = Promise.resolve('safe');
+    data.__proto__ = Promise.resolve('polluted');
+    data.constructor = Promise.resolve('polluted-constructor');
+    data.prototype = Promise.resolve('polluted-prototype');
+
+    const resolved = await resolveContext(data, context);
+
+    expect(Object.getPrototypeOf(resolved)).toBeNull();
+    expect(resolved.msg).toBe('safe');
+    expect(Object.prototype.hasOwnProperty.call(resolved, '__proto__')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(resolved, 'constructor')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(resolved, 'prototype')).toBe(false);
+    expect((resolved as Record<string, unknown>).toString).toBeUndefined();
   });
 
   it('injects head and asset HTML into </head>', async () => {
@@ -1391,6 +1426,14 @@ describe('hydration strategies', () => {
         writable: true,
       });
     }
+  });
+
+  it('hydration helpers return null for invalid selector syntax instead of throwing', async () => {
+    expect(() => hydrateIsland('123main>>', { title: signal('x') })).not.toThrow();
+    expect(hydrateIsland('123main>>', { title: signal('x') })).toBeNull();
+
+    const idle = hydrateOnIdle('123main>>', { title: signal('i') });
+    expect(await idle.ready).toBeNull();
   });
 
   it('hydrateOnIdle resolves null when document is unavailable', async () => {

@@ -10,6 +10,7 @@
 
 import { isComputed, isSignal, type Signal } from '../reactive/index';
 import type { BindingContext } from '../view/types';
+import { isPrototypePollutionKey } from '../core/utils/object';
 import type { SSRContext } from './context';
 import { DEFER_BRAND } from './defer-brand';
 
@@ -67,10 +68,11 @@ export const resolveContext = async (
   context: BindingContext,
   ctx: SSRContext
 ): Promise<BindingContext> => {
-  const out: BindingContext = {};
+  const out = Object.create(null) as BindingContext;
   const entries = Object.entries(context);
   await Promise.all(
     entries.map(async ([key, value]) => {
+      if (isPrototypePollutionKey(key)) return;
       if (isSignal(value) || isComputed(value)) {
         out[key] = value;
         return;
@@ -111,7 +113,11 @@ export const resolveContext = async (
   );
   // Carry forward signals untouched so unwrap() in the evaluator still works.
   for (const [key, value] of Object.entries(context)) {
-    if (!(key in out) && (isSignal(value) || isComputed(value))) {
+    if (
+      !isPrototypePollutionKey(key) &&
+      !Object.prototype.hasOwnProperty.call(out, key) &&
+      (isSignal(value) || isComputed(value))
+    ) {
       out[key] = value as Signal<unknown>;
     }
   }

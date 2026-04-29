@@ -187,8 +187,8 @@ const parseAttributes = (
     }
     if (s.pos >= s.src.length) break;
 
-    const name = readAttrName(s);
-    if (!name) {
+    const rawName = readAttrName(s);
+    if (!rawName) {
       // Defensive: skip ahead to the next whitespace, '/' or '>' to avoid
       // pathological 1-char-per-iteration advancement on malformed input.
       while (s.pos < s.src.length) {
@@ -198,6 +198,7 @@ const parseAttributes = (
       }
       continue;
     }
+    const name = rawName.toLowerCase();
     skipWs(s);
     let value = '';
     if (s.src[s.pos] === '=') {
