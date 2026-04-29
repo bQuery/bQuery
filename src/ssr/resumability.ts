@@ -36,6 +36,15 @@ export interface CreateResumableStateOptions {
   initial?: Record<string, unknown>;
 }
 
+const cloneResumableEntries = (data: Record<string, unknown>): Record<string, unknown> => {
+  const out = Object.create(null) as Record<string, unknown>;
+  for (const [key, value] of Object.entries(data)) {
+    if (isPrototypePollutionKey(key)) continue;
+    out[key] = value;
+  }
+  return out;
+};
+
 /**
  * Creates a server-side resumable state collector.
  *
@@ -64,7 +73,7 @@ export const createResumableState = (options: CreateResumableStateOptions = {}):
       return data[key] as T | undefined;
     },
     entries() {
-      return { ...data };
+      return cloneResumableEntries(data);
     },
     render(opts = {}) {
       const scriptId = opts.scriptId ?? '__BQUERY_RESUME__';
@@ -127,7 +136,7 @@ export const resumeState = (
       return data[key] as T | undefined;
     },
     entries() {
-      return { ...data };
+      return cloneResumableEntries(data);
     },
   };
 };

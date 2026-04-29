@@ -661,6 +661,26 @@ describe('resumability hooks', () => {
     expect(reader.get('anything')).toBeUndefined();
   });
 
+  it('resumeState.entries filters prototype-pollution keys into a null-prototype copy', () => {
+    const snapshot = Object.create(null) as Record<string, unknown>;
+    snapshot.safe = 'ok';
+    snapshot['__proto__'] = 'polluted';
+    snapshot['constructor'] = 'polluted';
+    snapshot['prototype'] = 'polluted';
+    (window as unknown as Record<string, unknown>).__BQUERY_RESUME__ = snapshot;
+
+    const reader = resumeState();
+    const entries = reader.entries();
+
+    expect(reader.get<string>('safe')).toBe('ok');
+    expect(reader.get('__proto__')).toBeUndefined();
+    expect(Object.getPrototypeOf(entries)).toBeNull();
+    expect(entries).toEqual({ safe: 'ok' });
+    expect(Object.prototype.hasOwnProperty.call(entries, '__proto__')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(entries, 'constructor')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(entries, 'prototype')).toBe(false);
+  });
+
   it('resumable script does not break out of <script> tags', () => {
     const r = createResumableState();
     r.set('xss', '</script><script>alert(1)</script>');
