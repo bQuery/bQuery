@@ -91,6 +91,8 @@ Like SSR rendering, `ctx.html()` sanitization relies on DOM-compatible globals. 
 
 Register the DOM shim once during application startup before handling any requests that call `ctx.html()` without `{ trusted: true }` or use `ctx.render()`.
 
+For example, install `happy-dom` separately (`bun add happy-dom` / `npm install happy-dom`) and register it like this, or use another compatible DOM implementation.
+
 ```ts
 import { Window } from 'happy-dom';
 
