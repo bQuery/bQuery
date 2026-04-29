@@ -4,7 +4,7 @@
  * Exercises the runtime-agnostic SSR pipeline using only Web standard APIs
  * (Request, Response, ReadableStream, fetch, URL, TextEncoder/Decoder).
  *
- * Designed to run unmodified on Node ≥ 24, Bun ≥ 1.3.11 and Deno latest by
+ * Designed to run unmodified on Node ≥ 24, Bun ≥ 1.3.13 and Deno latest by
  * importing the built ESM bundle (`dist/ssr.es.mjs`). Run `bun run build`
  * first.
  *

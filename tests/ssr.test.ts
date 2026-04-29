@@ -6,6 +6,8 @@ import { signal, computed } from '../src/reactive/index';
 import type { HydrateMountOptions } from '../src/ssr/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 import {
+  configureSSR,
+  getSSRConfig,
   renderToString,
   hydrateMount,
   serializeStoreState,
@@ -211,8 +213,10 @@ describe('renderToString', () => {
 
   it('falls back to the DOM-free pure renderer when DOMParser is unavailable', () => {
     const originalDOMParser = globalThis.DOMParser;
+    const previousConfig = getSSRConfig();
 
     try {
+      configureSSR({ backend: 'auto', documentImpl: null });
       Object.defineProperty(globalThis, 'DOMParser', {
         value: undefined,
         configurable: true,
@@ -224,6 +228,7 @@ describe('renderToString', () => {
       });
       expect(result.html).toContain('Pure');
     } finally {
+      configureSSR(previousConfig);
       Object.defineProperty(globalThis, 'DOMParser', {
         value: originalDOMParser,
         configurable: true,
