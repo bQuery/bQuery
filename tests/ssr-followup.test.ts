@@ -665,7 +665,7 @@ describe('resumability hooks', () => {
     const snapshot = Object.create(null) as Record<string, unknown>;
     snapshot.safe = 'ok';
     Object.defineProperty(snapshot, '__proto__', {
-      value: 'polluted',
+      value: { polluted: true },
       enumerable: true,
       configurable: true,
       writable: true,
