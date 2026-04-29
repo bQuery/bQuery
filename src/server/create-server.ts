@@ -40,8 +40,12 @@ const METHOD_ALL = null;
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
- * Creates a null-prototype dictionary for request-derived data so user-controlled
- * keys cannot mutate the default object prototype.
+ * Creates a null-prototype dictionary for request-derived data.
+ *
+ * Request-controlled keys such as query params and route params must never write
+ * into the default object prototype, otherwise names like `__proto__` can trigger
+ * prototype-pollution bugs. Using `Object.create(null)` keeps these maps isolated
+ * even before higher-level validation runs.
  */
 const createDictionary = <T>(): Record<string, T> => Object.create(null) as Record<string, T>;
 

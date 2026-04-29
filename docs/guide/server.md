@@ -89,6 +89,8 @@ If you already have trusted HTML and need to skip sanitization, pass `{ trusted:
 
 Like SSR rendering, `ctx.html()` sanitization relies on DOM-compatible globals. If your Node runtime does not provide `document` / `DOMParser`, install and register a compatible implementation before returning sanitized HTML, or pass `{ trusted: true }` only when the HTML is already known to be safe.
 
+Register the DOM shim once during application startup before handling any requests that call `ctx.html()` without `{ trusted: true }` or use `ctx.render()`.
+
 ```ts
 import { Window } from 'happy-dom';
 
