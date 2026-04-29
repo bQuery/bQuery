@@ -271,6 +271,8 @@ describe('pure renderer (DOM-free)', () => {
   });
 
   it('stores parsed attributes in a null-prototype map', () => {
+    // Exercise prototype-pollution-shaped keys without giving the attribute
+    // container access to Object.prototype.
     const tree = parseTemplate('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
     const root = tree.children[0];
 
@@ -281,6 +283,7 @@ describe('pure renderer (DOM-free)', () => {
     expect(Object.getPrototypeOf(root.attributes)).toBeNull();
     expect(root.attributes.__proto__).toBe('polluted');
     expect(root.attributes.constructor).toBe('ctor');
+    expect(root.attributes.toString).toBeUndefined();
     expect(serializeTree(tree)).toBe('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
   });
 
