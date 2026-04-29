@@ -1,7 +1,7 @@
 /**
  * Deno SSR example.
  *
- *   deno run --allow-net serve.ts
+ *   deno run --allow-net examples/ssr-deno/serve.ts
  *
  * Listens on http://localhost:3000/.
  */

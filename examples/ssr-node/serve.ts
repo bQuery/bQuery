@@ -1,7 +1,7 @@
 /**
  * Node SSR example.
  *
- *   node --experimental-strip-types serve.ts
+ *   node --experimental-strip-types examples/ssr-node/serve.ts
  *
  * Listens on http://localhost:3000/. Uses `createNodeHandler` to bridge
  * `node:http` to the Web `Request` / `Response` API.

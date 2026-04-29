@@ -1,7 +1,7 @@
 /**
  * Bun SSR example.
  *
- *   bun serve.ts
+ *   bun examples/ssr-bun/serve.ts
  *
  * Listens on http://localhost:3000/.
  */
