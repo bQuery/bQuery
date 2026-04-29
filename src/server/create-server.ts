@@ -200,6 +200,8 @@ const defaultDeserialize = <TReceive>(event: MessageEvent): TReceive => {
     try {
       return JSON.parse(raw) as TReceive;
     } catch {
+      // Match `useWebSocket()` in `src/reactive/websocket.ts`: malformed JSON
+      // payloads fall back to the original string instead of throwing.
       return raw as TReceive;
     }
   }
@@ -303,8 +305,7 @@ const createWebSocketConnectionFactory = () => {
   const cache = new WeakMap<object, ServerWebSocketConnection>();
 
   return (socket: ServerWebSocketPeer): ServerWebSocketConnection => {
-    const key = socket as unknown as object;
-    const existing = cache.get(key);
+    const existing = cache.get(socket);
     if (existing) {
       return existing;
     }
@@ -323,14 +324,18 @@ const createWebSocketConnectionFactory = () => {
         socket.send(data);
       },
       sendJson(data) {
-        socket.send(JSON.stringify(data ?? null));
+        const payload = JSON.stringify(data);
+        if (typeof payload !== 'string') {
+          throw new TypeError('socket.sendJson() does not support undefined values');
+        }
+        socket.send(payload);
       },
       close(code, reason) {
         socket.close(code, reason);
       },
     };
 
-    cache.set(key, connection);
+    cache.set(socket, connection);
     return connection;
   };
 };

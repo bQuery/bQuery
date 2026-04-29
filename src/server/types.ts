@@ -72,7 +72,9 @@ export interface ServerRenderResponseOptions extends RenderOptions {
 }
 
 /**
- * Binary/text payloads accepted by WebSocket peers.
+ * Binary/text payloads accepted by server-side WebSocket peers and sessions.
+ *
+ * Use this for raw frames sent through `socket.send(...)`.
  */
 export type ServerWebSocketData = string | Blob | ArrayBufferLike | ArrayBufferView;
 

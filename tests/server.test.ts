@@ -15,7 +15,7 @@ afterEach(() => {
   }
 });
 
-class MockServerWebSocket implements ServerWebSocketPeer {
+class MockServerWebSocketPeer implements ServerWebSocketPeer {
   protocol = '';
   readyState = 1;
 
@@ -330,7 +330,7 @@ describe('server/createServer', () => {
     expect(result.protocols).toEqual(['chat', 'json']);
     expect(new Headers(result.headers).get('x-room')).toBe('general');
 
-    const socket = new MockServerWebSocket('ws://localhost/rooms/general');
+    const socket = new MockServerWebSocketPeer('ws://localhost/rooms/general');
     await result.open(socket);
     await result.message(socket, new MessageEvent('message', { data: '{"text":"hi"}' }));
     const closeEvent = new Event('close') as CloseEvent;
@@ -417,7 +417,56 @@ describe('server/createServer', () => {
       throw new Error('expected a websocket session');
     }
 
-    await result.message(new MockServerWebSocket(), new MessageEvent('message', { data: 'plain-text' }));
+    await result.message(
+      new MockServerWebSocketPeer(),
+      new MessageEvent('message', { data: 'plain-text' })
+    );
     expect(received).toBe('plain-text');
+  });
+
+  it('drops blank websocket protocols after trimming', async () => {
+    const app = createServer();
+    app.ws('/protocols', {
+      protocols: ['  ', 'chat', 'chat', '\t'],
+    });
+
+    const result = await app.handleWebSocket(
+      new Request('http://localhost/protocols', {
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+        },
+      })
+    );
+
+    expect(isServerWebSocketSession(result)).toBe(true);
+    if (!isServerWebSocketSession(result)) {
+      throw new Error('expected a websocket session');
+    }
+
+    expect(result.protocols).toEqual(['chat']);
+  });
+
+  it('returns an empty protocol list when all websocket protocols are blank', async () => {
+    const app = createServer();
+    app.ws('/empty-protocols', {
+      protocols: ['  ', '\t', '\n'],
+    });
+
+    const result = await app.handleWebSocket(
+      new Request('http://localhost/empty-protocols', {
+        headers: {
+          connection: 'Upgrade',
+          upgrade: 'websocket',
+        },
+      })
+    );
+
+    expect(isServerWebSocketSession(result)).toBe(true);
+    if (!isServerWebSocketSession(result)) {
+      throw new Error('expected a websocket session');
+    }
+
+    expect(result.protocols).toEqual([]);
   });
 });
