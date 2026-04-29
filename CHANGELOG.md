@@ -68,7 +68,7 @@ and this project adheres to Semantic Versioning.
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
-## [1.11.0] - 2026-04-15
+## [1.11.0] - 2026-04-30
 
 ### Added (1.11.0)
 
