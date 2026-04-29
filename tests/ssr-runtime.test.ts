@@ -274,7 +274,6 @@ describe('pure renderer (DOM-free)', () => {
     const tree = parseTemplate('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
     const root = tree.children[0];
 
-    expect(root?.type).toBe('element');
     if (!root || root.type !== 'element') {
       throw new Error('expected element root');
     }
