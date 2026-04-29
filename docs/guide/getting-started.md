@@ -1,6 +1,6 @@
 # Getting Started
 
-bQuery.js is designed for zero-build usage and modern build setups alike. You can start with plain HTML or use Vite for a fast dev server. Since `1.8.0`, the Reactive module also covers HTTP clients, polling, pagination, realtime transports, REST helpers, and request coordination utilities. Since `1.10.0`, the Concurrency module also covers explicit RPC workers, bounded pools, opt-in reactive worker state wrappers, and high-level collection helpers.
+bQuery.js is designed for zero-build usage and modern build setups alike. You can start with plain HTML or use Vite for a fast dev server. Since `1.8.0`, the Reactive module also covers HTTP clients, polling, pagination, realtime transports, REST helpers, and request coordination utilities. Since `1.10.0`, the Concurrency module also covers explicit RPC workers, bounded pools, opt-in reactive worker state wrappers, and high-level collection helpers. Since `1.11.0`, bQuery also ships runtime-agnostic SSR helpers such as `renderToStringAsync()` and `renderToResponse()`, plus the `@bquery/bquery/server` entry point for lightweight backend routing and WebSocket sessions.
 
 ## Installation
 
@@ -141,11 +141,12 @@ import { trapFocus, skipLink } from '@bquery/bquery/a11y';
 import { draggable, sortable } from '@bquery/bquery/dnd';
 import { mediaQuery, useViewport, clipboard } from '@bquery/bquery/media';
 
-// Plugins, devtools, testing, SSR
+// Plugins, devtools, testing, SSR, server
 import { use } from '@bquery/bquery/plugin';
 import { enableDevtools } from '@bquery/bquery/devtools';
 import { renderComponent, waitFor } from '@bquery/bquery/testing';
-import { renderToString, hydrateMount } from '@bquery/bquery/ssr';
+import { createSSRContext, renderToResponse, renderToStringAsync } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
 ```
 
 ## Modules at a glance
@@ -171,7 +172,8 @@ import { renderToString, hydrateMount } from '@bquery/bquery/ssr';
 | **Plugin**      | Global plugin registration for custom directives and components                                                                 |
 | **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                       |
 | **Testing**     | Component mounts, mock signals/router, event helpers, and async assertions                                                      |
-| **SSR**         | HTML rendering, hydration, and serialized store-state handoff                                                                   |
+| **SSR**         | Runtime-agnostic HTML, streaming, `Response` rendering, hydration islands, adapters, and store-state handoff                    |
+| **Server**      | Express-inspired backend routing, middleware, safe response helpers, and WebSocket sessions                                     |
 
 ## Quick Examples
 
@@ -308,21 +310,28 @@ export const Playground = {
 };
 ```
 
-### SSR and testing
+### SSR, server, and testing
 
 ```ts
 import { renderComponent, fireEvent, waitFor } from '@bquery/bquery/testing';
-import { renderToString } from '@bquery/bquery/ssr';
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
 
 const mounted = renderComponent('ui-button', { props: { variant: 'primary' } });
 fireEvent(mounted.el, 'click');
 await waitFor(() => mounted.el.isConnected);
 
-const { html } = renderToString('<div><p bq-text="title"></p></div>', {
-  title: 'Hello from the server',
+const app = createServer();
+app.get('/', (ctx) => {
+  const ssr = createSSRContext({ request: ctx.request });
+  return renderToResponse(
+    '<html><head></head><body><div id="app"><p bq-text="title"></p></div></body></html>',
+    { title: 'Hello from the server' },
+    { context: ssr, etag: true }
+  );
 });
 
-console.log(html);
+console.log(await app.handle('http://localhost/'));
 mounted.unmount();
 ```
 
@@ -346,6 +355,9 @@ bun test
 # Build library bundle
 bun run build
 
+# Verify release / AI guidance sync
+bun run check:ai-guidance
+
 # Build documentation site
 bun run build:docs
 ```
@@ -354,10 +366,10 @@ bun run build:docs
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **Note:** Internet Explorer is not supported by design.
 
@@ -380,3 +392,4 @@ bun run build:docs
 - [Devtools](./devtools.md) - Inspect signals, stores, and timelines
 - [Testing](./testing.md) - Mount components and assert async behavior
 - [SSR](./ssr.md) - Render templates on the server and hydrate on the client
+- [Server](./server.md) - Build lightweight backend routes and WebSocket handlers

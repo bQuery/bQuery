@@ -3,17 +3,19 @@
 > This file helps AI coding agents (Copilot, Cursor, Cline, Aider, etc.)
 > understand, navigate, and modify this codebase effectively.
 
+**Maintenance note:** `package.json` and `src/*/index.ts` are the authoritative sources for the current version, engine floor, and public exports. If release metadata or the public runtime surface changes, sync `AGENT.md`, `llms.txt`, `.github/copilot-instructions.md`, `.cursorrules`, `.clinerules`, `README.md`, and run `bun run check:ai-guidance`.
+
 ## Identity
 
 | Field       | Value                                                                                                                                                                                                                                                                                 |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                                                                                                             |
 | Package     | `@bquery/bquery`                                                                                                                                                                                                                                                                      |
-| Version     | 1.10.0                                                                                                                                                                                                                                                                                |
+| Version     | 1.11.0                                                                                                                                                                                                                                                                                |
 | License     | MIT                                                                                                                                                                                                                                                                                   |
 | Language    | TypeScript (strict)                                                                                                                                                                                                                                                                   |
 | Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                                                                                                                          |
-| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.11`                                                                                                                                                                                                                                                    |
+| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.13`                                                                                                                                                                                                                                                    |
 | Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                                                                                                    |
 | Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                                                                                                      |
 | Description | jQuery-style DOM library with reactivity, zero-build worker tasks, async data, HTTP clients, polling / pagination, realtime transports, REST helpers, Web Components, motion, routing, stores, declarative views, and shared runtime config — zero-build capable, security-by-default |
@@ -28,17 +30,21 @@ bun test              # Run all tests
 bun run build         # Build ESM + UMD + types → dist/
 bun run lint          # ESLint with auto-fix
 bun run lint:types    # TypeScript type check only
+bun run check:ai-guidance # Verify AI guidance + release metadata sync
 bun run storybook     # Storybook dev server
 bun run dev           # VitePress docs server
 ```
 
-## Version 1.10.0 Highlights
+## Workspace Prompt Pack
 
-- The concurrency module's public surface now includes explicit RPC workers, task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `some()`, `every()`, `find()`, `reduce()`, and `pipeline()`.
-- `watchDebounce()` and `watchThrottle()` are public reactive APIs and should preserve the same cleanup-safe callback semantics as `watch()`.
-- View directive inventories must include `bq-error` and `bq-aria` when describing the declarative binding layer.
-- Media guidance should treat `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()` as first-class public composables.
-- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.11`.
+Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.11.0 Highlights
+
+- `@bquery/bquery/server` is now a first-class public entry point for dependency-free backend routing, SSR-aware `render()` responses, repeated-query parsing, and runtime-agnostic WebSocket session handling through `createServer()`.
+- `@bquery/bquery/ssr` now spans runtime-agnostic sync/async/streaming rendering with `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, DOM-free fallback rendering, `createSSRContext()`, head/asset managers, runtime adapters, route loaders, store snapshots, mismatch checks, and resumability hooks.
+- The `1.10.0` concurrency helpers and the `1.9.0` watcher/view/media additions remain first-class public APIs; keep them visible in docs and AI guidance instead of treating them as historical footnotes.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ---
 
@@ -67,15 +73,19 @@ src/
 ├── plugin/             # plugin registry for directives/components
 ├── devtools/           # runtime inspection and timeline helpers
 ├── testing/            # renderComponent(), mockSignal(), waitFor()
-└── ssr/                # renderToString(), hydrateMount(), store-state bridge
+├── ssr/                # Runtime-agnostic rendering, streaming, hydration, adapters, snapshots
+└── server/             # Backend helpers, SSR-aware responses, and WebSocket sessions
 
+scripts/                # Repo maintenance helpers (including AI guidance sync checks)
 tests/                  # Bun test suites (one file per module)
-.storybook/            # Storybook config
+.storybook/             # Storybook config
 stories/                # Component stories
 docs/                   # VitePress documentation site
 ```
 
 Each `src/<module>/index.ts` re-exports the module's public API.
+
+When version metadata or public exports change, refresh the AI-facing files as a synced set instead of updating only the file you happen to have open.
 
 ---
 
@@ -341,13 +351,41 @@ Each `src/<module>/index.ts` re-exports the module's public API.
 
 ### SSR (`@bquery/bquery/ssr`)
 
-| Export                              | Kind      | Description                              |
-| ----------------------------------- | --------- | ---------------------------------------- |
-| `renderToString()`                  | function  | Render directive-aware templates to HTML |
-| `hydrateMount()`                    | function  | Hydrate existing server-rendered DOM     |
-| `serializeStoreState()`             | function  | Serialize registered store state         |
-| `deserializeStoreState()`           | function  | Read serialized client bootstrap state   |
-| `hydrateStore()`, `hydrateStores()` | functions | Apply SSR state to one or many stores    |
+Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 with no external deps. The DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs keep their original behaviour.
+
+| Export                                                                                      | Kind      | Description                                                                                    |
+| ------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `renderToString()`                                                                          | function  | Synchronous render to HTML (DOM- or DOM-free backend)                                          |
+| `renderToStringAsync()`                                                                     | function  | Awaits Promises / `defer()` values in the binding context                                      |
+| `renderToStream()`                                                                          | function  | Returns a Web `ReadableStream<Uint8Array>` for the rendered HTML                               |
+| `renderToResponse()`                                                                        | function  | Returns a `Response` with content-type, ETag, head/asset/store-state injection                 |
+| `hydrateMount()`                                                                            | function  | Hydrate existing server-rendered DOM                                                           |
+| `hydrateOnVisible()` / `hydrateOnIdle()` / `hydrateOnInteraction()` / `hydrateOnMedia()`    | functions | Progressive hydration strategies (`HydrationHandle`)                                           |
+| `hydrateIsland()`                                                                           | function  | Explicit island hydration (alias for `hydrateMount` with island semantics)                     |
+| `serializeStoreState()`                                                                     | function  | Serialize registered store state                                                               |
+| `deserializeStoreState()`                                                                   | function  | Read serialized client bootstrap state                                                         |
+| `hydrateStore()`, `hydrateStores()`                                                         | functions | Apply SSR state to one or many stores                                                          |
+| `createSSRContext()`                                                                        | function  | Build an `SSRContext` (request, url, headers, cookies, locale, signal, nonce, …)               |
+| `createHeadManager()` / `createAssetManager()`                                              | functions | Collect head/asset entries and serialise them as HTML                                          |
+| `defer(promise, fallback?)` / `defineLoader(fn)`                                            | functions | Async data helpers consumed by `renderToStringAsync()`                                         |
+| `configureSSR()` / `getSSRConfig()`                                                         | functions | Switch backend (`'auto'` / `'pure'` / `'dom'`) or inject a custom `DOMParser`                  |
+| `detectRuntime()` / `isServerRuntime()` / `isBrowserRuntime()` / `getSSRRuntimeFeatures()`  | functions | Runtime detection helpers                                                                      |
+| `createWebHandler()` / `createBunHandler()` / `createDenoHandler()` / `createNodeHandler()` | functions | Runtime adapters; Node supports optional `maxBodyBytes`, and `createSSRHandler()` auto-detects |
+| `verifyHydration()` / `HYDRATION_HASH_ATTR`                                                 | function  | Walk `[data-bq-h]` and report mismatches; pair with `RenderOptions.annotateHydration`          |
+| `renderToStreamSuspense()`                                                                  | function  | Out-of-order streaming with `defer()` placeholders + CSP-nonce-aware patch scripts             |
+| `resolveSSRRoute()` / `runRouteLoaders()` / `createSSRRouterContext()`                      | functions | Match URLs and run `meta.loader` data loaders before render                                    |
+| `serializeStoreSnapshot()` / `hydrateStoreSnapshot()` / `readStoreSnapshot()`               | functions | Versioned store snapshots with strict drift detection                                          |
+| `createResumableState()` / `resumeState()`                                                  | functions | JSON-safe key/value snapshot the client can read without re-running producers                  |
+
+### Server (`@bquery/bquery/server`)
+
+| Export                                                                   | Kind       | Description                                                                                    |
+| ------------------------------------------------------------------------ | ---------- | ---------------------------------------------------------------------------------------------- |
+| `createServer()` / `isWebSocketRequest()` / `isServerWebSocketSession()` | functions  | Create a lightweight backend app and inspect WebSocket upgrade flow                            |
+| `ServerApp`                                                              | interface  | App-like handle with `use()`, HTTP method helpers, `ws()`, `handle()`, and `handleWebSocket()` |
+| `ServerContext`                                                          | interface  | Request context with params, query, state, response helpers, and `isWebSocketRequest`          |
+| `ServerRoute`                                                            | interface  | Route definition with `path`, optional `method`, middleware, handler                           |
+| `ServerWebSocketSession` / `ServerWebSocketHandlerSet`                   | interfaces | Runtime-agnostic WebSocket session descriptor and route lifecycle callbacks                    |
 
 ### View (`@bquery/bquery/view`)
 
@@ -455,6 +493,15 @@ it('should add class', () => {
 4. Document the behavior in the relevant guide and in `README.md`
 5. Run `bun test`
 
+### Refreshing AI guidance and release metadata
+
+1. Treat `package.json`, `CHANGELOG.md`, and `src/*/index.ts` as the source of truth
+2. Update `AGENT.md` first, then `llms.txt`, then `.github/copilot-instructions.md`
+3. Re-align `.cursorrules` and `.clinerules` as derived tool-specific views
+4. If public runtime exports changed, re-check `src/full.ts` and `README.md`
+5. Run `bun run check:ai-guidance`
+6. Finish with the smallest relevant Bun validation command for the actual code/docs change
+
 ### Adding a new module
 
 1. Create `src/<module>/` directory with `index.ts` + implementation files
@@ -479,7 +526,10 @@ it('should add class', () => {
 | ------------------------------- | --------------------------------------------------------------------------------------- |
 | `src/index.ts`                  | Default entry point — re-exports all modules                                            |
 | `src/full.ts`                   | Full bundle with explicit named exports (CDN); keep in sync with public runtime exports |
-| `vite.config.ts`                | Library build config (22 entry points, ESM)                                             |
+| `src/ssr/index.ts`              | Canonical SSR surface; use this to verify async/streaming/runtime-adapter exports       |
+| `src/server/index.ts`           | Canonical backend helper surface for `@bquery/bquery/server`                            |
+| `scripts/check-ai-guidance.mjs` | Lightweight version/engine/guidance drift check for AI-facing repo files                |
+| `vite.config.ts`                | Library build config (23 entry points, ESM)                                             |
 | `vite.umd.config.ts`            | UMD bundle config for CDN/script tags                                                   |
 | `tsconfig.json`                 | TypeScript config (strict, ES2020, Bundler)                                             |
 | `tsconfig.test.json`            | Test-specific TypeScript config                                                         |
@@ -495,24 +545,29 @@ it('should add class', () => {
 
 ## Common Pitfalls
 
-| Pitfall                      | Explanation                                                                                                   |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `$()` throws                 | Use `$$()` for optional/missing elements                                                                      |
-| Forgetting sanitization      | ALL new DOM-writing methods must call `sanitizeHtml()`                                                        |
-| Signal `.value` tracks       | Use `.peek()` to read without subscribing in computed/effect                                                  |
-| Disposed async state         | `useAsyncData()` / `useFetch()` return cached data after `dispose()` and should not be re-used for fresh work |
-| `src/full.ts` drift          | If a public runtime export changes, update `src/full.ts` so the `/full` bundle and CDN entry stay accurate    |
-| Testing with Node            | Use `bun test` only — Bun-specific APIs are used                                                              |
-| CSP with View module         | `mount()` uses `new Function()` → needs `'unsafe-eval'`                                                       |
-| Double renders in components | `attributeChangedCallback` only re-renders after initial mount                                                |
-| `linkedSignal` vs `computed` | `computed` is read-only; `linkedSignal` is read-write                                                         |
+| Pitfall                      | Explanation                                                                                                                        |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `$()` throws                 | Use `$$()` for optional/missing elements                                                                                           |
+| Forgetting sanitization      | ALL new DOM-writing methods must call `sanitizeHtml()`                                                                             |
+| AI guidance drift            | `package.json` and the public barrels are authoritative; run `bun run check:ai-guidance` after release/engine/API metadata changes |
+| Signal `.value` tracks       | Use `.peek()` to read without subscribing in computed/effect                                                                       |
+| Disposed async state         | `useAsyncData()` / `useFetch()` return cached data after `dispose()` and should not be re-used for fresh work                      |
+| `src/full.ts` drift          | If a public runtime export changes, update `src/full.ts` so the `/full` bundle and CDN entry stay accurate                         |
+| Testing with Node            | Use `bun test` only — Bun-specific APIs are used                                                                                   |
+| CSP with View module         | `mount()` uses `new Function()` → needs `'unsafe-eval'`                                                                            |
+| Double renders in components | `attributeChangedCallback` only re-renders after initial mount                                                                     |
+| `linkedSignal` vs `computed` | `computed` is read-only; `linkedSignal` is read-write                                                                              |
 
 ---
 
 ## Related Files for AI Agents
 
 - [.github/copilot-instructions.md](.github/copilot-instructions.md) — GitHub Copilot context
+- [.github/prompts/](.github/prompts/) — Workspace starter prompts for common bQuery workflows
 - [llms.txt](llms.txt) — LLM-optimized project summary
+- [.cursorrules](.cursorrules) — Cursor-specific derived rules snapshot
+- [.clinerules](.clinerules) — Cline-specific derived rules snapshot
+- [`scripts/check-ai-guidance.mjs`](scripts/check-ai-guidance.mjs) — Sync guardrail for AI-facing repo files
 - [CONTRIBUTING.md](CONTRIBUTING.md) — Contributor guidelines
 - [CHANGELOG.md](CHANGELOG.md) — Version history
 - [docs/guide/](docs/guide/) — Full documentation (VitePress)

@@ -2,26 +2,28 @@
 
 > The jQuery for the modern Web Platform.
 
-bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), zero-build worker tasks, async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
+> Compact repo summary for context-limited LLMs. If this file drifts, trust `package.json`, `src/*/index.ts`, and `AGENT.md` in that order.
+
+bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), zero-build worker tasks, async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, lightweight server middleware, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
 
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.10.0
+- Version: 1.11.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bQuery.flausch-code.de
 - Runtime: Browser (ESM, UMD, IIFE)
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
-- Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.11`
+- Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
 
-## Version 1.10.0 Highlights
+## Version 1.11.0 Highlights
 
-- Concurrency: explicit RPC workers, reusable task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()` are now part of the public surface.
-- Reactive: `watchDebounce()` and `watchThrottle()` extend the watcher API with cleanup-safe debounce and throttle timing.
-- View: `bq-error` and `bq-aria` expand declarative bindings for inline error output and ARIA attribute wiring.
-- Media: `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()` expose DOM observers as cleanup-friendly reactive APIs.
+- Server: `@bquery/bquery/server` is now a first-class public entry point with dependency-free routing, SSR-aware `render()` responses, repeated-query parsing, and runtime-agnostic WebSocket sessions via `createServer()`.
+- SSR: `@bquery/bquery/ssr` now spans DOM-free fallback rendering, `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, `createSSRContext()`, head/asset managers, hydration strategies, route loaders, snapshots, resumability, and runtime adapters.
+- Existing `1.10.0` / `1.9.0` additions — concurrency RPC/pool helpers, `watchDebounce()` / `watchThrottle()`, `bq-error` / `bq-aria`, and the media observer composables — remain part of the current public surface.
+- Repo AI guidance stays aligned through `bun run check:ai-guidance`, which validates the release/version metadata across the shared AI-facing files.
 
 ## Modules
 
@@ -85,7 +87,10 @@ Runtime inspection utilities. `enableDevtools()` toggles collection. `inspectSig
 Testing helpers. `renderComponent()` mounts custom elements, `flushEffects()` flushes pending reactive work, `mockSignal()` creates controllable signals, `mockRouter()` creates a lightweight reactive router, `fireEvent()` dispatches synthetic events, and `waitFor()` polls async conditions.
 
 ### SSR (`@bquery/bquery/ssr`)
-Server-side rendering and hydration. `renderToString()` renders directive-aware templates to HTML strings. `hydrateMount()` attaches bindings to existing SSR markup. `serializeStoreState()`, `deserializeStoreState()`, `hydrateStore()`, and `hydrateStores()` bridge store state between server and client.
+Runtime-agnostic SSR pipeline that works on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 with zero external dependencies. `renderToString()` renders directive-aware templates synchronously; the new `renderToStringAsync()` resolves Promise / `defer()` values in the binding context. `renderToStream()` returns a Web `ReadableStream<Uint8Array>` and `renderToResponse()` produces a ready-to-return `Response` with `Content-Type`, optional weak ETag, head/asset/store-state injection. A DOM-free renderer (own HTML tokenizer + Pratt-parser expression evaluator, no `eval`/`new Function()`) takes over automatically when no `DOMParser` is available, making SSR work natively on every server runtime; configure explicitly via `configureSSR({ backend, documentImpl })`. `createSSRContext()` builds the request/response context (URL, headers, cookies, locale, nonce, AbortSignal, head + asset managers). `createHeadManager()`/`createAssetManager()` collect `<title>`/`<meta>`/`<link>`/`<script>` entries with CSP-nonce propagation. Progressive hydration: `hydrateMount()`, `hydrateOnVisible()`, `hydrateOnIdle()`, `hydrateOnInteraction()`, `hydrateOnMedia()`, `hydrateIsland()`. Hydration mismatch dev-warnings via `RenderOptions.annotateHydration` + `verifyHydration()`. Suspense streaming with `renderToStreamSuspense()` (out-of-order patches per resolved promise, CSP-nonce aware). Router/SSR bridge with `resolveSSRRoute()` / `runRouteLoaders()` / `createSSRRouterContext()` (recognises `meta.loader`). Versioned store snapshots with `serializeStoreSnapshot()` / `hydrateStoreSnapshot()` / `readStoreSnapshot()`. Resumability hooks via `createResumableState()` / `resumeState()`. Runtime adapters `createWebHandler()` / `createBunHandler()` / `createDenoHandler()` / `createNodeHandler()` (with auto-detect `createSSRHandler()`) wrap a single fetch-style handler for any host. `serializeStoreState()`, `deserializeStoreState()`, `hydrateStore()` and `hydrateStores()` bridge store state between server and client. `detectRuntime()` / `getSSRRuntimeFeatures()` expose runtime introspection. Cross-runtime CI matrix runs on Node 24 + Bun 1.3 + Deno 2; runnable examples live in `examples/ssr-{node,bun,deno}/`.
+
+### Server (`@bquery/bquery/server`)
+Express-inspired backend helpers. `createServer()` creates a dependency-free request pipeline with `use()`, `get()` / `post()` / `put()` / `patch()` / `delete()` / `all()`, `ws()`, route params, repeated-query parsing, safe `text()` / `html()` / `json()` helpers, redirects, SSR-aware `render()` responses, and runtime-agnostic WebSocket handling through `handleWebSocket()`, `isWebSocketRequest()`, and `isServerWebSocketSession()`.
 
 ## Installation
 
@@ -107,6 +112,7 @@ bun install        # Install dependencies
 bun test           # Run tests
 bun run build      # Build library
 bun run lint       # Lint with auto-fix
+bun run check:ai-guidance # Verify AI guidance + release metadata sync
 bun run dev        # Docs dev server
 bun run storybook # Storybook dev server
 ```
@@ -121,6 +127,7 @@ bun run storybook # Storybook dev server
 - Strict TypeScript throughout
 - Tests use Bun runner (not Node)
 - Keep `src/full.ts` in sync with public runtime exports for the `/full` / CDN bundle
+- Keep AI-facing repo guidance aligned with `package.json` via `bun run check:ai-guidance`
 
 ## Documentation
 

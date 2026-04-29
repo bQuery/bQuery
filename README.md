@@ -1,10 +1,6 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg" alt="bQuery.js Logo" width="120" />
-</p>
+# bQuery.js
 
-<h1 align="center">bQuery.js</h1>
-
-<p align="center">
+![bQuery.js Logo](https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg)
 
 [![Repo](https://img.shields.io/badge/github-bquery%2Fbquery-24292f?logo=github)](https://github.com/bQuery/bQuery)
 [![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/stargazers)
@@ -16,13 +12,11 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
 [![JsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
 
-</p>
-
 **The jQuery for the modern Web Platform.**
 
-bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
+bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, lightweight server middleware and WebSocket session routing, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
 
-> **New in 1.10.0:** The Concurrency module now adds explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
+> **New in 1.11.0:** Runtime-agnostic SSR now adds DOM-free fallback rendering, `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, hydration strategies, store snapshots, and resumability hooks, alongside the new `@bquery/bquery/server` entry point for dependency-free backend routing and WebSocket sessions.
 
 ## Highlights
 
@@ -189,11 +183,12 @@ import {
   clipboard,
 } from '@bquery/bquery/media';
 
-// Plugins, devtools, testing, SSR
+// Plugins, devtools, testing, SSR, server
 import { use } from '@bquery/bquery/plugin';
 import { enableDevtools, inspectSignals } from '@bquery/bquery/devtools';
 import { renderComponent, fireEvent, waitFor } from '@bquery/bquery/testing';
 import { renderToString, hydrateMount, serializeStoreState } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
 
 // Storybook helpers
 import { storyHtml, when } from '@bquery/bquery/storybook';
@@ -222,9 +217,10 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **Plugin**      | Global plugin registration for custom directives and Web Components                                                                                                         |
 | **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
 | **Testing**     | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
-| **SSR**         | Server-side rendering, hydration, and store-state serialization                                                                                                             |
+| **SSR**         | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
+| **Server**      | Express-inspired backend routing, middleware, safe response helpers, SSR-aware request handling, and runtime-agnostic WebSocket sessions                                    |
 
-Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`.
+Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`. Server-side middleware, HTTP routing, and runtime-agnostic WebSocket session helpers ship as a dedicated entry point via `@bquery/bquery/server`.
 
 Reusable workers and pools can also opt into readonly signal mirrors such as `state$`, `busy$`, `pending$`, and `size$` through the `createReactive*()` concurrency wrappers.
 
@@ -784,13 +780,14 @@ drag.destroy();
 modalTrap.release();
 ```
 
-### Plugins, devtools, testing, and SSR
+### Plugins, devtools, testing, SSR, and server
 
 ```ts
 import { use } from '@bquery/bquery/plugin';
 import { enableDevtools, getTimeline } from '@bquery/bquery/devtools';
 import { renderComponent, fireEvent } from '@bquery/bquery/testing';
 import { renderToString } from '@bquery/bquery/ssr';
+import { createServer } from '@bquery/bquery/server';
 
 use({
   name: 'focus-plugin',
@@ -807,6 +804,20 @@ fireEvent(mounted.el, 'click');
 
 const { html } = renderToString('<p bq-text="label"></p>', { label: 'Hello SSR' });
 console.log(html);
+
+const app = createServer();
+app.get('/hello/:name', (ctx) => ctx.json({ name: ctx.params.name, q: ctx.query.q }));
+
+// Runtime-agnostic async render with head injection (works on Node, Deno, Bun):
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+const ctx = createSSRContext({ request: new Request('http://localhost/') });
+ctx.head.add({ title: 'Home' });
+ctx.assets.module('/app.js');
+const response = await renderToResponse(
+  '<html><head></head><body><p bq-text="label"></p></body></html>',
+  { label: 'Hello' },
+  { context: ctx, etag: true }
+);
 
 mounted.unmount();
 ```
@@ -884,10 +895,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
 
@@ -914,8 +925,11 @@ mount('#app', {
 - **Devtools**: [docs/guide/devtools.md](docs/guide/devtools.md)
 - **Testing Utilities**: [docs/guide/testing.md](docs/guide/testing.md)
 - **SSR / Hydration**: [docs/guide/ssr.md](docs/guide/ssr.md)
+- **Server**: [docs/guide/server.md](docs/guide/server.md)
 
 ## Local Development
+
+The cross-runtime SSR examples in [`examples/`](examples/) import directly from `src/`, so you can run them from a repo checkout without building `dist/` first.
 
 ```bash
 # Install dependencies
@@ -933,11 +947,19 @@ bun test
 # Build library
 bun run build
 
+# Verify AI guidance / release metadata sync
+bun run check:ai-guidance
+
 # Build docs
 bun run build:docs
 
 # Generate API documentation
 bun run docs:api
+
+# Run the cross-runtime SSR examples directly from source
+bun examples/ssr-bun/serve.ts
+deno run -A examples/ssr-deno/serve.ts
+node --experimental-strip-types examples/ssr-node/serve.ts
 ```
 
 ## Project Structure
@@ -947,6 +969,7 @@ bQuery.js
 ├── src/
 │   ├── core/       # Selectors, DOM ops, events, utils
 │   ├── reactive/   # Signals, computed, effects, async data
+│   ├── concurrency/ # Zero-build worker tasks, RPC, pools, collection helpers
 │   ├── component/  # Web Components helper + default library
 │   ├── storybook/  # Story template helpers
 │   ├── motion/     # View transitions, FLIP, springs
@@ -963,7 +986,8 @@ bQuery.js
 │   ├── plugin/     # Global plugin system
 │   ├── devtools/   # Runtime inspection helpers
 │   ├── testing/    # Test utilities
-│   └── ssr/        # Server-side rendering + hydration
+│   ├── ssr/        # Runtime-agnostic server-side rendering + hydration
+│   └── server/     # Backend helpers and WebSocket sessions
 ├── docs/           # VitePress documentation
 ├── .storybook/     # Storybook config
 ├── stories/        # Component stories
@@ -982,6 +1006,7 @@ This project provides dedicated context files for AI coding agents:
 - **[AGENT.md](AGENT.md)** — Architecture, module API reference, coding conventions, common tasks
 - **[llms.txt](llms.txt)** — Compact LLM-optimized project summary
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — GitHub Copilot context
+- **`bun run check:ai-guidance`** — Lightweight sync check for version / engine / AI guidance drift
 
 ## License
 

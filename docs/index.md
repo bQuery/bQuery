@@ -4,7 +4,7 @@ title: bQuery.js
 hero:
   name: bQuery.js
   text: The jQuery for the modern Web Platform.
-  tagline: Zero build. Secure by default. DOM-first reactivity, transport, and modern primitives.
+  tagline: Zero build. Secure by default. DOM-first reactivity, runtime-agnostic SSR, and server primitives.
   image:
     src: /assets/bquerry-logo.svg
     alt: bQuery Logo
@@ -36,17 +36,17 @@ features:
     details: Reactive forms, validators, locale-aware messages, pluralization, and Intl formatting.
   - title: Accessibility & media
     details: Focus traps, skip links, audits, media preference signals, viewport/network state, and clipboard helpers.
-  - title: Testing & SSR
-    details: Testing utilities, runtime devtools, and server-side rendering with hydration helpers.
+  - title: Testing, SSR & Server
+    details: Testing utilities, runtime devtools, runtime-agnostic SSR, hydration strategies, and lightweight backend helpers.
 ---
 
 ## Why bQuery
 
-bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, async data composables, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, testing, and SSR in a modular, progressive way.
+bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, async data composables, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, lightweight server middleware, runtime-agnostic SSR, WebSocket sessions, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, and testing in a modular, progressive way.
 
-## New in 1.10.0
+## New in 1.11.0
 
-The concurrency module now covers explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state mirrors, and high-level helpers such as `parallel()`, `map()`, `filter()`, `reduce()`, and `pipeline()` — all without giving up bQuery's browser-first, zero-build model.
+Runtime-agnostic SSR now spans synchronous, async, streaming, and full `Response` rendering with a DOM-free fallback for Node.js ≥ 24, Deno, and Bun. The new `@bquery/bquery/server` entry point adds dependency-free routing, safe response helpers, and runtime-agnostic WebSocket sessions — while `1.10.0`'s concurrency pools, RPC workers, and collection helpers remain first-class citizens.
 
 ## New to bQuery?
 

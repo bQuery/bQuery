@@ -78,6 +78,88 @@ A simple todo list using the view module's declarative directives:
 
 ---
 
+## Server-Side Rendering & Backend Recipes
+
+### Runtime-agnostic `Response` rendering
+
+Use the same SSR template pipeline on Bun, Deno, Node.js ≥ 24, or any fetch-compatible host:
+
+```ts
+import { createSSRContext, renderToResponse } from '@bquery/bquery/ssr';
+
+export async function handle(request: Request) {
+  const ctx = createSSRContext({ request });
+  ctx.head.add({ title: 'Home' });
+  ctx.assets.module('/client.js');
+
+  return renderToResponse(
+    `
+      <html>
+        <head></head>
+        <body>
+          <main>
+            <h1 bq-text="title"></h1>
+            <p bq-text="message"></p>
+          </main>
+        </body>
+      </html>
+    `,
+    {
+      title: 'Hello SSR',
+      message: 'Rendered without a runtime-specific template branch.',
+    },
+    {
+      context: ctx,
+      etag: true,
+      cacheControl: 'public, max-age=60',
+    }
+  );
+}
+```
+
+### Express-style route rendering with `ctx.render()`
+
+```ts
+import { createServer } from '@bquery/bquery/server';
+
+const app = createServer();
+
+app.get('/dashboard', (ctx) =>
+  ctx.render(
+    `
+      <main>
+        <h1 bq-text="title"></h1>
+        <ul>
+          <li bq-for="item in items" bq-text="item"></li>
+        </ul>
+      </main>
+    `,
+    {
+      title: 'Dashboard',
+      items: ['Signals', 'SSR', 'Server'],
+    },
+    {
+      stripDirectives: true,
+      includeStoreState: true,
+    }
+  )
+);
+```
+
+### Cross-runtime starter templates
+
+The repository ships three minimal SSR examples that all share `examples/shared/app.ts` and the same `createSSRContext()` + `resolveSSRRoute()` + `renderToResponse()` flow:
+
+| Runtime | Folder               | Run                                                          |
+| ------- | -------------------- | ------------------------------------------------------------ |
+| Bun     | `examples/ssr-bun/`  | `bun examples/ssr-bun/serve.ts`                              |
+| Deno    | `examples/ssr-deno/` | `deno run -A examples/ssr-deno/serve.ts`                     |
+| Node    | `examples/ssr-node/` | `node --experimental-strip-types examples/ssr-node/serve.ts` |
+
+These repo-local examples import directly from `src/`, so they do not require a prebuilt `dist/` bundle before you run them.
+
+---
+
 ## Data Fetching
 
 ### Fetch and display a user list

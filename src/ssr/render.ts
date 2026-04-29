@@ -10,8 +10,10 @@
 
 import { isComputed, isSignal, type Signal } from '../reactive/index';
 import { DANGEROUS_PROTOCOLS } from '../security/constants';
-import { sanitizeHtml } from '../security/sanitize';
 import type { BindingContext } from '../view/types';
+import { getDOMParserImpl, resolveBackend } from './config';
+import { cheapHash, collectDirectiveSignatureFromElement, HYDRATION_HASH_ATTR } from './hash';
+import { renderTemplatePure, sanitizeHtmlForSSR } from './renderer';
 import type { RenderOptions, SSRResult } from './types';
 import { serializeStoreState } from './serialize';
 
@@ -31,6 +33,9 @@ const VOID_ELEMENTS = new Set([
   'track',
   'wbr',
 ]);
+
+const TEXT_NODE_TYPE = 3;
+const ELEMENT_NODE_TYPE = 1;
 
 const escapeHtmlText = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -68,11 +73,11 @@ const isUnsafeUrlValue = (value: string): boolean => {
 };
 
 const serializeSSRNode = (node: Node): string => {
-  if (node.nodeType === Node.TEXT_NODE) {
+  if (node.nodeType === TEXT_NODE_TYPE) {
     return escapeHtmlText(node.textContent ?? '');
   }
 
-  if (node.nodeType !== Node.ELEMENT_NODE) {
+  if (node.nodeType !== ELEMENT_NODE_TYPE) {
     return '';
   }
 
@@ -207,8 +212,71 @@ const processSSRElement = (
   el: Element,
   context: BindingContext,
   prefix: string,
-  doc: Document
+  annotateHydration = false
 ): boolean => {
+  // Handle bq-for before other directives so each clone gets an item-scoped context.
+  const forExpr = el.getAttribute(`${prefix}-for`);
+  const parsedFor = forExpr !== null ? parseForExpression(forExpr) : null;
+  if (forExpr !== null && !parsedFor) {
+    // Remove invalid directives before signature capture so hydration hashes
+    // match the DOM-free renderer's normalized output.
+    el.removeAttribute(`${prefix}-for`);
+  }
+
+  // Capture directive signature after normalizing invalid directives, but
+  // before mutating any still-effective directive attributes.
+  const signature = annotateHydration ? collectDirectiveSignatureFromElement(el, prefix) : '';
+
+  if (forExpr !== null) {
+    if (parsedFor) {
+      const list = evaluateSSR<unknown[]>(parsedFor.listExpr, context);
+      if (el.parentNode) {
+        const parent = el.parentNode;
+        if (!Array.isArray(list)) {
+          parent.removeChild(el);
+          return true;
+        }
+
+        for (let i = 0; i < list.length; i++) {
+          const item = list[i];
+          const clone = el.cloneNode(true) as Element;
+
+          // Remove the bq-for attribute from clones
+          clone.removeAttribute(`${prefix}-for`);
+          clone.removeAttribute(':key');
+          clone.removeAttribute(`${prefix}-key`);
+
+          // Create item context
+          const itemContext: BindingContext = {
+            ...context,
+            [parsedFor.itemName]: item,
+          };
+          if (parsedFor.indexName) {
+            itemContext[parsedFor.indexName] = i;
+          }
+
+          // Recursively process the clone
+          const shouldRenderClone = processSSRElement(
+            clone,
+            itemContext,
+            prefix,
+            annotateHydration
+          );
+          if (!shouldRenderClone) {
+            continue;
+          }
+          processSSRChildren(clone, itemContext, prefix, annotateHydration);
+
+          parent.insertBefore(clone, el);
+        }
+
+        // Remove the original template element
+        parent.removeChild(el);
+        return true; // Already handled children
+      }
+    }
+  }
+
   // Handle bq-if: remove element if condition is falsy
   const ifExpr = el.getAttribute(`${prefix}-if`);
   if (ifExpr !== null) {
@@ -243,7 +311,7 @@ const processSSRElement = (
   const htmlExpr = el.getAttribute(`${prefix}-html`);
   if (htmlExpr !== null) {
     const value = evaluateSSR(htmlExpr, context);
-    el.innerHTML = String(sanitizeHtml(String(value ?? '')));
+    el.innerHTML = sanitizeHtmlForSSR(String(value ?? ''));
   }
 
   // Handle bq-class: add classes
@@ -311,44 +379,8 @@ const processSSRElement = (
     }
   }
 
-  // Handle bq-for: list rendering
-  const forExpr = el.getAttribute(`${prefix}-for`);
-  if (forExpr !== null) {
-    const parsed = parseForExpression(forExpr);
-    if (parsed) {
-      const list = evaluateSSR<unknown[]>(parsed.listExpr, context);
-      if (Array.isArray(list) && el.parentNode) {
-        const parent = el.parentNode;
-        for (let i = 0; i < list.length; i++) {
-          const item = list[i];
-          const clone = el.cloneNode(true) as Element;
-
-          // Remove the bq-for attribute from clones
-          clone.removeAttribute(`${prefix}-for`);
-          clone.removeAttribute(':key');
-          clone.removeAttribute(`${prefix}-key`);
-
-          // Create item context
-          const itemContext: BindingContext = {
-            ...context,
-            [parsed.itemName]: item,
-          };
-          if (parsed.indexName) {
-            itemContext[parsed.indexName] = i;
-          }
-
-          // Recursively process the clone
-          processSSRElement(clone, itemContext, prefix, doc);
-          processSSRChildren(clone, itemContext, prefix, doc);
-
-          parent.insertBefore(clone, el);
-        }
-
-        // Remove the original template element
-        parent.removeChild(el);
-        return true; // Already handled children
-      }
-    }
+  if (signature) {
+    el.setAttribute(HYDRATION_HASH_ATTR, cheapHash(signature));
   }
 
   return true;
@@ -362,29 +394,40 @@ const processSSRChildren = (
   parent: Element,
   context: BindingContext,
   prefix: string,
-  doc: Document
+  annotateHydration = false
 ): void => {
-  // Process children in reverse to handle removals safely
+  // Process a snapshotted child list so removals do not affect iteration
   const children = Array.from(parent.children);
   for (const child of children) {
-    // Skip bq-for elements — they're handled by parent
+    let processedForDirective = false;
+
+    // Handle elements that start with bq-for before the normal per-element pass.
     if (child.hasAttribute(`${prefix}-for`)) {
-      // Process the for directive on this element
-      const keep = processSSRElement(child, context, prefix, doc);
+      const keep = processSSRElement(child, context, prefix, annotateHydration);
+      processedForDirective = true;
       if (!keep) {
         child.remove();
+        continue;
       }
-      continue;
+
+      // Valid bq-for handling removes/replaces the original template node. If the
+      // original child is no longer attached here, recursion has already been
+      // handled by the bq-for expansion path.
+      if (child.parentNode !== parent) {
+        continue;
+      }
     }
 
-    const keep = processSSRElement(child, context, prefix, doc);
-    if (!keep) {
-      child.remove();
-      continue;
+    if (!processedForDirective) {
+      const keep = processSSRElement(child, context, prefix, annotateHydration);
+      if (!keep) {
+        child.remove();
+        continue;
+      }
     }
 
     // Recurse into children
-    processSSRChildren(child, context, prefix, doc);
+    processSSRChildren(child, context, prefix, annotateHydration);
   }
 };
 
@@ -461,21 +504,49 @@ export const renderToString = (
   data: BindingContext,
   options: RenderOptions = {}
 ): SSRResult => {
-  const { prefix = 'bq', stripDirectives = false, includeStoreState = false } = options;
+  const {
+    prefix = 'bq',
+    stripDirectives = false,
+    includeStoreState = false,
+    annotateHydration = false,
+  } = options;
 
   if (!template || typeof template !== 'string') {
     throw new Error('bQuery SSR: template must be a non-empty string.');
   }
 
-  if (typeof DOMParser === 'undefined') {
+  const normalizedTemplate = template.trim();
+
+  // Resolve the renderer backend. Defaults to the legacy DOM-based path when
+  // a `DOMParser` is available (browser/happy-dom in tests); otherwise the
+  // pure DOM-free renderer kicks in automatically — this is what makes
+  // `renderToString()` work seamlessly on Bun, Deno and Node ≥ 24.
+  const backend = resolveBackend();
+
+  if (backend === 'pure') {
+    const html = renderTemplatePure(normalizedTemplate, data, {
+      prefix,
+      stripDirectives,
+      annotateHydration,
+    });
+    let storeState: string | undefined;
+    if (includeStoreState) {
+      const storeIds = Array.isArray(includeStoreState) ? includeStoreState : undefined;
+      storeState = serializeStoreState({ storeIds }).stateJson;
+    }
+    return { html, storeState };
+  }
+
+  const DOMParserImpl = getDOMParserImpl();
+  if (!DOMParserImpl) {
     throw new Error(
       'bQuery SSR: DOMParser is not available in this environment. Provide a DOMParser-compatible implementation before calling renderToString().'
     );
   }
 
   // Create a DOM document for processing
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(template.trim(), 'text/html');
+  const parser = new DOMParserImpl();
+  const doc = parser.parseFromString(normalizedTemplate, 'text/html');
   const body = doc.body || doc.documentElement;
 
   if (!body) {
@@ -483,7 +554,7 @@ export const renderToString = (
   }
 
   // Process all children of the body
-  processSSRChildren(body, data, prefix, doc);
+  processSSRChildren(body, data, prefix, annotateHydration);
 
   // Strip directive attributes if requested
   if (stripDirectives) {

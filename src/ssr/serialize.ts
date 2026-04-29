@@ -9,6 +9,7 @@
 
 import { getStore, listStores } from '../store/index';
 import { isPrototypePollutionKey } from '../core/utils/object';
+import { escapeForHtmlAttribute, escapeForScript } from './escape';
 import type { DeserializedStoreState, SerializeOptions } from './types';
 
 const isStoreStateObject = (value: unknown): value is Record<string, unknown> =>
@@ -31,33 +32,6 @@ export type SerializeResult = {
   stateJson: string;
   /** Complete `<script>` tag ready to embed in HTML */
   scriptTag: string;
-};
-
-/**
- * Escapes a string for safe embedding in a `<script>` tag.
- * Prevents XSS via `</script>` injection and HTML entities.
- *
- * @internal
- */
-const escapeForScript = (str: string): string => {
-  return str
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/\//g, '\\u002f')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
-};
-
-/**
- * Escapes a string for safe embedding in an HTML attribute value.
- * @internal
- */
-const escapeForHtmlAttribute = (str: string): string => {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
 };
 
 /**

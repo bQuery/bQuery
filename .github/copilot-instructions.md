@@ -14,9 +14,9 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 ## Quick orientation
 
-bQuery.js is modular, tree-shakeable, has zero runtime dependencies, and currently ships **22 public entry points**.
+bQuery.js is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.10.0**.
+Current release baseline: **1.11.0**.
 
 Start here before making assumptions:
 
@@ -24,16 +24,18 @@ Start here before making assumptions:
 - `llms.txt` — compact project summary for fast orientation
 - `package.json` — authoritative scripts, exports, version, supported runtime
 - `docs/guide/` — feature-specific guides for modules and workflows
+- `.github/prompts/` — workspace starter prompts for common bQuery tasks
 
 Prefer pointing back to those files instead of duplicating large architecture sections into new instructions or docs.
 
-## Version 1.10.0 highlights
+For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
 
-- The concurrency module's public surface includes explicit RPC workers, bounded task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `some()`, `every()`, `find()`, `reduce()`, and `pipeline()`.
-- `watchDebounce()` and `watchThrottle()` are public reactive APIs and should preserve `watch()`-style callback semantics and cleanup behavior.
-- The view module's public directive set includes `bq-error` and `bq-aria`.
-- The media module's public surface includes `useIntersectionObserver()`, `useResizeObserver()`, and `useMutationObserver()`.
-- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.11`.
+## Version 1.11.0 highlights
+
+- `@bquery/bquery/server` is now a first-class public entry point; repo guidance should treat `createServer()` and the runtime-agnostic WebSocket session helpers as part of the documented surface.
+- `@bquery/bquery/ssr` now includes runtime-agnostic async/streaming rendering (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`), DOM-free fallback rendering, `createSSRContext()`, runtime adapters, snapshots, and resumability helpers.
+- The `1.10.0` concurrency additions plus the `1.9.0` watcher/view/media APIs remain first-class public surface and should still appear in documentation refreshes.
+- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.13`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
 
 ## Source of truth
 
@@ -44,10 +46,13 @@ When behavior, exports, or commands appear inconsistent, trust these in order:
 3. `AGENT.md`
 4. `docs/guide/*.md`
 
+For release deltas and migration context, also consult `CHANGELOG.md`.
+
 If you change a public API, keep the relevant docs and agent context in sync:
 
 - `README.md`
 - `CHANGELOG.md`
+- `CONTRIBUTING.md`
 - `AGENT.md`
 - `llms.txt`
 - `docs/guide/*`
@@ -55,6 +60,8 @@ If you change a public API, keep the relevant docs and agent context in sync:
 - `.clinerules`
 
 Also sync `src/full.ts` whenever public runtime exports change so the `/full` / CDN bundle matches the module barrels.
+
+If the task touches version metadata, supported engines, or repo guidance files, run `bun run check:ai-guidance` before finishing.
 
 ## Session workflow
 
@@ -67,18 +74,19 @@ For any implementation task, follow this order:
 5. For bug fixes, reproduce with a test first whenever practical.
 6. Add or update tests for happy paths, edge cases, runtime misuse, and integration behavior where relevant.
 7. Update the most relevant existing docs page; create a new guide page only when the feature is truly new or module-sized.
-8. Validate with the smallest relevant Bun command first, then broader checks as needed.
+8. Validate with the smallest relevant Bun command first, then broader checks as needed. If you changed repo guidance or release metadata, that includes `bun run check:ai-guidance`.
 9. If asked to commit, use English-only Conventional Commits with a module-aligned scope such as `feat(reactive): ...`.
 
 ## Build, test, and validation
 
 Use Bun for repository workflows.
 
-Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.11`.
+Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`.
 
 - `bun test` — primary test suite with `happy-dom`
 - `bun test --watch` — watch mode
 - `bun run build` — library build (`build:lib` + `build:umd` + `build:types`)
+- `bun run check:ai-guidance` — verify version / engine / AI guidance sync against `package.json`
 - `bun run lint` — ESLint with auto-fix
 - `bun run lint:types` — TypeScript type check only
 - `bun run format` — Prettier
@@ -101,7 +109,9 @@ Public modules live under `src/<module>/index.ts`. Important module groups:
 - `router` — SPA routing, guards, params, navigation utilities, route signals
 - `store` — signal-based state management and persistence
 - `view` — declarative bindings with `bq-*` directives including `bq-error` and `bq-aria`
-- `storybook`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `ssr` — feature modules with their own public barrels and guides
+- `storybook`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing` — feature modules with their own public barrels and guides
+- `ssr` — runtime-agnostic rendering, streaming, hydration, adapters, snapshots, resumability
+- `server` — dependency-free backend routing, SSR-aware responses, runtime-agnostic WebSocket sessions
 
 Entry points:
 

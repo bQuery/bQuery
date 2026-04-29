@@ -4,7 +4,8 @@ Thanks for your interest in contributing to **bQuery**! This guide explains how 
 
 ## Prerequisites
 
-- **Bun** (recommended, aligned with the project scripts)
+- **Node.js** `>=24.0.0`
+- **Bun** `>=1.3.13` (recommended, aligned with the project scripts)
 - **Git**
 
 ## Setup
@@ -36,6 +37,21 @@ Thanks for your interest in contributing to **bQuery**! This guide explains how 
 - Follow the existing TypeScript style and project structure.
 - Add tests when introducing new behavior or fixing bugs.
 - Update docs/examples when the public API changes.
+
+## AI guidance synchronization
+
+If you change the public runtime surface, release version, or supported engines, also sync the shared AI-facing repo files:
+
+- `AGENT.md`
+- `llms.txt`
+- `.github/copilot-instructions.md`
+- `.cursorrules`
+- `.clinerules`
+- `README.md` (AI support section and any release callouts that changed)
+
+After those updates, run `bun run check:ai-guidance` to verify the version / engine / guidance metadata still matches `package.json`.
+
+If public exports changed, also keep `src/full.ts` aligned with the module barrels under `src/*/index.ts`.
 
 ## Pull Requests
 

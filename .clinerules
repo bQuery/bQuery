@@ -2,18 +2,21 @@
 
 You are working on bQuery.js (`@bquery/bquery`), a TypeScript-first, zero-build DOM library.
 
+> Derived snapshot for Cline. If this file drifts from `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files first and then realign this one.
+
 The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.10.0**.
+Current release baseline: **1.11.0**.
 
-Version `1.10.0` expands `@bquery/bquery/concurrency` with explicit RPC workers, bounded task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`, while preserving the public `watchDebounce()` / `watchThrottle()`, `bq-error` / `bq-aria`, and media observer APIs introduced in `1.9.0`.
+Version `1.11.0` adds the dedicated `@bquery/bquery/server` entry point plus a major runtime-agnostic `@bquery/bquery/ssr` expansion (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, snapshots, resumability), while preserving the `1.10.0` concurrency helpers and the `1.9.0` watch/view/media APIs as first-class public surface.
 
 ## Before You Start
 
 - Read `AGENT.md` for the full architecture, module API tables, and common tasks.
 - All commands use Bun: `bun test`, `bun run build`, `bun run lint`.
 - Tests use `bun:test` imports and `happy-dom` for DOM simulation.
-- Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.11`.
+- Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`.
+- If you touch release metadata or repo guidance files, run `bun run check:ai-guidance` before finishing.
 
 ## Core Invariants
 
@@ -31,7 +34,8 @@ Version `1.10.0` expands `@bquery/bquery/concurrency` with explicit RPC workers,
 - Re-export new public symbols from `src/<module>/index.ts`.
 - If public runtime exports change, also update `src/full.ts` so the `/full` / CDN bundle stays in sync.
 - If adding a new entry point → update `vite.config.ts` and `package.json` exports.
-- If a public module surface changes → update `README.md`, `AGENT.md`, `llms.txt`, and the relevant `docs/guide/*.md` pages (plus the VitePress sidebar if needed).
+- If a public module surface changes → update `README.md`, `CONTRIBUTING.md`, `AGENT.md`, `llms.txt`, `.github/copilot-instructions.md`, `.cursorrules`, `.clinerules`, and the relevant `docs/guide/*.md` pages (plus the VitePress sidebar if needed).
+- If version, engines, or AI guidance files change → run `bun run check:ai-guidance`.
 - Run `bun test` and `bun run lint` before finishing.
 
 ## Quick Reference
@@ -66,12 +70,13 @@ Version `1.10.0` expands `@bquery/bquery/concurrency` with explicit RPC workers,
 | `reduce()`                   | Off-main-thread reduction with stable order       |
 | `pipeline()`                 | Optional immutable fluent layer over helpers      |
 
-| 1.10.0 API                                                                                                                       | Reminder                                                                     |
-| -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `createRpcWorker()` / `createRpcPool()` / `createReactiveTaskWorker()` / `createReactiveRpcPool()` / `parallel()` / `pipeline()` | Explicit browser-first concurrency surface with reusable workers and helpers |
-| `bq-error`                                                                                                                       | Reactive inline error output for the view module                             |
-| `bq-aria`                                                                                                                        | Declarative ARIA attribute binding in the view module                        |
-| `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()`                                                    | Cleanup-friendly media observer composables                                  |
+| 1.11.0 API                                                                                                                       | Reminder                                                                      |
+| -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `renderToStringAsync()` / `renderToStream()` / `renderToResponse()` / `createSSRContext()` / `createSSRHandler()`                | Runtime-agnostic SSR surface across Node 24, Bun, and Deno                    |
+| `createServer()` / `isWebSocketRequest()` / `isServerWebSocketSession()`                                                         | Dependency-free backend routing plus runtime-agnostic WebSocket session flow  |
+| `createRpcWorker()` / `createRpcPool()` / `createReactiveTaskWorker()` / `createReactiveRpcPool()` / `parallel()` / `pipeline()` | Explicit browser-first concurrency surface with reusable workers and helpers  |
+| `bq-error` / `bq-aria`                                                                                                           | Reactive inline error output plus declarative ARIA binding in the view module |
+| `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()`                                                    | Cleanup-friendly media observer composables                                   |
 
 ## Files to Consult
 
@@ -79,5 +84,6 @@ Version `1.10.0` expands `@bquery/bquery/concurrency` with explicit RPC workers,
 - `llms.txt` — Compact project summary
 - `src/full.ts` — Explicit full bundle export surface
 - `src/concurrency/index.ts` — Worker-task public surface
+- `scripts/check-ai-guidance.mjs` — Guardrail for version / engine / AI guidance drift
 - `.github/copilot-instructions.md` — Copilot context
 - `CHANGELOG.md` — Version history and recent changes

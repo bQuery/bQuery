@@ -6,6 +6,8 @@ import { signal, computed } from '../src/reactive/index';
 import type { HydrateMountOptions } from '../src/ssr/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 import {
+  configureSSR,
+  getSSRConfig,
   renderToString,
   hydrateMount,
   serializeStoreState,
@@ -209,18 +211,31 @@ describe('renderToString', () => {
     expect(result.html).toContain('Custom');
   });
 
-  it('throws a clear error when DOMParser is unavailable', () => {
+  it('falls back to the DOM-free pure renderer when DOMParser is unavailable', () => {
     const originalDOMParser = globalThis.DOMParser;
+    const previousConfig = getSSRConfig();
 
     try {
+      configureSSR({ backend: 'auto', documentImpl: null });
       Object.defineProperty(globalThis, 'DOMParser', {
         value: undefined,
         configurable: true,
         writable: true,
       });
 
-      expect(() => renderToString('<div></div>', {})).toThrow('DOMParser is not available');
+      const result = renderToString(
+        '<div><span bq-text="title"></span><span bq-html="content"></span></div>',
+        {
+          title: 'Pure',
+          content: '<strong onclick="alert(1)">Bold</strong><script>alert(1)</script>',
+        }
+      );
+      expect(result.html).toContain('Pure');
+      expect(result.html).toContain('<strong>Bold</strong>');
+      expect(result.html).not.toContain('onclick=');
+      expect(result.html).not.toContain('<script');
     } finally {
+      configureSSR(previousConfig);
       Object.defineProperty(globalThis, 'DOMParser', {
         value: originalDOMParser,
         configurable: true,

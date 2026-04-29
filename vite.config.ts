@@ -37,6 +37,7 @@ const entries = {
   devtools: resolve(__dirname, 'src/devtools/index.ts'),
   testing: resolve(__dirname, 'src/testing/index.ts'),
   ssr: resolve(__dirname, 'src/ssr/index.ts'),
+  server: resolve(__dirname, 'src/server/index.ts'),
 };
 
 /**
@@ -93,6 +94,7 @@ export default defineConfig({
       'bquery/devtools': resolve(__dirname, 'src/devtools/index.ts'),
       'bquery/testing': resolve(__dirname, 'src/testing/index.ts'),
       'bquery/ssr': resolve(__dirname, 'src/ssr/index.ts'),
+      'bquery/server': resolve(__dirname, 'src/server/index.ts'),
     },
   },
 });
