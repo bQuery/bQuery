@@ -73,10 +73,29 @@ and this project adheres to Semantic Versioning.
 ### Added (Unreleased)
 
 - **Server**: Added `@bquery/bquery/server`, a lightweight Express-inspired backend entry point with dependency-free routing, middleware composition, route params, query parsing, safe JSON/HTML response helpers, redirects, and SSR-aware request rendering via `createServer()`.
+- **SSR / Runtime-agnostic pipeline**: Massive expansion of `@bquery/bquery/ssr` so it now runs seamlessly on Node.js ≥ 24, Deno and Bun ≥ 1.3.11 with zero external dependencies. New DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs (`renderToString`, `hydrateMount`, `serializeStoreState`, `deserializeStoreState`, `hydrateStore(s)`) are unchanged.
+- **SSR / Async render**: New `renderToStringAsync(template, data, ctx?)` awaits Promise- and `defer()`-valued binding context entries before rendering and respects `SSRContext.signal` cancellation.
+- **SSR / Streaming**: New `renderToStream(template, data, ctx?)` returns a Web `ReadableStream<Uint8Array>` honouring abort signals.
+- **SSR / Response**: New `renderToResponse(template, data, ctx?)` returns a `Response` with content-type, optional weak ETag (with `If-None-Match` 304 short-circuit), `Cache-Control`, and automatic head/asset/store-state injection.
+- **SSR / Context**: New `createSSRContext()` exposing `request`, `url`, `headers`, `cookies`, `locale`, `userAgent`, `signal`, `nonce`, `head`, `assets`, `responseHeaders`, `status` and `reportError()`.
+- **SSR / Head & Assets**: New `createHeadManager()` / `createAssetManager()` collect `<title>`, `<meta>`, `<link>`, `<script>`, preload, modulepreload and stylesheet entries; CSP nonces from `SSRContext.nonce` are auto-propagated.
+- **SSR / Async helpers**: New `defer(promise, fallback?)` and `defineLoader(fn)` utilities consumed by `renderToStringAsync()`.
+- **SSR / Hydration strategies**: New `hydrateOnVisible()`, `hydrateOnIdle()`, `hydrateOnInteraction()`, `hydrateOnMedia()` and `hydrateIsland()` for progressive island hydration. Each returns a `HydrationHandle` with `cancel()` and a `ready` Promise.
+- **SSR / Configuration**: New `configureSSR({ backend, documentImpl })` and `getSSRConfig()` to pick between `'auto'`, `'pure'` (DOM-free) and `'dom'` backends or inject a custom `DOMParser` (e.g. `linkedom`/`happy-dom`/`jsdom`).
+- **SSR / Runtime detection**: New `detectRuntime()`, `isServerRuntime()`, `isBrowserRuntime()`, `getSSRRuntimeFeatures()`.
+- **SSR / Runtime adapters**: New `createWebHandler`, `createBunHandler`, `createDenoHandler`, `createNodeHandler` (translates `node:http` IncomingMessage/ServerResponse into Web `Request`/`Response`), and `createSSRHandler` auto-picking the right adapter.
+- **SSR / Security**: Pure renderer is fully CSP-safe — its expression evaluator is a tightly-scoped Pratt parser with no `eval` or `new Function()`. Inline event handlers, `javascript:` URLs and `<script>` tags are stripped on both backends. Head-injected `<script>` bodies escape `</script>`, `<!--`, `\u2028` and `\u2029`.
+- **SSR / Hydration mismatch dev-warnings**: New `RenderOptions.annotateHydration` flag emits a `data-bq-h="<hash>"` attribute on every directive element (both backends, in lock-step). New `verifyHydration(root, options?)` walks `[data-bq-h]` on the client, recomputes the directive signature, and reports/​warns on divergences via `HydrationMismatch` entries. Public `HYDRATION_HASH_ATTR` constant is exported for tooling.
+- **SSR / Suspense streaming**: New `renderToStreamSuspense(template, data, options?)` flushes the synchronous shell with `defer(...)` fallbacks wrapped in `<bq-slot id="bq-s-N">…</bq-slot>` (using `bq-defer="key"` markers), then streams `<template id="bq-r-N">…</template>` + a CSP-nonce-aware patch script per resolved promise. Honours `AbortSignal` and reports loader errors via `SSRContext.onError` without aborting the stream.
+- **SSR / Router bridge**: New `resolveSSRRoute({ url, routes, base? })`, `runRouteLoaders(route, ctx)` (recognises `meta.loader`), and `createSSRRouterContext({ url, routes, ctx, base? })` for matching URLs and running data loaders before render. Reports redirects + 404 cleanly.
+- **SSR / Versioned store snapshots**: New `serializeStoreSnapshot({ version, storeIds?, nonce? })` returns `{ snapshot, json, scriptTag }`; new `hydrateStoreSnapshot(snapshot, { strict?, expectedVersion? })` returns a structured `{ applied, reason, appliedIds, unknownIds }` and warns on version drift / unknown IDs in strict mode. New `readStoreSnapshot()` reads and cleans up the published snapshot. Public `SSRStoreSnapshot` type.
+- **SSR / Resumability hooks**: New `createResumableState({ initial? })` server-side collector with `set`/`get`/`entries`/`render({ nonce })`; new `resumeState(globalKey?, scriptId?)` client-side reader. CSP-nonce-aware, `</script>`-safe escaping.
+- **SSR / Cross-runtime CI**: New `.github/workflows/ssr-cross-runtime.yml` builds the library once with Bun and runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.3 and Deno 2 to guard the runtime-agnostic surface.
+- **SSR / Examples**: New `examples/ssr-bun/`, `examples/ssr-deno/` and `examples/ssr-node/` minimal HTTP servers all sharing `examples/shared/app.ts`.
 
 ### Changed (Unreleased)
 
-- No changes yet.
+- `renderToString()` now falls back to the DOM-free pure renderer when no `DOMParser` is available, instead of throwing. Existing tests using `happy-dom` keep using the DOM backend.
 
 ### Fixed (Unreleased)
 
