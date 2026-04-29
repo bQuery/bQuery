@@ -213,7 +213,6 @@ const processSSRElement = (
   el: Element,
   context: BindingContext,
   prefix: string,
-  doc: Document,
   annotateHydration = false
 ): boolean => {
   // Handle bq-for before other directives so each clone gets an item-scoped context.
@@ -262,13 +261,12 @@ const processSSRElement = (
             clone,
             itemContext,
             prefix,
-            doc,
             annotateHydration
           );
           if (!shouldRenderClone) {
             continue;
           }
-          processSSRChildren(clone, itemContext, prefix, doc, annotateHydration);
+          processSSRChildren(clone, itemContext, prefix, annotateHydration);
 
           parent.insertBefore(clone, el);
         }
@@ -397,7 +395,6 @@ const processSSRChildren = (
   parent: Element,
   context: BindingContext,
   prefix: string,
-  doc: Document,
   annotateHydration = false
 ): void => {
   // Process a snapshotted child list so removals do not affect iteration
@@ -407,7 +404,7 @@ const processSSRChildren = (
 
     // Handle elements that start with bq-for before the normal per-element pass.
     if (child.hasAttribute(`${prefix}-for`)) {
-      const keep = processSSRElement(child, context, prefix, doc, annotateHydration);
+      const keep = processSSRElement(child, context, prefix, annotateHydration);
       processedForDirective = true;
       if (!keep) {
         child.remove();
@@ -423,7 +420,7 @@ const processSSRChildren = (
     }
 
     if (!processedForDirective) {
-      const keep = processSSRElement(child, context, prefix, doc, annotateHydration);
+      const keep = processSSRElement(child, context, prefix, annotateHydration);
       if (!keep) {
         child.remove();
         continue;
@@ -431,7 +428,7 @@ const processSSRChildren = (
     }
 
     // Recurse into children
-    processSSRChildren(child, context, prefix, doc, annotateHydration);
+    processSSRChildren(child, context, prefix, annotateHydration);
   }
 };
 
@@ -558,7 +555,7 @@ export const renderToString = (
   }
 
   // Process all children of the body
-  processSSRChildren(body, data, prefix, doc, annotateHydration);
+  processSSRChildren(body, data, prefix, annotateHydration);
 
   // Strip directive attributes if requested
   if (stripDirectives) {

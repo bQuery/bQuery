@@ -201,7 +201,7 @@ export const hydrateOnMedia = (
       resolve();
       return noop;
     }
-    let cleanup: () => void;
+    let cleanup: () => void = noop;
     const listener = (event: MediaQueryListEvent | MediaQueryList): void => {
       if (event.matches) {
         cleanup();
