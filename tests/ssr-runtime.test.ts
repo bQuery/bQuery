@@ -309,6 +309,7 @@ describe('pure renderer (DOM-free)', () => {
     expect(result.html).toContain('<a href="//cdn.example.com/app.js" rel="noopener noreferrer">cdn</a>');
     expect(result.html).toContain('<a href="https://bquery.dev/docs" rel="noopener noreferrer">external</a>');
     expect(result.html).toContain('<a href="/local">local</a>');
+    // Malformed absolute URLs are treated as external if URL parsing fails.
     expect(result.html).toContain('<a href="http://[::1" rel="noopener noreferrer">broken</a>');
   });
 

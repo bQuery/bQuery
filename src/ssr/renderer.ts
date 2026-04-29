@@ -233,7 +233,7 @@ const sanitizeHtmlForSSR = (raw: string): string => {
       const isExternal = href ? isExternalHtmlUrl(href) : false;
 
       if (hasTargetBlank || isExternal) {
-        const relValues = new Set((node.attributes.rel ?? '').split(REL_SPLIT_PATTERN).filter(Boolean));
+        const relValues = new Set((node.attributes.rel ?? '').trim().split(REL_SPLIT_PATTERN).filter(Boolean));
         relValues.add('noopener');
         relValues.add('noreferrer');
         setAttr(node, 'rel', Array.from(relValues).join(' '));
