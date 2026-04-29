@@ -8,6 +8,7 @@
  */
 import { afterEach, describe, expect, it } from 'bun:test';
 import { signal } from '../src/reactive/index';
+import { parseTemplate, serializeTree } from '../src/ssr/html-parser';
 import {
   configureSSR,
   createAssetManager,
@@ -261,6 +262,27 @@ describe('pure renderer (DOM-free)', () => {
 
     expect(pure.html).toBe(dom.html);
     expect(pure.html).toBe('<a title="1 &lt; 2 &gt; 0 &amp; &quot;quoted&quot;">link</a>');
+  });
+
+  it('treats stray < characters as text instead of stalling the parser', () => {
+    configureSSR({ backend: 'pure' });
+    const result = renderToString('<p>1 < 2</p>', {});
+    expect(result.html).toBe('<p>1 &lt; 2</p>');
+  });
+
+  it('stores parsed attributes in a null-prototype map', () => {
+    const tree = parseTemplate('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
+    const root = tree.children[0];
+
+    expect(root?.type).toBe('element');
+    if (!root || root.type !== 'element') {
+      throw new Error('expected element root');
+    }
+
+    expect(Object.getPrototypeOf(root.attributes)).toBeNull();
+    expect(root.attributes.__proto__).toBe('polluted');
+    expect(root.attributes.constructor).toBe('ctor');
+    expect(serializeTree(tree)).toBe('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
   });
 
   it('trims pure-renderer templates like the DOM backend', () => {

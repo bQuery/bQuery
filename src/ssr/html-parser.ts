@@ -164,7 +164,7 @@ const readAttrValue = (s: ParseState): string => {
 const parseAttributes = (
   s: ParseState
 ): { attributes: Record<string, string>; order: string[]; selfClose: boolean } => {
-  const attributes: Record<string, string> = {};
+  const attributes: Record<string, string> = Object.create(null) as Record<string, string>;
   const order: string[] = [];
   let selfClose = false;
 
@@ -309,6 +309,10 @@ export const parseTemplate = (template: string): SSRDocumentFragment => {
         stack.push(element);
         continue;
       }
+
+      top().children.push({ type: 'text', value: '<' });
+      s.pos++;
+      continue;
     }
 
     // Plain text
