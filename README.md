@@ -1,21 +1,16 @@
 <div align="center">
-
-<img src="https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg" alt="bQuery.js" height="80" />
-
-# bQuery.js
-
-**The full-stack web framework that speaks jQuery.**
-
-*Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components,<br/>routing, and more — with a jQuery-inspired API and zero mandatory build step.*
-
-[![npm](https://img.shields.io/npm/v/@bquery/bquery?style=flat&logo=npm)](https://www.npmjs.com/package/@bquery/bquery)
-[![Bundle Size](https://img.shields.io/bundlephobia/minzip/@bquery/bquery?style=flat)](https://bundlephobia.com/package/@bquery/bquery)
-[![License](https://img.shields.io/github/license/bquery/bquery?style=flat)](https://github.com/bQuery/bQuery/blob/main/LICENSE.md)<br/>
-[![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/stargazers)
-[![Issues](https://img.shields.io/github/issues/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/issues)
-[![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
-[![jsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
-
+<img src="https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg" alt="bQuery.js" height="80" /><br/><br/>
+<h1>bQuery.js</h1>
+<p><strong>The full-stack web framework that speaks jQuery.</strong></p>
+<p><em>Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components,<br/>routing, and more — with a jQuery-inspired API and zero mandatory build step.</em></p>
+<br/>
+<a href="https://www.npmjs.com/package/@bquery/bquery"><img src="https://img.shields.io/npm/v/@bquery/bquery?style=flat&logo=npm" alt="npm"/></a>&nbsp;
+<a href="https://bundlephobia.com/package/@bquery/bquery"><img src="https://img.shields.io/bundlephobia/minzip/@bquery/bquery?style=flat" alt="Bundle Size"/></a>&nbsp;
+<a href="https://github.com/bQuery/bQuery/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/bquery/bquery?style=flat" alt="License"/></a><br/>
+<a href="https://github.com/bQuery/bQuery/stargazers"><img src="https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github" alt="Stars"/></a>&nbsp;
+<a href="https://github.com/bQuery/bQuery/issues"><img src="https://img.shields.io/github/issues/bquery/bquery?style=flat&logo=github" alt="Issues"/></a>&nbsp;
+<a href="https://www.codefactor.io/repository/github/bquery/bquery"><img src="https://www.codefactor.io/repository/github/bquery/bquery/badge" alt="CodeFactor"/></a>&nbsp;
+<a href="https://www.jsdelivr.com/package/npm/@bquery/bquery"><img src="https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge" alt="jsDelivr"/></a>
 </div>
 
 ---
