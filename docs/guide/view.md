@@ -558,4 +558,4 @@ A fully sandboxed expression parser would:
 - Reduce expression flexibility
 - Still require careful security review
 
-The current approach matches industry standards (Vue, Alpine, Angular) while keeping the library lightweight. The key is ensuring expressions come only from trusted sources.
+The current approach matches industry standards (Vue, Alpine, Angular) while keeping the implementation focused and predictable. The key is ensuring expressions come only from trusted sources.
