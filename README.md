@@ -4,7 +4,7 @@
 <p><strong>The full-stack web framework that speaks jQuery.</strong></p>
 <p><em>Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components,<br/>routing, and more — with a jQuery-inspired API and zero mandatory build step.</em></p>
 <br/>
-<a href="https://www.npmjs.com/package/@bquery/bquery"><img src="https://img.shields.io/npm/v/@bquery/bquery?style=flat&logo=npm" alt="npm"/></a>&nbsp;
+<a href="https://www.npmjs.com/package/@bquery/bquery"><img src="https://img.shields.io/npm/v/@bquery/bquery?style=flat&logo=npm" alt="npm version"/></a>&nbsp;
 <a href="https://bundlephobia.com/package/@bquery/bquery"><img src="https://img.shields.io/bundlephobia/minzip/@bquery/bquery?style=flat" alt="Bundle Size"/></a>&nbsp;
 <a href="https://github.com/bQuery/bQuery/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/bquery/bquery?style=flat" alt="License"/></a><br/>
 <a href="https://github.com/bQuery/bQuery/stargazers"><img src="https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github" alt="Stars"/></a>&nbsp;
