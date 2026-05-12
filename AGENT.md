@@ -7,19 +7,19 @@
 
 ## Identity
 
-| Field       | Value                                                                                                                                                                                                                                                                                 |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Name        | bQuery.js                                                                                                                                                                                                                                                                             |
-| Package     | `@bquery/bquery`                                                                                                                                                                                                                                                                      |
-| Version     | 1.11.0                                                                                                                                                                                                                                                                                |
-| License     | MIT                                                                                                                                                                                                                                                                                   |
-| Language    | TypeScript (strict)                                                                                                                                                                                                                                                                   |
-| Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                                                                                                       |
-| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.13`                                                                                                                                                                                                                                                    |
-| Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                                                                                                    |
-| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                                                                                                      |
-| Tagline     | The full-stack web framework that speaks jQuery.                                                                                                                                                                                                                                      |
-| Description | Batteries-included TypeScript framework for the modern web with signals, SSR, Web Components, routing, server helpers, and a jQuery-inspired API — zero mandatory build step, security-by-default                                   |
+| Field       | Value                                                                                                                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Name        | bQuery.js                                                                                                                                                                                         |
+| Package     | `@bquery/bquery`                                                                                                                                                                                  |
+| Version     | 1.11.1                                                                                                                                                                                            |
+| License     | MIT                                                                                                                                                                                               |
+| Language    | TypeScript (strict)                                                                                                                                                                               |
+| Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
+| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.13`                                                                                                                                                                |
+| Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                |
+| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                  |
+| Tagline     | The full-stack web framework that speaks jQuery.                                                                                                                                                  |
+| Description | Batteries-included TypeScript framework for the modern web with signals, SSR, Web Components, routing, server helpers, and a jQuery-inspired API — zero mandatory build step, security-by-default |
 
 ---
 
@@ -40,7 +40,7 @@ bun run dev           # VitePress docs server
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
 
-## Version 1.11.0 Highlights
+## Version 1.11.1 Highlights
 
 - `@bquery/bquery/server` is now a first-class public entry point for dependency-free backend routing, SSR-aware `render()` responses, repeated-query parsing, and runtime-agnostic WebSocket session handling through `createServer()`.
 - `@bquery/bquery/ssr` now spans runtime-agnostic sync/async/streaming rendering with `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, DOM-free fallback rendering, `createSSRContext()`, head/asset managers, runtime adapters, route loaders, store snapshots, mismatch checks, and resumability hooks.

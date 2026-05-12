@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.11.0
+- Version: 1.11.1
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bQuery.flausch-code.de
@@ -18,7 +18,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
 
-## Version 1.11.0 Highlights
+## Version 1.11.1 Highlights
 
 - Server: `@bquery/bquery/server` is now a first-class public entry point with dependency-free routing, SSR-aware `render()` responses, repeated-query parsing, and runtime-agnostic WebSocket sessions via `createServer()`.
 - SSR: `@bquery/bquery/ssr` now spans DOM-free fallback rendering, `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, `createSSRContext()`, head/asset managers, hydration strategies, route loaders, snapshots, resumability, and runtime adapters.

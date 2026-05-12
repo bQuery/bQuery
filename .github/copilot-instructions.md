@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.11.0**.
+Current release baseline: **1.11.1**.
 
 Start here before making assumptions:
 
@@ -30,7 +30,7 @@ Prefer pointing back to those files instead of duplicating large architecture se
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
 
-## Version 1.11.0 highlights
+## Version 1.11.1 highlights
 
 - `@bquery/bquery/server` is now a first-class public entry point; repo guidance should treat `createServer()` and the runtime-agnostic WebSocket session helpers as part of the documented surface.
 - `@bquery/bquery/ssr` now includes runtime-agnostic async/streaming rendering (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`), DOM-free fallback rendering, `createSSRContext()`, runtime adapters, snapshots, and resumability helpers.

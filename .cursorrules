@@ -4,7 +4,7 @@ You are working on bQuery.js, a batteries-included TypeScript full-stack web fra
 
 > Derived snapshot for Cursor. If this file conflicts with `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files in that order and then realign this one.
 
-Current release baseline: **1.11.0**.
+Current release baseline: **1.11.1**.
 
 bQuery.js is not a utility library; treat its broad module surface as the product, and keep guidance aligned with that scope.
 
@@ -22,7 +22,7 @@ bQuery.js is not a utility library; treat its broad module surface as the produc
 - `useSignal()`, `useComputed()`, and `useEffect()` from `@bquery/bquery/component` must be called from component lifecycle hooks, not from `render()`.
 - When version, engine, or repo guidance files change, run `bun run check:ai-guidance` before finishing.
 
-## 1.11.0 API Notes
+## 1.11.1 API Notes
 
 - `@bquery/bquery/server` is a public backend helper entry point; keep `createServer()`, SSR-aware responses, and runtime-agnostic WebSocket session helpers visible in guidance.
 - `@bquery/bquery/ssr` includes `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, `createSSRContext()`, runtime adapters such as `createSSRHandler()`, hydration strategies, store snapshots, and resumability hooks.
