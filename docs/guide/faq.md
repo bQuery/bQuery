@@ -6,7 +6,7 @@ Common questions and solutions for bQuery.js — from first-time setup to produc
 
 ### What is bQuery.js?
 
-bQuery.js is a TypeScript-first, zero-build-capable DOM library that brings modern platform features to vanilla JavaScript. Think of it as a bridge between jQuery's simplicity and a full framework's power — without the framework lock-in.
+bQuery.js is a batteries-included TypeScript framework for the modern web. It brings jQuery's ergonomic API to reactive DOM scripting, Web Components, routing, forms, SSR, server workflows, and more — with a zero mandatory build step when you want it.
 
 ```ts
 import { $, signal, effect } from '@bquery/bquery';
@@ -58,7 +58,7 @@ bQuery is designed for vanilla JavaScript and standalone use. You _can_ use its 
 - CMS themes (WordPress, Ghost, etc.)
 - Rapid prototyping
 - Modernizing legacy jQuery codebases
-- Anywhere you want framework-level features without framework complexity
+- Anywhere you want full-stack framework features with a gradual adoption path
 
 ---
 

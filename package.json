@@ -1,7 +1,7 @@
 {
   "name": "@bquery/bquery",
   "version": "1.11.0",
-  "description": "The jQuery for the Modern Web Platform - Zero build, TypeScript-first library with reactivity, components, and motion",
+  "description": "bQuery.js \u2014 batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
   "type": "module",
   "main": "./dist/full.umd.js",
   "module": "./dist/index.es.mjs",
