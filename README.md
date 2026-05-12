@@ -1,20 +1,24 @@
+<div align="center">
+
+<img src="https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg" alt="bQuery.js" height="80" />
+
 # bQuery.js
-
-![bQuery.js Logo](https://raw.githubusercontent.com/bQuery/bQuery/main/assets/bquerry-logo.svg)
-
-[![Repo](https://img.shields.io/badge/github-bquery%2Fbquery-24292f?logo=github)](https://github.com/bQuery/bQuery)
-[![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/stargazers)
-[![Issues](https://img.shields.io/github/issues/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/issues)
-[![License](https://img.shields.io/github/license/bquery/bquery?style=flat)](https://github.com/bQuery/bQuery/blob/main/LICENSE.md)
-[![npm](https://img.shields.io/npm/v/@bquery/bquery)](https://www.npmjs.com/package/@bquery/bquery)
-[![Bundle Size](https://img.shields.io/bundlephobia/minzip/@bquery/bquery)](https://bundlephobia.com/package/@bquery/bquery)
-[![unpkg](https://img.shields.io/badge/unpkg-browse-blue?logo=unpkg)](https://unpkg.com/@bquery/bquery)
-[![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
-[![JsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
 
 **The full-stack web framework that speaks jQuery.**
 
-*bQuery.js is a batteries-included TypeScript framework for the modern web — signals, SSR, Web Components, routing, and more — with a jQuery-inspired API and zero mandatory build step.*
+*Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components,<br/>routing, and more — with a jQuery-inspired API and zero mandatory build step.*
+
+[![npm](https://img.shields.io/npm/v/@bquery/bquery?style=flat&logo=npm)](https://www.npmjs.com/package/@bquery/bquery)
+[![Bundle Size](https://img.shields.io/bundlephobia/minzip/@bquery/bquery?style=flat)](https://bundlephobia.com/package/@bquery/bquery)
+[![License](https://img.shields.io/github/license/bquery/bquery?style=flat)](https://github.com/bQuery/bQuery/blob/main/LICENSE.md)<br/>
+[![Stars](https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/stargazers)
+[![Issues](https://img.shields.io/github/issues/bquery/bquery?style=flat&logo=github)](https://github.com/bQuery/bQuery/issues)
+[![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
+[![jsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
+
+</div>
+
+---
 
 > **New in 1.11.0:** Runtime-agnostic SSR now adds DOM-free fallback rendering, `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, hydration strategies, store snapshots, and resumability hooks, alongside the new `@bquery/bquery/server` entry point for dependency-free backend routing and WebSocket sessions.
 
