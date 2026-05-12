@@ -1,7 +1,7 @@
 /**
- * bQuery.js — The jQuery for the Modern Web Platform
+ * bQuery.js — The full-stack web framework that speaks jQuery.
  *
- * A zero-build, TypeScript-first library that bridges vanilla JavaScript
+ * A zero-build, TypeScript-first framework that bridges vanilla JavaScript
  * and build-step frameworks with modern features.
  *
  * @module bquery

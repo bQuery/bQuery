@@ -1,6 +1,6 @@
 # bQuery.js — Framework Specification v1.11.0
 
-> _"The jQuery for the Modern Web Platform"_
+> _"The full-stack web framework that speaks jQuery."_
 
 ---
 
@@ -8,7 +8,7 @@
 
 ### 1.1 Mission Statement
 
-bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offers modern features (reactivity, zero-build concurrency, async data, HTTP clients, polling, pagination, realtime transports, REST helpers, lightweight backend routing, runtime-agnostic SSR, components, motion, routing, stores, declarative views, forms, i18n, accessibility, media signals, plugins, testing, and WebSocket sessions) with the simplicity and directness that made jQuery successful.
+bQuery.js is a **batteries-included framework** for the modern web. It brings jQuery's ergonomic API to reactivity, zero-build concurrency, async data, HTTP clients, polling, pagination, realtime transports, REST helpers, dependency-free backend routing, runtime-agnostic SSR, components, motion, routing, stores, declarative views, forms, i18n, accessibility, media signals, plugins, testing, and WebSocket sessions.
 
 ### 1.2 Core Principles
 
@@ -18,7 +18,7 @@ bQuery.js bridges **vanilla JavaScript** and **build-step frameworks**. It offer
 | **Progressive Enhancement**  | Enhances native HTML/JS without replacing it. Every feature is opt-in.                 |
 | **Secure by Default**        | DOM writes are sanitized by default. CSP- and Trusted-Types-compatible.                |
 | **Predictable & Debuggable** | No virtual DOM or hidden magic. State changes map directly to DOM updates.             |
-| **Tiny Footprint**           | Core stays minimal. Extra modules are lazy-loadable and tree-shakeable.                |
+| **Modular by Choice**       | Import only what you need, or use the full framework bundle with consistent APIs.      |
 | **Typed & Documented**       | TypeScript-first APIs with inline TSDoc for every public surface.                      |
 
 ### 1.3 Target Audience

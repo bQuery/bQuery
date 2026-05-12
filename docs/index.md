@@ -3,8 +3,8 @@ layout: home
 title: bQuery.js
 hero:
   name: bQuery.js
-  text: The jQuery for the modern Web Platform.
-  tagline: Zero build. Secure by default. DOM-first reactivity, runtime-agnostic SSR, and server primitives.
+  text: The full-stack web framework that speaks jQuery.
+  tagline: Batteries-included TypeScript framework with signals, Web Components, SSR, routing, and zero mandatory build step.
   image:
     src: /assets/bquerry-logo.svg
     alt: bQuery Logo
@@ -37,12 +37,12 @@ features:
   - title: Accessibility & media
     details: Focus traps, skip links, audits, media preference signals, viewport/network state, and clipboard helpers.
   - title: Testing, SSR & Server
-    details: Testing utilities, runtime devtools, runtime-agnostic SSR, hydration strategies, and lightweight backend helpers.
+    details: Testing utilities, runtime devtools, runtime-agnostic SSR, hydration strategies, and dependency-free backend helpers.
 ---
 
 ## Why bQuery
 
-bQuery.js bridges vanilla JavaScript and build-step frameworks. It keeps the directness of jQuery while adding reactivity, async data composables, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, lightweight server middleware, runtime-agnostic SSR, WebSocket sessions, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, and testing in a modular, progressive way.
+bQuery.js is a batteries-included framework for the modern web. It brings jQuery's direct API ergonomics to reactivity, async data, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, dependency-free server routing, runtime-agnostic SSR, WebSocket sessions, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, and testing in one modular system.
 
 ## New in 1.11.0
 

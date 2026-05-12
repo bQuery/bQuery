@@ -8,6 +8,8 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.11.1\] - 2026-05-12](#1111---2026-05-12)
+    - [Changed (1.11.1)](#changed-1111)
   - [\[1.11.0\] - 2026-04-15](#1110---2026-04-15)
     - [Added (1.11.0)](#added-1110)
     - [Changed (1.11.0)](#changed-1110)
@@ -67,6 +69,12 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.11.1] - 2026-05-12
+
+### Changed (1.11.1)
+
+- **Tooling / Dev dependencies**: Bumped `@typescript-eslint/eslint-plugin` and `@typescript-eslint/parser` from `8.59.1` to `8.59.3`, `eslint` from `10.2.1` to `10.3.0`, `globals` from `17.5.0` to `17.6.0`, and `vite` from `8.0.10` to `8.0.12`. The `vite` update brings in the stable `rolldown@1.0.0` release (previously `1.0.0-rc.17`) and `postcss@8.5.14`.
 
 ## [1.11.0] - 2026-04-30
 

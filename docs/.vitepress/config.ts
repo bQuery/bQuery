@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress';
 export default defineConfig({
   lang: 'en-US',
   title: 'bQuery.js',
-  description: 'The jQuery for the modern Web Platform.',
+  description: 'Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components, routing, and more — with a jQuery-inspired API and zero mandatory build step.',
   base: process.env.VITEPRESS_BASE ?? '/',
   head: [
     ['link', { rel: 'icon', href: '/assets/bquerry-logo.svg' }],

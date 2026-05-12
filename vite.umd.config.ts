@@ -16,7 +16,7 @@ import { defineConfig } from 'vite';
 
 const banner = `/**
  * bQuery.js v${process.env.npm_package_version || '1.0.0'}
- * The jQuery for the Modern Web Platform
+ * The full-stack web framework that speaks jQuery.
  * (c) ${new Date().getFullYear()} bQuery Contributors
  * Released under the MIT License
  */`;
