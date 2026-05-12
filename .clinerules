@@ -1,10 +1,10 @@
 # bQuery.js — Cline Rules
 
-You are working on bQuery.js (`@bquery/bquery`), a TypeScript-first, zero-build DOM library.
+You are working on bQuery.js (`@bquery/bquery`), a batteries-included TypeScript full-stack web framework with a jQuery-inspired API.
 
 > Derived snapshot for Cline. If this file drifts from `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files first and then realign this one.
 
-The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
+bQuery.js is not a utility library; its broad module surface is the product. The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
 Current release baseline: **1.11.0**.
 

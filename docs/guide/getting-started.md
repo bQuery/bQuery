@@ -1,6 +1,29 @@
 # Getting Started
 
-bQuery.js is designed for zero-build usage and modern build setups alike. You can start with plain HTML or use Vite for a fast dev server. Since `1.8.0`, the Reactive module also covers HTTP clients, polling, pagination, realtime transports, REST helpers, and request coordination utilities. Since `1.10.0`, the Concurrency module also covers explicit RPC workers, bounded pools, opt-in reactive worker state wrappers, and high-level collection helpers. Since `1.11.0`, bQuery also ships runtime-agnostic SSR helpers such as `renderToStringAsync()` and `renderToResponse()`, plus the `@bquery/bquery/server` entry point for lightweight backend routing and WebSocket sessions.
+**The full-stack web framework that speaks jQuery.**
+
+bQuery.js is a batteries-included TypeScript framework for the modern web. It spans reactive DOM scripting, Web Components, routing, state, forms, accessibility helpers, SSR, and server-side request handling while keeping a familiar jQuery-inspired API and a zero mandatory build step — or your preferred bundler.
+
+You do not need to adopt the whole framework at once. Start with the layer that matches your app today, then compose in more modules as your needs grow.
+
+> **Stability**: Core, Reactive, Security, Component, Motion, Platform, Router,
+> and Store are considered stable. View, Forms, i18n, A11y, DnD, Media, Plugin,
+> Devtools, Testing, and Storybook are in beta. SSR, Server, and Concurrency
+> are experimental — APIs may change between minor versions.
+
+## Where to start
+
+**I want reactive DOM scripting without a build step:**
+→ Start with [Core](./api-core.md) and [Reactive](./reactive.md)
+
+**I'm building a single-page application:**
+→ Start with [Router](./router.md), [Store](./store.md), and [View](./view.md)
+
+**I'm building a full-stack app with SSR:**
+→ Start with [SSR](./ssr.md) and [Server](./server.md)
+
+**I want to use Web Components:**
+→ Start with [Component](./components.md)
 
 ## Installation
 

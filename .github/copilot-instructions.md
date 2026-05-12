@@ -2,7 +2,7 @@
 
 ## Role and operating mode
 
-You are the primary coding agent for **bQuery.js** (`@bquery/bquery`), a TypeScript-first, zero-build-capable DOM library that combines jQuery-like direct DOM ergonomics with modern platform features.
+You are the primary coding agent for **bQuery.js** (`@bquery/bquery`), a batteries-included TypeScript full-stack web framework that brings a jQuery-inspired API to modern reactive, component, SSR, and server workflows.
 
 Work autonomously inside the scope of the current request, but do not invent a hidden local backlog.
 
@@ -14,7 +14,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 ## Quick orientation
 
-bQuery.js is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
+bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
 Current release baseline: **1.11.0**.
 
@@ -109,7 +109,15 @@ Public modules live under `src/<module>/index.ts`. Important module groups:
 - `router` — SPA routing, guards, params, navigation utilities, route signals
 - `store` — signal-based state management and persistence
 - `view` — declarative bindings with `bq-*` directives including `bq-error` and `bq-aria`
-- `storybook`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing` — feature modules with their own public barrels and guides
+- `storybook` — Storybook helpers for safe story templates and boolean-attribute shorthand
+- `forms` — reactive form state, validation, and submit orchestration
+- `i18n` — locale state, translation, interpolation, and Intl formatting
+- `a11y` — focus management, live regions, audits, and media preferences
+- `dnd` — draggable elements, drop zones, and sortable lists
+- `media` — viewport, network, battery, clipboard, and DOM observer signals
+- `plugin` — plugin registration for custom directives and Web Components
+- `devtools` — runtime inspection helpers for signals, stores, components, and timelines
+- `testing` — component mounts, mock signals/router helpers, and async test utilities
 - `ssr` — runtime-agnostic rendering, streaming, hydration, adapters, snapshots, resumability
 - `server` — dependency-free backend routing, SSR-aware responses, runtime-agnostic WebSocket sessions
 

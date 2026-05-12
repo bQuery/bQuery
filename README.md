@@ -12,23 +12,21 @@
 [![CodeFactor](https://www.codefactor.io/repository/github/bquery/bquery/badge)](https://www.codefactor.io/repository/github/bquery/bquery)
 [![JsDelivr](https://data.jsdelivr.com/v1/package/npm/@bquery/bquery/badge)](https://www.jsdelivr.com/package/npm/@bquery/bquery)
 
-**The jQuery for the modern Web Platform.**
+**The full-stack web framework that speaks jQuery.**
 
-bQuery.js is a slim, TypeScript-first library that combines jQuery's direct DOM workflow with modern features like reactivity, zero-build worker tasks, async data composables, HTTP clients, polling and pagination helpers, realtime transports, REST workflows, lightweight server middleware and WebSocket session routing, Web Components, motion utilities, routing, stores, declarative views, accessibility helpers, forms, i18n, media signals, drag-and-drop, plugins, devtools, testing utilities, and SSR — without a mandatory build step.
+*bQuery.js is a batteries-included TypeScript framework for the modern web — signals, SSR, Web Components, routing, and more — with a jQuery-inspired API and zero mandatory build step.*
 
 > **New in 1.11.0:** Runtime-agnostic SSR now adds DOM-free fallback rendering, `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, hydration strategies, store snapshots, and resumability hooks, alongside the new `@bquery/bquery/server` entry point for dependency-free backend routing and WebSocket sessions.
 
 ## Highlights
 
-- **Zero-build capable**: runs directly in the browser; build tools are optional.
-- **Transport-ready reactive data**: fetch composables, HTTP clients, polling, pagination, debounced/throttled watchers, WebSocket / SSE, REST helpers, and request coordination plug directly into signals.
-- **Explicit concurrency primitives**: zero-build worker tasks, RPC helpers, bounded pools, reactive worker state mirrors, and collection helpers keep off-main-thread work predictable.
-- **Declarative UI bindings**: built-in directives now cover content, events, forms, error output, and reactive ARIA attributes.
-- **Security-focused**: DOM writes are sanitized by default; Trusted Types supported.
-- **Modular**: the core stays small; extra modules are opt-in.
-- **TypeScript-first**: clear types and strong IDE support.
-- **Tree-shakeable**: import only what you need.
-- **Storybook-ready**: default components can be previewed and developed in Storybook with dedicated story template helpers.
+- **Full-stack by default**: signals, SSR, routing, server middleware, Web Components, and 15+ modules ship together — use only what you need, or bring everything.
+- **Zero mandatory build step**: start in plain HTML with the CDN entry points, or use your preferred bundler without changing the API surface.
+- **Reactive data across the stack**: fetch composables, HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, and request coordination plug directly into signals.
+- **From UI to backend**: declarative views, forms, accessibility helpers, plugins, devtools, testing utilities, SSR, and server routing cover the full app lifecycle.
+- **TypeScript-first and tree-shakeable**: explicit entry points keep large apps typed while letting smaller apps import focused modules.
+- **Security-focused**: DOM writes are sanitized by default, with Trusted Types and CSP helpers built in.
+
 
 ## Installation
 
@@ -196,35 +194,37 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 
 ## Modules at a glance
 
-| Module          | Description                                                                                                                                                                 |
-| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Core**        | Selectors, DOM manipulation, events, traversal, and typed utilities                                                                                                         |
-| **Reactive**    | `signal`, `computed`, `effect`, `watchDebounce`, `watchThrottle`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers                          |
-| **Concurrency** | Zero-build worker tasks, explicit RPC helpers, optional reactive state wrappers, bounded worker pools, high-level collection helpers, and an optional fluent pipeline layer |
-| **Component**   | Typed Web Components with scoped reactivity and configurable Shadow DOM                                                                                                     |
-| **Storybook**   | Safe story template helpers with boolean-attribute shorthand                                                                                                                |
-| **Motion**      | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                                                                              |
-| **Security**    | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                                                                             |
-| **Platform**    | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                                               |
-| **Router**      | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                                                                           |
-| **Store**       | Signal-based state management, persistence, migrations, and action hooks                                                                                                    |
-| **View**        | Declarative DOM bindings with `bq-*` directives for content, classes, forms, errors, ARIA, and plugins                                                                      |
-| **Forms**       | Reactive form state with sync/async validation and submit handling                                                                                                          |
-| **i18n**        | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                                                                           |
-| **A11y**        | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                                             |
-| **DnD**         | Draggable elements, droppable zones, and sortable lists                                                                                                                     |
-| **Media**       | Reactive browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers                                                                   |
-| **Plugin**      | Global plugin registration for custom directives and Web Components                                                                                                         |
-| **Devtools**    | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
-| **Testing**     | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
-| **SSR**         | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
-| **Server**      | Express-inspired backend routing, middleware, safe response helpers, SSR-aware request handling, and runtime-agnostic WebSocket sessions                                    |
+| Module          | Status        | Description                                                                                                                                                                 |
+| --------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Core**        | Stable        | Selectors, DOM manipulation, events, traversal, and typed utilities                                                                                                         |
+| **Reactive**    | Stable        | `signal`, `computed`, `effect`, `watchDebounce`, `watchThrottle`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers                          |
+| **Concurrency** | Experimental  | Zero-build worker tasks, explicit RPC helpers, optional reactive state wrappers, bounded worker pools, high-level collection helpers, and an optional fluent pipeline layer |
+| **Component**   | Stable        | Typed Web Components with scoped reactivity and configurable Shadow DOM                                                                                                     |
+| **Storybook**   | Beta          | Safe story template helpers with boolean-attribute shorthand                                                                                                                |
+| **Motion**      | Stable        | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                                                                              |
+| **Security**    | Stable        | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                                                                             |
+| **Platform**    | Stable        | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                                               |
+| **Router**      | Stable        | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                                                                           |
+| **Store**       | Stable        | Signal-based state management, persistence, migrations, and action hooks                                                                                                    |
+| **View**        | Beta          | Declarative DOM bindings with `bq-*` directives for content, classes, forms, errors, ARIA, and plugins                                                                      |
+| **Forms**       | Beta          | Reactive form state with sync/async validation and submit handling                                                                                                          |
+| **i18n**        | Beta          | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                                                                           |
+| **A11y**        | Beta          | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                                             |
+| **DnD**         | Beta          | Draggable elements, droppable zones, and sortable lists                                                                                                                     |
+| **Media**       | Beta          | Reactive browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers                                                                   |
+| **Plugin**      | Beta          | Global plugin registration for custom directives and Web Components                                                                                                         |
+| **Devtools**    | Beta          | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
+| **Testing**     | Beta          | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
+| **SSR**         | Experimental  | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
+| **Server**      | Experimental  | Express-inspired backend routing, middleware, safe response helpers, SSR-aware request handling, and runtime-agnostic WebSocket sessions                                    |
 
 Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`. Server-side middleware, HTTP routing, and runtime-agnostic WebSocket session helpers ship as a dedicated entry point via `@bquery/bquery/server`.
 
 Reusable workers and pools can also opt into readonly signal mirrors such as `state$`, `busy$`, `pending$`, and `size$` through the `createReactive*()` concurrency wrappers.
 
 ## Quick examples
+
+bQuery.js covers the full development lifecycle — from interactive DOM scripting to server-side rendering. The examples below show each layer independently; in practice they compose seamlessly.
 
 ### Core – DOM & events
 
@@ -901,6 +901,8 @@ mount('#app', {
 | Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
+>
+> Server-side runtimes: Node.js ≥ 24, Bun ≥ 1.3.13, and Deno 2 are supported for SSR and server modules.
 
 ## Documentation
 

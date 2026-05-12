@@ -14,11 +14,12 @@
 | Version     | 1.11.0                                                                                                                                                                                                                                                                                |
 | License     | MIT                                                                                                                                                                                                                                                                                   |
 | Language    | TypeScript (strict)                                                                                                                                                                                                                                                                   |
-| Runtime     | Browser (ESM, UMD, IIFE) — tests run via Bun                                                                                                                                                                                                                                          |
+| Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                                                                                                       |
 | Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.13`                                                                                                                                                                                                                                                    |
 | Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                                                                                                    |
 | Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                                                                                                      |
-| Description | jQuery-style DOM library with reactivity, zero-build worker tasks, async data, HTTP clients, polling / pagination, realtime transports, REST helpers, Web Components, motion, routing, stores, declarative views, and shared runtime config — zero-build capable, security-by-default |
+| Tagline     | The full-stack web framework that speaks jQuery.                                                                                                                                                                                                                                      |
+| Description | Batteries-included TypeScript framework for the modern web with signals, SSR, Web Components, routing, server helpers, and a jQuery-inspired API — zero mandatory build step, security-by-default                                   |
 
 ---
 
@@ -45,6 +46,20 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 - `@bquery/bquery/ssr` now spans runtime-agnostic sync/async/streaming rendering with `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, DOM-free fallback rendering, `createSSRContext()`, head/asset managers, runtime adapters, route loaders, store snapshots, mismatch checks, and resumability hooks.
 - The `1.10.0` concurrency helpers and the `1.9.0` watcher/view/media additions remain first-class public APIs; keep them visible in docs and AI guidance instead of treating them as historical footnotes.
 - Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+
+---
+
+## Positioning
+
+**The full-stack web framework that speaks jQuery.**
+
+bQuery.js does not compete with jQuery on simplicity — it competes with full-stack frameworks on developer experience, bringing the ergonomics of jQuery's API surface to a modern, reactive, SSR-capable architecture.
+
+## Module Maturity
+
+- **Stable**: Core, Reactive, Security, Component, Motion, Platform, Router, Store
+- **Beta**: View, Forms, i18n, A11y, DnD, Media, Plugin, Devtools, Testing, Storybook
+- **Experimental**: SSR, Server, Concurrency
 
 ---
 
@@ -402,6 +417,8 @@ Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 
 ---
 
 ## Design Principles & Invariants
+
+bQuery.js does not compete with jQuery on simplicity — it competes with full-stack frameworks on developer experience, bringing the ergonomics of jQuery's API surface to a modern, reactive, SSR-capable architecture.
 
 1. **Security by default** — Every `.html()` call and component render goes through `sanitizeHtml()`. New DOM-writing methods MUST sanitize input.
 2. **Chainable APIs** — All mutating methods on `BQueryElement` / `BQueryCollection` return `this`.

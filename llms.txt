@@ -1,10 +1,10 @@
 # bQuery.js
 
-> The jQuery for the modern Web Platform.
+> The full-stack web framework that speaks jQuery.
 
 > Compact repo summary for context-limited LLMs. If this file drifts, trust `package.json`, `src/*/index.ts`, and `AGENT.md` in that order.
 
-bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combines jQuery's direct DOM workflow with modern features: reactivity (signals, scoped effects, watch timing helpers), zero-build worker tasks, async data/fetch composables, HTTP clients, polling/pagination, realtime transports, REST helpers, lightweight server middleware, Web Components, motion/animation utilities, SPA routing, state management, declarative views, DOM observer composables, and shared platform configuration — all with security-by-default HTML sanitization.
+bQuery.js is a batteries-included TypeScript framework for the modern web — reactive signals, zero-build worker tasks, Web Components, routing, state, forms, SSR, server helpers, and more — with a jQuery-inspired API, security-by-default HTML sanitization, and zero mandatory build step — or your preferred bundler.
 
 ## Package
 
@@ -25,9 +25,15 @@ bQuery.js is a slim, TypeScript-first, zero-build-capable DOM library that combi
 - Existing `1.10.0` / `1.9.0` additions — concurrency RPC/pool helpers, `watchDebounce()` / `watchThrottle()`, `bq-error` / `bq-aria`, and the media observer composables — remain part of the current public surface.
 - Repo AI guidance stays aligned through `bun run check:ai-guidance`, which validates the release/version metadata across the shared AI-facing files.
 
+## Maturity
+
+- **Stable**: Core, Reactive, Security, Component, Motion, Platform, Router, Store
+- **Beta**: View, Forms, i18n, A11y, DnD, Media, Plugin, Devtools, Testing, Storybook
+- **Experimental**: SSR, Server, Concurrency
+
 ## Modules
 
-bQuery is modular — import only what you need:
+bQuery is a batteries-included framework with modular entry points — import only what you need, or use the full bundle:
 
 ### Core (`@bquery/bquery/core`)
 DOM selection, manipulation, events, utilities. `$()` selects one element (throws if missing), `$$()` selects multiple (never throws). Both return chainable wrapper objects (`BQueryElement` / `BQueryCollection`) with jQuery-style methods: `addClass`, `removeClass`, `css`, `attr`, `text`, `html`, `on`, `off`, `trigger`, `find`, `closest`, `append`, `prepend`, `wrap`, `unwrap`, `delegate`, `serialize`, `scrollTo`. Also exports utility functions: `debounce`, `throttle`, `once`, `chunk`, `merge`, `clone`, `pick`, `omit`, `slugify`, `uid`, `sleep`, `clamp`, and type guards (`isArray`, `isString`, `isElement`, etc.).
