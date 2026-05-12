@@ -418,7 +418,7 @@ Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 
 
 ## Design Principles & Invariants
 
-bQuery.js does not compete with jQuery on simplicity — it competes with full-stack frameworks on developer experience, bringing the ergonomics of jQuery's API surface to a modern, reactive, SSR-capable architecture.
+See the earlier Positioning section for the project's jQuery/framework comparison.
 
 1. **Security by default** — Every `.html()` call and component render goes through `sanitizeHtml()`. New DOM-writing methods MUST sanitize input.
 2. **Chainable APIs** — All mutating methods on `BQueryElement` / `BQueryCollection` return `this`.
