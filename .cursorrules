@@ -10,7 +10,7 @@ bQuery.js is not a utility library; treat its broad module surface as the produc
 
 ## Critical Rules
 
-- Runtime: Bun (not Node). Use `bun test` for tests, `bun:test` imports.
+- Tooling/tests: Use Bun for repository workflows (`bun test`, `bun:test` imports). Runtime support for SSR/server workflows includes Node.js, and runtime-agnostic server APIs may also target environments such as Deno where applicable.
 - Supported toolchain: Node.js `>=24.0.0`, Bun `>=1.3.13`.
 - TypeScript: strict mode, ES2020 target, Bundler module resolution.
 - Security: ALL DOM HTML writes MUST use `sanitizeHtml()` from `src/security/sanitize.ts` (re-exported via `src/security/index.ts`).
