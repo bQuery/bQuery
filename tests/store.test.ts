@@ -2015,10 +2015,10 @@ describe('store/plugins', () => {
       id: 'plugin-extension-store',
       state: () => ({ count: 0 }),
     });
-    const pluginStore = store as typeof store & { $log: () => string };
+    const storeWithPlugin = store as typeof store & { $log: () => string };
 
-    expect(typeof pluginStore.$log).toBe('function');
-    expect(pluginStore.$log()).toBe('logged');
+    expect(typeof storeWithPlugin.$log).toBe('function');
+    expect(storeWithPlugin.$log()).toBe('logged');
   });
 
   it('skips merging when the plugin returns void/undefined', () => {
@@ -2056,8 +2056,8 @@ describe('store/plugins', () => {
       id: 'plugin-duplicate-store',
       state: () => ({ x: 0 }),
     });
-    const pluginStore = store as typeof store & { $tag: string };
-    expect(pluginStore.$tag).toBe('tagged');
+    const storeWithPlugin = store as typeof store & { $tag: string };
+    expect(storeWithPlugin.$tag).toBe('tagged');
 
     // Final removal succeeds.
     expect(unregisterPlugin(plugin)).toBe(true);
@@ -2089,13 +2089,13 @@ describe('store/plugins', () => {
       id: 'plugin-retain-store',
       state: () => ({ v: 0 }),
     });
-    const pluginStore = store as typeof store & { $kept: boolean };
-    expect(pluginStore.$kept).toBe(true);
+    const storeWithPlugin = store as typeof store & { $kept: boolean };
+    expect(storeWithPlugin.$kept).toBe(true);
 
     unregisterPlugin(plugin);
 
     // Existing store still has the previously applied extension.
-    expect(pluginStore.$kept).toBe(true);
+    expect(storeWithPlugin.$kept).toBe(true);
 
     // But a freshly created store no longer receives it.
     const fresh = createStore({
