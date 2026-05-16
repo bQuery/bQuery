@@ -175,7 +175,9 @@ const hasHeadersApi = (value: unknown): value is Headers =>
   typeof value === 'object' && value !== null && typeof (value as Headers).get === 'function';
 
 const hasAbortSignalApi = (value: unknown): value is AbortSignal =>
-  typeof value === 'object' && value !== null && typeof (value as AbortSignal).aborted === 'boolean';
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as AbortSignal).aborted === 'boolean';
 
 const createHeadersLike = (): Headers =>
   typeof Headers === 'function' ? new Headers() : createHeadersFallback();
@@ -219,7 +221,9 @@ export const createSSRContext = (options: CreateSSRContextOptions = {}): SSRCont
   const cookies = parseCookies(headers.get('cookie') ?? '');
   const userAgent = options.userAgent ?? headers.get('user-agent') ?? '';
   const locale = options.locale ?? parseLocale(headers.get('accept-language'));
-  const signal = options.signal ?? (hasAbortSignalApi(request.signal) ? request.signal : createAbortSignalFallback());
+  const signal =
+    options.signal ??
+    (hasAbortSignalApi(request.signal) ? request.signal : createAbortSignalFallback());
   const nonce = options.nonce ?? safeNonce();
 
   const ctx: SSRContext = {

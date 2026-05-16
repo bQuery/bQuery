@@ -94,7 +94,11 @@ describe('hydration mismatch detection', () => {
 
   it('verifyHydration returns no mismatches when DOM matches the annotation', () => {
     const root = document.createElement('div');
-    const html = renderToString('<p bq-text="msg"></p>', { msg: 'hello' }, { annotateHydration: true }).html;
+    const html = renderToString(
+      '<p bq-text="msg"></p>',
+      { msg: 'hello' },
+      { annotateHydration: true }
+    ).html;
     const p = document.createElement('p');
     p.setAttribute('bq-text', 'msg');
     p.setAttribute(HYDRATION_HASH_ATTR, extractHydrationHash(html));
@@ -108,7 +112,11 @@ describe('hydration mismatch detection', () => {
 
   it('verifyHydration flags mismatches when directives diverge', () => {
     const root = document.createElement('div');
-    const html = renderToString('<p bq-text="msg"></p>', { msg: 'hello' }, { annotateHydration: true }).html;
+    const html = renderToString(
+      '<p bq-text="msg"></p>',
+      { msg: 'hello' },
+      { annotateHydration: true }
+    ).html;
     const initial = document.createElement('p');
     initial.setAttribute('bq-text', 'msg');
     initial.setAttribute(HYDRATION_HASH_ATTR, extractHydrationHash(html));
@@ -136,7 +144,11 @@ describe('hydration mismatch detection', () => {
 
   it('verifyHydration respects the shared __BQUERY_DEV__ override for default warnings', () => {
     const root = document.createElement('div');
-    const html = renderToString('<p bq-text="msg"></p>', { msg: 'hello' }, { annotateHydration: true }).html;
+    const html = renderToString(
+      '<p bq-text="msg"></p>',
+      { msg: 'hello' },
+      { annotateHydration: true }
+    ).html;
     const p = document.createElement('p');
     p.setAttribute('bq-text', 'changedExpression');
     p.setAttribute(HYDRATION_HASH_ATTR, extractHydrationHash(html));
@@ -169,10 +181,14 @@ describe('hydration mismatch detection', () => {
 
   it('verifyHydration mismatches stripped annotations because directives are no longer available', () => {
     const root = document.createElement('div');
-    const html = renderToString('<p bq-text="msg"></p>', { msg: 'hello' }, {
-      annotateHydration: true,
-      stripDirectives: true,
-    }).html;
+    const html = renderToString(
+      '<p bq-text="msg"></p>',
+      { msg: 'hello' },
+      {
+        annotateHydration: true,
+        stripDirectives: true,
+      }
+    ).html;
     const p = document.createElement('p');
     p.setAttribute(HYDRATION_HASH_ATTR, extractHydrationHash(html));
     p.textContent = 'hello';

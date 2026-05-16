@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.11.1**.
+Current release baseline: **1.12.0**.
 
 Start here before making assumptions:
 
@@ -30,10 +30,12 @@ Prefer pointing back to those files instead of duplicating large architecture se
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
 
-## Version 1.11.1 highlights
+## Version 1.12.0 highlights
 
-- `@bquery/bquery/server` is now a first-class public entry point; repo guidance should treat `createServer()` and the runtime-agnostic WebSocket session helpers as part of the documented surface.
-- `@bquery/bquery/ssr` now includes runtime-agnostic async/streaming rendering (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`), DOM-free fallback rendering, `createSSRContext()`, runtime adapters, snapshots, and resumability helpers.
+- `@bquery/bquery/store` now includes `unregisterPlugin()` and `clearPlugins()` for plugin teardown, test isolation, and runtime plugin reloads.
+- `@bquery/bquery/reactive` now exports the public `WebSocketSendData` type for raw WebSocket frames, serializers, and heartbeat messages.
+- The `/full` bundle and `bun run check:full-bundle` now cover public type-only export drift for platform, a11y, and media surfaces.
+- The `1.11.0` server/SSR runtime surface remains first-class; repo guidance should still treat `createServer()`, runtime-agnostic WebSocket sessions, `renderToStringAsync()`, `renderToStream()`, and `renderToResponse()` as documented surface.
 - The `1.10.0` concurrency additions plus the `1.9.0` watcher/view/media APIs remain first-class public surface and should still appear in documentation refreshes.
 - Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.13`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
 

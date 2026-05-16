@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import {
-  createServer,
-  isServerWebSocketSession,
-  isWebSocketRequest,
-} from '../src/server/index';
 import type { ServerWebSocketPeer } from '../src/server/index';
+import { createServer, isServerWebSocketSession, isWebSocketRequest } from '../src/server/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 
 const SSR_TEST_STORE_ID = 'server-ssr-test';
@@ -92,7 +88,9 @@ describe('server/createServer', () => {
       })
     );
 
-    const response = await app.handle('/search?__proto__=polluted&constructor=oops&prototype=bad&tag=safe');
+    const response = await app.handle(
+      '/search?__proto__=polluted&constructor=oops&prototype=bad&tag=safe'
+    );
 
     expect(await response.json()).toEqual({
       constructorType: 'undefined',
@@ -158,9 +156,13 @@ describe('server/createServer', () => {
 
     const app = createServer();
     app.get('/ssr', (ctx) =>
-      ctx.render('<main><h1 bq-text="title"></h1></main>', { title: 'Server Rendered' }, {
-        includeStoreState: [SSR_TEST_STORE_ID],
-      })
+      ctx.render(
+        '<main><h1 bq-text="title"></h1></main>',
+        { title: 'Server Rendered' },
+        {
+          includeStoreState: [SSR_TEST_STORE_ID],
+        }
+      )
     );
 
     const response = await app.handle('/ssr');
@@ -215,9 +217,9 @@ describe('server/createServer', () => {
   it('rejects routes whose configured methods normalize to an empty set', () => {
     const app = createServer();
 
-    expect(() => app.add({ path: '/bad', method: '   ', handler: (ctx) => ctx.text('bad') })).toThrow(
-      'route method must include at least one non-empty method string'
-    );
+    expect(() =>
+      app.add({ path: '/bad', method: '   ', handler: (ctx) => ctx.text('bad') })
+    ).toThrow('route method must include at least one non-empty method string');
   });
 
   it('rejects wildcard route segments unless they are final', () => {
@@ -368,14 +370,18 @@ describe('server/createServer', () => {
           events.push({ type: 'error', value: innerCtx.query.user });
         },
       }),
-      [async (ctx, next) => {
-        const steps = ctx.state.steps as string[];
-        steps.push('route');
-        return await next();
-      }]
+      [
+        async (ctx, next) => {
+          const steps = ctx.state.steps as string[];
+          steps.push('route');
+          return await next();
+        },
+      ]
     );
 
-    const result = await app.handleWebSocket(createWebSocketRequest('http://localhost/rooms/general?user=alice'));
+    const result = await app.handleWebSocket(
+      createWebSocketRequest('http://localhost/rooms/general?user=alice')
+    );
 
     expect(isServerWebSocketSession(result)).toBe(true);
     if (!isServerWebSocketSession(result)) {
@@ -433,9 +439,7 @@ describe('server/createServer', () => {
 
     expect(await app.handleWebSocket('/chat')).toBeNull();
     expect(
-      await app.handleWebSocket(
-        createWebSocketRequest('http://localhost/missing')
-      )
+      await app.handleWebSocket(createWebSocketRequest('http://localhost/missing'))
     ).toBeNull();
   });
 
@@ -485,7 +489,9 @@ describe('server/createServer', () => {
       protocols: ['  ', '\t', '\n'],
     });
 
-    const result = await app.handleWebSocket(createWebSocketRequest('http://localhost/empty-protocols'));
+    const result = await app.handleWebSocket(
+      createWebSocketRequest('http://localhost/empty-protocols')
+    );
 
     expect(isServerWebSocketSession(result)).toBe(true);
     if (!isServerWebSocketSession(result)) {
@@ -505,5 +511,35 @@ describe('server/createServer', () => {
         open() {},
       })
     ).toBe(false);
+  });
+});
+
+// ============================================================================
+// Module exports
+// ============================================================================
+
+describe('server module exports', () => {
+  it('exports all runtime helpers from barrel', async () => {
+    const mod = await import('../src/server/index');
+
+    expect(typeof mod.createServer).toBe('function');
+    expect(typeof mod.isWebSocketRequest).toBe('function');
+    expect(typeof mod.isServerWebSocketSession).toBe('function');
+  });
+
+  it('is re-exported from main index', async () => {
+    const mod = await import('../src/index');
+
+    expect(typeof mod.createServer).toBe('function');
+    expect(typeof mod.isWebSocketRequest).toBe('function');
+    expect(typeof mod.isServerWebSocketSession).toBe('function');
+  });
+
+  it('is exported from full bundle', async () => {
+    const mod = await import('../src/full');
+
+    expect(typeof mod.createServer).toBe('function');
+    expect(typeof mod.isWebSocketRequest).toBe('function');
+    expect(typeof mod.isServerWebSocketSession).toBe('function');
   });
 });

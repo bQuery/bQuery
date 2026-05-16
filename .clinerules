@@ -6,9 +6,9 @@ You are working on bQuery.js (`@bquery/bquery`), a batteries-included TypeScript
 
 bQuery.js is not a utility library; its broad module surface is the product. The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.11.1**.
+Current release baseline: **1.12.0**.
 
-Version `1.11.1` adds no new public APIs — it is a patch release with dev-dependency updates only (`@typescript-eslint` 8.59.3, `eslint` 10.3.0, `globals` 17.6.0, `vite` 8.0.12 + stable `rolldown` 1.0.0). Version `1.11.0` added the dedicated `@bquery/bquery/server` entry point plus a major runtime-agnostic `@bquery/bquery/ssr` expansion (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, snapshots, resumability), while preserving the `1.10.0` concurrency helpers and the `1.9.0` watch/view/media APIs as first-class public surface.
+Version `1.12.0` adds Store plugin teardown APIs (`unregisterPlugin()`, `clearPlugins()`), promotes `WebSocketSendData` to a public Reactive type export, and tightens `/full` bundle type-export drift checks through `bun run check:full-bundle`. Version `1.11.0` added the dedicated `@bquery/bquery/server` entry point plus a major runtime-agnostic `@bquery/bquery/ssr` expansion (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, snapshots, resumability), while preserving the `1.10.0` concurrency helpers and the `1.9.0` watch/view/media APIs as first-class public surface.
 
 ## Before You Start
 
@@ -53,6 +53,7 @@ Version `1.11.1` adds no new public APIs — it is a patch release with dev-depe
 | `linkedSignal()`             | Read-write derived value                          |
 | `watchDebounce()`            | Debounced watcher callback                        |
 | `watchThrottle()`            | Throttled watcher callback                        |
+| `WebSocketSendData`          | Public raw WebSocket payload type union           |
 | `runTask()`                  | One-off zero-build worker task                    |
 | `createTaskPool()`           | Bounded task-worker pool with queueing            |
 | `createRpcWorker()`          | Named worker RPC dispatch                         |
@@ -70,8 +71,10 @@ Version `1.11.1` adds no new public APIs — it is a patch release with dev-depe
 | `reduce()`                   | Off-main-thread reduction with stable order       |
 | `pipeline()`                 | Optional immutable fluent layer over helpers      |
 
-| 1.11.0 API                                                                                                                       | Reminder                                                                      |
+| 1.12.0 / 1.11.0 API                                                                                                              | Reminder                                                                      |
 | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `unregisterPlugin()` / `clearPlugins()`                                                                                          | Store plugin teardown for tests and runtime reloads                           |
+| `WebSocketSendData`                                                                                                              | Public Reactive type for raw WebSocket frames and serializers                 |
 | `renderToStringAsync()` / `renderToStream()` / `renderToResponse()` / `createSSRContext()` / `createSSRHandler()`                | Runtime-agnostic SSR surface across Node 24, Bun, and Deno                    |
 | `createServer()` / `isWebSocketRequest()` / `isServerWebSocketSession()`                                                         | Dependency-free backend routing plus runtime-agnostic WebSocket session flow  |
 | `createRpcWorker()` / `createRpcPool()` / `createReactiveTaskWorker()` / `createReactiveRpcPool()` / `parallel()` / `pipeline()` | Explicit browser-first concurrency surface with reusable workers and helpers  |

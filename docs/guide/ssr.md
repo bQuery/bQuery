@@ -4,16 +4,49 @@ The SSR module renders bQuery templates to HTML strings, streams, or full `Respo
 
 ```ts
 import {
+  configureSSR,
+  createAssetManager,
+  createBunHandler,
+  createDenoHandler,
+  createHeadManager,
+  createNodeHandler,
+  createResumableState,
   createSSRContext,
+  createSSRHandler,
+  createSSRRouterContext,
+  createWebHandler,
+  defer,
+  defineLoader,
   deserializeStoreState,
+  detectRuntime,
+  getSSRConfig,
+  getSSRRuntimeFeatures,
+  hydrateIsland,
   hydrateMount,
+  hydrateOnIdle,
+  hydrateOnInteraction,
+  hydrateOnMedia,
+  hydrateOnVisible,
   hydrateStore,
+  hydrateStoreSnapshot,
   hydrateStores,
+  HYDRATION_HASH_ATTR,
+  isBrowserRuntime,
+  isServerRuntime,
+  readStoreSnapshot,
   renderToResponse,
+  renderToStream,
+  renderToStreamSuspense,
   renderToString,
   renderToStringAsync,
+  resolveSSRRoute,
+  resumeState,
+  runRouteLoaders,
+  serializeStoreSnapshot,
   serializeStoreState,
+  verifyHydration,
 } from '@bquery/bquery/ssr';
+import type { HydrationHandle, HydrationMismatch, SSRStoreSnapshot } from '@bquery/bquery/ssr';
 ```
 
 ---
@@ -562,11 +595,7 @@ Honours `SSRContext.signal` for cancellation, escapes the resolved value, and re
 Match URLs against your route table without instantiating a full router. Loaders attached as `meta.loader` run automatically when you use `createSSRRouterContext()`.
 
 ```ts
-import {
-  createSSRContext,
-  createSSRRouterContext,
-  renderToResponse,
-} from '@bquery/bquery/ssr';
+import { createSSRContext, createSSRRouterContext, renderToResponse } from '@bquery/bquery/ssr';
 
 const ctx = createSSRContext({ request });
 const router = await createSSRRouterContext({ url: ctx.url, routes, ctx });

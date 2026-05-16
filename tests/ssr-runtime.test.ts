@@ -182,7 +182,10 @@ describe('configureSSR', () => {
 
   it('strips invalid DOM-backend bq-for attributes like the pure renderer', () => {
     configureSSR({ backend: 'dom' });
-    const result = renderToString('<ul><li bq-for="item items"><span>template</span></li></ul>', {});
+    const result = renderToString(
+      '<ul><li bq-for="item items"><span>template</span></li></ul>',
+      {}
+    );
 
     expect(result.html).toContain('<ul><li><span>template</span></li></ul>');
     expect(result.html).not.toContain('bq-for');
@@ -316,7 +319,9 @@ describe('pure renderer (DOM-free)', () => {
   it('stores parsed attributes in a null-prototype map', () => {
     // Exercise prototype-pollution-shaped keys without giving the attribute
     // container access to Object.prototype.
-    const tree = parseTemplate('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
+    const tree = parseTemplate(
+      '<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>'
+    );
     const root = tree.children[0];
 
     if (!root || root.type !== 'element') {
@@ -328,16 +333,21 @@ describe('pure renderer (DOM-free)', () => {
     expect(root.attributes['constructor']).toBe('ctor');
     expect(root.attributes['hasOwnProperty']).toBeUndefined();
     expect(root.attributes['toString']).toBeUndefined();
-    expect(serializeTree(tree)).toBe('<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>');
+    expect(serializeTree(tree)).toBe(
+      '<div __proto__="polluted" constructor="ctor" data-safe="ok"></div>'
+    );
   });
 
   it('sanitizes bq-html without relying on DOM globals', () => {
     configureSSR({ backend: 'pure' });
     const result = renderToString('<div><span bq-html="content"></span></div>', {
-      content: '<a href="https://bquery.dev" target="_blank" onclick="alert(1)">safe</a><script>alert(1)</script>',
+      content:
+        '<a href="https://bquery.dev" target="_blank" onclick="alert(1)">safe</a><script>alert(1)</script>',
     });
 
-    expect(result.html).toContain('<a href="https://bquery.dev" target="_blank" rel="noopener noreferrer">safe</a>');
+    expect(result.html).toContain(
+      '<a href="https://bquery.dev" target="_blank" rel="noopener noreferrer">safe</a>'
+    );
     expect(result.html).not.toContain('onclick=');
     expect(result.html).not.toContain('<script');
   });
@@ -349,8 +359,12 @@ describe('pure renderer (DOM-free)', () => {
         '<a href="//cdn.example.com/app.js">cdn</a><a href="https://bquery.dev/docs">external</a><a href="/local">local</a><a href="http://[::1">broken</a><a href="http://[::1]/ok">ipv6</a>',
     });
 
-    expect(result.html).toContain('<a href="//cdn.example.com/app.js" rel="noopener noreferrer">cdn</a>');
-    expect(result.html).toContain('<a href="https://bquery.dev/docs" rel="noopener noreferrer">external</a>');
+    expect(result.html).toContain(
+      '<a href="//cdn.example.com/app.js" rel="noopener noreferrer">cdn</a>'
+    );
+    expect(result.html).toContain(
+      '<a href="https://bquery.dev/docs" rel="noopener noreferrer">external</a>'
+    );
     expect(result.html).toContain('<a href="/local">local</a>');
     // Malformed absolute URLs are treated as external if URL parsing fails.
     expect(result.html).toContain('<a href="http://[::1" rel="noopener noreferrer">broken</a>');
@@ -771,10 +785,14 @@ describe('renderToStringAsync', () => {
       throw new Error('loader boom');
     });
 
-    const result = await renderToStringAsync('<p bq-text="msg"></p>', { msg: loader }, {
-      context: ctx,
-      stripDirectives: true,
-    });
+    const result = await renderToStringAsync(
+      '<p bq-text="msg"></p>',
+      { msg: loader },
+      {
+        context: ctx,
+        stripDirectives: true,
+      }
+    );
 
     expect(result.html).toBe('<p></p>');
     expect(errors).toHaveLength(1);
@@ -821,11 +839,15 @@ describe('renderToStringAsync', () => {
     const ctx = createSSRContext();
     ctx.head.add({ title: 'Hello' });
     ctx.assets.module('/app.js');
-    const result = await renderToStringAsync('<main><p bq-text="msg"></p></main>', { msg: 'x' }, {
-      context: ctx,
-      includeStoreState: true,
-      stripDirectives: true,
-    });
+    const result = await renderToStringAsync(
+      '<main><p bq-text="msg"></p></main>',
+      { msg: 'x' },
+      {
+        context: ctx,
+        includeStoreState: true,
+        stripDirectives: true,
+      }
+    );
 
     expect(result.headHtml).toContain('<title>Hello</title>');
     expect(result.assetsHtml).toContain('rel="modulepreload"');
@@ -886,7 +908,10 @@ describe('renderToResponse', () => {
   });
 
   it('skips weak ETag generation when TextEncoder is unavailable', async () => {
-    const originalTextEncoderDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'TextEncoder');
+    const originalTextEncoderDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'TextEncoder'
+    );
     delete (globalThis as { TextEncoder?: typeof TextEncoder }).TextEncoder;
 
     try {
@@ -914,11 +939,15 @@ describe('renderToResponse', () => {
     const ctx = createSSRContext();
     ctx.head.add({ title: 'Hello' });
     ctx.assets.module('/app.js');
-    const response = await renderToResponse('<main><p bq-text="msg"></p></main>', { msg: 'resp' }, {
-      context: ctx,
-      includeStoreState: true,
-      stripDirectives: true,
-    });
+    const response = await renderToResponse(
+      '<main><p bq-text="msg"></p></main>',
+      { msg: 'resp' },
+      {
+        context: ctx,
+        includeStoreState: true,
+        stripDirectives: true,
+      }
+    );
 
     expect(await response.text()).toBe('<main><p>resp</p></main>');
   });
@@ -968,10 +997,7 @@ describe('runtime adapters', () => {
       headers: { host: 'example.com', 'x-test': 'value' },
       on(
         _event: 'data' | 'end' | 'error',
-        _listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        _listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         /* no-op */
         return this as NodeIncomingMessage;
@@ -1009,10 +1035,7 @@ describe('runtime adapters', () => {
       headers: { host: 'example.com' },
       on(
         _event: 'data' | 'end' | 'error',
-        _listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        _listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         return this as NodeIncomingMessage;
       },
@@ -1063,10 +1086,7 @@ describe('runtime adapters', () => {
       headers: { host: 'example.com' },
       on(
         _event: 'data' | 'end' | 'error',
-        _listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        _listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         return this as NodeIncomingMessage;
       },
@@ -1118,10 +1138,7 @@ describe('runtime adapters', () => {
       headers: { host: 'example.com', 'content-type': 'application/json' },
       on(
         event: 'data' | 'end' | 'error',
-        listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         if (event === 'data') {
           (listener as (chunk: string) => void)('{"ok":true}');
@@ -1160,10 +1177,7 @@ describe('runtime adapters', () => {
       headers: { host: 'bad host' },
       on(
         _event: 'data' | 'end' | 'error',
-        _listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        _listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         return this as NodeIncomingMessage;
       },
@@ -1196,10 +1210,7 @@ describe('runtime adapters', () => {
       headers: { host: 'example.com', 'content-length': '11' },
       on(
         event: 'data' | 'end' | 'error',
-        listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         if (event === 'data') {
           (listener as (chunk: string) => void)('hello world');
@@ -1259,10 +1270,7 @@ describe('runtime adapters', () => {
       },
       on(
         event: 'data' | 'end' | 'error',
-        listener:
-          | ((chunk: Uint8Array | string) => void)
-          | (() => void)
-          | ((err: unknown) => void)
+        listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         if (event === 'data') onData = listener as (chunk: Uint8Array | string) => void;
         if (event === 'end') onEnd = listener as () => void;
@@ -1353,12 +1361,8 @@ describe('hydration strategies', () => {
     div.id = 'media-legacy-island';
     document.body.appendChild(div);
     const originalMatchMedia = window.matchMedia;
-    let registered:
-      | ((event: MediaQueryListEvent | MediaQueryList) => void)
-      | undefined;
-    let removed:
-      | ((event: MediaQueryListEvent | MediaQueryList) => void)
-      | undefined;
+    let registered: ((event: MediaQueryListEvent | MediaQueryList) => void) | undefined;
+    let removed: ((event: MediaQueryListEvent | MediaQueryList) => void) | undefined;
     Object.defineProperty(window, 'matchMedia', {
       value: (() =>
         ({
@@ -1376,7 +1380,11 @@ describe('hydration strategies', () => {
       writable: true,
     });
     try {
-      const handle = hydrateOnMedia('#media-legacy-island', { title: signal('x') }, '(min-width: 1px)');
+      const handle = hydrateOnMedia(
+        '#media-legacy-island',
+        { title: signal('x') },
+        '(min-width: 1px)'
+      );
       expect(typeof registered).toBe('function');
       handle.cancel();
       expect(removed).toBe(registered);

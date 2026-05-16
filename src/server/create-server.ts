@@ -525,7 +525,10 @@ const adaptHttpMiddlewareToWebSocket = (middleware: ServerMiddleware): WebSocket
       return middlewareResponse;
     }
 
-    if (middlewareResponse instanceof Response && isWebSocketPassthroughResponse(middlewareResponse)) {
+    if (
+      middlewareResponse instanceof Response &&
+      isWebSocketPassthroughResponse(middlewareResponse)
+    ) {
       return downstream;
     }
 
@@ -650,7 +653,11 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
     },
 
     ws(path, handler, routeMiddlewares) {
-      return addWebSocketRoute(path, handler as ServerWebSocketRouteHandler<unknown>, routeMiddlewares);
+      return addWebSocketRoute(
+        path,
+        handler as ServerWebSocketRouteHandler<unknown>,
+        routeMiddlewares
+      );
     },
 
     async handle(input) {
@@ -739,9 +746,7 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
         ];
         return await runWebSocketPipeline(context, stack, async () => {
           const handlers =
-            typeof route.handler === 'function'
-              ? await route.handler(context)
-              : route.handler;
+            typeof route.handler === 'function' ? await route.handler(context) : route.handler;
           return createWebSocketSession(context, handlers as ServerWebSocketHandlerSet<unknown>);
         });
       } catch (error) {
