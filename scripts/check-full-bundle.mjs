@@ -182,6 +182,10 @@ export async function main({
   return 1;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+export function isDirectExecution(argvEntry = process.argv[1]) {
+  return Boolean(argvEntry) && import.meta.url === pathToFileURL(resolve(argvEntry)).href;
+}
+
+if (isDirectExecution()) {
   await main();
 }

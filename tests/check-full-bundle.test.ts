@@ -5,7 +5,9 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const checkScriptUrl = new URL('../scripts/check-full-bundle.mjs', import.meta.url).href;
 type CheckFullBundleModule = typeof import('../scripts/check-full-bundle.mjs');
 
-const { auditFullBundle, collectNamedExports } = (await import(checkScriptUrl)) as CheckFullBundleModule;
+const { auditFullBundle, collectNamedExports, isDirectExecution } = (await import(
+  checkScriptUrl
+)) as CheckFullBundleModule;
 
 describe('check-full-bundle script', () => {
   it('parses aliases and type-only specifiers from barrel exports', () => {
@@ -31,6 +33,10 @@ describe('check-full-bundle script', () => {
     expect(result.stdout.toString()).toContain(
       'src/full.ts runtime and type exports are in sync with all module barrels'
     );
+  });
+
+  it('detects direct execution for relative script paths', () => {
+    expect(isDirectExecution('scripts/check-full-bundle.mjs')).toBe(true);
   });
 
   it('treats unreadable module barrels as audit failures', async () => {
