@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.11.1                                                                                                                                                                                            |
+| Version     | 1.12.0                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -40,11 +40,12 @@ bun run dev           # VitePress docs server
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
 
-## Version 1.11.1 Highlights
+## Version 1.12.0 Highlights
 
-- `@bquery/bquery/server` is now a first-class public entry point for dependency-free backend routing, SSR-aware `render()` responses, repeated-query parsing, and runtime-agnostic WebSocket session handling through `createServer()`.
-- `@bquery/bquery/ssr` now spans runtime-agnostic sync/async/streaming rendering with `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, DOM-free fallback rendering, `createSSRContext()`, head/asset managers, runtime adapters, route loaders, store snapshots, mismatch checks, and resumability hooks.
-- The `1.10.0` concurrency helpers and the `1.9.0` watcher/view/media additions remain first-class public APIs; keep them visible in docs and AI guidance instead of treating them as historical footnotes.
+- `@bquery/bquery/store` now exposes `unregisterPlugin()` and `clearPlugins()` so plugin registries can be torn down for test isolation and runtime reloads without affecting stores that already received extensions.
+- `@bquery/bquery/reactive` now promotes `WebSocketSendData` to a public type-only export for custom serializers, raw WebSocket frames, heartbeat messages, and parity with the server-side `ServerWebSocketData` union.
+- The `/full` bundle now re-exports the public platform, a11y, and media type-only surfaces, and `bun run check:full-bundle` statically validates runtime + type export drift before release.
+- `@bquery/bquery/server` and `@bquery/bquery/ssr` remain first-class public surfaces from the `1.11.0` runtime-agnostic baseline, including `createServer()`, `renderToStringAsync()`, `renderToStream()`, and `renderToResponse()`.
 - Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ---
@@ -158,6 +159,7 @@ When version metadata or public exports change, refresh the AI-facing files as a
 | `readonly(sig)`                          | function  | Read-only wrapper around a signal                                   |
 | `isSignal`, `isComputed`                 | functions | Type guards                                                         |
 | `Signal`, `Computed`                     | classes   | Signal and Computed value classes                                   |
+| `WebSocketSendData`                      | type      | Public raw WebSocket payload union for native sends                 |
 
 ### Concurrency (`@bquery/bquery/concurrency`)
 
@@ -284,6 +286,7 @@ When version metadata or public exports change, refresh the AI-facing files as a
 | `mapActions`, `mapGetters`, `mapState` | functions | Helper mappers for stores                       |
 | `watchStore(store, sel, cb)`           | function  | Watch specific store property                   |
 | `registerPlugin(plugin)`               | function  | Register a global store plugin                  |
+| `unregisterPlugin`, `clearPlugins`     | functions | Remove one plugin registration or clear all     |
 | `destroyStore(id)`                     | function  | Remove store from registry                      |
 | `getStore(id)`, `listStores()`         | functions | Registry access                                 |
 

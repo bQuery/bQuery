@@ -75,7 +75,8 @@ const isAllowedHtmlAttribute = (name: string): boolean => {
   return DEFAULT_ALLOWED_ATTRIBUTES.has(lowerName);
 };
 
-const isSafeHtmlIdOrName = (value: string): boolean => !RESERVED_IDS.has(value.toLowerCase().trim());
+const isSafeHtmlIdOrName = (value: string): boolean =>
+  !RESERVED_IDS.has(value.toLowerCase().trim());
 
 const isExternalHtmlUrl = (url: string): boolean => {
   try {
@@ -231,7 +232,9 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
       const isExternal = href ? isExternalHtmlUrl(href) : false;
 
       if (hasTargetBlank || isExternal) {
-        const relValues = new Set((node.attributes.rel ?? '').trim().split(REL_SPLIT_PATTERN).filter(Boolean));
+        const relValues = new Set(
+          (node.attributes.rel ?? '').trim().split(REL_SPLIT_PATTERN).filter(Boolean)
+        );
         relValues.add('noopener');
         relValues.add('noreferrer');
         setAttr(node, 'rel', Array.from(relValues).join(' '));

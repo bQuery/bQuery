@@ -135,8 +135,10 @@ const escapeScriptBody = (s: string): string =>
  * inherited from the base async render options. Head/store injection and other
  * response-shaping options are intentionally unsupported here.
  */
-export interface SuspenseStreamOptions
-  extends Pick<AsyncRenderOptions, 'context' | 'prefix' | 'stripDirectives' | 'annotateHydration'> {
+export interface SuspenseStreamOptions extends Pick<
+  AsyncRenderOptions,
+  'context' | 'prefix' | 'stripDirectives' | 'annotateHydration'
+> {
   /**
    * Prefix used for slot/template IDs. Default: `'bq-s'` for placeholders
    * and `'bq-r'` for resolved templates.
@@ -207,7 +209,11 @@ const removeAttr = (el: SSRElement, name: string): void => {
   if (index !== -1) el.attributeOrder.splice(index, 1);
 };
 
-const createSlotWrapper = (slotTag: string, slotId: string, children: SSRNode[] = []): SSRElement => ({
+const createSlotWrapper = (
+  slotTag: string,
+  slotId: string,
+  children: SSRNode[] = []
+): SSRElement => ({
   type: 'element',
   tag: slotTag,
   attributes: { id: slotId },
@@ -281,7 +287,8 @@ const replaceSlotsInShell = (
 };
 
 /** Returns true for characters that can appear immediately before an attribute name. */
-const canPrecedeAttributeName = (ch: string | undefined): boolean => ch !== undefined && /\s/.test(ch);
+const canPrecedeAttributeName = (ch: string | undefined): boolean =>
+  ch !== undefined && /\s/.test(ch);
 
 /** Returns true for characters that can terminate an attribute name in a start tag. */
 const canFollowAttributeName = (ch: string | undefined): boolean =>
@@ -449,10 +456,12 @@ export const renderToStreamSuspense = (
         };
 
         for (const [index, slot] of slots.entries()) {
-          slot.promise.then<SettledSuspenseSlot, SettledSuspenseSlot>(
-            (value) => ({ index, slot, ok: true, value }),
-            (error) => ({ index, slot, ok: false, error })
-          ).then(enqueueSettled);
+          slot.promise
+            .then<SettledSuspenseSlot, SettledSuspenseSlot>(
+              (value) => ({ index, slot, ok: true, value }),
+              (error) => ({ index, slot, ok: false, error })
+            )
+            .then(enqueueSettled);
         }
 
         const nextSettled = async (): Promise<SettledSuspenseSlot> => {

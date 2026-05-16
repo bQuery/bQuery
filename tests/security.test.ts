@@ -180,6 +180,55 @@ describe('security/isTrustedTypesSupported', () => {
   });
 });
 
+describe('security/trusted-types policy', () => {
+  it('getTrustedTypesPolicy returns null when window.trustedTypes is absent', async () => {
+    const { getTrustedTypesPolicy } = await import('../src/security/trusted-types');
+    // happy-dom does not expose trustedTypes; the policy helper must be null-safe.
+    expect(getTrustedTypesPolicy()).toBeNull();
+    // A second call hits the same fallback branch without throwing.
+    expect(getTrustedTypesPolicy()).toBeNull();
+  });
+
+  it('createTrustedHtml falls back to a sanitized string when the policy is unavailable', async () => {
+    const { createTrustedHtml } = await import('../src/security/trusted-types');
+    const result = createTrustedHtml('<div onclick="alert(1)"><script>bad</script>ok</div>');
+    expect(typeof result).toBe('string');
+    expect(String(result)).not.toContain('onclick');
+    expect(String(result)).not.toContain('<script');
+    expect(String(result)).toContain('ok');
+  });
+
+  it('logs a warning when createPolicy throws and returns null', async () => {
+    const { getTrustedTypesPolicy } = await import('../src/security/trusted-types');
+    const originalTrustedTypes = (window as unknown as { trustedTypes?: unknown }).trustedTypes;
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map((a) => String(a)).join(' '));
+    };
+    (window as unknown as { trustedTypes: unknown }).trustedTypes = {
+      createPolicy: () => {
+        throw new Error('policy already exists');
+      },
+    };
+    try {
+      const policy = getTrustedTypesPolicy();
+      expect(policy).toBeNull();
+      expect(warnings.some((line) => line.includes('Could not create Trusted Types policy'))).toBe(
+        true
+      );
+      expect(warnings.some((line) => line.includes('policy already exists'))).toBe(true);
+    } finally {
+      console.warn = originalWarn;
+      if (originalTrustedTypes === undefined) {
+        delete (window as unknown as { trustedTypes?: unknown }).trustedTypes;
+      } else {
+        (window as unknown as { trustedTypes: unknown }).trustedTypes = originalTrustedTypes;
+      }
+    }
+  });
+});
+
 describe('security/enhanced protections', () => {
   it('removes dangerous tags even if explicitly allowed', () => {
     // Try to allow dangerous tags - they should still be blocked

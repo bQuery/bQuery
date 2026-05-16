@@ -18,7 +18,7 @@ bQuery.js is a **batteries-included framework** for the modern web. It brings jQ
 | **Progressive Enhancement**  | Enhances native HTML/JS without replacing it. Every feature is opt-in.                 |
 | **Secure by Default**        | DOM writes are sanitized by default. CSP- and Trusted-Types-compatible.                |
 | **Predictable & Debuggable** | No virtual DOM or hidden magic. State changes map directly to DOM updates.             |
-| **Modular by Choice**       | Import only what you need, or use the full framework bundle with consistent APIs.      |
+| **Modular by Choice**        | Import only what you need, or use the full framework bundle with consistent APIs.      |
 | **Typed & Documented**       | TypeScript-first APIs with inline TSDoc for every public surface.                      |
 
 ### 1.3 Target Audience
@@ -227,7 +227,9 @@ const results = await parallel([
   { handler: (value: number) => value + 1, input: 2 },
 ]);
 
-const transformed = await pipeline([1, 2, 3, 4]).map((value) => value * 2).toArray();
+const transformed = await pipeline([1, 2, 3, 4])
+  .map((value) => value * 2)
+  .toArray();
 ```
 
 The concurrency layer keeps worker-based parallelism explicit: no decorators, no proxy magic, and no hidden build step.
@@ -520,9 +522,9 @@ This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full  |
-| Firefox | 90+     | ✅ Full  |
-| Safari  | 15+     | ✅ Full  |
-| Edge    | 90+     | ✅ Full  |
+| Chrome  | 90+     | ✅ Full |
+| Firefox | 90+     | ✅ Full |
+| Safari  | 15+     | ✅ Full |
+| Edge    | 90+     | ✅ Full |
 
 > **No IE support** by design.

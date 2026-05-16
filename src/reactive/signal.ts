@@ -4,8 +4,8 @@
  * @module bquery/reactive
  */
 
-export { batch } from './batch';
 export { createUseFetch, useAsyncData, useFetch } from './async-data';
+export { batch } from './batch';
 export { Computed, computed } from './computed';
 export { Signal, signal } from './core';
 export { effect } from './effect';
@@ -23,13 +23,12 @@ export {
   useSubmit,
 } from './rest';
 export { effectScope, getCurrentScope, onScopeDispose } from './scope';
-export { isComputed, isSignal } from './type-guards';
 export { toValue } from './to-value';
+export { isComputed, isSignal } from './type-guards';
 export { untrack } from './untrack';
 export { watch, watchDebounce, watchThrottle } from './watch';
 export { useEventSource, useWebSocket, useWebSocketChannel } from './websocket';
 
-export type { CleanupFn, Observer } from './internals';
 export type {
   AsyncDataState,
   AsyncDataStatus,
@@ -50,6 +49,8 @@ export type {
   RequestQueueOptions,
   RetryConfig,
 } from './http';
+export type { CleanupFn, Observer } from './internals';
+export type { LinkedSignal } from './linked';
 export type {
   InfiniteState,
   PaginatedState,
@@ -57,7 +58,7 @@ export type {
   UsePaginatedFetchOptions,
 } from './pagination';
 export type { PollingState, UsePollingOptions } from './polling';
-export type { WatchOptions } from './watch';
+export type { ReadonlySignal, ReadonlySignalHandle } from './readonly';
 export type {
   IdExtractor,
   ResourceListActions,
@@ -70,9 +71,8 @@ export type {
   UseSubmitReturn,
 } from './rest';
 export type { EffectScope } from './scope';
-export type { LinkedSignal } from './linked';
 export type { MaybeSignal } from './to-value';
-export type { ReadonlySignal, ReadonlySignalHandle } from './readonly';
+export type { WatchOptions } from './watch';
 export type {
   ChannelMessage,
   ChannelSubscription,
@@ -85,6 +85,7 @@ export type {
   UseWebSocketReturn,
   WebSocketHeartbeatConfig,
   WebSocketReconnectConfig,
+  WebSocketSendData,
   WebSocketSerializer,
   WebSocketStatus,
 } from './websocket';

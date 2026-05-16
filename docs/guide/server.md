@@ -8,6 +8,38 @@ import { createServer } from '@bquery/bquery/server';
 
 ---
 
+## Public surface
+
+Runtime helpers:
+
+| Export                            | Purpose                                                                                              |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `createServer()`                  | Create an app-like server handle with middleware, HTTP routes, SSR responses, and WebSocket routing. |
+| `isWebSocketRequest(request)`     | Check whether a `Request` is a valid WebSocket upgrade handshake.                                    |
+| `isServerWebSocketSession(value)` | Narrow the result of `handleWebSocket()` to a runtime-agnostic session descriptor.                   |
+
+Commonly used types:
+
+| Type                        | Purpose                                                                                 |
+| --------------------------- | --------------------------------------------------------------------------------------- |
+| `ServerApp`                 | The app handle returned by `createServer()`.                                            |
+| `ServerContext`             | Per-request context passed to handlers and middleware.                                  |
+| `ServerRoute`               | Route definition accepted by `app.add()`.                                               |
+| `ServerRequestInit`         | Lightweight request input accepted by `handle()` and `handleWebSocket()`.               |
+| `ServerResult`              | Result union for WebSocket resolution: `Response`, `ServerWebSocketSession`, or `null`. |
+| `ServerWebSocketSession`    | Runtime-agnostic session object returned for matched WebSocket upgrades.                |
+| `ServerWebSocketPeer`       | Minimal runtime socket shape consumed by a session.                                     |
+| `ServerWebSocketConnection` | Wrapped peer passed to WebSocket handlers, including `sendJson()`.                      |
+| `ServerWebSocketHandlerSet` | WebSocket lifecycle callbacks and handshake metadata.                                   |
+| `ServerWebSocketMiddleware` | Middleware shape for WebSocket route pipelines.                                         |
+| `ServerWebSocketData`       | Raw payload union accepted by `socket.send(...)`.                                       |
+
+```ts
+import type { ServerContext, ServerWebSocketSession } from '@bquery/bquery/server';
+```
+
+---
+
 ## `createServer()`
 
 Creates an app-like request handler with `use()`, `get()`, `post()`, `put()`, `patch()`, `delete()`, `all()`, `add()`, `ws()`, `handle()`, and `handleWebSocket()`.
@@ -45,9 +77,11 @@ const response = await app.handle('/users/42?include=roles&include=teams');
 Each handler receives a `ServerContext` with:
 
 - `request` — normalized `Request`
-- `url` / `path` / `method`
-- `params` — values captured from `:param` segments
-- `query` — parsed query params (`string` or `string[]` for repeated keys)
+- `url` — parsed `URL` for the current request
+- `path` — normalized pathname without query string
+- `method` — uppercase HTTP method
+- `params` — null-prototype route params captured from `:param` segments
+- `query` — null-prototype query params (`string` or `string[]` for repeated keys)
 - `state` — mutable per-request bag for middleware coordination
 - `isWebSocketRequest` — `true` for upgrade handshakes
 
@@ -59,6 +93,59 @@ Response helpers:
 - `ctx.json(data, init?)`
 - `ctx.redirect(location, status?)`
 - `ctx.render(template, data, options?)` — wraps `renderToString()` with the same DOM-free fallback used by `@bquery/bquery/ssr`
+
+`params` and `query` are created as null-prototype dictionaries and reserved keys such as `__proto__`, `constructor`, and `prototype` are rejected or ignored to keep request-derived data isolated from object prototypes.
+
+Repeated query values are preserved as arrays:
+
+```ts
+app.get('/search', (ctx) =>
+  ctx.json({
+    tags: ctx.query.tag,
+  })
+);
+
+await app.handle('/search?tag=docs&tag=server');
+// => { "tags": ["docs", "server"] }
+```
+
+---
+
+## Middleware and error handling
+
+Global middleware registered with `app.use()` runs before route-scoped middleware. Both can share per-request values through `ctx.state` and can short-circuit the pipeline by returning a `Response` instead of calling `next()`.
+
+```ts
+const app = createServer({
+  middlewares: [
+    async (ctx, next) => {
+      ctx.state.requestId = ctx.request.headers.get('x-request-id') ?? 'local';
+      return await next();
+    },
+  ],
+  notFound: (ctx) => ctx.json({ message: 'Not Found' }, { status: 404 }),
+  onError(error, ctx) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return ctx.json({ message }, { status: 500 });
+  },
+});
+```
+
+Route-scoped middleware is passed as the third argument to method helpers or through `ServerRoute.middlewares` when using `app.add()`:
+
+```ts
+const requireUser = async (ctx, next) => {
+  if (!ctx.request.headers.has('authorization')) {
+    return ctx.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
+  return await next();
+};
+
+app.get('/admin', (ctx) => ctx.json({ requestId: ctx.state.requestId }), [requireUser]);
+```
+
+`createServer()` also accepts `baseUrl` for resolving relative inputs passed to `handle()` and `handleWebSocket()`. This keeps tests and zero-build examples ergonomic while still normalizing every request to a standard Web `Request` internally.
 
 ---
 
@@ -73,11 +160,7 @@ Register WebSocket endpoints with `app.ws(path, handlerSetOrFactory, middlewares
 - `ServerWebSocketSession` — ready to attach to your runtime socket
 
 ```ts
-import {
-  createServer,
-  isServerWebSocketSession,
-  isWebSocketRequest,
-} from '@bquery/bquery/server';
+import { createServer, isServerWebSocketSession, isWebSocketRequest } from '@bquery/bquery/server';
 
 const app = createServer();
 
@@ -129,6 +212,8 @@ Use `socket.send(...)` for raw frames or `socket.sendJson(...)` for JSON payload
 
 Middleware still runs for WebSocket routes, so auth, logging, and per-request state can be shared between HTTP and upgrade flows. Middleware may also short-circuit a WebSocket request by returning a normal `Response`.
 
+HTTP middleware registered with `app.use()` is adapted for WebSocket routes. If it calls `next()`, the WebSocket route can continue resolving to a session; if it returns a `Response`, the upgrade is blocked before any socket lifecycle callback runs.
+
 ---
 
 ## SSR-aware responses
@@ -137,9 +222,13 @@ Use `ctx.render()` when you want to return bQuery SSR markup directly from the b
 
 ```ts
 app.get('/dashboard', (ctx) =>
-  ctx.render('<main><h1 bq-text="title"></h1></main>', { title: 'Dashboard' }, {
-    includeStoreState: true,
-  })
+  ctx.render(
+    '<main><h1 bq-text="title"></h1></main>',
+    { title: 'Dashboard' },
+    {
+      includeStoreState: true,
+    }
+  )
 );
 ```
 

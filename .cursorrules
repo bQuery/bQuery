@@ -4,7 +4,7 @@ You are working on bQuery.js, a batteries-included TypeScript full-stack web fra
 
 > Derived snapshot for Cursor. If this file conflicts with `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files in that order and then realign this one.
 
-Current release baseline: **1.11.1**.
+Current release baseline: **1.12.0**.
 
 bQuery.js is not a utility library; treat its broad module surface as the product, and keep guidance aligned with that scope.
 
@@ -22,8 +22,11 @@ bQuery.js is not a utility library; treat its broad module surface as the produc
 - `useSignal()`, `useComputed()`, and `useEffect()` from `@bquery/bquery/component` must be called from component lifecycle hooks, not from `render()`.
 - When version, engine, or repo guidance files change, run `bun run check:ai-guidance` before finishing.
 
-## 1.11.1 API Notes
+## 1.12.0 API Notes
 
+- `@bquery/bquery/store` includes `unregisterPlugin()` and `clearPlugins()` for plugin teardown, test isolation, and runtime plugin reloads.
+- `@bquery/bquery/reactive` exports the public `WebSocketSendData` type for raw WebSocket frames, serializers, and heartbeat messages.
+- `src/full.ts` and `bun run check:full-bundle` now cover public type-only export drift for platform, a11y, and media surfaces.
 - `@bquery/bquery/server` is a public backend helper entry point; keep `createServer()`, SSR-aware responses, and runtime-agnostic WebSocket session helpers visible in guidance.
 - `@bquery/bquery/ssr` includes `renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, `createSSRContext()`, runtime adapters such as `createSSRHandler()`, hydration strategies, store snapshots, and resumability hooks.
 - `@bquery/bquery/concurrency` includes explicit RPC workers, task/RPC pools, opt-in reactive worker wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
@@ -46,6 +49,7 @@ import {
   useResource,
   useSubmit,
 } from '@bquery/bquery/reactive';
+import type { WebSocketSendData } from '@bquery/bquery/reactive';
 import { batchTasks, createReactiveRpcPool, createReactiveRpcWorker, createReactiveTaskPool, createReactiveTaskWorker, createRpcPool, createRpcWorker, createTaskPool, createTaskWorker, every, filter, find, map, parallel, pipeline, reduce, runTask, some } from '@bquery/bquery/concurrency';
 import { component, html } from '@bquery/bquery/component';
 import { storyHtml, when } from '@bquery/bquery/storybook';
@@ -53,7 +57,7 @@ import { animate, transition, spring } from '@bquery/bquery/motion';
 import { sanitizeHtml, escapeHtml } from '@bquery/bquery/security';
 import { storage, cache } from '@bquery/bquery/platform';
 import { createRouter, navigate } from '@bquery/bquery/router';
-import { createStore, defineStore } from '@bquery/bquery/store';
+import { clearPlugins, createStore, defineStore, unregisterPlugin } from '@bquery/bquery/store';
 import { mount } from '@bquery/bquery/view';
 import { createForm, required } from '@bquery/bquery/forms';
 import { createI18n } from '@bquery/bquery/i18n';
