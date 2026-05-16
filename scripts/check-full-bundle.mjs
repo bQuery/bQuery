@@ -45,7 +45,6 @@ const INTENTIONAL_RUNTIME_OMISSIONS = new Map([
 ]);
 
 const INTENTIONAL_TYPE_OMISSIONS = new Map();
-const UNKNOWN_EXPORT_SOURCE_MODULE = '__unknown__';
 
 function parseExportedIdentifier(rawSpecifier) {
   const specifier = rawSpecifier
@@ -75,7 +74,8 @@ function normalizeExportSourceModule(sourcePath, moduleName) {
   const crossModuleMatch = sourcePath.match(/^\.\.\/([^/]+)\/index$/);
   if (crossModuleMatch) return crossModuleMatch[1];
 
-  return moduleName ?? UNKNOWN_EXPORT_SOURCE_MODULE;
+  if (moduleName) return moduleName;
+  throw new Error(`Unable to normalize export source module from "${sourcePath}"`);
 }
 
 function normalizeExportSourceModules(sourcePaths, moduleName) {
