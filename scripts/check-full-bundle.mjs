@@ -150,6 +150,7 @@ export async function main({
   error = console.error,
   exit,
 } = {}) {
+  const terminate = exit ?? process.exit.bind(process);
   const { missingRuntime, missingTypes, skippedModules } = await auditFullBundle({
     modules,
     loadModule,
@@ -158,11 +159,7 @@ export async function main({
 
   if (skippedModules.length === 0 && missingRuntime.length === 0 && missingTypes.length === 0) {
     log('✓ src/full.ts runtime and type exports are in sync with all module barrels.');
-    if (exit) {
-      exit(0);
-    } else {
-      process.exit(0);
-    }
+    terminate(0);
     return 0;
   }
 
@@ -181,11 +178,7 @@ export async function main({
     for (const item of missingTypes) error(`  - ${item}`);
   }
 
-  if (exit) {
-    exit(1);
-  } else {
-    process.exit(1);
-  }
+  terminate(1);
   return 1;
 }
 

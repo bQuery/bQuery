@@ -3,28 +3,7 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const checkScriptUrl = new URL('../scripts/check-full-bundle.mjs', import.meta.url).href;
-
-interface CheckFullBundleModule {
-  auditFullBundle(options?: {
-    modules?: string[];
-    loadModule?: (name: string) => Promise<{
-      runtime: Set<string>;
-      types: Set<string>;
-    }>;
-    readFull?: () => Promise<{
-      runtime: Set<string>;
-      types: Set<string>;
-    }>;
-  }): Promise<{
-    missingRuntime: string[];
-    missingTypes: string[];
-    skippedModules: string[];
-  }>;
-  collectNamedExports(source: string): {
-    runtime: Set<string>;
-    types: Set<string>;
-  };
-}
+type CheckFullBundleModule = typeof import('../scripts/check-full-bundle.mjs');
 
 const { auditFullBundle, collectNamedExports } = (await import(checkScriptUrl)) as CheckFullBundleModule;
 
