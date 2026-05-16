@@ -75,7 +75,10 @@ function normalizeExportSourceModule(sourcePath, moduleName) {
   if (crossModuleMatch) return crossModuleMatch[1];
 
   if (moduleName) return moduleName;
-  throw new Error(`Unable to normalize export source module from "${sourcePath}"`);
+  throw new Error(
+    `Unable to normalize export source module from "${sourcePath}". ` +
+      `Expected "./module/index", "../module/index", or a path scoped to the current module barrel.`
+  );
 }
 
 function normalizeExportSourceModules(sourcePaths, moduleName) {
