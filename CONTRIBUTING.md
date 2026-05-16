@@ -51,7 +51,7 @@ If you change the public runtime surface, release version, or supported engines,
 
 After those updates, run `bun run check:ai-guidance` to verify the version / engine / guidance metadata still matches `package.json`.
 
-If public exports changed, also keep `src/full.ts` aligned with the module barrels under `src/*/index.ts`.
+If public exports changed, also keep `src/full.ts` aligned with the module barrels under `src/*/index.ts` and run `bun run check:full-bundle` to catch runtime or type export drift.
 
 ## Pull Requests
 

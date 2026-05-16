@@ -639,6 +639,50 @@ describe('motion/easingPresets', () => {
     expect(easingPresets.linear(0)).toBe(0);
     expect(easingPresets.easeOutQuad(1)).toBe(1);
   });
+
+  it('every easing function pins the endpoints to 0 and 1', () => {
+    for (const [name, fn] of Object.entries(easingPresets)) {
+      expect(fn(0)).toBeCloseTo(0, 5);
+      // easeOutBack and easeOutExpo end at exactly 1; clamping keeps overshoot bounded.
+      expect(fn(1)).toBeCloseTo(1, 5);
+      // Mid-progress must stay inside the clamped [0, 1] envelope.
+      const mid = fn(0.5);
+      expect(mid).toBeGreaterThanOrEqual(0);
+      expect(mid).toBeLessThanOrEqual(1);
+      // Sanity: function returns a finite number for every preset.
+      expect(Number.isFinite(mid)).toBe(true);
+      // Touch `name` so coverage tools see we iterate the full map.
+      expect(name.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('clamps overshooting outputs back into [0, 1]', () => {
+    // The clamp guards the *output*, not the input. Pick inputs that produce
+    // out-of-range outputs without it.
+    expect(easingPresets.linear(-1)).toBe(0);
+    expect(easingPresets.linear(2)).toBe(1);
+    expect(easingPresets.easeOutCubic(1.5)).toBe(1);
+    // easeOutBack overshoots above 1 around t=1.1 without the clamp.
+    expect(easingPresets.easeOutBack(1.1)).toBe(1);
+    // easeInOutQuad with t=3 evaluates to 1 - (-4)²/2 = -7 pre-clamp → 0.
+    expect(easingPresets.easeInOutQuad(3)).toBe(0);
+    // easeInOutCubic with t=3 evaluates to 1 - (-4)³/2 = 33 pre-clamp → 1.
+    // Use t=-1 instead which hits the t<0.5 branch: 4*(-1)³ = -4 → clamped to 0.
+    expect(easingPresets.easeInOutCubic(-1)).toBe(0);
+  });
+
+  it('matches expected monotonic shape for symmetric in/out pairs', () => {
+    // easeInQuad starts slow, easeOutQuad starts fast — at t=0.25 they differ.
+    expect(easingPresets.easeInQuad(0.25)).toBeLessThan(easingPresets.easeOutQuad(0.25));
+    expect(easingPresets.easeInCubic(0.25)).toBeLessThan(easingPresets.easeOutCubic(0.25));
+  });
+
+  it('easeOutBack overshoots before being clamped (returns finite values < 1 near end)', () => {
+    // At t≈0.9 easeOutBack is below 1 but climbing.
+    const near = easingPresets.easeOutBack(0.9);
+    expect(near).toBeGreaterThan(0.5);
+    expect(near).toBeLessThanOrEqual(1);
+  });
 });
 
 describe('motion/keyframePresets', () => {
@@ -646,6 +690,63 @@ describe('motion/keyframePresets', () => {
     const frames = keyframePresets.fadeIn();
     expect(frames[0].opacity).toBe(0);
     expect(frames[1].opacity).toBe(1);
+  });
+
+  it('fadeIn accepts custom from/to opacity', () => {
+    const frames = keyframePresets.fadeIn(0.2, 0.8);
+    expect(frames[0].opacity).toBe(0.2);
+    expect(frames[1].opacity).toBe(0.8);
+  });
+
+  it('fadeOut reverses opacity by default', () => {
+    const frames = keyframePresets.fadeOut();
+    expect(frames[0].opacity).toBe(1);
+    expect(frames[1].opacity).toBe(0);
+  });
+
+  it('slideInUp encodes positive translateY offset returning to zero', () => {
+    const frames = keyframePresets.slideInUp(24);
+    expect(frames[0].transform).toBe('translateY(24px)');
+    expect(frames[1].transform).toBe('translateY(0)');
+    expect(frames[0].opacity).toBe(0);
+    expect(frames[1].opacity).toBe(1);
+  });
+
+  it('slideInDown uses a negative translateY offset', () => {
+    const frames = keyframePresets.slideInDown();
+    expect(frames[0].transform).toBe('translateY(-16px)');
+  });
+
+  it('slideInLeft and slideInRight mirror each other on the X axis', () => {
+    const left = keyframePresets.slideInLeft(20);
+    const right = keyframePresets.slideInRight(20);
+    expect(left[0].transform).toBe('translateX(20px)');
+    expect(right[0].transform).toBe('translateX(-20px)');
+    expect(left[1].transform).toBe('translateX(0)');
+    expect(right[1].transform).toBe('translateX(0)');
+  });
+
+  it('scaleIn and scaleOut encode the scale boundaries', () => {
+    const inFrames = keyframePresets.scaleIn(0.5, 1);
+    expect(inFrames[0].transform).toBe('scale(0.5)');
+    expect(inFrames[1].transform).toBe('scale(1)');
+    const outFrames = keyframePresets.scaleOut(1, 0.5);
+    expect(outFrames[0].transform).toBe('scale(1)');
+    expect(outFrames[1].transform).toBe('scale(0.5)');
+  });
+
+  it('pop produces a three-stop keyframe with a mid offset of 0.6', () => {
+    const frames = keyframePresets.pop();
+    expect(frames).toHaveLength(3);
+    expect(frames[1].offset).toBe(0.6);
+    expect(frames[0].transform).toBe('scale(0.9)');
+    expect(frames[2].transform).toBe('scale(1)');
+  });
+
+  it('rotateIn encodes a rotation that resolves to zero degrees', () => {
+    const frames = keyframePresets.rotateIn(12);
+    expect(frames[0].transform).toBe('rotate(12deg) scale(0.98)');
+    expect(frames[1].transform).toBe('rotate(0deg) scale(1)');
   });
 });
 

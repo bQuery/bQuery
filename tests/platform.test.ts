@@ -200,6 +200,102 @@ describe('platform/cache interface', () => {
     const result = cache.isSupported();
     expect(typeof result).toBe('boolean');
   });
+
+  it('returns safe fallbacks when Cache Storage API is unavailable', async () => {
+    const { cache } = await import('../src/platform/cache');
+    const originalWindow = (window as unknown as { caches?: unknown }).caches;
+    const originalGlobal = (globalThis as unknown as { caches?: unknown }).caches;
+    delete (window as unknown as { caches?: unknown }).caches;
+    delete (globalThis as unknown as { caches?: unknown }).caches;
+    try {
+      expect(cache.isSupported()).toBe(false);
+      expect(await cache.delete('missing')).toBe(false);
+      expect(await cache.keys()).toEqual([]);
+      await expect(cache.open('any')).rejects.toThrow(/Cache Storage API not supported/);
+    } finally {
+      if (originalWindow !== undefined) {
+        (window as unknown as { caches: unknown }).caches = originalWindow;
+      }
+      if (originalGlobal !== undefined) {
+        (globalThis as unknown as { caches: unknown }).caches = originalGlobal;
+      }
+    }
+  });
+
+  it('delegates handle operations to the underlying Cache instance', async () => {
+    const { cache } = await import('../src/platform/cache');
+    const calls: string[] = [];
+    const fakeCache = {
+      add: async (url: string) => {
+        calls.push(`add:${url}`);
+      },
+      addAll: async (urls: string[]) => {
+        calls.push(`addAll:${urls.join(',')}`);
+      },
+      put: async (url: string, response: Response) => {
+        calls.push(`put:${url}:${response.status}`);
+      },
+      match: async (url: string) => {
+        calls.push(`match:${url}`);
+        return new Response('hit');
+      },
+      delete: async (url: string) => {
+        calls.push(`delete:${url}`);
+        return true;
+      },
+      keys: async () => {
+        calls.push('keys');
+        return [new Request('https://a.test/one'), new Request('https://a.test/two')];
+      },
+    };
+    const stored = new Map<string, typeof fakeCache>();
+    const fakeCaches = {
+      open: async (name: string) => {
+        stored.set(name, fakeCache);
+        return fakeCache as unknown as Cache;
+      },
+      delete: async (name: string) => stored.delete(name),
+      keys: async () => [...stored.keys()],
+    };
+    const originalWindow = (window as unknown as { caches?: unknown }).caches;
+    const originalGlobal = (globalThis as unknown as { caches?: unknown }).caches;
+    (window as unknown as { caches: unknown }).caches = fakeCaches;
+    (globalThis as unknown as { caches: unknown }).caches = fakeCaches;
+    try {
+      const handle = await cache.open('assets');
+      await handle.add('/a');
+      await handle.addAll(['/b', '/c']);
+      await handle.put('/d', new Response('x'));
+      const match = await handle.match('/a');
+      expect(match).toBeInstanceOf(Response);
+      expect(await handle.remove('/a')).toBe(true);
+      expect(await handle.keys()).toEqual(['https://a.test/one', 'https://a.test/two']);
+
+      expect(await cache.keys()).toEqual(['assets']);
+      expect(await cache.delete('assets')).toBe(true);
+      expect(await cache.delete('missing')).toBe(false);
+
+      expect(calls).toEqual([
+        'add:/a',
+        'addAll:/b,/c',
+        'put:/d:200',
+        'match:/a',
+        'delete:/a',
+        'keys',
+      ]);
+    } finally {
+      if (originalWindow === undefined) {
+        delete (window as unknown as { caches?: unknown }).caches;
+      } else {
+        (window as unknown as { caches: unknown }).caches = originalWindow;
+      }
+      if (originalGlobal === undefined) {
+        delete (globalThis as unknown as { caches?: unknown }).caches;
+      } else {
+        (globalThis as unknown as { caches: unknown }).caches = originalGlobal;
+      }
+    }
+  });
 });
 
 describe('platform/useCookie', () => {

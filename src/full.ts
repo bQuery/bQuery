@@ -38,8 +38,53 @@
 // ============================================================================
 // Core Module: Selectors, DOM operations, events, utilities
 // ============================================================================
-export { $, $$, BQueryCollection, BQueryElement, utils } from './core/index';
-export type { BQueryUtils } from './core/index';
+export {
+  $,
+  $$,
+  BQueryCollection,
+  BQueryElement,
+  capitalize,
+  chunk,
+  clamp,
+  clone,
+  compact,
+  debounce,
+  ensureArray,
+  escapeRegExp,
+  flatten,
+  hasOwn,
+  inRange,
+  isArray,
+  isBoolean,
+  isCollection,
+  isDate,
+  isElement,
+  isEmpty,
+  isFunction,
+  isNumber,
+  isObject,
+  isPlainObject,
+  isPromise,
+  isString,
+  merge,
+  noop,
+  omit,
+  once,
+  parseJson,
+  pick,
+  randomInt,
+  sleep,
+  slugify,
+  throttle,
+  toCamelCase,
+  toKebabCase,
+  toNumber,
+  truncate,
+  uid,
+  unique,
+  utils,
+} from './core/index';
+export type { BQueryUtils, DebouncedFn, ThrottledFn } from './core/index';
 
 // ============================================================================
 // Reactive Module: Signals, computed values, effects, batching
@@ -134,6 +179,7 @@ export type {
   WatchOptions,
   WebSocketHeartbeatConfig,
   WebSocketReconnectConfig,
+  WebSocketSendData,
   WebSocketSerializer,
   WebSocketStatus,
 } from './reactive/index';
@@ -322,12 +368,22 @@ export {
 export type {
   AnnounceOptions,
   AnnouncerHandle,
+  BqueryAnnouncerConfig,
+  BqueryComponentLibraryConfig,
   BqueryConfig,
+  BqueryCookieConfig,
+  BqueryFetchConfig,
+  BqueryFetchParseAs,
+  BqueryPageMetaConfig,
+  BqueryTransitionConfig,
   Bucket,
   CacheHandle,
   IndexedDBOptions,
   NotificationOptions,
+  PageLinkTag,
+  PageMetaCleanup,
   PageMetaDefinition,
+  PageMetaTag,
   StorageAdapter,
   UseAnnouncerOptions,
   UseCookieOptions,
@@ -365,6 +421,7 @@ export type {
 // Store Module: Signal-based state management
 // ============================================================================
 export {
+  clearPlugins,
   createPersistedStore,
   createStore,
   defineStore,
@@ -375,6 +432,7 @@ export {
   mapGetters,
   mapState,
   registerPlugin,
+  unregisterPlugin,
   watchStore,
 } from './store/index';
 export type {
@@ -396,7 +454,7 @@ export type {
 // ============================================================================
 // View Module: Declarative DOM bindings without compiler
 // ============================================================================
-export { createTemplate, mount } from './view/index';
+export { clearExpressionCache, createTemplate, mount } from './view/index';
 export type { BindingContext, MountOptions, View } from './view/index';
 
 // ============================================================================
@@ -476,6 +534,7 @@ export type {
   ColorScheme,
   ContrastPreference,
   FocusTrapHandle,
+  MediaPreferenceSignal,
   RovingTabIndexHandle,
   RovingTabIndexOptions,
   SkipLinkHandle,
@@ -521,20 +580,30 @@ export {
   useViewport,
 } from './media/index';
 export type {
+  BatterySignal,
   BatteryState,
   BreakpointMap,
   ClipboardAPI,
+  DeviceMotionSignal,
   DeviceMotionState,
+  DeviceOrientationSignal,
   DeviceOrientationState,
   GeolocationOptions,
+  GeolocationSignal,
   GeolocationState,
   IntersectionObserverOptions,
+  IntersectionObserverSignal,
   IntersectionObserverState,
+  MediaSignalHandle,
   MutationObserverOptions,
+  MutationObserverSignal,
   MutationObserverState,
+  NetworkSignal,
   NetworkState,
   ResizeObserverOptions,
+  ResizeObserverSignal,
   ResizeObserverState,
+  ViewportSignal,
   ViewportState,
 } from './media/index';
 
@@ -630,7 +699,6 @@ export {
   detectRuntime,
   getSSRConfig,
   getSSRRuntimeFeatures,
-  HYDRATION_HASH_ATTR,
   hydrateIsland,
   hydrateMount,
   hydrateOnIdle,
@@ -640,6 +708,7 @@ export {
   hydrateStore,
   hydrateStores,
   hydrateStoreSnapshot,
+  HYDRATION_HASH_ATTR,
   isBrowserRuntime,
   isServerRuntime,
   readStoreSnapshot,
@@ -688,9 +757,9 @@ export type {
   SSRLink,
   SSRLoader,
   SSRMeta,
+  SSRRendererBackend,
   SSRRequestHandler,
   SSRResult,
-  SSRRendererBackend,
   SSRRouteLoader,
   SSRRuntime,
   SSRRuntimeFeatures,
@@ -710,7 +779,6 @@ export type {
   ServerApp,
   ServerContext,
   ServerHandler,
-  ServerResult,
   ServerHtmlResponseInit,
   ServerMiddleware,
   ServerNext,
@@ -718,6 +786,7 @@ export type {
   ServerRenderResponseOptions,
   ServerRequestInit,
   ServerResponseInit,
+  ServerResult,
   ServerRoute,
   ServerWebSocketConnection,
   ServerWebSocketData,

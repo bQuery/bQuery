@@ -417,6 +417,30 @@ registerPlugin(({ store, options }) => {
 });
 ```
 
+### Removing plugins
+
+Plugins are registered globally and remain active for the lifetime of the
+process by default. Use `unregisterPlugin()` to remove a single registration
+or `clearPlugins()` to drop every plugin at once. Already-created stores
+keep extensions that were applied before unregister; only stores created
+afterwards are affected.
+
+```ts
+import { clearPlugins, registerPlugin, unregisterPlugin } from '@bquery/bquery/store';
+
+const logger = ({ store, options }) => {
+  store.$subscribe((state) => console.log(`[${options.id}]`, state));
+};
+
+registerPlugin(logger);
+
+// Remove a specific plugin (returns `true` when found, `false` otherwise).
+unregisterPlugin(logger);
+
+// Drop every registration — useful in test teardown.
+clearPlugins();
+```
+
 ## Mapping Helpers
 
 ### mapState

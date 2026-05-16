@@ -758,21 +758,30 @@ If the built-in deserializer receives a string that fails JSON parsing, it retur
 
 ### Returned state
 
-| Field                | Type                       | Description                                       |
-| -------------------- | -------------------------- | ------------------------------------------------- |
-| `status`             | `readonly Signal`          | `'CONNECTING' \| 'OPEN' \| 'CLOSING' \| 'CLOSED'` |
-| `data`               | `Signal<TReceive>`         | Last received message (deserialized)              |
-| `error`              | `Signal<Event \| null>`    | Last error event                                  |
-| `history`            | `Signal<TReceive[]>`       | Rolling message history                           |
-| `isConnected`        | `computed boolean`         | Whether the socket is `OPEN`                      |
-| `reconnectAttempts`  | `Signal<number>`           | Current reconnect attempt count                   |
-| `latency`            | `Signal<number>`           | Last measured round-trip time in ms               |
-| `lastDisconnectedAt` | `Signal<number>`           | Timestamp of the last unexpected disconnect       |
-| `send`               | `(data: TSend) => void`    | Send a serialized message                         |
-| `sendRaw`            | `(data) => void`           | Send raw data without serialization               |
-| `open`               | `() => void`               | Open / reconnect manually                         |
-| `close`              | `(code?, reason?) => void` | Gracefully close                                  |
-| `dispose`            | `() => void`               | Tear down all resources                           |
+| Field                | Type                                | Description                                       |
+| -------------------- | ----------------------------------- | ------------------------------------------------- |
+| `status`             | `readonly Signal`                   | `'CONNECTING' \| 'OPEN' \| 'CLOSING' \| 'CLOSED'` |
+| `data`               | `Signal<TReceive>`                  | Last received message (deserialized)              |
+| `error`              | `Signal<Event \| null>`             | Last error event                                  |
+| `history`            | `Signal<TReceive[]>`                | Rolling message history                           |
+| `isConnected`        | `computed boolean`                  | Whether the socket is `OPEN`                      |
+| `reconnectAttempts`  | `Signal<number>`                    | Current reconnect attempt count                   |
+| `latency`            | `Signal<number>`                    | Last measured round-trip time in ms               |
+| `lastDisconnectedAt` | `Signal<number>`                    | Timestamp of the last unexpected disconnect       |
+| `send`               | `(data: TSend) => void`             | Send a serialized message                         |
+| `sendRaw`            | `(data: WebSocketSendData) => void` | Send raw data without serialization               |
+| `open`               | `() => void`                        | Open / reconnect manually                         |
+| `close`              | `(code?, reason?) => void`          | Gracefully close                                  |
+| `dispose`            | `() => void`                        | Tear down all resources                           |
+
+`WebSocketSendData` is exported from `@bquery/bquery/reactive` and matches the
+union accepted by the native `WebSocket.send()` method:
+
+```ts
+import type { WebSocketSendData } from '@bquery/bquery/reactive';
+
+// Equivalent to: string | Blob | ArrayBufferLike | ArrayBufferView
+```
 
 ## Server-Sent Events (SSE)
 

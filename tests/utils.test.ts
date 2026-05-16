@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { isPrototypePollutionKey, utils } from '../src/core/utils';
 import type { BQueryUtils } from '../src/core/utils';
+import { isPrototypePollutionKey, utils } from '../src/core/utils';
 
 describe('utils/BQueryUtils type', () => {
   it('utils satisfies BQueryUtils interface (compile-time guard)', () => {
@@ -348,5 +348,131 @@ describe('utils/throttle cancel', () => {
 
     throttled(); // Should execute immediately after cancel
     expect(callCount).toBe(2);
+  });
+});
+
+describe('utils/array helpers', () => {
+  it('ensureArray wraps single values, passes arrays through, and returns [] for nullish', () => {
+    expect(utils.ensureArray('a')).toEqual(['a']);
+    expect(utils.ensureArray(['a', 'b'])).toEqual(['a', 'b']);
+    expect(utils.ensureArray(null)).toEqual([]);
+    expect(utils.ensureArray(undefined)).toEqual([]);
+    expect(utils.ensureArray(0)).toEqual([0]);
+    expect(utils.ensureArray(false)).toEqual([false]);
+  });
+
+  it('ensureArray returns the same reference for arrays (no copy)', () => {
+    const source = [1, 2, 3];
+    expect(utils.ensureArray(source)).toBe(source);
+  });
+
+  it('unique deduplicates primitives while preserving first-seen order', () => {
+    expect(utils.unique([1, 2, 2, 3, 1])).toEqual([1, 2, 3]);
+    expect(utils.unique(['a', 'b', 'a', 'c'])).toEqual(['a', 'b', 'c']);
+    expect(utils.unique([])).toEqual([]);
+  });
+
+  it('unique uses reference identity for object entries', () => {
+    const obj = { x: 1 };
+    expect(utils.unique([obj, obj, { x: 1 }])).toHaveLength(2);
+  });
+
+  it('chunk splits arrays into evenly sized groups, with a smaller tail when needed', () => {
+    expect(utils.chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]]);
+    expect(utils.chunk([1, 2, 3, 4], 2)).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
+    expect(utils.chunk([], 3)).toEqual([]);
+  });
+
+  it('chunk returns [] for non-positive sizes', () => {
+    expect(utils.chunk([1, 2, 3], 0)).toEqual([]);
+    expect(utils.chunk([1, 2, 3], -1)).toEqual([]);
+  });
+
+  it('compact removes falsy values but keeps truthy zero-equivalents like "0"', () => {
+    expect(utils.compact([0, 1, '', 'ok', null, undefined, false, 'x'])).toEqual([1, 'ok', 'x']);
+    expect(utils.compact(['0', 0, '0'])).toEqual(['0', '0']);
+  });
+
+  it('flatten unwraps one level only — nested arrays at deeper levels stay nested', () => {
+    expect(utils.flatten([1, [2, 3], 4])).toEqual([1, 2, 3, 4]);
+    expect(utils.flatten([[1], [2, [3, 4]], 5])).toEqual([1, 2, [3, 4], 5]);
+    expect(utils.flatten([])).toEqual([]);
+  });
+});
+
+describe('utils/number helpers', () => {
+  it('inRange respects inclusive bounds by default', () => {
+    expect(utils.inRange(5, 1, 10)).toBe(true);
+    expect(utils.inRange(1, 1, 10)).toBe(true);
+    expect(utils.inRange(10, 1, 10)).toBe(true);
+    expect(utils.inRange(0, 1, 10)).toBe(false);
+    expect(utils.inRange(11, 1, 10)).toBe(false);
+  });
+
+  it('inRange with inclusive=false excludes the bounds', () => {
+    expect(utils.inRange(1, 1, 10, false)).toBe(false);
+    expect(utils.inRange(10, 1, 10, false)).toBe(false);
+    expect(utils.inRange(5, 1, 10, false)).toBe(true);
+  });
+
+  it('toNumber converts numeric strings and passes numbers through', () => {
+    expect(utils.toNumber('42')).toBe(42);
+    expect(utils.toNumber(' 3.14 ')).toBeCloseTo(3.14);
+    expect(utils.toNumber(7)).toBe(7);
+    expect(utils.toNumber('-2.5')).toBe(-2.5);
+  });
+
+  it('toNumber falls back when conversion yields NaN', () => {
+    expect(utils.toNumber('nope')).toBe(0);
+    expect(utils.toNumber('nope', 10)).toBe(10);
+    expect(utils.toNumber(undefined, -1)).toBe(-1);
+    expect(utils.toNumber(NaN, 99)).toBe(99);
+  });
+});
+
+describe('utils/string helpers', () => {
+  it('truncate keeps strings shorter than maxLength untouched', () => {
+    expect(utils.truncate('hello', 10)).toBe('hello');
+    expect(utils.truncate('hello', 5)).toBe('hello');
+  });
+
+  it('truncate adds the default ellipsis suffix when shortening', () => {
+    expect(utils.truncate('Hello world', 8)).toBe('Hello w…');
+  });
+
+  it('truncate accepts a custom suffix and accounts for its length', () => {
+    expect(utils.truncate('Hello world', 8, '...')).toBe('Hello...');
+  });
+
+  it('truncate returns "" for non-positive maxLength', () => {
+    expect(utils.truncate('hello', 0)).toBe('');
+    expect(utils.truncate('hello', -3)).toBe('');
+  });
+
+  it('slugify lowercases, strips diacritics and punctuation, and joins with hyphens', () => {
+    expect(utils.slugify('Hello, World!')).toBe('hello-world');
+    expect(utils.slugify('Crème Brûlée')).toBe('creme-brulee');
+    expect(utils.slugify('  spaced   out  ')).toBe('spaced-out');
+    expect(utils.slugify('snake_case and-kebab')).toBe('snake-case-and-kebab');
+  });
+
+  it('slugify returns "" for input that has no slug-safe characters', () => {
+    expect(utils.slugify('!!!')).toBe('');
+  });
+
+  it('escapeRegExp escapes every regex metacharacter', () => {
+    expect(utils.escapeRegExp('[a-z]+')).toBe('\\[a-z\\]\\+');
+    expect(utils.escapeRegExp('a.b*c?')).toBe('a\\.b\\*c\\?');
+    expect(utils.escapeRegExp('plain')).toBe('plain');
+  });
+
+  it('escapeRegExp output is safe to pass to new RegExp()', () => {
+    const needle = 'foo.bar(baz)';
+    const re = new RegExp(utils.escapeRegExp(needle));
+    expect(re.test('xx foo.bar(baz) yy')).toBe(true);
+    expect(re.test('xx fooXbarYbazZ yy')).toBe(false);
   });
 });

@@ -215,11 +215,7 @@ export interface ServerContext {
    * return ctx.render('<h1 bq-text="title"></h1>', { title: 'Dashboard' });
    * ```
    */
-  render(
-    template: string,
-    data: BindingContext,
-    options?: ServerRenderResponseOptions
-  ): Response;
+  render(template: string, data: BindingContext, options?: ServerRenderResponseOptions): Response;
 
   /**
    * `true` when the incoming request is a WebSocket upgrade handshake.
