@@ -60,6 +60,13 @@ function parseExportedIdentifier(rawSpecifier) {
   return identifier?.[0];
 }
 
+/**
+ * Normalize an export source specifier to the public module that owns it.
+ *
+ * - `./module/index` comes from `src/full.ts` and maps to that public module.
+ * - `../module/index` comes from a barrel that re-exports another public module.
+ * - Any other relative path stays scoped to the current module barrel.
+ */
 function normalizeExportSourceModule(sourcePath, moduleName) {
   const fullEntryMatch = sourcePath.match(/^\.\/([^/]+)\/index$/);
   if (fullEntryMatch) return fullEntryMatch[1];
