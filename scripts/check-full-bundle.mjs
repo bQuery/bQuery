@@ -67,15 +67,14 @@ function normalizeExportSourceModule(sourcePath, moduleName) {
   const crossModuleMatch = sourcePath.match(/^\.\.\/([^/]+)\/index$/);
   if (crossModuleMatch) return crossModuleMatch[1];
 
-  return moduleName;
+  return moduleName ?? sourcePath;
 }
 
 function normalizeExportSourceModules(sourcePaths, moduleName) {
   const normalized = new Set();
 
   for (const sourcePath of sourcePaths ?? []) {
-    const normalizedModule = normalizeExportSourceModule(sourcePath, moduleName);
-    if (normalizedModule) normalized.add(normalizedModule);
+    normalized.add(normalizeExportSourceModule(sourcePath, moduleName));
   }
 
   return normalized;
@@ -164,7 +163,7 @@ export async function auditFullBundle({
 
     for (const exp of [...moduleExports.runtime].sort()) {
       const moduleOrigins = normalizeExportSourceModules(moduleExports.runtimeSources.get(exp), name);
-      const fullOrigins = normalizeExportSourceModules(fullExports.runtimeSources.get(exp));
+      const fullOrigins = normalizeExportSourceModules(fullExports.runtimeSources.get(exp), 'full');
       if ([...moduleOrigins].some(origin => fullOrigins.has(origin))) continue;
       if (INTENTIONAL_RUNTIME_OMISSIONS.has(`${name}:${exp}`)) continue;
       missingRuntime.push(`${name}.${exp}`);
@@ -172,7 +171,7 @@ export async function auditFullBundle({
 
     for (const exp of [...moduleExports.types].sort()) {
       const moduleOrigins = normalizeExportSourceModules(moduleExports.typeSources.get(exp), name);
-      const fullOrigins = normalizeExportSourceModules(fullExports.typeSources.get(exp));
+      const fullOrigins = normalizeExportSourceModules(fullExports.typeSources.get(exp), 'full');
       if ([...moduleOrigins].some(origin => fullOrigins.has(origin))) continue;
       if (INTENTIONAL_TYPE_OMISSIONS.has(`${name}:${exp}`)) continue;
       missingTypes.push(`${name}.${exp}`);

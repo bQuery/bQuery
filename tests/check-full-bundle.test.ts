@@ -3,7 +3,33 @@ import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const checkScriptUrl = new URL('../scripts/check-full-bundle.mjs', import.meta.url).href;
-const { auditFullBundle, collectNamedExports, isDirectExecution } = await import(checkScriptUrl);
+
+interface CollectedExports {
+  runtime: Set<string>;
+  types: Set<string>;
+  runtimeSources: Map<string, Set<string>>;
+  typeSources: Map<string, Set<string>>;
+}
+
+interface AuditFullBundleResult {
+  missingRuntime: string[];
+  missingTypes: string[];
+  skippedModules: string[];
+}
+
+interface CheckFullBundleModule {
+  auditFullBundle: (options?: {
+    modules?: string[];
+    loadModule?: (name: string) => Promise<CollectedExports>;
+    readFull?: () => Promise<CollectedExports>;
+  }) => Promise<AuditFullBundleResult>;
+  collectNamedExports: (source: string) => CollectedExports;
+  isDirectExecution: (argvEntry?: string) => boolean;
+}
+
+const { auditFullBundle, collectNamedExports, isDirectExecution } = (await import(
+  checkScriptUrl
+)) as CheckFullBundleModule;
 
 describe('check-full-bundle script', () => {
   it('parses aliases and type-only specifiers from barrel exports', () => {
