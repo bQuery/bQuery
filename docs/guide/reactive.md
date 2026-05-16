@@ -780,7 +780,7 @@ union accepted by the native `WebSocket.send()` method:
 ```ts
 import type { WebSocketSendData } from '@bquery/bquery/reactive';
 
-type WebSocketSendData = string | Blob | ArrayBufferLike | ArrayBufferView;
+// Equivalent to: string | Blob | ArrayBufferLike | ArrayBufferView
 ```
 
 ## Server-Sent Events (SSE)
