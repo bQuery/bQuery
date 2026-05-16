@@ -636,7 +636,7 @@ describe('versioned store snapshots', () => {
     const { html, storeScriptTag, storeState } = await renderToStringAsync(
       '<html><head></head><body><main></main></body></html>',
       {},
-      { includeStoreState: true }
+      { includeStoreState: ['counter'] }
     );
     expect(html).not.toContain('window["__BQUERY_INITIAL_STATE__"]');
     expect(storeState).toBe('{"counter":{"count":1}}');
