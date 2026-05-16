@@ -106,17 +106,23 @@ async function readFullExports() {
   return readNamedExports(resolve(repoRoot, 'src', 'full.ts'));
 }
 
-export async function main() {
-  const fullExports = await readFullExports();
+export async function auditFullBundle({
+  modules = MODULES,
+  loadModule = loadModuleExports,
+  readFull = readFullExports,
+} = {}) {
+  const fullExports = await readFull();
   const missingRuntime = [];
   const missingTypes = [];
+  const skippedModules = [];
 
-  for (const name of MODULES) {
+  for (const name of modules) {
     let moduleExports;
     try {
-      moduleExports = await loadModuleExports(name);
+      moduleExports = await loadModule(name);
     } catch (err) {
-      console.error(`! Skipped export check for ${name}: ${err.message}`);
+      const reason = err instanceof Error ? err.message : String(err);
+      skippedModules.push(`${name}: ${reason}`);
       continue;
     }
 
@@ -133,22 +139,46 @@ export async function main() {
     }
   }
 
-  if (missingRuntime.length === 0 && missingTypes.length === 0) {
-    console.log('✓ src/full.ts runtime and type exports are in sync with all module barrels.');
-    process.exit(0);
+  return { missingRuntime, missingTypes, skippedModules };
+}
+
+export async function main({
+  modules = MODULES,
+  loadModule = loadModuleExports,
+  readFull = readFullExports,
+  log = console.log,
+  error = console.error,
+  exit = (code) => process.exit(code),
+} = {}) {
+  const { missingRuntime, missingTypes, skippedModules } = await auditFullBundle({
+    modules,
+    loadModule,
+    readFull,
+  });
+
+  if (skippedModules.length === 0 && missingRuntime.length === 0 && missingTypes.length === 0) {
+    log('✓ src/full.ts runtime and type exports are in sync with all module barrels.');
+    exit(0);
+    return 0;
+  }
+
+  if (skippedModules.length > 0) {
+    error('✗ check-full-bundle could not validate the following module barrels:');
+    for (const item of skippedModules) error(`  - ${item}`);
   }
 
   if (missingRuntime.length > 0) {
-    console.error('✗ src/full.ts is missing the following runtime exports:');
-    for (const item of missingRuntime) console.error(`  - ${item}`);
+    error('✗ src/full.ts is missing the following runtime exports:');
+    for (const item of missingRuntime) error(`  - ${item}`);
   }
 
   if (missingTypes.length > 0) {
-    console.error('✗ src/full.ts is missing the following type exports:');
-    for (const item of missingTypes) console.error(`  - ${item}`);
+    error('✗ src/full.ts is missing the following type exports:');
+    for (const item of missingTypes) error(`  - ${item}`);
   }
 
-  process.exit(1);
+  exit(1);
+  return 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

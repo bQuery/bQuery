@@ -5,13 +5,28 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const checkScriptUrl = new URL('../scripts/check-full-bundle.mjs', import.meta.url).href;
 
 interface CheckFullBundleModule {
+  auditFullBundle(options?: {
+    modules?: string[];
+    loadModule?: (name: string) => Promise<{
+      runtime: Set<string>;
+      types: Set<string>;
+    }>;
+    readFull?: () => Promise<{
+      runtime: Set<string>;
+      types: Set<string>;
+    }>;
+  }): Promise<{
+    missingRuntime: string[];
+    missingTypes: string[];
+    skippedModules: string[];
+  }>;
   collectNamedExports(source: string): {
     runtime: Set<string>;
     types: Set<string>;
   };
 }
 
-const { collectNamedExports } = (await import(checkScriptUrl)) as CheckFullBundleModule;
+const { auditFullBundle, collectNamedExports } = (await import(checkScriptUrl)) as CheckFullBundleModule;
 
 describe('check-full-bundle script', () => {
   it('parses aliases and type-only specifiers from barrel exports', () => {
@@ -37,5 +52,22 @@ describe('check-full-bundle script', () => {
     expect(result.stdout.toString()).toContain(
       'src/full.ts runtime and type exports are in sync with all module barrels'
     );
+  });
+
+  it('treats unreadable module barrels as audit failures', async () => {
+    const result = await auditFullBundle({
+      modules: ['broken'],
+      readFull: async () => ({
+        runtime: new Set<string>(),
+        types: new Set<string>(),
+      }),
+      loadModule: async () => {
+        throw new Error('boom');
+      },
+    });
+
+    expect(result.missingRuntime).toEqual([]);
+    expect(result.missingTypes).toEqual([]);
+    expect(result.skippedModules).toEqual(['broken: boom']);
   });
 });

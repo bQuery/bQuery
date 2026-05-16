@@ -2081,6 +2081,34 @@ describe('store/plugins', () => {
     expect((store as Record<string, unknown>).$c).toBeUndefined();
   });
 
+  it('keeps applying the current plugin snapshot even when a plugin clears the registry', () => {
+    trackedRegister(() => {
+      clearPlugins();
+      return { $first: true };
+    });
+    trackedRegister(() => ({ $second: true }));
+
+    const store = createStore<{ value: number }>({
+      id: 'plugin-snapshot-store',
+      state: () => ({ value: 1 }),
+    });
+    const storeWithPlugins = store as typeof store & {
+      $first: boolean;
+      $second: boolean;
+    };
+
+    expect(storeWithPlugins.$first).toBe(true);
+    expect(storeWithPlugins.$second).toBe(true);
+
+    const fresh = createStore({
+      id: 'plugin-snapshot-fresh-store',
+      state: () => ({}),
+    });
+
+    expect((fresh as Record<string, unknown>).$first).toBeUndefined();
+    expect((fresh as Record<string, unknown>).$second).toBeUndefined();
+  });
+
   it('plugins applied before unregister keep their extensions on already-created stores', () => {
     const plugin: StorePlugin = () => ({ $kept: true });
     trackedRegister(plugin);

@@ -70,7 +70,7 @@ export const applyPlugins = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   options: StoreDefinition<any, any, any>
 ): void => {
-  for (const plugin of plugins) {
+  for (const plugin of [...plugins]) {
     const extension = plugin({ store, options });
     if (extension) {
       Object.assign(store, extension);
