@@ -60,21 +60,45 @@ function parseExportedIdentifier(rawSpecifier) {
   return identifier?.[0];
 }
 
+function normalizeExportSourceModule(sourcePath, moduleName) {
+  const fullEntryMatch = sourcePath.match(/^\.\/([^/]+)\/index$/);
+  if (fullEntryMatch) return fullEntryMatch[1];
+
+  const crossModuleMatch = sourcePath.match(/^\.\.\/([^/]+)\/index$/);
+  if (crossModuleMatch) return crossModuleMatch[1];
+
+  return moduleName;
+}
+
+function normalizeExportSourceModules(sourcePaths, moduleName) {
+  const normalized = new Set();
+
+  for (const sourcePath of sourcePaths ?? []) {
+    const normalizedModule = normalizeExportSourceModule(sourcePath, moduleName);
+    if (normalizedModule) normalized.add(normalizedModule);
+  }
+
+  return normalized;
+}
+
 export function collectNamedExports(source) {
   const runtime = new Set();
   const types = new Set();
+  const runtimeSources = new Map();
+  const typeSources = new Map();
   const wildcardExport = /export\s+(?:type\s+)?\*\s+from\s+['"][^'"]+['"]/;
 
   if (wildcardExport.test(source)) {
     throw new Error('Wildcard re-exports are not supported by check-full-bundle.mjs');
   }
 
-  const re = /export\s+(type\s+)?\{([\s\S]*?)\}\s+from\s+['"][^'"]+['"]/g;
+  const re = /export\s+(type\s+)?\{([\s\S]*?)\}\s+from\s+['"]([^'"]+)['"]/g;
   let match;
 
   while ((match = re.exec(source)) !== null) {
     const declarationIsTypeOnly = Boolean(match[1]);
     const block = match[2].replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
+    const sourcePath = match[3];
 
     for (const raw of block.split(',')) {
       const trimmed = raw.trim();
@@ -84,13 +108,25 @@ export function collectNamedExports(source) {
 
       if (specifierIsTypeOnly) {
         types.add(id);
+        let fromSources = typeSources.get(id);
+        if (!fromSources) {
+          fromSources = new Set();
+          typeSources.set(id, fromSources);
+        }
+        fromSources.add(sourcePath);
       } else {
         runtime.add(id);
+        let fromSources = runtimeSources.get(id);
+        if (!fromSources) {
+          fromSources = new Set();
+          runtimeSources.set(id, fromSources);
+        }
+        fromSources.add(sourcePath);
       }
     }
   }
 
-  return { runtime, types };
+  return { runtime, types, runtimeSources, typeSources };
 }
 
 async function readNamedExports(file) {
@@ -127,13 +163,17 @@ export async function auditFullBundle({
     }
 
     for (const exp of [...moduleExports.runtime].sort()) {
-      if (fullExports.runtime.has(exp)) continue;
+      const moduleOrigins = normalizeExportSourceModules(moduleExports.runtimeSources.get(exp), name);
+      const fullOrigins = normalizeExportSourceModules(fullExports.runtimeSources.get(exp));
+      if ([...moduleOrigins].some(origin => fullOrigins.has(origin))) continue;
       if (INTENTIONAL_RUNTIME_OMISSIONS.has(`${name}:${exp}`)) continue;
       missingRuntime.push(`${name}.${exp}`);
     }
 
     for (const exp of [...moduleExports.types].sort()) {
-      if (fullExports.types.has(exp)) continue;
+      const moduleOrigins = normalizeExportSourceModules(moduleExports.typeSources.get(exp), name);
+      const fullOrigins = normalizeExportSourceModules(fullExports.typeSources.get(exp));
+      if ([...moduleOrigins].some(origin => fullOrigins.has(origin))) continue;
       if (INTENTIONAL_TYPE_OMISSIONS.has(`${name}:${exp}`)) continue;
       missingTypes.push(`${name}.${exp}`);
     }
