@@ -1,19 +1,19 @@
-import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import type { HttpResponse } from '../src/reactive/http';
 import {
   createHttp,
   createRequestQueue,
   createRestClient,
   deduplicateRequest,
+  signal,
+  useEventSource,
   useResource,
   useResourceList,
   useSubmit,
   useWebSocket,
   useWebSocketChannel,
-  useEventSource,
-  signal,
 } from '../src/reactive/signal';
-import type { HttpResponse } from '../src/reactive/http';
-import type { UseEventSourceOptions } from '../src/reactive/websocket';
+import type { UseEventSourceOptions, WebSocketSendData } from '../src/reactive/websocket';
 
 // ---------------------------------------------------------------------------
 // Mock helpers
@@ -278,6 +278,18 @@ const uninstallEventSourceMock = (): void => {
 describe('useWebSocket', () => {
   beforeEach(() => installWebSocketMock());
   afterEach(() => uninstallWebSocketMock());
+
+  it('exposes WebSocketSendData as a public type alias covering all native payload kinds', () => {
+    // Compile-time assertion: the union must accept every shape WebSocket.send() accepts.
+    const samples: WebSocketSendData[] = [
+      'plain string',
+      new Blob(['blob']),
+      new ArrayBuffer(4),
+      new Uint8Array([1, 2, 3]),
+      new DataView(new ArrayBuffer(4)),
+    ];
+    expect(samples).toHaveLength(5);
+  });
 
   it('connects immediately and exposes reactive status', async () => {
     const ws = useWebSocket('ws://localhost:8080');

@@ -8,9 +8,12 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [Unreleased](#unreleased)
+    - [Added (Unreleased)](#added-unreleased)
+    - [Fixed (Unreleased)](#fixed-unreleased)
   - [\[1.11.1\] - 2026-05-12](#1111---2026-05-12)
     - [Changed (1.11.1)](#changed-1111)
-  - [\[1.11.0\] - 2026-04-15](#1110---2026-04-15)
+  - [\[1.11.0\] - 2026-04-30](#1110---2026-04-30)
     - [Added (1.11.0)](#added-1110)
     - [Changed (1.11.0)](#changed-1110)
     - [Fixed (1.11.0)](#fixed-1110)
@@ -69,6 +72,17 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [Unreleased]
+
+### Added (Unreleased)
+
+- **Reactive / WebSocket**: Promoted `WebSocketSendData` to a public type-only export from `@bquery/bquery/reactive`. The alias was previously `@internal` even though it already surfaced through `UseWebSocketReturn.sendRaw`, `WebSocketSerializer.serialize`, and `WebSocketHeartbeatConfig.message`. Consumers can now `import type { WebSocketSendData } from '@bquery/bquery/reactive'` to reuse the union, matching the existing `ServerWebSocketData` export from `@bquery/bquery/server`.
+- **Store / Plugins**: Added `unregisterPlugin(plugin)` and `clearPlugins()` to `@bquery/bquery/store`. `unregisterPlugin()` removes the first matching registration by identity and returns whether one was found; `clearPlugins()` empties the registry in one call. Already-created stores keep extensions that were applied before unregister; subsequent `defineStore()` / `createStore()` calls no longer receive the removed plugins. The previously global, append-only plugin registry now has a proper teardown path for test isolation and runtime plugin reloads.
+
+### Fixed (Unreleased)
+
+- **Full bundle / Tooling**: `src/full.ts` now re-exports all public type-only module exports from the platform, a11y, and media barrels, and `bun run check:full-bundle` now validates runtime and type exports statically so `/full` declaration drift is caught before release.
 
 ## [1.11.1] - 2026-05-12
 

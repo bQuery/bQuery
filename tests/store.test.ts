@@ -4,8 +4,9 @@
 
 import { beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { effect } from '../src/reactive/index';
-import type { StorageBackend } from '../src/store/index';
+import type { StorageBackend, StorePlugin } from '../src/store/index';
 import {
+  clearPlugins,
   createPersistedStore,
   createStore,
   defineStore,
@@ -15,6 +16,8 @@ import {
   mapActions,
   mapGetters,
   mapState,
+  registerPlugin,
+  unregisterPlugin,
   watchStore,
 } from '../src/store/index';
 
@@ -1982,5 +1985,272 @@ describe('store/isDev', () => {
       }
       errorSpy.mockRestore();
     }
+  });
+});
+
+describe('store/plugins', () => {
+  let registered: StorePlugin[] = [];
+
+  const trackedRegister = (plugin: StorePlugin): StorePlugin => {
+    registerPlugin(plugin);
+    registered.push(plugin);
+    return plugin;
+  };
+
+  beforeEach(() => {
+    // Drop any plugins registered by previous tests via the public API.
+    clearPlugins();
+    registered = [];
+    for (const id of listStores()) {
+      destroyStore(id);
+    }
+  });
+
+  it('applies plugin extensions to newly created stores', () => {
+    trackedRegister(() => ({
+      $log: () => 'logged',
+    }));
+
+    const store = createStore<
+      { count: number },
+      Record<string, never>,
+      Record<string, never>,
+      { $log: () => string }
+    >({
+      id: 'plugin-extension-store',
+      state: () => ({ count: 0 }),
+    });
+
+    expect(typeof store.$log).toBe('function');
+    expect(store.$log()).toBe('logged');
+  });
+
+  it('skips merging when the plugin returns void/undefined', () => {
+    trackedRegister(() => undefined);
+
+    const store = createStore({
+      id: 'plugin-void-store',
+      state: () => ({ count: 1 }),
+    });
+
+    // No extensions added — store still has its original keys only.
+    expect(store.count).toBe(1);
+  });
+
+  it('unregisterPlugin returns true on success and false when not found', () => {
+    const plugin: StorePlugin = () => undefined;
+    const ghost: StorePlugin = () => undefined;
+
+    trackedRegister(plugin);
+
+    expect(unregisterPlugin(plugin)).toBe(true);
+    expect(unregisterPlugin(plugin)).toBe(false);
+    expect(unregisterPlugin(ghost)).toBe(false);
+  });
+
+  it('unregisterPlugin removes only the first occurrence when registered twice', () => {
+    const plugin: StorePlugin = () => ({ $tag: 'tagged' });
+    trackedRegister(plugin);
+    trackedRegister(plugin);
+
+    expect(unregisterPlugin(plugin)).toBe(true);
+
+    // Second registration is still active — new store should still get the tag.
+    const store = createStore<
+      { x: number },
+      Record<string, never>,
+      Record<string, never>,
+      { $tag: string }
+    >({
+      id: 'plugin-duplicate-store',
+      state: () => ({ x: 0 }),
+    });
+    expect(store.$tag).toBe('tagged');
+
+    // Final removal succeeds.
+    expect(unregisterPlugin(plugin)).toBe(true);
+    expect(unregisterPlugin(plugin)).toBe(false);
+  });
+
+  it('clearPlugins drops every registration in one call', () => {
+    trackedRegister(() => ({ $a: 1 }));
+    trackedRegister(() => ({ $b: 2 }));
+    trackedRegister(() => ({ $c: 3 }));
+
+    clearPlugins();
+
+    const store = createStore({
+      id: 'plugin-clear-store',
+      state: () => ({}),
+    });
+
+    expect((store as Record<string, unknown>).$a).toBeUndefined();
+    expect((store as Record<string, unknown>).$b).toBeUndefined();
+    expect((store as Record<string, unknown>).$c).toBeUndefined();
+  });
+
+  it('plugins applied before unregister keep their extensions on already-created stores', () => {
+    const plugin: StorePlugin = () => ({ $kept: true });
+    trackedRegister(plugin);
+
+    const store = createStore<
+      { v: number },
+      Record<string, never>,
+      Record<string, never>,
+      { $kept: boolean }
+    >({
+      id: 'plugin-retain-store',
+      state: () => ({ v: 0 }),
+    });
+    expect(store.$kept).toBe(true);
+
+    unregisterPlugin(plugin);
+
+    // Existing store still has the previously applied extension.
+    expect(store.$kept).toBe(true);
+
+    // But a freshly created store no longer receives it.
+    const fresh = createStore({
+      id: 'plugin-retain-fresh-store',
+      state: () => ({}),
+    });
+    expect((fresh as Record<string, unknown>).$kept).toBeUndefined();
+  });
+});
+
+describe('store/utils', () => {
+  it('isPlainObject distinguishes literal objects from instances and primitives', async () => {
+    const { isPlainObject } = await import('../src/store/utils');
+    expect(isPlainObject({})).toBe(true);
+    expect(isPlainObject({ a: 1 })).toBe(true);
+    expect(isPlainObject(Object.create(null))).toBe(false);
+    expect(isPlainObject([])).toBe(false);
+    expect(isPlainObject(new Date())).toBe(false);
+    expect(isPlainObject(new Map())).toBe(false);
+    expect(isPlainObject(null)).toBe(false);
+    expect(isPlainObject(undefined)).toBe(false);
+    expect(isPlainObject(42)).toBe(false);
+    expect(isPlainObject('x')).toBe(false);
+  });
+
+  it('deepClone copies primitives, arrays, Date, Map, Set, and nested objects', async () => {
+    const { deepClone } = await import('../src/store/utils');
+
+    // Primitives short-circuit.
+    expect(deepClone(7)).toBe(7);
+    expect(deepClone('hello')).toBe('hello');
+    expect(deepClone(null)).toBeNull();
+
+    // Arrays are cloned, not referenced.
+    const arr = [1, [2, 3]];
+    const arrClone = deepClone(arr);
+    expect(arrClone).toEqual(arr);
+    expect(arrClone).not.toBe(arr);
+    expect(arrClone[1]).not.toBe(arr[1]);
+
+    // Dates are cloned to a new Date with the same time.
+    const date = new Date('2024-01-02T03:04:05.000Z');
+    const dateClone = deepClone(date);
+    expect(dateClone).not.toBe(date);
+    expect((dateClone as Date).getTime()).toBe(date.getTime());
+
+    // Maps are cloned with deeply-cloned values.
+    const map = new Map<string, { n: number }>([['a', { n: 1 }]]);
+    const mapClone = deepClone(map);
+    expect(mapClone).not.toBe(map);
+    expect((mapClone as Map<string, { n: number }>).get('a')).not.toBe(map.get('a'));
+    expect((mapClone as Map<string, { n: number }>).get('a')?.n).toBe(1);
+
+    // Sets are cloned with deeply-cloned members.
+    const set = new Set<{ n: number }>([{ n: 1 }]);
+    const setClone = deepClone(set);
+    expect(setClone).not.toBe(set);
+    expect([...(setClone as Set<{ n: number }>)][0]).not.toBe([...set][0]);
+
+    // Plain objects are deeply cloned.
+    const obj = { a: 1, nested: { b: 2 } };
+    const objClone = deepClone(obj);
+    expect(objClone).toEqual(obj);
+    expect(objClone).not.toBe(obj);
+    expect(objClone.nested).not.toBe(obj.nested);
+  });
+
+  it('deepEqual handles Date, Map, Set, Array, plain objects, and mismatched shapes', async () => {
+    const { deepEqual } = await import('../src/store/utils');
+
+    // Reference equality short-circuits.
+    const ref = { a: 1 };
+    expect(deepEqual(ref, ref)).toBe(true);
+
+    // Null vs. non-null.
+    expect(deepEqual(null, null)).toBe(true);
+    expect(deepEqual(null, {})).toBe(false);
+    expect(deepEqual({}, null)).toBe(false);
+
+    // Primitive mismatch.
+    expect(deepEqual(1, '1')).toBe(false);
+
+    // Dates.
+    expect(deepEqual(new Date(0), new Date(0))).toBe(true);
+    expect(deepEqual(new Date(0), new Date(1))).toBe(false);
+
+    // Maps.
+    expect(deepEqual(new Map([['a', 1]]), new Map([['a', 1]]))).toBe(true);
+    expect(deepEqual(new Map([['a', 1]]), new Map([['a', 2]]))).toBe(false);
+    expect(deepEqual(new Map([['a', 1]]), new Map())).toBe(false);
+    expect(deepEqual(new Map([['a', 1]]), new Map([['b', 1]]))).toBe(false);
+
+    // Sets.
+    expect(deepEqual(new Set([{ n: 1 }]), new Set([{ n: 1 }]))).toBe(true);
+    expect(deepEqual(new Set([{ n: 1 }]), new Set([{ n: 2 }]))).toBe(false);
+    expect(deepEqual(new Set([1]), new Set([1, 2]))).toBe(false);
+
+    // Arrays.
+    expect(deepEqual([1, 2, 3], [1, 2, 3])).toBe(true);
+    expect(deepEqual([1, 2], [1, 2, 3])).toBe(false);
+    expect(deepEqual([1, [2]], [1, [3]])).toBe(false);
+
+    // Array vs. object — same length but different shapes.
+    expect(deepEqual([1, 2], { 0: 1, 1: 2 })).toBe(false);
+
+    // Plain objects.
+    expect(deepEqual({ a: 1, b: 2 }, { a: 1, b: 2 })).toBe(true);
+    expect(deepEqual({ a: 1 }, { a: 1, b: 2 })).toBe(false);
+    expect(deepEqual({ a: 1 }, { b: 1 })).toBe(false);
+  });
+
+  it('detectNestedMutations reports same-reference plain-object mutations only', async () => {
+    const { detectNestedMutations } = await import('../src/store/utils');
+
+    const sharedNested = { count: 1 };
+    const before = { settings: { ...sharedNested }, untouched: { a: 1 } };
+    const after = { settings: sharedNested, untouched: { a: 1 } };
+
+    // The signal map records the *current* signal reference for each key, so the
+    // mutated branch only fires when signalValues[key] === after[key] (same ref).
+    const signalValues = new Map<keyof typeof after, unknown>([
+      ['settings', sharedNested],
+      ['untouched', after.untouched],
+    ]);
+
+    // First call: before.settings !== after.settings by content (count differs),
+    // and signalValues['settings'] === after.settings → mutation detected.
+    after.settings.count = 2;
+    const mutated = detectNestedMutations(before, after, signalValues);
+    expect(mutated).toEqual(['settings']);
+
+    // When signalValues no longer matches the post-state ref, no mutation is flagged.
+    const mutatedAfterReassign = detectNestedMutations(
+      before,
+      { settings: { count: 2 }, untouched: { a: 1 } },
+      signalValues
+    );
+    expect(mutatedAfterReassign).toEqual([]);
+
+    // Non-plain-object values are skipped entirely.
+    const beforeArr = { list: [1] as unknown };
+    const afterArr = { list: [1, 2] as unknown };
+    const signalArr = new Map<keyof typeof afterArr, unknown>([['list', afterArr.list]]);
+    expect(detectNestedMutations(beforeArr, afterArr, signalArr)).toEqual([]);
   });
 });

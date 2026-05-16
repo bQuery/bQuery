@@ -8,8 +8,21 @@
 import { computed } from './computed';
 import { Signal, signal } from './core';
 
-/** @internal */
-type WebSocketSendData = string | Blob | ArrayBufferLike | ArrayBufferView;
+/**
+ * Binary/text payloads accepted by reactive WebSocket helpers.
+ *
+ * Mirrors the shape accepted by the native `WebSocket.send()` method and is
+ * used by {@link UseWebSocketReturn.sendRaw}, {@link WebSocketSerializer.serialize}'s
+ * return type, and {@link WebSocketHeartbeatConfig.message}.
+ *
+ * @example
+ * ```ts
+ * import type { WebSocketSendData } from '@bquery/bquery/reactive';
+ *
+ * const frames: WebSocketSendData[] = ['hello', new Blob(['x']), new Uint8Array([1])];
+ * ```
+ */
+export type WebSocketSendData = string | Blob | ArrayBufferLike | ArrayBufferView;
 
 // ---------------------------------------------------------------------------
 // Types

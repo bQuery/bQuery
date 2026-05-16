@@ -5,9 +5,8 @@
  */
 
 export {
-  Computed,
-  Signal,
   batch,
+  Computed,
   computed,
   createHttp,
   createRequestQueue,
@@ -25,8 +24,10 @@ export {
   onScopeDispose,
   persistedSignal,
   readonly,
+  Signal,
   signal,
   toValue,
+  untrack,
   useAsyncData,
   useEventSource,
   useFetch,
@@ -38,7 +39,6 @@ export {
   useSubmit,
   useWebSocket,
   useWebSocketChannel,
-  untrack,
   watch,
   watchDebounce,
   watchThrottle,
@@ -52,6 +52,7 @@ export type {
   ChannelSubscription,
   CleanupFn,
   EffectScope,
+  EventSourceStatus,
   FetchInput,
   HttpClient,
   HttpProgressEvent,
@@ -64,7 +65,6 @@ export type {
   LinkedSignal,
   MaybeSignal,
   Observer,
-  EventSourceStatus,
   PaginatedState,
   PollingState,
   ReadonlySignal,
@@ -95,6 +95,7 @@ export type {
   WatchOptions,
   WebSocketHeartbeatConfig,
   WebSocketReconnectConfig,
+  WebSocketSendData,
   WebSocketSerializer,
   WebSocketStatus,
 } from './signal';
