@@ -122,6 +122,7 @@
     "build:umd": "vite build --config vite.umd.config.ts",
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
+    "check:full-bundle": "bun scripts/check-full-bundle.mjs",
     "test": "bun test",
     "test:types": "tsc -p tsconfig.component-test.json --noEmit",
     "test:watch": "bun test --watch",

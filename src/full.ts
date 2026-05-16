@@ -38,8 +38,53 @@
 // ============================================================================
 // Core Module: Selectors, DOM operations, events, utilities
 // ============================================================================
-export { $, $$, BQueryCollection, BQueryElement, utils } from './core/index';
-export type { BQueryUtils } from './core/index';
+export {
+  $,
+  $$,
+  BQueryCollection,
+  BQueryElement,
+  capitalize,
+  chunk,
+  clamp,
+  clone,
+  compact,
+  debounce,
+  ensureArray,
+  escapeRegExp,
+  flatten,
+  hasOwn,
+  inRange,
+  isArray,
+  isBoolean,
+  isCollection,
+  isDate,
+  isElement,
+  isEmpty,
+  isFunction,
+  isNumber,
+  isObject,
+  isPlainObject,
+  isPromise,
+  isString,
+  merge,
+  noop,
+  omit,
+  once,
+  parseJson,
+  pick,
+  randomInt,
+  sleep,
+  slugify,
+  throttle,
+  toCamelCase,
+  toKebabCase,
+  toNumber,
+  truncate,
+  uid,
+  unique,
+  utils,
+} from './core/index';
+export type { BQueryUtils, DebouncedFn, ThrottledFn } from './core/index';
 
 // ============================================================================
 // Reactive Module: Signals, computed values, effects, batching
@@ -396,7 +441,7 @@ export type {
 // ============================================================================
 // View Module: Declarative DOM bindings without compiler
 // ============================================================================
-export { createTemplate, mount } from './view/index';
+export { clearExpressionCache, createTemplate, mount } from './view/index';
 export type { BindingContext, MountOptions, View } from './view/index';
 
 // ============================================================================
