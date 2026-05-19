@@ -121,11 +121,19 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
   for (const type of usedEventTypes) ensureListener(type);
 
   // Scan the rendered DOM once on install to register listeners for any
-  // `data-bq-on-*` attributes present in the initial render. Subsequent
-  // renders are picked up by a MutationObserver.
+  // `data-bq-on-*` attributes present in the initial render. We probe each
+  // known event type with an attribute-presence selector (much cheaper than
+  // querySelectorAll('*') for large trees), then scan attribute names on
+  // matched elements to discover any custom event types that may have been
+  // added since the global `usedEventTypes` set was last consulted.
   const scanAndRegister = (): void => {
-    const elements = root.querySelectorAll('*');
-    for (const el of Array.from(elements)) {
+    const knownTypes = Array.from(usedEventTypes);
+    const candidateSet = new Set<Element>();
+    for (const type of knownTypes) {
+      const matches = root.querySelectorAll(`[data-bq-on-${type}]`);
+      for (let i = 0; i < matches.length; i += 1) candidateSet.add(matches[i]);
+    }
+    for (const el of candidateSet) {
       for (const attr of Array.from(el.attributes)) {
         if (attr.name.startsWith('data-bq-on-')) {
           ensureListener(attr.name.slice('data-bq-on-'.length));

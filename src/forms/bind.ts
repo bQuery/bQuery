@@ -243,7 +243,9 @@ export const bindForm = <T extends Record<string, unknown>>(
     }
 
     // Error slot wiring
-    const escapeAttr = (value: string): string => value.replace(/["\\]/g, '\\$&');
+    const cssEscape = (globalThis as { CSS?: { escape?: (value: string) => string } }).CSS?.escape;
+    const escapeAttr = (value: string): string =>
+      cssEscape ? cssEscape(value) : value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     const slotLookup =
       options.errorSlot ??
       ((name: string, root: HTMLElement): HTMLElement | null =>

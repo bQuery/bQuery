@@ -82,12 +82,17 @@ const escapeCssValue = (value: unknown): string => {
 
 const sheetCache = new WeakMap<typeof globalThis, Map<string, CSSStyleSheet>>();
 
+const supportsConstructableStylesheets = (
+  ctor: unknown
+): ctor is typeof CSSStyleSheet => {
+  if (typeof ctor !== 'function') return false;
+  const proto = (ctor as { prototype?: { replaceSync?: unknown } }).prototype;
+  return typeof proto?.replaceSync === 'function';
+};
+
 const getOrCreateSheet = (text: string): CSSStyleSheet | null => {
   const ctor = (globalThis as unknown as { CSSStyleSheet?: typeof CSSStyleSheet }).CSSStyleSheet;
-  // Constructable stylesheets are required for `replaceSync`.
-  if (typeof ctor !== 'function' || typeof (ctor.prototype as unknown as { replaceSync?: unknown }).replaceSync !== 'function') {
-    return null;
-  }
+  if (!supportsConstructableStylesheets(ctor)) return null;
   let cache = sheetCache.get(globalThis);
   if (!cache) {
     cache = new Map();

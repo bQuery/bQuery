@@ -11,8 +11,13 @@ import { getCurrentScope } from './scope';
 const findSlot = (host: HTMLElement, name?: string): HTMLSlotElement | null => {
   const root = host.shadowRoot;
   if (!root) return null;
-  const selector = name ? `slot[name="${name.replace(/"/g, '\\"')}"]` : 'slot:not([name])';
-  return root.querySelector<HTMLSlotElement>(selector);
+  if (!name) return root.querySelector<HTMLSlotElement>('slot:not([name])');
+  // Prefer CSS.escape when available; fall back to a conservative manual
+  // escape that handles backslash *first* (so already-escaped characters are
+  // not re-processed), then quotes.
+  const cssEscape = (globalThis as { CSS?: { escape?: (value: string) => string } }).CSS?.escape;
+  const escaped = cssEscape ? cssEscape(name) : name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return root.querySelector<HTMLSlotElement>(`slot[name="${escaped}"]`);
 };
 
 /**
