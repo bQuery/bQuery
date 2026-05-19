@@ -1305,7 +1305,9 @@ describe('forms/useFormField', () => {
     void field.isPristine.value;
     void field.isValid.value;
 
-    expect(valueSubscribers.subscribers.size).toBe(1);
+    // useFormField now installs an additional internal effect to track
+    // `dirtySince`, so the value signal has two internal subscribers.
+    expect(valueSubscribers.subscribers.size).toBe(2);
     expect(errorSubscribers.subscribers.size).toBe(1);
     expect(dirtySubscribers.subscribers.size).toBe(1);
 
