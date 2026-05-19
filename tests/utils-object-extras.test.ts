@@ -1,0 +1,88 @@
+import { describe, expect, it } from 'bun:test';
+import {
+  deepEqual,
+  defaults,
+  entriesTyped,
+  freeze,
+  get,
+  has,
+  invert,
+  isEqual,
+  keysTyped,
+  mapKeys,
+  mapValues,
+  set,
+} from '../src/core/utils/object';
+
+describe('utils/object extras', () => {
+  it('get reads nested values with dot and bracket notation', () => {
+    expect(get({ a: { b: { c: 42 } } }, 'a.b.c')).toBe(42);
+    expect(get({ list: [{ name: 'x' }] }, 'list[0].name')).toBe('x');
+    expect(get({}, 'a.b', 'fallback')).toBe('fallback');
+  });
+
+  it('get refuses prototype-pollution keys', () => {
+    const obj = JSON.parse('{"a":1}');
+    expect(get(obj, '__proto__.polluted', 'safe')).toBe('safe');
+  });
+
+  it('set creates intermediate containers and ignores pollution keys', () => {
+    const obj: Record<string, unknown> = {};
+    set(obj, 'a.b.c', 1);
+    expect((obj.a as { b: { c: number } }).b.c).toBe(1);
+    set(obj, 'list[0].name', 'x');
+    expect((obj.list as Array<{ name: string }>)[0].name).toBe('x');
+    set(obj, '__proto__.polluted', true);
+    expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
+  it('has detects nested presence and prototype-pollution safety', () => {
+    expect(has({ a: { b: 0 } }, 'a.b')).toBe(true);
+    expect(has({ a: {} }, 'a.b')).toBe(false);
+    expect(has({}, '__proto__')).toBe(false);
+  });
+
+  it('mapValues / mapKeys / invert', () => {
+    expect(mapValues({ a: 1, b: 2 }, (v) => v * 10)).toEqual({ a: 10, b: 20 });
+    expect(mapKeys({ a: 1, b: 2 }, (k) => k.toUpperCase())).toEqual({ A: 1, B: 2 });
+    expect(invert({ a: 1, b: 2 })).toEqual({ '1': 'a', '2': 'b' });
+  });
+
+  it('deepEqual handles primitives, arrays, Dates, RegExps, Maps, Sets, objects', () => {
+    expect(deepEqual(1, 1)).toBe(true);
+    expect(deepEqual(NaN, NaN)).toBe(true);
+    expect(deepEqual([1, [2, 3]], [1, [2, 3]])).toBe(true);
+    expect(deepEqual({ a: 1, b: [2] }, { a: 1, b: [2] })).toBe(true);
+    expect(deepEqual({ a: 1 }, { a: 2 })).toBe(false);
+    expect(deepEqual(new Date('2024-01-01'), new Date('2024-01-01'))).toBe(true);
+    expect(deepEqual(/foo/g, /foo/g)).toBe(true);
+    expect(deepEqual(new Map([['a', 1]]), new Map([['a', 1]]))).toBe(true);
+    expect(deepEqual(new Set([1, 2]), new Set([2, 1]))).toBe(true);
+    expect(deepEqual({ a: undefined }, { b: undefined })).toBe(false);
+    expect(isEqual).toBe(deepEqual);
+  });
+
+  it('freeze deeply freezes nested objects', () => {
+    const obj = { a: { b: { c: 1 } } };
+    freeze(obj);
+    expect(Object.isFrozen(obj)).toBe(true);
+    expect(Object.isFrozen(obj.a)).toBe(true);
+    expect(Object.isFrozen(obj.a.b)).toBe(true);
+  });
+
+  it('defaults fills undefined keys, ignores prototype-pollution keys', () => {
+    const target: Record<string, unknown> = { a: 1, b: undefined };
+    defaults(target, { a: 99, b: 2, c: 3 });
+    expect(target).toEqual({ a: 1, b: 2, c: 3 });
+    defaults(target, { __proto__: { polluted: true } } as unknown as Record<string, unknown>);
+    expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
+  it('entriesTyped and keysTyped preserve key types', () => {
+    const obj = { a: 1, b: 'two' as const };
+    const entries = entriesTyped(obj);
+    const keys = keysTyped(obj);
+    expect(entries.length).toBe(2);
+    expect(keys.sort()).toEqual(['a', 'b']);
+  });
+});

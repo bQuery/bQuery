@@ -204,3 +204,264 @@ export function omit<T extends Record<string, unknown>, K extends keyof T>(
 export function hasOwn<T extends object>(obj: T, key: PropertyKey): key is keyof T {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
+
+const parsePath = (path: string | readonly PropertyKey[]): PropertyKey[] => {
+  if (Array.isArray(path)) return path as PropertyKey[];
+  const str = String(path);
+  // Convert ["a"]["b"] to .a.b for splitting; supports both dot and bracket access.
+  const normalized = str.replace(/\[(?:'([^']*)'|"([^"]*)"|(\d+))\]/g, (_, s1, s2, n) => {
+    if (s1 !== undefined) return `.${s1}`;
+    if (s2 !== undefined) return `.${s2}`;
+    return `.${n}`;
+  });
+  return normalized.split('.').filter((part) => part.length > 0);
+};
+
+const isSafeKey = (key: PropertyKey): boolean => {
+  if (typeof key !== 'string') return true;
+  return !isPrototypePollutionKey(key);
+};
+
+/**
+ * Safely reads a deeply nested value from an object/array.
+ * Returns `defaultValue` if any intermediate step is `undefined` / `null`.
+ *
+ * Path supports dot notation (`'a.b.c'`), array indices (`'list[0].name'`),
+ * or a pre-split key array.
+ *
+ * @security Prototype-pollution keys (`__proto__`, `constructor`, `prototype`)
+ * are skipped during traversal.
+ *
+ * @example
+ * ```ts
+ * get({ a: { b: { c: 42 } } }, 'a.b.c');     // 42
+ * get({ list: [{ name: 'x' }] }, 'list[0].name'); // 'x'
+ * get({}, 'a.b', 'fallback');                // 'fallback'
+ * ```
+ */
+export function get<T = unknown>(
+  obj: unknown,
+  path: string | readonly PropertyKey[],
+  defaultValue?: T
+): T | undefined {
+  const keys = parsePath(path);
+  let current: unknown = obj;
+  for (const key of keys) {
+    if (current == null || typeof current !== 'object') return defaultValue;
+    if (!isSafeKey(key)) return defaultValue;
+    current = (current as Record<PropertyKey, unknown>)[key];
+  }
+  return (current === undefined ? defaultValue : (current as T)) ?? defaultValue;
+}
+
+/**
+ * Sets a deeply nested value, creating intermediate objects as needed.
+ * Returns the original object (mutated). Refuses to walk through
+ * prototype-pollution keys.
+ *
+ * @example
+ * ```ts
+ * set({}, 'a.b.c', 1); // { a: { b: { c: 1 } } }
+ * ```
+ */
+const safeAssign = (
+  target: Record<PropertyKey, unknown>,
+  key: PropertyKey,
+  value: unknown
+): void => {
+  // Defensive double-check: callers must already guard via `isSafeKey`.
+  if (typeof key === 'string' && isPrototypePollutionKey(key)) return;
+  Object.defineProperty(target, key, {
+    value,
+    enumerable: true,
+    writable: true,
+    configurable: true,
+  });
+};
+
+export function set<T extends object>(
+  obj: T,
+  path: string | readonly PropertyKey[],
+  value: unknown
+): T {
+  const keys = parsePath(path);
+  if (keys.length === 0) return obj;
+  let current: Record<PropertyKey, unknown> = obj as unknown as Record<PropertyKey, unknown>;
+  for (let i = 0; i < keys.length - 1; i += 1) {
+    const key = keys[i];
+    if (!isSafeKey(key)) return obj;
+    const next = current[key];
+    if (next == null || typeof next !== 'object') {
+      // Decide between array and object based on the next key being a numeric string.
+      const nextKey = keys[i + 1];
+      const isIndex = typeof nextKey === 'string' && /^\d+$/.test(nextKey);
+      safeAssign(current, key, isIndex ? [] : {});
+    }
+    current = current[key] as Record<PropertyKey, unknown>;
+  }
+  const finalKey = keys[keys.length - 1];
+  if (isSafeKey(finalKey)) safeAssign(current, finalKey, value);
+  return obj;
+}
+
+/**
+ * Returns true if the object has a value at the given path. Refuses to
+ * follow prototype-pollution keys.
+ */
+export function has(obj: unknown, path: string | readonly PropertyKey[]): boolean {
+  const keys = parsePath(path);
+  let current: unknown = obj;
+  for (const key of keys) {
+    if (current == null || typeof current !== 'object') return false;
+    if (!isSafeKey(key)) return false;
+    if (!Object.prototype.hasOwnProperty.call(current, key)) return false;
+    current = (current as Record<PropertyKey, unknown>)[key];
+  }
+  return true;
+}
+
+/**
+ * Maps the values of an object using a transform function. Keys are
+ * preserved. Iteration follows `Object.entries()` order.
+ */
+export function mapValues<T extends Record<string, unknown>, R>(
+  obj: T,
+  fn: (value: T[keyof T], key: keyof T, object: T) => R
+): { [K in keyof T]: R } {
+  const result: Record<string, R> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = fn(value as T[keyof T], key as keyof T, obj);
+  }
+  return result as { [K in keyof T]: R };
+}
+
+/**
+ * Maps the keys of an object using a transform function. Values are
+ * preserved. Later collisions override earlier ones.
+ */
+export function mapKeys<T extends Record<string, unknown>>(
+  obj: T,
+  fn: (key: keyof T, value: T[keyof T], object: T) => string
+): Record<string, T[keyof T]> {
+  const result: Record<string, T[keyof T]> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[fn(key as keyof T, value as T[keyof T], obj)] = value as T[keyof T];
+  }
+  return result;
+}
+
+/**
+ * Returns a new object whose keys and values have been swapped.
+ *
+ * @example
+ * ```ts
+ * invert({ a: 1, b: 2 }); // { '1': 'a', '2': 'b' }
+ * ```
+ */
+export function invert<T extends Record<string, PropertyKey>>(obj: T): Record<string, keyof T> {
+  const result: Record<string, keyof T> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[String(value)] = key as keyof T;
+  }
+  return result;
+}
+
+/**
+ * Recursively compares two values for structural equality. Handles plain
+ * objects, arrays, Dates, RegExps, Maps, Sets, and primitive equality
+ * (including `NaN === NaN`).
+ */
+export function deepEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (typeof a !== typeof b) return false;
+  if (a === null || b === null) return false;
+  if (typeof a !== 'object') return false;
+  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
+  if (a instanceof RegExp && b instanceof RegExp) return a.source === b.source && a.flags === b.flags;
+  if (Array.isArray(a)) {
+    if (!Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i += 1) {
+      if (!deepEqual(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (a instanceof Map && b instanceof Map) {
+    if (a.size !== b.size) return false;
+    for (const [k, v] of a) {
+      if (!b.has(k)) return false;
+      if (!deepEqual(v, b.get(k))) return false;
+    }
+    return true;
+  }
+  if (a instanceof Set && b instanceof Set) {
+    if (a.size !== b.size) return false;
+    for (const v of a) if (!b.has(v)) return false;
+    return true;
+  }
+  const aKeys = Object.keys(a as object);
+  const bKeys = Object.keys(b as object);
+  if (aKeys.length !== bKeys.length) return false;
+  for (const key of aKeys) {
+    if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
+    if (!deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false;
+  }
+  return true;
+}
+
+/**
+ * Convenience alias for {@link deepEqual}.
+ */
+export const isEqual = deepEqual;
+
+/**
+ * Recursively freezes an object and all nested object values. Returns the
+ * same reference. Functions and primitives are returned unchanged.
+ */
+export function freeze<T>(value: T): Readonly<T> {
+  if (value === null || typeof value !== 'object') return value;
+  if (Object.isFrozen(value)) return value;
+  Object.freeze(value);
+  for (const v of Object.values(value as Record<string, unknown>)) {
+    if (v !== null && (typeof v === 'object' || typeof v === 'function')) freeze(v);
+  }
+  return value;
+}
+
+/**
+ * Fills in `target` keys that are `undefined` with values from `sources`
+ * (first source wins). Mutates `target` and also returns it.
+ *
+ * @security Prototype-pollution keys are ignored.
+ */
+export function defaults<T extends Record<string, unknown>>(
+  target: T,
+  ...sources: Array<Record<string, unknown>>
+): T {
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [key, value] of Object.entries(source)) {
+      if (isPrototypePollutionKey(key)) continue;
+      if ((target as Record<string, unknown>)[key] === undefined) {
+        safeAssign(target as Record<PropertyKey, unknown>, key, value);
+      }
+    }
+  }
+  return target;
+}
+
+/**
+ * Typed wrapper around `Object.entries()` preserving key types.
+ */
+export function entriesTyped<T extends Record<string, unknown>>(
+  obj: T
+): Array<[keyof T & string, T[keyof T]]> {
+  return Object.entries(obj) as Array<[keyof T & string, T[keyof T]]>;
+}
+
+/**
+ * Typed wrapper around `Object.keys()` preserving key types.
+ */
+export function keysTyped<T extends Record<string, unknown>>(obj: T): Array<keyof T & string> {
+  return Object.keys(obj) as Array<keyof T & string>;
+}
