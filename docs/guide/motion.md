@@ -80,6 +80,22 @@ setReducedMotion(true); // force instant motion-safe behavior
 setReducedMotion(null); // return to the user's system preference
 ```
 
+Subscribe to changes (e.g. user toggles the OS-level preference while the
+app is running) via `onReducedMotionChange()`, or use the reactive
+`reducedMotionSignal()` in components and `view` bindings:
+
+```ts
+import { onReducedMotionChange, reducedMotionSignal } from '@bquery/bquery/motion';
+import { effect } from '@bquery/bquery/reactive';
+
+const off = onReducedMotionChange((reduced) => {
+  document.documentElement.dataset.reducedMotion = String(reduced);
+});
+
+const reduced = reducedMotionSignal();
+effect(() => console.log('reduced motion is now', reduced.value));
+```
+
 ## FLIP animations
 
 ```ts
@@ -148,19 +164,115 @@ For tree-shaking, you can import individual easing functions:
 ```ts
 import {
   linear,
+  // Quad / Cubic / Quart / Quint
   easeInQuad,
   easeOutQuad,
   easeInOutQuad,
   easeInCubic,
   easeOutCubic,
   easeInOutCubic,
+  easeInQuart,
+  easeOutQuart,
+  easeInOutQuart,
+  easeInQuint,
+  easeOutQuint,
+  easeInOutQuint,
+  // Sine / Expo / Circ
+  easeInSine,
+  easeOutSine,
+  easeInOutSine,
+  easeInExpo,
   easeOutExpo,
+  easeInOutExpo,
+  easeInCirc,
+  easeOutCirc,
+  easeInOutCirc,
+  // Back / Elastic / Bounce
+  easeInBack,
   easeOutBack,
+  easeInOutBack,
+  easeInElastic,
+  easeOutElastic,
+  easeInOutElastic,
+  easeInBounce,
+  easeOutBounce,
+  easeInOutBounce,
 } from '@bquery/bquery/motion';
 
-// Use directly
-const t = 0.5;
-const value = easeOutCubic(t); // 0.875
+const value = easeOutCubic(0.5); // 0.875
+```
+
+### `cubicBezier()` / `steps()` factories
+
+Mirror CSS `cubic-bezier()` and `steps()` exactly:
+
+```ts
+import { cubicBezier, steps } from '@bquery/bquery/motion';
+
+const customEase = cubicBezier(0.42, 0, 0.58, 1);
+const stairs = steps(4, 'end'); // matches CSS steps(4, end)
+```
+
+### `mix()` and `chain()` composers
+
+```ts
+import { mix, chain, easeOutCubic, easeOutBack, easeInQuad, easeOutBounce } from '@bquery/bquery/motion';
+
+const softSpring = mix(easeOutCubic, easeOutBack, 0.4);
+const inThenBounce = chain(easeInQuad, easeOutBounce);
+```
+
+## Animated values (DOM-free tweens)
+
+`animateValue()` and `tween()` interpolate numbers, number arrays, or
+plain-object records of numbers between `from` and `to`. They run via
+`requestAnimationFrame` and do not require a DOM element.
+
+```ts
+import { animateValue, tween, easeOutCubic } from '@bquery/bquery/motion';
+
+await animateValue({
+  from: 0,
+  to: 100,
+  duration: 500,
+  easing: easeOutCubic,
+  onUpdate: (v) => (counter.textContent = String(Math.round(v))),
+});
+
+const t = tween({
+  from: { x: 0, y: 0 },
+  to: { x: 100, y: 50 },
+  duration: 800,
+  onUpdate: ({ x, y }) => (el.style.transform = `translate(${x}px, ${y}px)`),
+});
+t.pause();
+t.seek(0.5);
+t.reverse();
+t.resume();
+await t.finished;
+```
+
+## `animateTo()` and `animate()` controls
+
+`animateTo()` turns a CSS property record into keyframes; the standard
+`animate()` helper accepts an `AbortSignal` and a `playbackRate` override:
+
+```ts
+import { animate, animateTo } from '@bquery/bquery/motion';
+
+await animateTo(card, { opacity: 1, transform: 'translateY(0)' }, {
+  duration: 320,
+  easing: 'ease-out',
+});
+
+const ctrl = new AbortController();
+animate(card, {
+  keyframes: [{ opacity: 1 }, { opacity: 0 }],
+  options: { duration: 400 },
+  signal: ctrl.signal,
+  playbackRate: 0.5,
+});
+// ctrl.abort() cancels the animation.
 ```
 
 ## Keyframe presets
@@ -174,17 +286,6 @@ await animate(card, {
 });
 ```
 
-## Sequence
-
-```ts
-import { sequence } from '@bquery/bquery/motion';
-
-await sequence([
-  { target: itemA, keyframes: keyframePresets.fadeIn(), options: { duration: 120 } },
-  { target: itemB, keyframes: keyframePresets.fadeIn(), options: { duration: 120 } },
-]);
-```
-
 ## Timeline
 
 ```ts
@@ -196,6 +297,82 @@ const tl = timeline([
 ]);
 
 await tl.play();
+```
+
+### Labels, repeat, yoyo, and playback rate
+
+```ts
+const tl = timeline();
+tl.add({ target: a, keyframes: [...], options: { duration: 200 } });
+tl.addLabel('mid'); // anchor at the end of the previous step
+tl.add({ target: b, keyframes: [...], options: { duration: 200 }, at: 'mid+=120' });
+
+tl.repeat(2);        // play 3 times total
+tl.yoyo(true);       // alternate direction every iteration
+tl.playbackRate(1.5);
+
+tl.onUpdate((t) => console.log('time', t));
+console.log('progress:', tl.progress()); // 0..1
+
+await tl.play();
+tl.reverse(); // mid-flight direction flip
+```
+
+## Scroll progress & in-view
+
+`scrollProgress()` drives a `[0, 1]` value as an element moves through the
+viewport; `inView()` resolves a promise the first time the element appears.
+
+```ts
+import { scrollProgress, inView } from '@bquery/bquery/motion';
+
+const stop = scrollProgress(section, {
+  onProgress: (p) => (header.style.opacity = String(1 - p)),
+});
+
+await inView(card);
+card.classList.add('visible');
+
+// Reactive variant
+const handle = inView(card, { onChange: (entered) => console.log(entered) });
+// handle.cancel() to detach.
+```
+
+## Micro-interactions
+
+```ts
+import { magnetic, tilt, shake, pulse, countUp } from '@bquery/bquery/motion';
+
+const detachMagnet = magnetic(button, { strength: 0.4, radius: 100 });
+const detachTilt = tilt(card, { max: 12, perspective: 800 });
+
+await shake(input, { duration: 350, intensity: 6 });
+await pulse(badge, { iterations: 3, scale: 1.12 });
+await countUp(counter, 0, 1234, { duration: 1200, suffix: ' visits' });
+```
+
+All micro-interactions respect `prefers-reduced-motion` by default.
+
+## Sequence
+
+```ts
+import { sequence } from '@bquery/bquery/motion';
+
+await sequence([
+  { target: itemA, keyframes: keyframePresets.fadeIn(), options: { duration: 120 } },
+  { target: itemB, keyframes: keyframePresets.fadeIn(), options: { duration: 120 } },
+]);
+```
+
+## Stagger (linear, grid, randomized)
+
+```ts
+import { stagger } from '@bquery/bquery/motion';
+
+const center = stagger(50, { from: 'center' });
+const grid = stagger(40, { grid: [4, 4], from: { x: 0, y: 0 } });
+const rowOnly = stagger(30, { grid: [4, 4], from: { x: 0, y: 0 }, axis: 'x' });
+const chaotic = stagger(20, { random: true, randomSeed: 42 });
 ```
 
 ## Scroll animations
@@ -271,8 +448,26 @@ await x.to(120);
 
 - `to(target)` – animate to target
 - `current()` – get current value
+- `velocity(value?)` – read or inject the spring's instantaneous velocity
+- `set(value)` – snap to a value without animating (resets velocity)
 - `stop()` – stop animation
 - `onChange(callback)` – subscribe to updates
+
+Available presets: `gentle`, `snappy`, `bouncy`, `stiff`, `wobbly`, `slow`, `molasses`.
+
+### Multi-dimensional springs
+
+`springVector()` drives multiple springs in lockstep. `to()` resolves only
+after every dimension has settled.
+
+```ts
+import { springVector, springPresets } from '@bquery/bquery/motion';
+
+const pos = springVector({ x: 0, y: 0 }, springPresets.snappy);
+pos.onChange(({ x, y }) => (el.style.transform = `translate(${x}px, ${y}px)`));
+await pos.to({ x: 120, y: 40 });
+pos.set({ x: 0, y: 0 });
+```
 
 ## Combining animations
 

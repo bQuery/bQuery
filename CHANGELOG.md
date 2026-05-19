@@ -84,6 +84,15 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
+- **Motion / Easing**: Full Penner easing family — `easeIn`/`easeOut`/`easeInOut` variants of `Quart`, `Quint`, `Sine`, `Expo`, `Circ`, `Back`, `Elastic`, and `Bounce` are now exported and mirrored in `easingPresets`. Added the `cubicBezier(x1, y1, x2, y2)` factory (Newton-Raphson refinement matching CSS `cubic-bezier()`), `steps(count, position?)` factory mirroring CSS `steps()`, and the `mix(a, b, weight)` / `chain(...easings)` composers.
+- **Motion / Tweens**: New `animateValue<T>()` and `tween<T>()` interpolate numbers, number arrays, or `Record<string, number>` between `from` and `to` using `requestAnimationFrame`. `tween()` returns full imperative controls (`pause`/`resume`/`reverse`/`seek`/`stop`/`progress`) with a `finished` promise, supports an `AbortSignal`, and respects `prefers-reduced-motion`.
+- **Motion / `animate()` controls**: `animate()` now accepts a `signal: AbortSignal` to cancel mid-flight and a `playbackRate` override. New `animateTo(element, styles, opts)` ergonomic wrapper turns a CSS property record (or `[from, to]` tuples) into keyframes.
+- **Motion / Springs**: `spring()` instances now expose `.velocity(v?)` and `.set(v)` for gesture-driven workflows. New `springVector(dims, config)` drives coordinated multi-dimensional motion. `springPresets` expands with `wobbly`, `slow`, and `molasses` presets.
+- **Motion / Timeline**: Timelines now support labels (`addLabel(name, at?)` + label-relative `at` strings like `'label+=200'`), `reverse()`, `playbackRate(n)`, `repeat(count|'infinite')`, `yoyo(boolean)`, `onUpdate(time)` subscriptions, and a `progress()` getter in `[0, 1]`.
+- **Motion / New primitives**: `scrollProgress(element, opts)` exposes a 0..1 scroll-linked stream; `inView(element, opts)` resolves a thenable on enter (with an optional reactive `onChange` callback); `magnetic(element, opts)`, `tilt(element, opts)`, `shake(element, opts)`, `pulse(element, opts)`, and `countUp(element, from, to, opts)` cover the micro-interaction toolkit. All effects honor `prefers-reduced-motion` by default.
+- **Motion / Stagger**: `stagger()` gains `grid: [cols, rows]` + `from: { x, y }` 2D origins, an `axis: 'x' | 'y'` distance restriction, and a deterministic `random` option (with optional `randomSeed`).
+- **Motion / Reduced motion**: `onReducedMotionChange(callback)` subscribes to changes (system preference *or* `setReducedMotion()` override) and returns an unsubscribe; `reducedMotionSignal()` exposes the same value as a reactive `ReadonlySignal<boolean>` for `view`/components.
+
 ### Fixed (Unreleased)
 
 ## [1.13.0] - 2026-05-19

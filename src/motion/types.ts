@@ -79,10 +79,44 @@ export interface Spring {
   to(target: number): Promise<void>;
   /** Get current animated value */
   current(): number;
+  /**
+   * Read or set the spring's velocity.
+   * Call with no argument to read; pass a number to inject velocity
+   * (useful for continuing motion after a gesture release).
+   */
+  velocity(value?: number): number;
+  /** Snap to a value instantly without animation; resets velocity. */
+  set(value: number): void;
   /** Stop the animation */
   stop(): void;
   /** Subscribe to value changes */
   onChange(callback: (value: number) => void): () => void;
+}
+
+/**
+ * A single dimension within a {@link SpringVector}.
+ */
+export type SpringVectorEntry = Spring;
+
+/**
+ * Coordinated multi-dimensional spring driver returned by
+ * `springVector()`.
+ */
+export interface SpringVector<T extends Record<string, number>> {
+  /** Animate one or more dimensions toward target values. */
+  to(target: Partial<T>): Promise<void>;
+  /** Snapshot of the current value per dimension. */
+  current(): T;
+  /** Read or inject velocity per dimension. */
+  velocity(value?: Partial<T>): T;
+  /** Snap one or more dimensions to a value instantly. */
+  set(value: Partial<T>): void;
+  /** Stop every dimension. */
+  stop(): void;
+  /** Subscribe to combined value changes. */
+  onChange(callback: (value: T) => void): () => void;
+  /** Access the per-dimension underlying springs (advanced use). */
+  dimensions(): Record<keyof T & string, SpringVectorEntry>;
 }
 
 /**
@@ -99,6 +133,10 @@ export interface AnimateOptions {
   respectReducedMotion?: boolean;
   /** Callback when animation completes */
   onFinish?: () => void;
+  /** Optional `AbortSignal` to cancel the animation early. */
+  signal?: AbortSignal;
+  /** Override the animation's `playbackRate` (e.g. `0.5` for slow motion). */
+  playbackRate?: number;
 }
 
 /**
@@ -107,10 +145,34 @@ export interface AnimateOptions {
 export interface StaggerOptions {
   /** Start delay in milliseconds (default: 0) */
   start?: number;
-  /** Origin index or keyword (default: 'start') */
-  from?: 'start' | 'center' | 'end' | number;
+  /**
+   * Origin index or keyword. Accepts:
+   * - `'start'` | `'center'` | `'end'`,
+   * - a numeric index (linear mode),
+   * - a `{ x, y }` cell coordinate (grid mode).
+   * Default: `'start'`.
+   */
+  from?: 'start' | 'center' | 'end' | number | { x: number; y: number };
   /** Optional easing function for normalized distance */
   easing?: EasingFunction;
+  /**
+   * Enable grid mode by supplying `[columns, rows]`. Distance is measured
+   * across the 2D layout from `from` (which may be a `{ x, y }` cell).
+   */
+  grid?: [number, number];
+  /**
+   * In grid mode, restrict the distance metric to a single axis.
+   * Default: 2D Euclidean distance.
+   */
+  axis?: 'x' | 'y';
+  /**
+   * Randomize the per-index distance. When `true`, each index gets a
+   * partially shuffled delay derived from `Math.random()` (or `randomSeed`
+   * when provided for deterministic output).
+   */
+  random?: boolean;
+  /** Optional integer seed for the randomized variant. */
+  randomSeed?: number;
 }
 
 /**
@@ -137,6 +199,11 @@ export interface SequenceOptions {
 }
 
 /**
+ * Repeat count for a {@link TimelineControls}. Pass `'infinite'` to loop forever.
+ */
+export type TimelineRepeat = number | 'infinite';
+
+/**
  * Timeline step configuration.
  */
 export interface TimelineStep {
@@ -146,8 +213,14 @@ export interface TimelineStep {
   keyframes: Keyframe[] | PropertyIndexedKeyframes;
   /** Animation options for this step */
   options?: KeyframeAnimationOptions;
-  /** Absolute or relative start time in milliseconds */
-  at?: number | `+=${number}` | `-=${number}`;
+  /**
+   * Absolute or relative start time. Accepts:
+   * - a number in milliseconds (absolute),
+   * - a `+=N` / `-=N` offset from the previous step's end,
+   * - a label name (e.g. `'label'`),
+   * - a label-relative offset (e.g. `'label+=200'`, `'label-=50'`).
+   */
+  at?: number | string;
   /** Optional label for debugging */
   label?: string;
 }
@@ -180,8 +253,41 @@ export interface TimelineControls {
   seek(time: number): void;
   /** Add a step to the timeline */
   add(step: TimelineStep): void;
+  /**
+   * Add a named label at the given timeline time. If `at` is omitted, the
+   * label is positioned at the end of the currently scheduled steps.
+   * Accepts the same `at` formats as {@link TimelineStep.at}.
+   */
+  addLabel(name: string, at?: number | string): void;
+  /** Look up the absolute time (ms) of a label. */
+  label(name: string): number | undefined;
   /** Total timeline duration in milliseconds */
   duration(): number;
+  /**
+   * Reverse the running direction. Playback continues from the current
+   * `currentTime` in the opposite direction.
+   */
+  reverse(): void;
+  /**
+   * Read or set the playback rate. A rate of `2` plays twice as fast; `0.5`
+   * plays half-speed. Negative rates reverse the animation. Returns the
+   * effective playback rate.
+   */
+  playbackRate(value?: number): number;
+  /**
+   * Repeat the timeline N additional times after the first play. Pass
+   * `'infinite'` to loop until `stop()` is called. Default: `0`.
+   */
+  repeat(count: TimelineRepeat): void;
+  /**
+   * When enabled together with {@link repeat}, alternate direction each
+   * iteration (forward, backward, forward …).
+   */
+  yoyo(enabled: boolean): void;
+  /** Current progress in `[0, 1]` based on the timeline's `currentTime`. */
+  progress(): number;
+  /** Subscribe to per-frame `currentTime` updates while playing. */
+  onUpdate(callback: (time: number) => void): () => void;
   /** Subscribe to finish events */
   onFinish(callback: () => void): () => void;
 }

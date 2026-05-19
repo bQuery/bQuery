@@ -4,7 +4,7 @@
  * @module bquery/motion
  */
 
-import type { Spring, SpringConfig } from './types';
+import type { Spring, SpringConfig, SpringVector, SpringVectorEntry } from './types';
 
 /**
  * Default spring configuration values.
@@ -117,6 +117,27 @@ export const spring = (initialValue: number, config: SpringConfig = {}): Spring 
       return current;
     },
 
+    velocity(value?: number): number {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        velocity = value;
+      }
+      return velocity;
+    },
+
+    set(value: number): void {
+      if (animationFrame !== null) {
+        cancelAnimationFrame(animationFrame);
+        animationFrame = null;
+      }
+      current = value;
+      target = value;
+      velocity = 0;
+      lastTime = null;
+      notifyListeners();
+      resolvePromise?.();
+      resolvePromise = null;
+    },
+
     stop(): void {
       if (animationFrame !== null) {
         cancelAnimationFrame(animationFrame);
@@ -137,6 +158,9 @@ export const spring = (initialValue: number, config: SpringConfig = {}): Spring 
 
 /**
  * Preset spring configurations for common use cases.
+ *
+ * Includes the original four bQuery presets plus five extended presets
+ * (`wobbly`, `slow`, `molasses`) familiar from popular physics libraries.
  */
 export const springPresets = {
   /** Gentle, slow-settling spring */
@@ -147,4 +171,99 @@ export const springPresets = {
   bouncy: { stiffness: 300, damping: 8 } as SpringConfig,
   /** Stiff, quick spring with minimal overshoot */
   stiff: { stiffness: 400, damping: 30 } as SpringConfig,
+  /** Lively, jiggly spring with pronounced wobble */
+  wobbly: { stiffness: 180, damping: 12 } as SpringConfig,
+  /** Heavy, slow spring suitable for large gestures */
+  slow: { stiffness: 60, damping: 22 } as SpringConfig,
+  /** Very heavy, ponderous spring */
+  molasses: { stiffness: 30, damping: 28, mass: 2 } as SpringConfig,
+};
+
+/**
+ * Drive multiple coupled springs in parallel.
+ *
+ * Each named dimension has its own underlying scalar `spring`, and
+ * `.to()` resolves only after every dimension has settled. Useful for
+ * coordinated 2D / 3D / arbitrary-N motion.
+ *
+ * @param initial - Record of starting values per dimension
+ * @param config - Shared spring physics configuration
+ *
+ * @example
+ * ```ts
+ * const pos = springVector({ x: 0, y: 0 }, springPresets.snappy);
+ * pos.onChange(({ x, y }) => el.style.transform = `translate(${x}px, ${y}px)`);
+ * await pos.to({ x: 100, y: 40 });
+ * ```
+ */
+export const springVector = <T extends Record<string, number>>(
+  initial: T,
+  config: SpringConfig = {}
+): SpringVector<T> => {
+  const keys = Object.keys(initial) as Array<keyof T & string>;
+  const springs = {} as Record<keyof T & string, SpringVectorEntry>;
+  for (const key of keys) {
+    springs[key] = spring(initial[key], config);
+  }
+
+  const listeners = new Set<(value: T) => void>();
+  const snapshot = (): T => {
+    const out = {} as T;
+    for (const key of keys) {
+      (out as Record<string, number>)[key] = springs[key].current();
+    }
+    return out;
+  };
+
+  for (const key of keys) {
+    springs[key].onChange(() => {
+      const snap = snapshot();
+      for (const listener of listeners) listener(snap);
+    });
+  }
+
+  return {
+    to(target: Partial<T>): Promise<void> {
+      const promises: Promise<void>[] = [];
+      for (const key of keys) {
+        const next = target[key];
+        if (typeof next === 'number') {
+          promises.push(springs[key].to(next));
+        }
+      }
+      return Promise.all(promises).then(() => undefined);
+    },
+    current(): T {
+      return snapshot();
+    },
+    velocity(value?: Partial<T>): T {
+      const out = {} as T;
+      for (const key of keys) {
+        const v = value?.[key];
+        const result = springs[key].velocity(typeof v === 'number' ? v : undefined);
+        (out as Record<string, number>)[key] = result;
+      }
+      return out;
+    },
+    set(value: Partial<T>): void {
+      for (const key of keys) {
+        const next = value[key];
+        if (typeof next === 'number') {
+          springs[key].set(next);
+        }
+      }
+    },
+    stop(): void {
+      for (const key of keys) springs[key].stop();
+    },
+    onChange(callback: (value: T) => void): () => void {
+      listeners.add(callback);
+      return () => {
+        listeners.delete(callback);
+      };
+    },
+    dimensions(): Record<keyof T & string, SpringVectorEntry> {
+      return springs;
+    },
+  };
 };
