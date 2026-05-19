@@ -481,7 +481,7 @@ export const arrayOf = <T>(
   itemValidator: Validator<T>,
   message?: string
 ): Validator<readonly T[]> => {
-  return (value: readonly T[]) => {
+  return ((value: readonly T[]) => {
     if (!Array.isArray(value)) return true;
     let index = 0;
     for (const item of value) {
@@ -517,11 +517,12 @@ export const arrayOf = <T>(
       index += 1;
     }
     return true;
-  };
+  }) as Validator<readonly T[]>;
 };
 
 // ---------------------------------------------------------------------------
 // Conditional required
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 
 /**
@@ -598,7 +599,7 @@ const toDate = (value: unknown): Date | undefined => {
  * @param message - Custom error message (default: `'Invalid date'`)
  * @returns A sync validator function
  */
-export const isDate = (message = 'Invalid date'): SyncValidator<unknown> => {
+export const validDate = (message = 'Invalid date'): SyncValidator<unknown> => {
   return (value: unknown) => {
     if (value == null || value === '') return true;
     return toDate(value) ? true : message;
@@ -746,7 +747,7 @@ const resolveResult = (result: ValidationResult): string | undefined =>
  * ```
  */
 export const compose = <T = unknown>(...validators: Validator<T>[]): Validator<T> => {
-  return (value: T) => {
+  return ((value: T) => {
     for (let i = 0; i < validators.length; i += 1) {
       const result = validators[i](value);
       if (isPromise(result)) {
@@ -767,7 +768,7 @@ export const compose = <T = unknown>(...validators: Validator<T>[]): Validator<T
       if (resolved !== undefined) return resolved;
     }
     return true;
-  };
+  }) as Validator<T>;
 };
 
 /**
@@ -784,7 +785,7 @@ export const all = <T = unknown>(
   validators: Validator<T>[],
   separator = '; '
 ): Validator<T> => {
-  return (value: T) => {
+  return ((value: T) => {
     const results: (ValidationResult | Promise<ValidationResult>)[] = [];
     let anyAsync = false;
     for (const v of validators) {
@@ -808,7 +809,7 @@ export const all = <T = unknown>(
       }
       return errors.length === 0 ? true : errors.join(separator);
     })();
-  };
+  }) as Validator<T>;
 };
 
 /**
@@ -824,7 +825,7 @@ export const all = <T = unknown>(
  * ```
  */
 export const not = <T = unknown>(validator: Validator<T>, message = 'Invalid value'): Validator<T> => {
-  return (value: T) => {
+  return ((value: T) => {
     const result = validator(value);
     if (isPromise(result)) {
       return (async () => {
@@ -833,7 +834,7 @@ export const not = <T = unknown>(validator: Validator<T>, message = 'Invalid val
       })();
     }
     return result === true || result === undefined ? message : true;
-  };
+  }) as Validator<T>;
 };
 
 /**
@@ -852,7 +853,7 @@ export const withMessage = <T = unknown>(
   validator: Validator<T>,
   message: string
 ): Validator<T> => {
-  return (value: T) => {
+  return ((value: T) => {
     const result = validator(value);
     if (isPromise(result)) {
       return (async () => {
@@ -861,7 +862,7 @@ export const withMessage = <T = unknown>(
       })();
     }
     return result === true || result === undefined ? true : message;
-  };
+  }) as Validator<T>;
 };
 
 // (Type re-exports happen through src/forms/index.ts barrel.)

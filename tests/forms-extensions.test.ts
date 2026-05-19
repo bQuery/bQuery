@@ -15,7 +15,7 @@ import {
   fileType,
   hydrateForm,
   integer,
-  isDate,
+  validDate,
   length,
   minLength,
   not,
@@ -31,7 +31,6 @@ import {
   useFormField,
   withMessage,
 } from '../src/forms/index';
-import { signal } from '../src/reactive/index';
 
 // ---------------------------------------------------------------------------
 // New validators
@@ -141,11 +140,11 @@ describe('forms/validators (new)', () => {
     });
   });
 
-  describe('isDate / dateAfter / dateBefore', () => {
+  describe('validDate / dateAfter / dateBefore', () => {
     it('accepts valid date strings and Date instances', () => {
-      expect(isDate()('2024-01-01')).toBe(true);
-      expect(isDate()(new Date())).toBe(true);
-      expect(isDate()('not a date')).toBe('Invalid date');
+      expect(validDate()('2024-01-01')).toBe(true);
+      expect(validDate()(new Date())).toBe(true);
+      expect(validDate()('not a date')).toBe('Invalid date');
     });
     it('checks before/after correctly', () => {
       expect(dateAfter('2024-01-01')('2024-06-01')).toBe(true);

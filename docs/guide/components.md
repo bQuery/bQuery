@@ -371,3 +371,130 @@ export const ButtonStory = {
 ```
 
 `storyHtml()` sanitizes interpolated markup and understands Storybook-style boolean attribute shorthand such as `?disabled=${true}`.
+
+## What's new in 1.13.0 — Component framework parity
+
+`@bquery/bquery/component` gained a set of additive primitives that bring it to
+parity with mainstream component frameworks while staying zero-dependency and
+sanitizer-safe. None of the existing APIs changed.
+
+### Refs and slots
+
+```ts
+import { useRef, useSlot, hasSlot, slotText } from '@bquery/bquery/component';
+
+component('focus-input', {
+  connected() {
+    const input = useRef<HTMLInputElement>();
+    const items = useSlot(this, 'item'); // Signal<Element[]>
+    useEffect(() => console.log('Items:', items.value.length));
+    queueMicrotask(() => input.bind(this.shadowRoot!.querySelector('input')!));
+  },
+  render: () => html`<input /><slot name="item"></slot>`,
+});
+```
+
+### Delegated event handlers (no inline `on*` attributes, no `eval`)
+
+```ts
+import { onClick, bindDelegatedEvents } from '@bquery/bquery/component';
+
+component('counter', {
+  connected() { bindDelegatedEvents(this); },
+  state: { n: 0 },
+  render({ state }) {
+    return html`<button ${onClick(() => state.n += 1)}>+ ${state.n}</button>`;
+  },
+});
+```
+
+Handlers are stored in a WeakMap keyed by opaque IDs, so the sanitizer never
+sees inline JavaScript.
+
+### Dependency injection
+
+```ts
+import { provide, inject, injectionKey } from '@bquery/bquery/component';
+
+const ThemeKey = injectionKey<{ dark: boolean }>('theme');
+
+component('app-shell', {
+  connected() { provide(this, ThemeKey, { dark: true }); },
+  render: () => html`<slot></slot>`,
+});
+
+component('themed-button', {
+  connected() {
+    const theme = inject(this, ThemeKey, { dark: false });
+    console.log(theme!.dark);
+  },
+  render: () => html`<button><slot></slot></button>`,
+});
+```
+
+Uses a typed `CustomEvent` over the composed path — no globals.
+
+### Lifecycle additions
+
+- `beforeUnmount()` — symmetric to `beforeMount`, runs before disconnect cleanup.
+- `errorBoundary(error, info)` — returning a string renders that markup as a
+  fallback when `render()` throws.
+- `whenIdle(fn)` — scope-tracked `requestIdleCallback` with `setTimeout` fallback.
+
+### Async data
+
+```ts
+import { useAsync } from '@bquery/bquery/component';
+
+connected() {
+  const { data, error, loading, refresh } = useAsync(async (signal) =>
+    (await fetch('/api/me', { signal })).json()
+  );
+}
+```
+
+Aborts via `AbortController` when the component disconnects or `refresh()` is
+re-invoked.
+
+### Imperative props (non-string objects)
+
+```ts
+host.setProp('items', ['a', 'b']);
+const current = host.getProp<string[]>('items');
+```
+
+Triggers a re-render and bypasses attribute serialization for arrays, objects,
+and callbacks.
+
+### `css` tagged template + adoptable stylesheets
+
+```ts
+import { component, css, html } from '@bquery/bquery/component';
+
+component('themed-card', {
+  styles: css`
+    :host { display: block; padding: 1rem; }
+    h2 { color: ${'#0066cc'}; }
+  `,
+  render: () => html`<h2><slot></slot></h2>`,
+});
+```
+
+When Constructable Stylesheets are available, the underlying CSS is shared
+across instances via `document.adoptedStyleSheets`. Otherwise the existing
+`<style>`-tag pathway is used. Interpolations are CSS-escaped.
+
+### Keyed lists
+
+```ts
+import { keyedList, reconcileKeyed } from '@bquery/bquery/component';
+
+render({ state }) {
+  return html`<ul>${keyedList(state.items, (it) => it.id, (it) =>
+    `<li>${it.text}</li>`
+  )}</ul>`;
+}
+updated() {
+  reconcileKeyed(this.shadowRoot!.querySelector('ul')!);
+}
+```

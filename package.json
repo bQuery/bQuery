@@ -1,6 +1,6 @@
 {
   "name": "@bquery/bquery",
-  "version": "1.12.0",
+  "version": "1.13.0",
   "description": "bQuery.js — batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
   "type": "module",
   "main": "./dist/full.umd.js",

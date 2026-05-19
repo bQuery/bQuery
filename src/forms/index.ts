@@ -34,6 +34,7 @@ export { createFieldArray } from './field-array';
 export { field, schema } from './schema';
 export { bindField, bindForm } from './bind';
 export { hydrateForm, readSerializedFormState, serializeFormState } from './ssr';
+export { useField, useFieldArray, useForm } from './composables';
 
 export {
   all,
@@ -48,7 +49,7 @@ export {
   fileSize,
   fileType,
   integer,
-  isDate,
+  validDate,
   length,
   matchField,
   max,

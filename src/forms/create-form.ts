@@ -198,7 +198,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     const { field, initial, stopDirtyEffect } = createField(
       fieldConfig as FieldConfig<T[typeof name]>
     );
-    (fields as Record<string, FormField>)[name] = field;
+    (fields as Record<string, FormField>)[name] = field as FormField;
     (errors as Record<string, typeof field.error>)[name] = field.error;
     runtime[name] = {
       field: field as FormField<unknown>,
