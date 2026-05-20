@@ -39,14 +39,40 @@ export { component, defineComponent } from './component';
 export { bool, html, safeHtml } from './html';
 export { registerDefaultComponents } from './library';
 export { useComputed, useEffect, useSignal } from './scope';
+export { useRef } from './refs';
+export type { Ref } from './refs';
+export { hasSlot, slotText, useSlot } from './slots';
+export {
+  bindDelegatedEvents,
+  on,
+  onChange,
+  onClick,
+  onInput,
+  onSubmit,
+} from './events';
+export {
+  formContextKey,
+  inject,
+  injectionKey,
+  provide,
+} from './inject';
+export type { InjectionKey } from './inject';
+export { useAsync, whenIdle } from './async';
+export type { UseAsyncResult } from './async';
+export { applyAdoptedStyles, css, isComponentStyles } from './css';
+export type { ComponentStyles } from './css';
+export { keyedList, reconcileKeyed } from './keyed-list';
 export type { DefaultComponentLibraryOptions, RegisteredDefaultComponents } from './library';
 export type {
   AttributeChange,
+  ComponentClass,
   ComponentDefinition,
+  ComponentElement,
   ComponentRenderContext,
-  ComponentStateKey,
   ComponentSignalLike,
   ComponentSignals,
+  ComponentStateKey,
+  ComponentStateShape,
   PropDefinition,
   ShadowMode,
 } from './types';

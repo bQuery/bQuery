@@ -11,6 +11,9 @@ and this project adheres to Semantic Versioning.
   - [Unreleased](#unreleased)
     - [Added (Unreleased)](#added-unreleased)
     - [Fixed (Unreleased)](#fixed-unreleased)
+  - [\[1.13.0\] - 2026-05-19](#1130---2026-05-19)
+    - [Added (1.13.0)](#added-1130)
+    - [Changed (1.13.0)](#changed-1130)
   - [\[1.12.0\] - 2026-05-16](#1120---2026-05-16)
     - [Added (1.12.0)](#added-1120)
     - [Changed (1.12.0)](#changed-1120)
@@ -82,6 +85,33 @@ and this project adheres to Semantic Versioning.
 ### Added (Unreleased)
 
 ### Fixed (Unreleased)
+
+## [1.13.0] - 2026-05-19
+
+### Added (1.13.0)
+
+- **Forms / Validators**: Added a batteries-included set of tree-shakeable validators to `@bquery/bquery/forms` — `integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType` — plus combinators `compose`, `all`, `not`, and `withMessage`. (`validDate` is exported under that name to avoid collision with the existing `isDate` type guard in `@bquery/bquery/core`.)
+- **Forms / Field state**: Lifted `isValidating`, `isFocused`, and `dirtySince` signals onto every `FormField`. Added per-field helpers `focus()`, `blur()`, `setValue(value, { touch, validate, silent })`, `setError(message)`, `clearError()`, a `disabled` signal that excludes the field from validation, and per-field `validateOn` / `debounceMs` parity with `useFormField`. `FieldConfig` now accepts `parse` and `format` for programmatic inbound/outbound value normalization.
+- **Forms / Form state**: Added `submitCount`, `lastSubmittedAt`, `submitError`, aggregated `isValidating` and `isPristine`, and helpers `touchAll()`, `untouchAll()`, `resetField(name)`, `resetErrors()`, `getDirtyValues()`, and `subscribe(listener)`. `FormConfig` now accepts `onSubmitError`, `onSubmitSuccess`, `validationStrategy`, and `mode: 'all' | 'first'`.
+- **Forms / Field arrays**: Added `createFieldArray({ initial, factory, validators })` with `add`, `remove`, `move`, `insert`, `clear`, `items`, and `length` for dynamic repeating field groups.
+- **Forms / Schema**: Added a fluent `schema({ name: field<string>().required().minLength(2), … })` helper that composes existing validator factories into a `FieldConfig` map.
+- **Forms / DOM bindings**: Added `bindField(field, element, options?)` and `bindForm(form, formElement, options?)` to bridge `Form` and `FormField` instances to standard inputs, selects, textareas, checkboxes, radios, file inputs, and `[contenteditable]` elements; both return cleanup functions. `bindForm` auto-discovers `[name]` inputs, marks `aria-invalid`, and supports a configurable error slot mapper.
+- **Forms / Composables**: Added scope-aware `useForm`, `useField`, and `useFieldArray` wrappers that auto-dispose with the owning component.
+- **Forms / SSR**: Added `serializeFormState(id, form.snapshot())`, `readSerializedFormState(id)`, and `hydrateForm(form, id)` helpers (built on `src/ssr/escape.ts`) so server-rendered form state can resume on the client.
+- **Component / Refs**: Added `useRef<T>()` that auto-clears on disconnect.
+- **Component / Slots**: Added `useSlot(host, name?)` (reactive `Signal<Element[]>`), `hasSlot(host, name?)`, and `slotText(host, name?)`.
+- **Component / Events**: Added sanitizer-safe delegated event helpers `on(event, handler)`, `onClick`, `onInput`, `onChange`, `onSubmit`, and `bindDelegatedEvents(host)`. Handlers are stored in a module-level map keyed by opaque IDs; templates only carry `data-bq-on-<event>="<id>"` attributes.
+- **Component / DI**: Added `provide(host, key, value)`, `inject(host, key, fallback?)`, `injectionKey<T>(description)`, and the `formContextKey` for letting inputs auto-bind to an enclosing `<bq-form>` without globals.
+- **Component / Lifecycle**: Added `beforeUnmount` and `errorBoundary(error, info)` hooks on `ComponentDefinition`, plus a scope-tracked `whenIdle(fn)` helper.
+- **Component / Async**: Added `useAsync(fn)` returning `{ data, error, loading, refresh }` signals with `AbortController`-aware cancellation.
+- **Component / Props**: Added imperative `setProp(name, value)` and `getProp(name)` methods on every component instance for non-string objects (arrays, callbacks) that bypass attribute serialization.
+- **Component / Styles**: Added a `css` tagged template literal that produces a `ComponentStyles` payload. When Constructable Stylesheets are available the styles are shared via `document.adoptedStyleSheets`; otherwise the existing `<style>` element pathway is used. Interpolated values are CSS-escaped.
+- **Component / Lists**: Added `keyedList(items, keyFn, renderItem)` and `reconcileKeyed(container)` for keyed list rendering inside shadow DOM.
+
+### Changed (1.13.0)
+
+- **Full bundle**: `src/full.ts` re-exports every new public forms and component runtime/type surface; `bun run check:full-bundle` continues to enforce drift detection.
+- **AI guidance**: AGENT.md, llms.txt, copilot-instructions, Cursor / Cline rules, and CHANGELOG were refreshed for the 1.13.0 baseline. `bun run check:ai-guidance` passes.
 
 ## [1.12.0] - 2026-05-16
 

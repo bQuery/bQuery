@@ -15,7 +15,7 @@
 
 ---
 
-> **New in 1.12.0:** Store plugins now support teardown via `unregisterPlugin()` and `clearPlugins()`, Reactive WebSocket helpers expose the public `WebSocketSendData` payload type, and the `/full` bundle validation now catches runtime and type export drift before release. The runtime-agnostic SSR/server surface from 1.11.x remains first-class.
+> **New in 1.13.0:** `@bquery/bquery/forms` graduates into a true batteries-included tier with many new validators (`integer`, `between`, `oneOf`, `arrayOf`, `requiredIf`, `dateAfter`, `fileSize`, …), combinators (`compose`, `all`, `not`, `withMessage`), dynamic field arrays (`createFieldArray`), a fluent `schema()` builder, two-way DOM bindings (`bindForm`, `bindField`), scope-aware composables (`useForm`, `useField`, `useFieldArray`), and SSR resumability. `@bquery/bquery/component` adds slot/ref helpers (`useSlot`, `useRef`), DI (`provide`/`inject`), `beforeUnmount` and `errorBoundary` hooks, `useAsync`/`whenIdle`, sanitizer-safe delegated events (`on`/`onClick`/…), a `css` tagged template with adoptable stylesheets, and keyed list rendering. All existing APIs from 1.12.x and earlier remain unchanged.
 
 ## Highlights
 

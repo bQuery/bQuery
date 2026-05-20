@@ -4,56 +4,104 @@
  * @module bquery/forms
  */
 
-import { computed, signal } from '../reactive/index';
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { isPromise } from '../core/utils/type-guards';
+import { computed, effect, signal } from '../reactive/index';
+import type { Signal } from '../reactive/index';
 import type {
   CrossFieldValidator,
   FieldConfig,
   Form,
+  FormChangeListener,
   FormConfig,
   FormErrors,
   FormField,
   FormFields,
+  FormSnapshot,
+  SetFieldValueOptions,
   ValidationResult,
   Validator,
 } from './types';
 
-/**
- * Determines whether a validator returned a valid result.
- * @internal
- */
 const isValid = (result: ValidationResult): boolean => result === true || result === undefined;
 
-/**
- * Runs a single validator, normalising sync and async results.
- * @internal
- */
+/** @internal */
 const runValidator = async <T>(validator: Validator<T>, value: T): Promise<string | undefined> => {
   const result = validator(value);
   const resolved = isPromise(result) ? await result : result;
   return isValid(resolved) ? undefined : (resolved as string);
 };
 
-/**
- * Creates a reactive form field from its configuration.
- * @internal
- */
-const createField = <T>(config: FieldConfig<T>): FormField<T> => {
+/** @internal */
+type FieldRuntime = {
+  field: FormField<unknown>;
+  config: FieldConfig<unknown>;
+  parse: (raw: unknown) => unknown;
+  format: (value: unknown) => unknown;
+  blurCount: Signal<number>;
+  consumeSilentNotifyWrite: () => boolean;
+  consumeSilentValidationWrite: () => boolean;
+};
+
+const fieldValidationIds = new WeakMap<FormField<unknown>, number>();
+
+/** @internal */
+const createField = <T>(
+  config: FieldConfig<T>
+): {
+  field: FormField<T>;
+  stopDirtyEffect: () => void;
+  blurCount: Signal<number>;
+  consumeSilentNotifyWrite: () => boolean;
+  consumeSilentValidationWrite: () => boolean;
+} => {
   const initial = config.initialValue;
   const value = signal<T>(initial);
   const error = signal('');
   const isTouched = signal(false);
+  const isValidating = signal(false);
+  const isFocused = signal(false);
+  const disabled = signal<boolean>(config.disabled === true);
+  const dirtySince = signal<number | null>(null);
+  const blurCount = signal(0);
+  let pendingSilentNotifyWrites = 0;
+  let pendingSilentValidationWrites = 0;
+
+  // Track dirtySince reactively so that any write — via setValue, direct
+  // .value mutation, or setValues() — keeps the timestamp in sync.
+  const stopDirtyEffect = effect(() => {
+    const v = value.value;
+    if (!Object.is(v, initial)) {
+      if (dirtySince.peek() === null) dirtySince.value = Date.now();
+    } else if (dirtySince.peek() !== null) {
+      dirtySince.value = null;
+    }
+  });
 
   const isDirty = computed(() => !Object.is(value.value, initial));
   const isPristine = computed(() => !isDirty.value);
 
-  return {
+  const setValue = (next: T, options: SetFieldValueOptions = {}): void => {
+    if (options.silent) {
+      pendingSilentNotifyWrites += 1;
+      pendingSilentValidationWrites += 1;
+    }
+    value.value = next;
+    if (options.touch) {
+      isTouched.value = true;
+    }
+  };
+
+  const field: FormField<T> = {
     value,
     error,
     isDirty,
     isTouched,
     isPristine,
+    isValidating,
+    isFocused,
+    disabled,
+    dirtySince,
     touch: () => {
       isTouched.value = true;
     },
@@ -61,49 +109,111 @@ const createField = <T>(config: FieldConfig<T>): FormField<T> => {
       value.value = initial;
       error.value = '';
       isTouched.value = false;
+      isValidating.value = false;
+      isFocused.value = false;
+      dirtySince.value = null;
+      disabled.value = config.disabled === true;
+    },
+    setValue,
+    setError: (message: string) => {
+      error.value = message;
+    },
+    clearError: () => {
+      error.value = '';
+    },
+    focus: () => {
+      isFocused.value = true;
+    },
+    blur: () => {
+      isFocused.value = false;
+      isTouched.value = true;
+      blurCount.value = blurCount.peek() + 1;
+    },
+  };
+
+  return {
+    field,
+    stopDirtyEffect,
+    blurCount,
+    consumeSilentNotifyWrite: () => {
+      if (pendingSilentNotifyWrites <= 0) return false;
+      pendingSilentNotifyWrites -= 1;
+      return true;
+    },
+    consumeSilentValidationWrite: () => {
+      if (pendingSilentValidationWrites <= 0) return false;
+      pendingSilentValidationWrites -= 1;
+      return true;
     },
   };
 };
 
-/**
- * Validates a single field against its validators.
- * Sets the field's error signal.
- *
- * @returns The first error message, or an empty string if valid.
- * @internal
- */
+/** @internal */
 const validateSingleField = async <T>(
   field: FormField<T>,
-  validators: Validator<T>[] | undefined
+  validators: Validator<T>[] | undefined,
+  mode: 'first' | 'all'
 ): Promise<string> => {
+  const currentValidationId = (fieldValidationIds.get(field as FormField<unknown>) ?? 0) + 1;
+  fieldValidationIds.set(field as FormField<unknown>, currentValidationId);
+
+  if (field.disabled.peek()) {
+    if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.isValidating.value = false;
+      field.error.value = '';
+    }
+    return '';
+  }
   if (!validators || validators.length === 0) {
-    field.error.value = '';
+    if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.isValidating.value = false;
+      field.error.value = '';
+    }
     return '';
   }
 
-  for (const validator of validators) {
-    const errorMsg = await runValidator(validator, field.value.value);
-    if (errorMsg) {
-      field.error.value = errorMsg;
-      return errorMsg;
+  field.isValidating.value = true;
+  try {
+    const currentValue = field.value.peek();
+    if (mode === 'first') {
+      for (const validator of validators) {
+        const msg = await runValidator(validator, currentValue);
+        if (fieldValidationIds.get(field as FormField<unknown>) !== currentValidationId) {
+          return field.error.peek();
+        }
+        if (msg) {
+          field.error.value = msg;
+          return msg;
+        }
+      }
+      field.error.value = '';
+      return '';
+    }
+    const messages: string[] = [];
+    for (const validator of validators) {
+      const msg = await runValidator(validator, currentValue);
+      if (fieldValidationIds.get(field as FormField<unknown>) !== currentValidationId) {
+        return field.error.peek();
+      }
+      if (msg) messages.push(msg);
+    }
+    if (messages.length === 0) {
+      field.error.value = '';
+      return '';
+    }
+    const joined = messages.join('; ');
+    field.error.value = joined;
+    return joined;
+  } finally {
+    if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.isValidating.value = false;
     }
   }
-
-  field.error.value = '';
-  return '';
 };
 
 /**
  * Creates a fully reactive form with field-level validation,
  * dirty/touched tracking, cross-field validation, and submission handling.
- *
- * Each field's `value`, `error`, `isDirty`, `isTouched`, and `isPristine`
- * are reactive signals/computed values that can be used in effects, computed
- * values, or directly read/written.
- *
- * @template T - Shape of the form values (e.g. `{ name: string; age: number }`)
- * @param config - Form configuration with field definitions, validators, and submit handler
- * @returns A reactive {@link Form} instance
  *
  * @example
  * ```ts
@@ -116,26 +226,12 @@ const validateSingleField = async <T>(
  *     age:   { initialValue: 0,  validators: [min(18, 'Must be 18+')] },
  *   },
  *   onSubmit: async (values) => {
- *     await fetch('/api/register', {
- *       method: 'POST',
- *       body: JSON.stringify(values),
- *     });
+ *     await fetch('/api/register', { method: 'POST', body: JSON.stringify(values) });
  *   },
  * });
- *
- * // Read reactive state
- * console.log(form.isValid.value);          // true (initially, before validation runs)
- * console.log(form.fields.name.value.value); // ''
- *
- * // Update a field
- * form.fields.name.value.value = 'Ada';
- *
- * // Validate and submit
- * await form.handleSubmit();
  * ```
  */
 export const createForm = <T extends Record<string, unknown>>(config: FormConfig<T>): Form<T> => {
-  // Build reactive field objects
   const fieldEntries = Object.entries(config.fields) as [
     keyof T & string,
     FieldConfig<T[keyof T]>,
@@ -143,76 +239,237 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
   const fields = {} as FormFields<T>;
   const errors = {} as FormErrors<T>;
+  const runtime: Record<string, FieldRuntime> = {};
+  const fieldOrder: string[] = [];
 
+  const stopDirtyEffects: Array<() => void> = [];
   for (const [name, fieldConfig] of fieldEntries) {
-    const field = createField(fieldConfig as FieldConfig<T[typeof name]>);
-    (fields as Record<string, FormField>)[name] = field;
+    const { field, stopDirtyEffect, blurCount, consumeSilentNotifyWrite, consumeSilentValidationWrite } =
+      createField(
+      fieldConfig as FieldConfig<T[typeof name]>
+    );
+    const originalSetValue = field.setValue.bind(field);
+    field.setValue = (next: T[typeof name], options: SetFieldValueOptions = {}) => {
+      originalSetValue(next, options);
+      if (options.validate) {
+        void validateField(name as keyof T & string);
+      }
+    };
+    (fields as Record<string, FormField>)[name] = field as FormField;
     (errors as Record<string, typeof field.error>)[name] = field.error;
+    runtime[name] = {
+      field: field as FormField<unknown>,
+      config: fieldConfig as FieldConfig<unknown>,
+      parse: (fieldConfig as FieldConfig<unknown>).parse ?? ((raw: unknown) => raw),
+      format: (fieldConfig as FieldConfig<unknown>).format ?? ((value: unknown) => value),
+      blurCount,
+      consumeSilentNotifyWrite,
+      consumeSilentValidationWrite,
+    };
+    fieldOrder.push(name);
+    stopDirtyEffects.push(stopDirtyEffect);
   }
 
   const isSubmitting = signal(false);
+  const submitCount = signal(0);
+  const lastSubmittedAt = signal<number | null>(null);
+  const submitError = signal<unknown>(null);
 
-  // Computed: form is valid when all error signals are empty
+  const mode = config.mode ?? 'first';
+  const formStrategy = config.validationStrategy ?? 'manual';
+
   const isFormValid = computed(() => {
-    for (const name of Object.keys(fields)) {
-      if ((fields as Record<string, FormField>)[name].error.value !== '') {
-        return false;
-      }
+    for (const name of fieldOrder) {
+      const f = (fields as Record<string, FormField>)[name];
+      if (f.disabled.value) continue;
+      if (f.error.value !== '') return false;
     }
     return true;
   });
 
-  // Computed: form is dirty when any field is dirty
   const isFormDirty = computed(() => {
-    for (const name of Object.keys(fields)) {
-      if ((fields as Record<string, FormField>)[name].isDirty.value) {
-        return true;
-      }
+    for (const name of fieldOrder) {
+      if ((fields as Record<string, FormField>)[name].isDirty.value) return true;
     }
     return false;
   });
 
-  /**
-   * Validate a single field by name.
-   */
-  const validateField = async (name: keyof T & string): Promise<void> => {
-    const field = (fields as Record<string, FormField>)[name];
-    const fieldConfig = (config.fields as Record<string, FieldConfig>)[name];
-    if (!field || !fieldConfig) return;
-    await validateSingleField(field, fieldConfig.validators);
+  const isFormPristine = computed(() => !isFormDirty.value);
+
+  const isFormValidating = computed(() => {
+    for (const name of fieldOrder) {
+      if ((fields as Record<string, FormField>)[name].isValidating.value) return true;
+    }
+    return false;
+  });
+
+  // --- functions referenced by effects must be defined first ----------------
+
+  const getValues = (): T => {
+    const values = {} as Record<string, unknown>;
+    for (const name of fieldOrder) {
+      const entry = runtime[name];
+      values[name] = entry.format((fields as Record<string, FormField>)[name].value.value);
+    }
+    return values as T;
   };
 
-  /**
-   * Validate all fields (per-field + cross-field).
-   * Returns `true` if the entire form is valid.
-   */
+  const getValuesUntracked = (): T => {
+    const values = {} as Record<string, unknown>;
+    for (const name of fieldOrder) {
+      const entry = runtime[name];
+      values[name] = entry.format((fields as Record<string, FormField>)[name].value.peek());
+    }
+    return values as T;
+  };
+
+  const validateField = async (name: keyof T & string): Promise<void> => {
+    const entry = runtime[name as string];
+    if (!entry) return;
+    await validateSingleField(entry.field, entry.config.validators, mode);
+  };
+
+  // --- subscribe() ----------------------------------------------------------
+
+  const listeners = new Set<FormChangeListener<T>>();
+  let stopValuesEffect: (() => void) | undefined;
+
+  const drainSilentNotifyWrites = (): boolean => {
+    let hasSilentWrite = false;
+    for (const name of fieldOrder) {
+      while (runtime[name].consumeSilentNotifyWrite()) {
+        hasSilentWrite = true;
+      }
+    }
+    return hasSilentWrite;
+  };
+
+  const startValuesEffect = (): void => {
+    if (stopValuesEffect) return;
+
+    drainSilentNotifyWrites();
+    let initialNotifyRun = true;
+    stopValuesEffect = effect(() => {
+      for (const name of fieldOrder) {
+        void (fields as Record<string, FormField>)[name].value.value;
+      }
+      if (initialNotifyRun) {
+        initialNotifyRun = false;
+        return;
+      }
+      if (drainSilentNotifyWrites()) return;
+      const snap = getValuesUntracked();
+      for (const listener of listeners) {
+        try {
+          listener(snap);
+        } catch (listenerError) {
+          console.error('bQuery forms: form change listener threw', listenerError);
+        }
+      }
+    });
+  };
+
+  const subscribe = (listener: FormChangeListener<T>): (() => void) => {
+    listeners.add(listener);
+    startValuesEffect();
+    return () => {
+      listeners.delete(listener);
+      if (listeners.size === 0 && stopValuesEffect) {
+        stopValuesEffect();
+        stopValuesEffect = undefined;
+      }
+    };
+  };
+
+  // --- per-field automatic validation ---------------------------------------
+
+  const stopFieldEffects: Array<() => void> = [];
+  for (const name of fieldOrder) {
+    const entry = runtime[name];
+    const fieldStrategy: 'manual' | 'change' | 'blur' | 'both' =
+      entry.config.validateOn ??
+      (formStrategy === 'onChange'
+        ? 'change'
+        : formStrategy === 'onBlur'
+          ? 'blur'
+          : 'manual');
+    const debounceMs = Math.max(0, entry.config.debounceMs ?? 0);
+
+    if (fieldStrategy === 'manual') continue;
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let firstChangeRun = true;
+    let firstBlurRun = true;
+    const schedule = (): void => {
+      if (debounceMs <= 0) {
+        void validateField(name as keyof T & string);
+        return;
+      }
+      if (timer !== undefined) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = undefined;
+        void validateField(name as keyof T & string);
+      }, debounceMs);
+    };
+
+    if (fieldStrategy === 'change' || fieldStrategy === 'both') {
+      const stop = effect(() => {
+        void entry.field.value.value;
+        if (firstChangeRun) {
+          firstChangeRun = false;
+          return;
+        }
+        let suppressed = false;
+        while (entry.consumeSilentValidationWrite()) {
+          suppressed = true;
+        }
+        if (suppressed) {
+          return;
+        }
+        schedule();
+      });
+      stopFieldEffects.push(stop);
+    }
+    if (fieldStrategy === 'blur' || fieldStrategy === 'both') {
+      const stop = effect(() => {
+        void entry.blurCount.value;
+        if (firstBlurRun) {
+          firstBlurRun = false;
+          return;
+        }
+        schedule();
+      });
+      stopFieldEffects.push(stop);
+    }
+    stopFieldEffects.push(() => {
+      if (timer !== undefined) clearTimeout(timer);
+    });
+  }
+
+  // --- public API -----------------------------------------------------------
+
   const validate = async (): Promise<boolean> => {
     let hasError = false;
 
-    // Per-field validation
-    for (const [name, fieldConfig] of fieldEntries) {
-      const field = (fields as Record<string, FormField>)[name];
-      const error = await validateSingleField(field, (fieldConfig as FieldConfig).validators);
-      if (error) hasError = true;
+    for (const name of fieldOrder) {
+      const entry = runtime[name];
+      const msg = await validateSingleField(entry.field, entry.config.validators, mode);
+      if (msg) hasError = true;
     }
 
-    // Cross-field validation
     if (config.crossValidators && config.crossValidators.length > 0) {
-      const values = getValues();
+      const values = getValuesUntracked();
       for (const crossValidator of config.crossValidators as CrossFieldValidator<T>[]) {
         const crossErrors = await crossValidator(values);
         if (crossErrors) {
-          for (const [fieldName, errorMsg] of Object.entries(crossErrors) as [
+          for (const [fieldName, msg] of Object.entries(crossErrors) as [
             string,
             string | undefined,
           ][]) {
-            if (errorMsg) {
-              const field = (fields as Record<string, FormField>)[fieldName];
-              if (field) {
-                // Only set cross-field error if no per-field error exists
-                if (field.error.value === '') {
-                  field.error.value = errorMsg;
-                }
+            if (msg) {
+              const f = (fields as Record<string, FormField>)[fieldName];
+              if (f && !f.disabled.peek()) {
+                if (f.error.peek() === '') f.error.value = msg;
                 hasError = true;
               }
             }
@@ -224,83 +481,181 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     return !hasError;
   };
 
-  /**
-   * Validate all fields and, if valid, invoke the onSubmit handler.
-   * Prevents concurrent submissions by setting isSubmitting before validation.
-   */
   const handleSubmit = async (): Promise<void> => {
-    if (isSubmitting.value) return;
+    if (isSubmitting.peek()) return;
     isSubmitting.value = true;
+    submitCount.value = submitCount.peek() + 1;
+    submitError.value = null;
 
     try {
-      const valid = await validate();
-      if (!valid) return;
+      const ok = await validate();
+      if (!ok) return;
 
       if (config.onSubmit) {
-        await config.onSubmit(getValues());
+        const values = getValuesUntracked();
+        try {
+          await config.onSubmit(values);
+          lastSubmittedAt.value = Date.now();
+          if (config.onSubmitSuccess) {
+            await config.onSubmitSuccess(values);
+          }
+        } catch (submitErr) {
+          submitError.value = submitErr;
+          if (config.onSubmitError) {
+            try {
+              await config.onSubmitError(submitErr, values);
+            } catch (handlerErr) {
+              console.error('bQuery forms: onSubmitError handler threw', handlerErr);
+            }
+          } else {
+            throw submitErr;
+          }
+        }
+      } else {
+        lastSubmittedAt.value = Date.now();
       }
     } finally {
       isSubmitting.value = false;
     }
   };
 
-  /**
-   * Reset every field to its initial value and clear all errors.
-   */
   const reset = (): void => {
-    for (const name of Object.keys(fields)) {
+    for (const name of fieldOrder) {
       (fields as Record<string, FormField>)[name].reset();
     }
   };
 
-  /**
-   * Return a plain object snapshot of all current field values.
-   */
-  const getValues = (): T => {
-    const values = {} as Record<string, unknown>;
-    for (const name of Object.keys(fields)) {
-      values[name] = (fields as Record<string, FormField>)[name].value.value;
-    }
-    return values as T;
+  const resetField = (name: keyof T & string): void => {
+    const entry = runtime[name as string];
+    if (!entry) return;
+    entry.field.reset();
   };
 
-  /**
-   * Bulk-set field values from a partial object.
-   * Only fields present in the object are updated; missing keys are left unchanged.
-   */
+  const resetErrors = (): void => {
+    for (const name of fieldOrder) {
+      (fields as Record<string, FormField>)[name].error.value = '';
+    }
+  };
+
+  const touchAll = (): void => {
+    for (const name of fieldOrder) {
+      (fields as Record<string, FormField>)[name].isTouched.value = true;
+    }
+  };
+
+  const untouchAll = (): void => {
+    for (const name of fieldOrder) {
+      (fields as Record<string, FormField>)[name].isTouched.value = false;
+    }
+  };
+
+  const getDirtyValues = (): Partial<T> => {
+    const values: Record<string, unknown> = {};
+    for (const name of fieldOrder) {
+      const entry = runtime[name];
+      const f = (fields as Record<string, FormField>)[name];
+      if (f.isDirty.peek()) values[name] = entry.format(f.value.peek());
+    }
+    return values as Partial<T>;
+  };
+
   const setValues = (values: Partial<T>): void => {
     for (const [name, val] of Object.entries(values)) {
-      // Ignore inherited keys and prototype-pollution vectors before mutating field state.
       if (isPrototypePollutionKey(name) || !Object.prototype.hasOwnProperty.call(fields, name)) {
         continue;
       }
-
-      const field = (fields as Record<string, FormField>)[name];
-      if (!field) {
-        continue;
-      }
-      field.value.value = val;
+      const entry = runtime[name];
+      if (!entry) continue;
+      const next = entry.parse(val);
+      entry.field.value.value = next;
     }
   };
 
-  /**
-   * Bulk-set field error messages from a partial object.
-   * Useful for applying server-side validation errors.
-   * Only fields present in the object are updated; missing keys are left unchanged.
-   */
   const setErrors = (errorMap: Partial<Record<keyof T & string, string>>): void => {
     for (const [name, msg] of Object.entries(errorMap)) {
-      // Ignore inherited keys and prototype-pollution vectors before mutating field state.
       if (isPrototypePollutionKey(name) || !Object.prototype.hasOwnProperty.call(fields, name)) {
         continue;
       }
+      const f = (fields as Record<string, FormField>)[name];
+      if (!f) continue;
+      f.error.value = (msg as string) ?? '';
+    }
+  };
 
-      const field = (fields as Record<string, FormField>)[name];
-      if (!field) {
+  const snapshot = (): FormSnapshot<T> => {
+    const values = getValuesUntracked();
+    const errs: Record<string, string> = {};
+    const touched: Record<string, boolean> = {};
+    for (const name of fieldOrder) {
+      const f = (fields as Record<string, FormField>)[name];
+      const e = f.error.peek();
+      const t = f.isTouched.peek();
+      if (e !== '') errs[name] = e;
+      if (t) touched[name] = true;
+    }
+    return {
+      values,
+      errors: errs as Partial<Record<keyof T & string, string>>,
+      touched: touched as Partial<Record<keyof T & string, boolean>>,
+    };
+  };
+
+  const restore = (snap: FormSnapshot<T>): void => {
+    setValues(snap.values);
+    resetErrors();
+    setErrors(snap.errors ?? {});
+    for (const name of fieldOrder) {
+      const f = (fields as Record<string, FormField>)[name];
+      f.isTouched.value = Boolean(snap.touched?.[name as keyof T & string]);
+    }
+  };
+
+  const toFormData = (): FormData => {
+    if (typeof FormData === 'undefined') {
+      throw new Error('bQuery forms: FormData is not available in this runtime');
+    }
+    const fd = new FormData();
+    for (const name of fieldOrder) {
+      const entry = runtime[name];
+      const raw = entry.format(entry.field.value.peek());
+      if (raw == null) continue;
+      if (typeof Blob !== 'undefined' && raw instanceof Blob) {
+        fd.append(name, raw);
         continue;
       }
-      field.error.value = (msg as string) ?? '';
+      if (typeof FileList !== 'undefined' && raw instanceof FileList) {
+        for (let i = 0; i < raw.length; i += 1) {
+          const item = raw.item(i);
+          if (item) fd.append(name, item);
+        }
+        continue;
+      }
+      if (Array.isArray(raw)) {
+        for (const item of raw) {
+          if (typeof Blob !== 'undefined' && item instanceof Blob) fd.append(name, item);
+          else fd.append(name, String(item));
+        }
+        continue;
+      }
+      if (typeof raw === 'boolean') {
+        if (raw) fd.append(name, 'on');
+        continue;
+      }
+      fd.append(name, String(raw));
     }
+    return fd;
+  };
+
+  const toJSON = (): T => getValuesUntracked();
+
+  const destroy = (): void => {
+    for (const stop of stopFieldEffects) stop();
+    stopFieldEffects.length = 0;
+    for (const stop of stopDirtyEffects) stop();
+    stopDirtyEffects.length = 0;
+    stopValuesEffect?.();
+    stopValuesEffect = undefined;
+    listeners.clear();
   };
 
   return {
@@ -308,13 +663,29 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     errors,
     isValid: isFormValid,
     isDirty: isFormDirty,
+    isPristine: isFormPristine,
+    isValidating: isFormValidating,
     isSubmitting,
+    submitCount,
+    lastSubmittedAt,
+    submitError,
     handleSubmit,
     validateField,
     validate,
     reset,
+    resetField,
+    resetErrors,
+    touchAll,
+    untouchAll,
     getValues,
+    getDirtyValues,
     setValues,
     setErrors,
+    subscribe,
+    snapshot,
+    restore,
+    toFormData,
+    toJSON,
+    destroy,
   };
 };
