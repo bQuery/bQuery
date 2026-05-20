@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.12.0**.
+Current release baseline: **1.13.0**.
 
 Start here before making assumptions:
 
@@ -29,6 +29,14 @@ Start here before making assumptions:
 Prefer pointing back to those files instead of duplicating large architecture sections into new instructions or docs.
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
+
+## Version 1.13.0 highlights
+
+- `@bquery/bquery/forms` is now a true batteries-included tier. New validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`) and combinators (`compose`, `all`, `not`, `withMessage`) are tree-shakeable; field/form state gains `isValidating`, `isFocused`, `dirtySince`, `disabled`, `setValue`/`setError`/`clearError`, `submitCount`, `submitError`, `isPristine`, `touchAll`/`untouchAll`, `resetField`, `resetErrors`, `getDirtyValues`, `subscribe`, `validationStrategy`, and `mode`; dynamic field arrays land via `createFieldArray`; declarative schema-style configuration via `schema()`; two-way DOM bindings via `bindField` / `bindForm`; scope-aware composables `useForm` / `useField` / `useFieldArray`; SSR helpers `serializeFormState` / `readSerializedFormState` / `hydrateForm`.
+- `@bquery/bquery/component` adds slot helpers (`useSlot`, `hasSlot`, `slotText`), refs (`useRef`), async data (`useAsync`, `whenIdle`), DI (`provide` / `inject` / `formContextKey`), `beforeUnmount` and `errorBoundary` lifecycle hooks, instance-level `setProp` / `getProp` for non-string props, sanitizer-safe delegated event helpers (`on`, `onClick`, `onInput`, `onChange`, `onSubmit`, `bindDelegatedEvents`), a `css` tagged template literal with adoptable stylesheet support, and `keyedList` / `reconcileKeyed` for keyed list rendering.
+- The `1.12.0` store/reactive surface (`unregisterPlugin`, `clearPlugins`, `WebSocketSendData`) and the `1.11.0` SSR/server runtime (`createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions) remain first-class public surface.
+- The `1.10.0` concurrency additions plus the `1.9.0` watcher/view/media APIs remain first-class public surface and should still appear in documentation refreshes.
+- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.13`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
 
 ## Version 1.12.0 highlights
 

@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.12.0                                                                                                                                                                                            |
+| Version     | 1.13.0                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -39,6 +39,13 @@ bun run dev           # VitePress docs server
 ## Workspace Prompt Pack
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.13.0 Highlights
+
+- `@bquery/bquery/forms` graduates into a batteries-included tier: new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`), validator combinators (`compose`, `all`, `not`, `withMessage`), enriched field/form state (`isValidating`, `isFocused`, `dirtySince`, `disabled`, `setValue`/`setError`/`clearError`, `submitCount`, `submitError`, `isPristine`, `touchAll`/`untouchAll`, `resetField`, `resetErrors`, `getDirtyValues`, `subscribe`, `validationStrategy`, `mode: 'all' | 'first'`), dynamic field arrays via `createFieldArray`, fluent `schema()` declaration, two-way DOM bindings (`bindField`, `bindForm`), scope-aware composables (`useForm`, `useField`, `useFieldArray`), and SSR helpers (`serializeFormState`, `readSerializedFormState`, `hydrateForm`).
+- `@bquery/bquery/component` gains slot, ref, async, lifecycle, DI, and styling primitives: `useSlot` / `hasSlot` / `slotText`, `useRef`, `useAsync`, `whenIdle`, `provide` / `inject` / `formContextKey`, additive `beforeUnmount` and `errorBoundary` hooks, instance-level `setProp` / `getProp` for non-string props, delegated event helpers (`on`, `onClick`, `onInput`, `onChange`, `onSubmit`, `bindDelegatedEvents`), a `css` tagged template with adoptable stylesheet support, and `keyedList` / `reconcileKeyed` for keyed list rendering.
+- All earlier baselines (`1.12.0` store plugin teardown, `1.11.0` runtime-agnostic SSR/server, `1.10.0` concurrency, `1.9.0` watch/view/media APIs) remain first-class public surface.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ## Version 1.12.0 Highlights
 

@@ -92,6 +92,20 @@ export type ComponentElement<TState extends Record<string, unknown> | undefined 
      * @returns The current value cast to `TResult`
      */
     getState<TResult = unknown>(key: string): TResult;
+    /**
+     * Imperatively set a prop value to a non-string object (e.g. arrays,
+     * callbacks) that would otherwise require attribute serialization.
+     *
+     * Triggers a re-render. The new value bypasses attribute-based coercion
+     * and is set directly on the internal props record.
+     */
+    setProp<K extends string>(name: K, value: unknown): void;
+    /**
+     * Get the current value of a prop, including values set via
+     * {@link ComponentElement.setProp} that were never serialized as
+     * attributes.
+     */
+    getProp<TResult = unknown>(name: string): TResult;
   };
 
 /**
@@ -247,12 +261,19 @@ export type ComponentDefinition<
     /**
      * CSS styles injected for the component.
      *
+     * Can be either a plain string or a {@link import('./css').ComponentStyles}
+     * payload produced by the `css` tagged template literal.
+     *
      * When `shadow` uses a shadow root (`true`, `'open'`, or `'closed'`), these
      * styles are scoped to that shadow tree. When `shadow` is `false`, the
      * generated `<style>` element is rendered into the host's light DOM and may
      * therefore affect surrounding markup according to normal CSS cascade rules.
+     *
+     * If the payload was produced by `css` and the environment supports
+     * Constructable Stylesheets, the style is shared across instances via
+     * `document.adoptedStyleSheets` instead of inserting a `<style>` element.
      */
-    styles?: string;
+    styles?: string | import('./css').ComponentStyles;
     /**
      * Controls Shadow DOM mode.
      *
@@ -307,4 +328,23 @@ export type ComponentDefinition<
     onError?: ComponentErrorHook<TState>;
     /** Render function returning HTML string */
     render: (context: ComponentRenderContext<TProps, TState, TSignals>) => string;
+    /**
+     * Lifecycle hook called immediately before the component is removed from
+     * the DOM (i.e. before the framework runs its disconnect cleanup).
+     *
+     * Symmetric with `beforeMount`.
+     */
+    beforeUnmount?: ComponentHook<TState>;
+    /**
+     * Error boundary hook. When provided and `render()` throws, this function is
+     * called with the thrown error. If it returns a string, that string is
+     * rendered into the shadow root as the fallback markup (sanitized like
+     * normal render output). If it returns nothing the error is still routed
+     * through `onError` / the default console reporter.
+     */
+    errorBoundary?: (
+      this: ComponentElement<TState>,
+      error: Error,
+      info: { phase: 'render' }
+    ) => string | void;
   };

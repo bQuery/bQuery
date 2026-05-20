@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.12.0
+- Version: 1.13.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bQuery.flausch-code.de
@@ -17,6 +17,13 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
+
+## Version 1.13.0 Highlights
+
+- Forms: `@bquery/bquery/forms` is now batteries-included — many new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`) and combinators (`compose`, `all`, `not`, `withMessage`); enriched field/form state (`isValidating`, `isFocused`, `dirtySince`, `disabled`, `setValue`/`setError`/`clearError`, `submitCount`, `submitError`, `isPristine`, `touchAll`/`untouchAll`, `resetField`, `resetErrors`, `getDirtyValues`, `subscribe`, `validationStrategy`, `mode`); dynamic field arrays (`createFieldArray`); fluent `schema()` declaration; two-way DOM bindings (`bindField`, `bindForm`); scope-aware composables (`useForm`, `useField`, `useFieldArray`); and SSR helpers (`serializeFormState`, `readSerializedFormState`, `hydrateForm`).
+- Component: `@bquery/bquery/component` adds `useSlot` / `hasSlot` / `slotText`, `useRef`, `useAsync`, `whenIdle`, `provide` / `inject` / `formContextKey`, additive `beforeUnmount` and `errorBoundary` hooks, instance-level `setProp` / `getProp` for non-string props, delegated event helpers (`on`, `onClick`, `onInput`, `onChange`, `onSubmit`, `bindDelegatedEvents`), a `css` tagged template with adoptable stylesheet support, and `keyedList` / `reconcileKeyed` for keyed list rendering.
+- All earlier 1.12.0 / 1.11.0 / 1.10.0 / 1.9.0 public surface remains stable.
+- Repo AI guidance stays aligned through `bun run check:ai-guidance`.
 
 ## Version 1.12.0 Highlights
 

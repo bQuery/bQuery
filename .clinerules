@@ -6,7 +6,7 @@ You are working on bQuery.js (`@bquery/bquery`), a batteries-included TypeScript
 
 bQuery.js is not a utility library; its broad module surface is the product. The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.12.0**.
+Current release baseline: **1.13.0**.
 
 Version `1.12.0` adds Store plugin teardown APIs (`unregisterPlugin()`, `clearPlugins()`), promotes `WebSocketSendData` to a public Reactive type export, and tightens `/full` bundle type-export drift checks through `bun run check:full-bundle`. Version `1.11.0` added the dedicated `@bquery/bquery/server` entry point plus a major runtime-agnostic `@bquery/bquery/ssr` expansion (`renderToStringAsync()`, `renderToStream()`, `renderToResponse()`, runtime adapters, snapshots, resumability), while preserving the `1.10.0` concurrency helpers and the `1.9.0` watch/view/media APIs as first-class public surface.
 

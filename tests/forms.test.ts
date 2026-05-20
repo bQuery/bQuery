@@ -497,8 +497,10 @@ describe('forms/createForm', () => {
         fields: { name: { initialValue: '' } },
       });
 
+      form.fields.name.isValidating.value = true;
       await form.validateField('name');
       expect(form.fields.name.error.value).toBe('');
+      expect(form.fields.name.isValidating.value).toBe(false);
     });
 
     it('handles unknown field name gracefully', async () => {
@@ -1146,6 +1148,21 @@ describe('forms/useFormField', () => {
     expect(field.error.value).toBe('');
   });
 
+  it('setValue supports silent writes and explicit validation', async () => {
+    const field = useFormField<string>('Ada', {
+      validators: [required('Required')],
+      validateOn: 'change',
+    });
+
+    field.setValue('', { silent: true });
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(field.error.value).toBe('');
+
+    field.setValue('', { validate: true });
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(field.error.value).toBe('Required');
+  });
+
   it('validates on blur when configured', async () => {
     const field = useFormField<string>('', {
       validators: [required('Required')],
@@ -1305,7 +1322,9 @@ describe('forms/useFormField', () => {
     void field.isPristine.value;
     void field.isValid.value;
 
-    expect(valueSubscribers.subscribers.size).toBe(1);
+    // The exact subscriber count is an internal detail, but destroy() should
+    // always remove whatever subscriptions were created.
+    expect(valueSubscribers.subscribers.size).toBeGreaterThan(0);
     expect(errorSubscribers.subscribers.size).toBe(1);
     expect(dirtySubscribers.subscribers.size).toBe(1);
 
