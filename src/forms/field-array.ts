@@ -54,7 +54,7 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
   const length = computed(() => items.value.length);
   const error = signal('');
 
-  const add = function (value?: T): FormField<T> {
+  const add = function (value: T): FormField<T> {
     if (arguments.length === 0) {
       throw new TypeError('createFieldArray.add() requires a value.');
     }
