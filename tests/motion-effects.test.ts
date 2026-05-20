@@ -48,6 +48,20 @@ describe('motion/effects', () => {
     expect(el.style.transform).toBe('');
   });
 
+  it('magnetic treats inline `transform: none` as an empty base transform when composing', () => {
+    const el = createElement();
+    el.style.transform = 'none';
+    const cleanup = magnetic(el, { strength: 0.5, radius: 200, respectReducedMotion: false });
+
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 60, clientY: 60 }));
+
+    expect(el.style.transform).toContain('translate3d');
+    expect(el.style.transform).not.toContain('none translate3d');
+
+    cleanup();
+    expect(el.style.transform).toBe('none');
+  });
+
   it('tilt restores the original transition after the leave reset completes', async () => {
     const el = createElement();
     el.style.transition = 'opacity 100ms linear';

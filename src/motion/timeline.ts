@@ -155,6 +155,7 @@ export const timeline = (
   let updateFrame: number | null = null;
   let currentIteration = 0;
   let runningDirection: 1 | -1 = 1;
+  let isPlaying = false;
 
   const { commitStyles = true, respectReducedMotion = true, onFinish } = config;
 
@@ -189,17 +190,18 @@ export const timeline = (
 
   const startUpdateLoop = () => {
     if (typeof requestAnimationFrame !== 'function') return;
+    if (!isPlaying) return;
     if (updateListeners.size === 0) return;
     if (updateFrame !== null) return;
     if (finalized) return;
     const tick = () => {
-      if (finalized || updateListeners.size === 0 || animations.length === 0) {
+      if (!isPlaying || finalized || updateListeners.size === 0 || animations.length === 0) {
         updateFrame = null;
         return;
       }
       const time = getTimelineCurrentTime();
       notifyUpdate(time);
-      if (finalized || updateListeners.size === 0 || animations.length === 0) {
+      if (!isPlaying || finalized || updateListeners.size === 0 || animations.length === 0) {
         updateFrame = null;
         return;
       }
@@ -211,6 +213,7 @@ export const timeline = (
   const finalize = () => {
     if (finalized) return;
     finalized = true;
+    isPlaying = false;
     stopUpdateLoop();
 
     for (const item of animations) {
@@ -284,6 +287,8 @@ export const timeline = (
       finalize();
       return;
     }
+
+    isPlaying = true;
 
     if (direction === -1) {
       animations.forEach(({ animation }) => {
@@ -362,17 +367,20 @@ export const timeline = (
 
     pause(): void {
       if (reducedMotionApplied) return;
+      isPlaying = false;
       animations.forEach(({ animation }) => animation.pause());
       stopUpdateLoop();
     },
 
     resume(): void {
       if (reducedMotionApplied) return;
+      isPlaying = true;
       animations.forEach(({ animation }) => animation.play());
       startUpdateLoop();
     },
 
     stop(): void {
+      isPlaying = false;
       stopUpdateLoop();
       animations.forEach(({ animation }) => animation.cancel());
       animations = [];
@@ -431,7 +439,7 @@ export const timeline = (
 
     onUpdate(callback: (time: number) => void): () => void {
       updateListeners.add(callback);
-      if (updateListeners.size === 1 && animations.length > 0) {
+      if (updateListeners.size === 1 && animations.length > 0 && isPlaying) {
         startUpdateLoop();
       }
       return () => {

@@ -43,6 +43,7 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
 
   const el = element as HTMLElement;
   const originalTransform = el.style.transform;
+  const baseTransform = originalTransform.trim() === 'none' ? '' : originalTransform;
 
   const onMove = (event: PointerEvent | MouseEvent) => {
     const rect = el.getBoundingClientRect();
@@ -56,7 +57,7 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
       return;
     }
     const pull = (1 - dist / radius) * strength;
-    el.style.transform = `${originalTransform} ${matrixTranslate(dx * pull, dy * pull)}`.trim();
+    el.style.transform = `${baseTransform} ${matrixTranslate(dx * pull, dy * pull)}`.trim();
   };
 
   const onLeave = () => {

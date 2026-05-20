@@ -179,6 +179,40 @@ describe('motion/timeline extras', () => {
     }
   });
 
+  it('does not start the update loop while paused when a listener subscribes', () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
+
+    try {
+      const { el } = createElement(new Promise(() => {}));
+      const tl = timeline([
+        { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+      ]);
+
+      void tl.play();
+      tl.pause();
+      const off = tl.onUpdate(() => {});
+
+      expect(callbacks).toHaveLength(0);
+
+      tl.resume();
+      expect(callbacks).toHaveLength(1);
+
+      off();
+      tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
+
   it('samples the latest animation time for onUpdate and progress', () => {
     const originalRequest = globalThis.requestAnimationFrame;
     const originalCancel = globalThis.cancelAnimationFrame;
