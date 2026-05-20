@@ -92,8 +92,9 @@ export const useField = <T>(
  */
 export const useFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray<T> => {
   requireScope('useFieldArray');
-  // The underlying `createFieldArray` does not register reactive effects beyond
-  // those owned by its items, which are themselves scope-disposed when created
-  // via `useField` / `useForm`. Therefore no additional disposer is needed.
+  // The underlying `createFieldArray` does not register its own disposable
+  // reactive effects beyond those owned by its items, which are themselves
+  // scope-disposed when created via `useField` / `useForm`. Therefore no
+  // additional disposer is needed.
   return createFieldArray(config);
 };
