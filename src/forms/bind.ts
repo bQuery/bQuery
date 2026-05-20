@@ -119,14 +119,15 @@ export const bindField = <T>(
       // unchecked radio — ignore so other group members can set the value
       return;
     }
-    suppressEcho = true;
     if (debounceMs > 0) {
       if (debounceTimer !== undefined) clearTimeout(debounceTimer);
       debounceTimer = setTimeout(() => {
         debounceTimer = undefined;
+        suppressEcho = true;
         field.value.value = raw as T;
       }, debounceMs);
     } else {
+      suppressEcho = true;
       field.value.value = raw as T;
     }
   };

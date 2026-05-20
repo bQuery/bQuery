@@ -9,9 +9,10 @@ import { escapeForScript } from '../ssr/escape';
 
 /**
  * Serialize a form snapshot to an inline `<script>` tag suitable for embedding
- * in SSR-rendered HTML. The script writes the payload to
- * `window.__BQUERY_FORMS__[id]` where it can be read on the client by
- * {@link readSerializedFormState} and applied via {@link Form.restore}.
+ * in SSR-rendered HTML. The snapshot is embedded in a
+ * `<script type="application/json" data-bq-form="<id>">` tag and can be read
+ * on the client by {@link readSerializedFormState} and applied via
+ * {@link Form.restore}.
  *
  * @param id - Stable identifier for this form
  * @param snapshot - Snapshot returned by {@link Form.snapshot}

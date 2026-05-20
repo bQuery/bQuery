@@ -112,6 +112,13 @@ export const useFormField = <T>(
 
   const runValidation = async (): Promise<boolean> => {
     const currentValidationId = ++validationId;
+
+    if (disabled.peek()) {
+      error.value = '';
+      isValidating.value = false;
+      return true;
+    }
+
     const validators = options.validators;
 
     if (!validators || validators.length === 0) {

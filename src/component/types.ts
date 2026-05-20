@@ -345,6 +345,6 @@ export type ComponentDefinition<
     errorBoundary?: (
       this: ComponentElement<TState>,
       error: Error,
-      info: { phase: 'render' | 'lifecycle' }
+      info: { phase: 'render' }
     ) => string | void;
   };

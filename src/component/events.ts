@@ -4,7 +4,7 @@
  * Provides a safe, sanitizer-friendly way to wire event handlers from
  * `render()` output without using inline `on*` attributes or `eval`.
  *
- * Handlers are stored in a WeakMap keyed by a generated ID. The `on()` /
+ * Handlers are stored in a Map keyed by a generated ID. The `on()` /
  * `onClick()` / etc. helpers return an attribute string of the form
  * `data-bq-on-click="<id>"`. A single delegated listener per event type per
  * component host dispatches events to the registered handler.
@@ -93,6 +93,9 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
       for (const node of path) {
         if (!(node instanceof Element)) continue;
         if (node === host) break; // don't walk past the host
+        // Only dispatch to nodes that live in this component's shadow root;
+        // slotted / projected light-DOM nodes must not reach internal handlers.
+        if (node.getRootNode() !== root) continue;
         const id = node.getAttribute(attrName);
         if (id) {
           const handler = handlerStore.get(id);
@@ -145,7 +148,14 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
 
   const observer =
     typeof MutationObserver !== 'undefined'
-      ? new MutationObserver(() => scanAndRegister())
+      ? new MutationObserver((mutations) => {
+          const hasRelevantChange = mutations.some(
+            (m) =>
+              m.type === 'childList' ||
+              (m.type === 'attributes' && m.attributeName?.startsWith('data-bq-on-'))
+          );
+          if (hasRelevantChange) scanAndRegister();
+        })
       : null;
   observer?.observe(root, { childList: true, subtree: true, attributes: true });
 

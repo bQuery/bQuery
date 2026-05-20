@@ -36,7 +36,6 @@ const runValidator = async <T>(validator: Validator<T>, value: T): Promise<strin
 type FieldRuntime = {
   field: FormField<unknown>;
   config: FieldConfig<unknown>;
-  initial: unknown;
   parse: (raw: unknown) => unknown;
   blurCount: Signal<number>;
 };
@@ -214,7 +213,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
   const stopDirtyEffects: Array<() => void> = [];
   for (const [name, fieldConfig] of fieldEntries) {
-    const { field, initial, stopDirtyEffect, blurCount } = createField(
+    const { field, stopDirtyEffect, blurCount } = createField(
       fieldConfig as FieldConfig<T[typeof name]>
     );
     (fields as Record<string, FormField>)[name] = field as FormField;
@@ -222,7 +221,6 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     runtime[name] = {
       field: field as FormField<unknown>,
       config: fieldConfig as FieldConfig<unknown>,
-      initial,
       parse: (fieldConfig as FieldConfig<unknown>).parse ?? ((raw: unknown) => raw),
       blurCount,
     };
