@@ -327,7 +327,7 @@ const safeAssign = (
   value: unknown
 ): void => {
   // Defensive double-check: callers must already guard via `isSafeKey`.
-  if (typeof key === 'string' && isPrototypePollutionKey(key)) return;
+  if (!isSafeKey(key)) return;
   try {
     target[key] = value;
     return;
