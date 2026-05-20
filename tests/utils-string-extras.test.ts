@@ -40,7 +40,7 @@ describe('utils/string extras', () => {
     expect(template('Hello ${name}!', { name: 'world' })).toBe('Hello world!');
     expect(template('Total: ${count}', { count: 0 })).toBe('Total: 0');
     expect(template('Missing ${m}', {})).toBe('Missing ');
-    // Untrusted input is treated as literal text, never evaluated as code.
+    // Template substitution only resolves known keys; unknown placeholders drop out.
     expect(template('${alert(1)}', {})).toBe('');
   });
 

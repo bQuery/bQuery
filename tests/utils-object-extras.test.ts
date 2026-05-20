@@ -42,6 +42,22 @@ describe('utils/object extras', () => {
     expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();
   });
 
+  it('set handles non-configurable targets without throwing', () => {
+    const list = ['a', 'b', 'c'];
+    expect(() => set(list, 'length', 1)).not.toThrow();
+    expect(list).toEqual(['a']);
+
+    const locked: Record<string, unknown> = {};
+    Object.defineProperty(locked, 'value', {
+      value: 1,
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+    expect(() => set(locked, 'value', 2)).not.toThrow();
+    expect(locked.value).toBe(1);
+  });
+
   it('has detects nested presence and prototype-pollution safety', () => {
     expect(has({ a: { b: 0 } }, 'a.b')).toBe(true);
     expect(has({ config: { 'theme.color': '#0af' } }, 'config["theme.color"]')).toBe(true);
@@ -109,6 +125,20 @@ describe('utils/object extras', () => {
     expect(target).toEqual({ a: 1, b: 2, c: 3 });
     defaults(target, { __proto__: { polluted: true } } as unknown as Record<string, unknown>);
     expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();
+  });
+
+  it('defaults skips non-configurable undefined properties it cannot write', () => {
+    const target: Record<string, unknown> = {};
+    Object.defineProperty(target, 'locked', {
+      value: undefined,
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+
+    expect(() => defaults(target, { locked: 1, open: 2 })).not.toThrow();
+    expect(target.locked).toBeUndefined();
+    expect(target.open).toBe(2);
   });
 
   it('entriesTyped and keysTyped preserve key types', () => {

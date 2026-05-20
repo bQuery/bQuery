@@ -328,12 +328,29 @@ const safeAssign = (
 ): void => {
   // Defensive double-check: callers must already guard via `isSafeKey`.
   if (typeof key === 'string' && isPrototypePollutionKey(key)) return;
-  Object.defineProperty(target, key, {
-    value,
-    enumerable: true,
-    writable: true,
-    configurable: true,
-  });
+  const existing = Object.getOwnPropertyDescriptor(target, key);
+  if (existing && existing.configurable === false) {
+    try {
+      target[key] = value;
+    } catch {
+      // Ignore non-writable or otherwise unsupported assignments.
+    }
+    return;
+  }
+  try {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  } catch {
+    try {
+      target[key] = value;
+    } catch {
+      // Ignore non-writable or otherwise unsupported assignments.
+    }
+  }
 };
 
 export function set<T extends object>(
