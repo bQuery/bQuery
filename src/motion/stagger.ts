@@ -76,15 +76,15 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
       let originX = 0;
       let originY = 0;
       if (typeof from === 'object' && from && 'x' in from && 'y' in from) {
-        originX = from.x;
-        originY = from.y;
+        originX = Number.isFinite(from.x) ? from.x : 0;
+        originY = Number.isFinite(from.y) ? from.y : 0;
       } else if (from === 'center') {
         originX = (cols - 1) / 2;
         originY = (rows - 1) / 2;
       } else if (from === 'end') {
         originX = cols - 1;
         originY = rows - 1;
-      } else if (typeof from === 'number') {
+      } else if (typeof from === 'number' && Number.isFinite(from)) {
         originX = from % cols;
         originY = Math.floor(from / cols);
       }
@@ -114,7 +114,7 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
     }
 
     const origin =
-      typeof from === 'number'
+      typeof from === 'number' && Number.isFinite(from)
         ? from
         : from === 'center'
           ? (total - 1) / 2

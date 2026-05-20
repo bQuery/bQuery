@@ -175,6 +175,10 @@ export const animate = (element: Element, config: AnimateOptions): Promise<void>
         finalizeAborted();
       };
       signal.addEventListener('abort', abortHandler, { once: true });
+      if (signal.aborted) {
+        abortHandler();
+        return;
+      }
     }
 
     animation.onfinish = finalizeFinished;

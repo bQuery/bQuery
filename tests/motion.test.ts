@@ -352,6 +352,27 @@ describe('motion/animate', () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
   });
 
+  it('cancels when the signal aborts immediately after listener registration', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      finished: new Promise<void>(() => {}),
+    };
+    const el = document.createElement('div');
+    const controller = new AbortController();
+    (el as HTMLElement).animate = mock(() => {
+      queueMicrotask(() => controller.abort());
+      return animation;
+    }) as unknown as Element['animate'];
+
+    await animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      signal: controller.signal,
+    });
+
+    expect(animation.cancel).toHaveBeenCalled();
+  });
+
   it('does not commit final styles when aborted before finish', async () => {
     const animation = {
       ...createMockAnimation(),
@@ -916,6 +937,20 @@ describe('motion/stagger', () => {
     expect(delay(0, 3)).toBe(50);
     expect(delay(1, 3)).toBe(0);
     expect(delay(2, 3)).toBe(50);
+  });
+
+  it('falls back to a finite origin when grid coordinates are not finite', () => {
+    const delay = stagger(40, {
+      grid: [3, 3],
+      from: { x: Number.NaN, y: Number.POSITIVE_INFINITY },
+    });
+
+    expect(delay(4, 9)).toBe(40 * Math.sqrt(2));
+  });
+
+  it('falls back to a finite origin when numeric from is not finite', () => {
+    const delay = stagger(25, { from: Number.NaN });
+    expect(delay(2, 4)).toBe(50);
   });
 });
 
