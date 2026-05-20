@@ -50,7 +50,6 @@ const createField = <T>(
   config: FieldConfig<T>
 ): {
   field: FormField<T>;
-  initial: T;
   stopDirtyEffect: () => void;
   blurCount: Signal<number>;
   consumeSilentNotifyWrite: () => boolean;
@@ -134,7 +133,6 @@ const createField = <T>(
 
   return {
     field,
-    initial,
     stopDirtyEffect,
     blurCount,
     consumeSilentNotifyWrite: () => {
@@ -161,12 +159,14 @@ const validateSingleField = async <T>(
 
   if (field.disabled.peek()) {
     if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.isValidating.value = false;
       field.error.value = '';
     }
     return '';
   }
   if (!validators || validators.length === 0) {
     if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.isValidating.value = false;
       field.error.value = '';
     }
     return '';
@@ -596,8 +596,8 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     }
     const fd = new FormData();
     for (const name of fieldOrder) {
-      const f = (fields as Record<string, FormField>)[name];
-      const raw = f.value.peek();
+      const entry = runtime[name];
+      const raw = entry.format(entry.field.value.peek());
       if (raw == null) continue;
       if (typeof Blob !== 'undefined' && raw instanceof Blob) {
         fd.append(name, raw);

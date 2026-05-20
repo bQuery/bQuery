@@ -497,8 +497,10 @@ describe('forms/createForm', () => {
         fields: { name: { initialValue: '' } },
       });
 
+      form.fields.name.isValidating.value = true;
       await form.validateField('name');
       expect(form.fields.name.error.value).toBe('');
+      expect(form.fields.name.isValidating.value).toBe(false);
     });
 
     it('handles unknown field name gracefully', async () => {

@@ -408,7 +408,7 @@ component('counter', {
 });
 ```
 
-Handlers are stored in a WeakMap keyed by opaque IDs, so the sanitizer never
+Handlers are stored in a module-level Map keyed by opaque IDs, so the sanitizer never
 sees inline JavaScript.
 
 ### Dependency injection

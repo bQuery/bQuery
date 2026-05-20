@@ -271,6 +271,18 @@ describe('forms/field extensions', () => {
     expect(form.fields.name.error.value).toBe('');
   });
 
+  it('disabled fields clear isValidating when validated directly', async () => {
+    const form = createForm({
+      fields: {
+        name: { initialValue: '', validators: [required()], disabled: true },
+      },
+    });
+    form.fields.name.isValidating.value = true;
+    await form.validateField('name');
+    expect(form.fields.name.error.value).toBe('');
+    expect(form.fields.name.isValidating.value).toBe(false);
+  });
+
   it('parse transforms incoming values via setValues()', () => {
     const form = createForm({
       fields: {
@@ -572,6 +584,7 @@ describe('forms/form extensions', () => {
         active: { initialValue: true },
         offline: { initialValue: false },
         tags: { initialValue: ['a', 'b'] },
+        numberAsString: { initialValue: 2, format: (value) => `#${value}` },
       },
     });
     const fd = form.toFormData();
@@ -579,6 +592,7 @@ describe('forms/form extensions', () => {
     expect(fd.get('active')).toBe('on');
     expect(fd.get('offline')).toBeNull();
     expect(fd.getAll('tags')).toEqual(['a', 'b']);
+    expect(fd.get('numberAsString')).toBe('#2');
   });
 
   it('destroy disposes subscribers cleanly', () => {
