@@ -105,6 +105,54 @@ function interpolate<T extends TweenValue>(from: T, to: T, t: number): T {
   );
 }
 
+/**
+ * Determine the interpolation strategy once and return a per-frame function
+ * that avoids re-checking types on every animation frame.
+ * @internal
+ */
+function createFrameInterpolator<T extends TweenValue>(from: T, to: T): (t: number) => T {
+  if (typeof from === 'number' && typeof to === 'number') {
+    const a = from as number;
+    const b = to as number;
+    return (t: number) => (a + (b - a) * t) as T;
+  }
+  if (isNumberArray(from) && isNumberArray(to)) {
+    if (from.length !== to.length) {
+      throw new RangeError('"from" and "to" arrays must have the same length');
+    }
+    const len = from.length;
+    const fromArr = from as number[];
+    const toArr = to as number[];
+    const out: number[] = new Array(len);
+    return (t: number) => {
+      for (let i = 0; i < len; i += 1) {
+        out[i] = fromArr[i] + (toArr[i] - fromArr[i]) * t;
+      }
+      return out as T;
+    };
+  }
+  if (isNumberRecord(from) && isNumberRecord(to)) {
+    const fromRec = from as Record<string, number>;
+    const toRec = to as Record<string, number>;
+    const allKeys = Array.from(new Set([...Object.keys(fromRec), ...Object.keys(toRec)]));
+    const pairs = allKeys.map((key) => ({
+      key,
+      a: key in fromRec ? fromRec[key] : toRec[key],
+      b: key in toRec ? toRec[key] : fromRec[key],
+    }));
+    return (t: number) => {
+      const out: Record<string, number> = {};
+      for (const { key, a, b } of pairs) {
+        out[key] = a + (b - a) * t;
+      }
+      return out as T;
+    };
+  }
+  throw new TypeError(
+    '"from" and "to" must be numbers, number[], or Record<string, number>'
+  );
+}
+
 const safeRaf = (): ((cb: (time: number) => void) => number) => {
   if (typeof requestAnimationFrame === 'function') return requestAnimationFrame;
   return (cb: (time: number) => void) => setTimeout(() => cb(Date.now()), 16) as unknown as number;
@@ -118,7 +166,8 @@ const safeCaf = (): ((handle: number) => void) => {
 /**
  * Tween any numeric structure between `from` and `to`. Returns a promise
  * that resolves with the final value when the animation completes
- * naturally, or `to` immediately when reduced motion is preferred.
+ * naturally, or skips the animation and resolves to `to` (after any
+ * configured delay) when reduced motion is preferred.
  *
  * For full imperative controls (pause/resume/reverse/seek), use
  * {@link tween} instead.
@@ -171,6 +220,7 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
   const raf = safeRaf();
   const caf = safeCaf();
   const totalDuration = Math.max(0, duration);
+  const frameInterpolator = createFrameInterpolator(from, to);
 
   let currentValue: T = from;
   let progressValue = 0;
@@ -191,7 +241,7 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
 
   const update = (p: number, complete: boolean) => {
     progressValue = p;
-    currentValue = interpolate(from, to, easing(p));
+    currentValue = frameInterpolator(easing(p));
     onUpdate?.(currentValue, p);
     if (complete && !finalized) {
       finalized = true;

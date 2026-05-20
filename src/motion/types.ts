@@ -294,8 +294,8 @@ export interface TimelineControls {
   reverse(): void;
   /**
    * Read or set the playback rate. A rate of `2` plays twice as fast; `0.5`
-   * plays half-speed. Negative rates reverse the animation. Returns the
-   * effective playback rate.
+   * plays half-speed. Must be a positive finite value; use {@link reverse} to
+   * flip the playback direction. Returns the current rate (always positive).
    */
   playbackRate(value?: number): number;
   /**

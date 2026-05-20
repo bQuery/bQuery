@@ -101,6 +101,12 @@ describe('utils/object extras', () => {
     expect(Object.prototype.hasOwnProperty.call(target, 'value')).toBe(false);
   });
 
+  it('set does not throw when target has a null prototype', () => {
+    const target = Object.create(null) as Record<string, unknown>;
+    expect(() => set(target, 'name', 'x')).not.toThrow();
+    expect(target['name']).toBe('x');
+  });
+
   it('has detects nested presence and prototype-pollution safety', () => {
     expect(has({ a: { b: 0 } }, 'a.b')).toBe(true);
     expect(has({ config: { 'theme.color': '#0af' } }, 'config["theme.color"]')).toBe(true);

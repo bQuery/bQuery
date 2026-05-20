@@ -410,7 +410,7 @@ export const timeline = (
     },
 
     playbackRate(value?: number): number {
-      if (typeof value === 'number' && Number.isFinite(value)) {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
         rate = value;
         animations.forEach(({ animation }) => {
           try {

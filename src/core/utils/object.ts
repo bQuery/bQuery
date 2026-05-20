@@ -344,10 +344,9 @@ const safeAssign = (
     }
     return;
   }
-  const prototypeDescriptor = Object.getOwnPropertyDescriptor(
-    Object.getPrototypeOf(target) as object | null,
-    key
-  );
+  const proto = Object.getPrototypeOf(target) as object | null;
+  const prototypeDescriptor =
+    proto !== null ? Object.getOwnPropertyDescriptor(proto, key) : undefined;
   if (prototypeDescriptor && 'set' in prototypeDescriptor) {
     try {
       prototypeDescriptor.set?.call(target, value);
