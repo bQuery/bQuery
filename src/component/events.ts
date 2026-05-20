@@ -21,12 +21,32 @@ type EventHandler = (event: Event) => void;
 
 const handlerStore = new Map<string, EventHandler>();
 const usedEventTypes = new Set<string>();
-let counter = 0;
 
-const allocateId = (): string => {
-  counter = (counter + 1) >>> 0;
-  return `bq${counter.toString(36)}`;
+/**
+ * @internal
+ */
+const randomHex = (byteLength: number): string => {
+  const globalCrypto = globalThis.crypto;
+  if (globalCrypto?.getRandomValues) {
+    const bytes = new Uint8Array(byteLength);
+    globalCrypto.getRandomValues(bytes);
+    let hex = '';
+    for (const byte of bytes) {
+      hex += byte.toString(16).padStart(2, '0');
+    }
+    return hex;
+  }
+
+  let fallback = '';
+  for (let index = 0; index < byteLength; index += 1) {
+    fallback += Math.floor(Math.random() * 256)
+      .toString(16)
+      .padStart(2, '0');
+  }
+  return fallback;
 };
+
+const allocateId = (): string => `bq${randomHex(16)}`;
 
 const validEventName = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
 

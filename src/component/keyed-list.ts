@@ -21,7 +21,7 @@
  *     `;
  *   },
  *   updated() {
- *     reconcileKeyed(this.shadowRoot!.querySelector('ul')!);
+ *     reconcileKeyed(this.shadowRoot!.querySelector('ul')!, state.items.map((item) => item.id));
  *   },
  * });
  * ```
@@ -68,7 +68,7 @@ export const keyedList = <T>(
 
 /**
  * After a re-render, reorder direct children of `container` to match the order
- * of their `data-bq-key` attributes in the freshly-rendered output, preserving
+ * of the provided key list (typically derived from the current state), preserving
  * any descendant DOM state (focus, scroll, custom-element internals) for items
  * whose key did not change.
  *
@@ -78,30 +78,42 @@ export const keyedList = <T>(
  * Returns the number of nodes that were repositioned (0 if the order was
  * already correct).
  */
-export const reconcileKeyed = (container: Element): number => {
+export const reconcileKeyed = (
+  container: Element,
+  desiredKeys?: readonly (string | number)[]
+): number => {
   const children = Array.from(container.children).filter((el) =>
     el.hasAttribute(DEFAULT_KEY_ATTR)
   );
   if (children.length < 2) return 0;
-  const keys = children.map((el) => el.getAttribute(DEFAULT_KEY_ATTR) as string);
-  // De-duplicate keys: keep first occurrence.
+
+  const byKey = new Map<string, Element>();
+  for (const child of children) {
+    const key = child.getAttribute(DEFAULT_KEY_ATTR);
+    if (!key || byKey.has(key)) continue;
+    byKey.set(key, child);
+  }
+
+  const targetKeys = (desiredKeys ?? Array.from(byKey.keys())).map((key) => String(key));
   const seen = new Set<string>();
   const ordered: Element[] = [];
-  for (let i = 0; i < children.length; i += 1) {
-    if (!seen.has(keys[i])) {
-      seen.add(keys[i]);
-      ordered.push(children[i]);
-    }
+  for (const key of targetKeys) {
+    if (seen.has(key)) continue;
+    const child = byKey.get(key);
+    if (!child) continue;
+    seen.add(key);
+    ordered.push(child);
   }
+  if (ordered.length < 2) return 0;
+
   let moved = 0;
-  let previous: Element | null = null;
+  let reference: ChildNode | null = container.firstChild;
   for (const child of ordered) {
-    const expected: Element | null = previous ? previous.nextElementSibling : container.firstElementChild;
-    if (expected !== child) {
-      container.insertBefore(child, previous ? previous.nextSibling : container.firstChild);
+    if (reference !== child) {
+      container.insertBefore(child, reference);
       moved += 1;
     }
-    previous = child;
+    reference = child.nextSibling;
   }
   return moved;
 };

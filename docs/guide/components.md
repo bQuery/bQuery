@@ -495,6 +495,9 @@ render({ state }) {
   )}</ul>`;
 }
 updated() {
-  reconcileKeyed(this.shadowRoot!.querySelector('ul')!);
+  reconcileKeyed(
+    this.shadowRoot!.querySelector('ul')!,
+    state.items.map((item) => item.id)
+  );
 }
 ```

@@ -56,6 +56,8 @@ export type FieldConfig<T = unknown> = {
   debounceMs?: number;
   /** Optional transform applied to values passed through `setValues()` / `restore()`. */
   parse?: (raw: unknown) => T;
+  /** Optional transform applied to outgoing values from `getValues()` / submit payloads. */
+  format?: (value: T) => T;
   /**
    * When `true`, the field starts disabled. Disabled fields are skipped by
    * `validate()` and `handleSubmit()`.
@@ -69,15 +71,16 @@ export type FieldConfig<T = unknown> = {
 export type SetFieldValueOptions = {
   /** Mark the field as touched after writing the value. */
   touch?: boolean;
+  /** Trigger validation for this field after writing the value. */
+  validate?: boolean;
+  /** Skip automatic validation/subscriber side effects for this write. */
+  silent?: boolean;
 };
 
 /**
  * Options accepted by {@link useFormField().setValue}.
  */
-export type UseFormFieldSetValueOptions = SetFieldValueOptions & {
-  /** Trigger validation after writing the value. */
-  validate?: boolean;
-};
+export type UseFormFieldSetValueOptions = SetFieldValueOptions;
 
 /**
  * Reactive state for a single form field.

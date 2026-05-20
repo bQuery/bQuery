@@ -215,12 +215,14 @@ describe('component/css', () => {
   });
 
   it('escapes dangerous values inside interpolations', () => {
-    const evil = '*/ body { background: red } /*';
+    const evil = "'*/ body { background: red } /*";
     const styles = css`
       .x { content: '${evil}'; }
     `;
     expect(styles.text).not.toContain('*/');
     expect(styles.text).not.toContain('/*');
+    expect(styles.text).not.toContain("content: ''");
+    expect(styles.text).not.toContain('{ background: red }');
   });
 
   it('inlines nested ComponentStyles', () => {
@@ -305,7 +307,7 @@ describe('component/keyedList', () => {
     expect(html).toContain('<li');
   });
 
-  it('reconcileKeyed reorders children to match key order', () => {
+  it('reconcileKeyed reorders children to match the provided key order', () => {
     const ul = document.createElement('ul');
     ul.innerHTML = `
       <li data-bq-key="a">A</li>
@@ -315,15 +317,13 @@ describe('component/keyedList', () => {
     // Swap b and c manually:
     const items = Array.from(ul.querySelectorAll('li'));
     ul.insertBefore(items[2], items[1]); // c before b
-    // Now order is a, c, b. Re-render maintained order a, b, c via keyedList output:
-    // simulate by resetting attribute order via direct re-injection:
-    ul.innerHTML = `
-      <li data-bq-key="a">A</li>
-      <li data-bq-key="b">B</li>
-      <li data-bq-key="c">C</li>
-    `;
-    const moved = reconcileKeyed(ul);
-    expect(moved).toBe(0);
+    const moved = reconcileKeyed(ul, ['a', 'b', 'c']);
+    expect(moved).toBeGreaterThan(0);
+    expect(Array.from(ul.children).map((node) => node.getAttribute('data-bq-key'))).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
   });
 
   it('escapes key values', () => {

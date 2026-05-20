@@ -322,7 +322,7 @@ const localized = withMessage(email(), t('Please enter a valid email'));
 ### Field- and form-level state
 
 Every field now exposes `isValidating`, `isFocused`, `dirtySince`, `disabled`,
-`focus()` / `blur()`, `setValue(value, { touch })`,
+`focus()` / `blur()`, `setValue(value, { touch, validate, silent })`,
 `setError(message)`, and `clearError()`. Every form exposes `submitCount`,
 `lastSubmittedAt`, `submitError`, `isValidating`, `isPristine`, plus
 `touchAll()`, `untouchAll()`, `resetField(name)`, `resetErrors()`,
@@ -341,7 +341,7 @@ const lineItems = createFieldArray({
 });
 
 lineItems.add('Product A');
-lineItems.add();
+lineItems.add('Product B');
 lineItems.move(0, 1);
 ```
 

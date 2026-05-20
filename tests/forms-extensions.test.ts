@@ -235,6 +235,22 @@ describe('forms/field extensions', () => {
     expect(form.fields.age.isTouched.value).toBe(true);
   });
 
+  it('supports setValue with validate and silent options', async () => {
+    const form = createForm({
+      fields: {
+        n: { initialValue: 'x', validators: [required('Req')], validateOn: 'change' },
+      },
+    });
+
+    form.fields.n.setValue('', { silent: true });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(form.fields.n.error.value).toBe('');
+
+    form.fields.n.setValue('', { validate: true });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(form.fields.n.error.value).toBe('Req');
+  });
+
   it('setError/clearError mutate the error signal', () => {
     const form = createForm({ fields: { name: { initialValue: '' } } });
     form.fields.name.setError('Bad');
@@ -263,6 +279,16 @@ describe('forms/field extensions', () => {
     });
     form.setValues({ n: '42' as unknown as number });
     expect(form.fields.n.value.value).toBe(42);
+  });
+
+  it('format transforms outgoing values via getValues()', () => {
+    const form = createForm({
+      fields: {
+        n: { initialValue: 2, format: (value) => value * 10 },
+      },
+    });
+    form.fields.n.value.value = 3;
+    expect(form.getValues()).toEqual({ n: 30 });
   });
 
   it('per-field validateOn:change triggers validation automatically', async () => {
@@ -573,6 +599,14 @@ describe('forms/createFieldArray', () => {
     expect(arr.getValues()).toEqual(['b', 'c', 'z']);
     arr.clear();
     expect(arr.length.value).toBe(0);
+  });
+
+  it('throws when add() is called without a value', () => {
+    const arr = createFieldArray<string>({
+      initial: [],
+      factory: (value) => useFormField(value),
+    });
+    expect(() => arr.add()).toThrow('createFieldArray.add() requires a value.');
   });
 
   it('validate runs item-level and array-level validators', async () => {

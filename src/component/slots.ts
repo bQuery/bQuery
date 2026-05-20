@@ -46,8 +46,10 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
     );
   }
   const sig = signal<Element[]>([]);
+  let disposed = false;
 
   const update = (): void => {
+    if (disposed) return;
     const slot = findSlot(host, name);
     if (!slot) {
       sig.value = [];
@@ -64,12 +66,14 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
       ? queueMicrotask
       : (cb: () => void): unknown => setTimeout(cb, 0);
   schedule(() => {
+    if (disposed) return;
     const slot = findSlot(host, name);
     if (slot) slot.addEventListener('slotchange', update);
     update();
   });
 
   scope.addDisposer(() => {
+    disposed = true;
     const slot = findSlot(host, name);
     slot?.removeEventListener('slotchange', update);
     sig.dispose();

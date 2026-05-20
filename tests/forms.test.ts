@@ -1146,6 +1146,21 @@ describe('forms/useFormField', () => {
     expect(field.error.value).toBe('');
   });
 
+  it('setValue supports silent writes and explicit validation', async () => {
+    const field = useFormField<string>('Ada', {
+      validators: [required('Required')],
+      validateOn: 'change',
+    });
+
+    field.setValue('', { silent: true });
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(field.error.value).toBe('');
+
+    field.setValue('', { validate: true });
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(field.error.value).toBe('Required');
+  });
+
   it('validates on blur when configured', async () => {
     const field = useFormField<string>('', {
       validators: [required('Required')],

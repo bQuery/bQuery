@@ -72,12 +72,12 @@ const escapeCssValue = (value: unknown): string => {
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   if (isComponentStyles(value)) return value.text;
   const str = String(value);
-  return str
+  const sanitized = str
     .replace(/\u0000/g, '')
-    .replace(/\\/g, '')
-    .replace(/<\/?/g, '')
     .replace(/\/\*/g, '')
-    .replace(/\*\//g, '');
+    .replace(/\*\//g, '')
+    .replace(/<\/?/g, '');
+  return sanitized.replace(/["'{};\\]/g, (char) => `\\${char.codePointAt(0)?.toString(16)} `);
 };
 
 const sheetCache = new WeakMap<typeof globalThis, Map<string, CSSStyleSheet>>();

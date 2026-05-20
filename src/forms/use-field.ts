@@ -241,6 +241,7 @@ export const useFormField = <T>(
       dirtySince.value = null;
     },
     setValue: (next, opts: UseFormFieldSetValueOptions = {}) => {
+      if (opts.silent) suppressNextChangeValidation = true;
       value.value = next;
       if (opts.touch) isTouched.value = true;
       if (opts.validate) scheduleValidation();

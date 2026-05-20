@@ -37,7 +37,10 @@ type FieldRuntime = {
   field: FormField<unknown>;
   config: FieldConfig<unknown>;
   parse: (raw: unknown) => unknown;
+  format: (value: unknown) => unknown;
   blurCount: Signal<number>;
+  consumeSilentNotifyWrite: () => boolean;
+  consumeSilentValidationWrite: () => boolean;
 };
 
 const fieldValidationIds = new WeakMap<FormField<unknown>, number>();
@@ -45,7 +48,14 @@ const fieldValidationIds = new WeakMap<FormField<unknown>, number>();
 /** @internal */
 const createField = <T>(
   config: FieldConfig<T>
-): { field: FormField<T>; initial: T; stopDirtyEffect: () => void; blurCount: Signal<number> } => {
+): {
+  field: FormField<T>;
+  initial: T;
+  stopDirtyEffect: () => void;
+  blurCount: Signal<number>;
+  consumeSilentNotifyWrite: () => boolean;
+  consumeSilentValidationWrite: () => boolean;
+} => {
   const initial = config.initialValue;
   const value = signal<T>(initial);
   const error = signal('');
@@ -55,6 +65,8 @@ const createField = <T>(
   const disabled = signal<boolean>(config.disabled === true);
   const dirtySince = signal<number | null>(null);
   const blurCount = signal(0);
+  let pendingSilentNotifyWrites = 0;
+  let pendingSilentValidationWrites = 0;
 
   // Track dirtySince reactively so that any write — via setValue, direct
   // .value mutation, or setValues() — keeps the timestamp in sync.
@@ -71,6 +83,10 @@ const createField = <T>(
   const isPristine = computed(() => !isDirty.value);
 
   const setValue = (next: T, options: SetFieldValueOptions = {}): void => {
+    if (options.silent) {
+      pendingSilentNotifyWrites += 1;
+      pendingSilentValidationWrites += 1;
+    }
     value.value = next;
     if (options.touch) {
       isTouched.value = true;
@@ -116,7 +132,22 @@ const createField = <T>(
     },
   };
 
-  return { field, initial, stopDirtyEffect, blurCount };
+  return {
+    field,
+    initial,
+    stopDirtyEffect,
+    blurCount,
+    consumeSilentNotifyWrite: () => {
+      if (pendingSilentNotifyWrites <= 0) return false;
+      pendingSilentNotifyWrites -= 1;
+      return true;
+    },
+    consumeSilentValidationWrite: () => {
+      if (pendingSilentValidationWrites <= 0) return false;
+      pendingSilentValidationWrites -= 1;
+      return true;
+    },
+  };
 };
 
 /** @internal */
@@ -213,16 +244,27 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
   const stopDirtyEffects: Array<() => void> = [];
   for (const [name, fieldConfig] of fieldEntries) {
-    const { field, stopDirtyEffect, blurCount } = createField(
+    const { field, stopDirtyEffect, blurCount, consumeSilentNotifyWrite, consumeSilentValidationWrite } =
+      createField(
       fieldConfig as FieldConfig<T[typeof name]>
     );
+    const originalSetValue = field.setValue.bind(field);
+    field.setValue = (next: T[typeof name], options: SetFieldValueOptions = {}) => {
+      originalSetValue(next, options);
+      if (options.validate) {
+        void validateField(name as keyof T & string);
+      }
+    };
     (fields as Record<string, FormField>)[name] = field as FormField;
     (errors as Record<string, typeof field.error>)[name] = field.error;
     runtime[name] = {
       field: field as FormField<unknown>,
       config: fieldConfig as FieldConfig<unknown>,
       parse: (fieldConfig as FieldConfig<unknown>).parse ?? ((raw: unknown) => raw),
+      format: (fieldConfig as FieldConfig<unknown>).format ?? ((value: unknown) => value),
       blurCount,
+      consumeSilentNotifyWrite,
+      consumeSilentValidationWrite,
     };
     fieldOrder.push(name);
     stopDirtyEffects.push(stopDirtyEffect);
@@ -266,7 +308,8 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
   const getValues = (): T => {
     const values = {} as Record<string, unknown>;
     for (const name of fieldOrder) {
-      values[name] = (fields as Record<string, FormField>)[name].value.value;
+      const entry = runtime[name];
+      values[name] = entry.format((fields as Record<string, FormField>)[name].value.value);
     }
     return values as T;
   };
@@ -274,7 +317,8 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
   const getValuesUntracked = (): T => {
     const values = {} as Record<string, unknown>;
     for (const name of fieldOrder) {
-      values[name] = (fields as Record<string, FormField>)[name].value.peek();
+      const entry = runtime[name];
+      values[name] = entry.format((fields as Record<string, FormField>)[name].value.peek());
     }
     return values as T;
   };
@@ -298,7 +342,8 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       initialNotifyRun = false;
       return;
     }
-    if (listeners.size === 0) return;
+    const hasSilentWrite = fieldOrder.some((name) => runtime[name].consumeSilentNotifyWrite());
+    if (hasSilentWrite || listeners.size === 0) return;
     const snap = getValuesUntracked();
     for (const listener of listeners) {
       try {
@@ -352,6 +397,9 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
         void entry.field.value.value;
         if (firstChangeRun) {
           firstChangeRun = false;
+          return;
+        }
+        if (entry.consumeSilentValidationWrite()) {
           return;
         }
         schedule();
