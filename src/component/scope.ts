@@ -29,6 +29,8 @@ export interface ComponentScope {
 
 /** Currently active component scope. @internal */
 let currentScope: ComponentScope | undefined;
+/** Whether the active component scope is currently rendering. @internal */
+let currentScopeIsRendering = false;
 
 /**
  * Sets the active component scope.
@@ -41,11 +43,29 @@ export function setCurrentScope(scope: ComponentScope | undefined): ComponentSco
 }
 
 /**
+ * Sets whether the active component scope is currently rendering.
+ * @internal
+ */
+export function setCurrentScopeIsRendering(isRendering: boolean): boolean {
+  const previous = currentScopeIsRendering;
+  currentScopeIsRendering = isRendering;
+  return previous;
+}
+
+/**
  * Returns the active component scope, or undefined if none.
  * @internal
  */
 export function getCurrentScope(): ComponentScope | undefined {
   return currentScope;
+}
+
+/**
+ * Returns whether the active component scope is currently rendering.
+ * @internal
+ */
+export function isCurrentScopeRendering(): boolean {
+  return currentScopeIsRendering;
 }
 
 /**
@@ -112,7 +132,7 @@ export function createComponentScope(): ComponentScope {
  */
 export function useSignal<T>(initialValue: T): Signal<T> {
   const scope = currentScope;
-  if (!scope) {
+  if (!scope || currentScopeIsRendering) {
     throw new Error(
       'bQuery component: useSignal() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
     );
@@ -156,7 +176,7 @@ export function useSignal<T>(initialValue: T): Signal<T> {
  */
 export function useComputed<T>(fn: () => T): Computed<T> {
   const scope = currentScope;
-  if (!scope) {
+  if (!scope || currentScopeIsRendering) {
     throw new Error(
       'bQuery component: useComputed() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
     );
@@ -201,7 +221,7 @@ export function useComputed<T>(fn: () => T): Computed<T> {
  */
 export function useEffect(fn: () => void | CleanupFn): CleanupFn {
   const scope = currentScope;
-  if (!scope) {
+  if (!scope || currentScopeIsRendering) {
     throw new Error(
       'bQuery component: useEffect() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
     );

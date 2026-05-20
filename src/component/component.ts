@@ -10,7 +10,12 @@ import { sanitizeHtml } from '../security/sanitize';
 import { applyAdoptedStyles, isComponentStyles } from './css';
 import { cleanupDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
-import { createComponentScope, setCurrentScope, type ComponentScope } from './scope';
+import {
+  createComponentScope,
+  setCurrentScope,
+  setCurrentScopeIsRendering,
+  type ComponentScope,
+} from './scope';
 import type {
   AttributeChange,
   ComponentClass,
@@ -476,6 +481,7 @@ const createComponentClass = <
         let markup: string;
         try {
           const previousScope = setCurrentScope(this.scope);
+          const previousRenderPhase = setCurrentScopeIsRendering(true);
           try {
             markup = definition.render({
               props: this.props,
@@ -484,6 +490,7 @@ const createComponentClass = <
               emit,
             });
           } finally {
+            setCurrentScopeIsRendering(previousRenderPhase);
             setCurrentScope(previousScope);
           }
         } catch (renderError) {

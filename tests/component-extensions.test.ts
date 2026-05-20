@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { Signal } from '../src/reactive/index';
 import { component } from '../src/component/component';
 import { html } from '../src/component/html';
 import { css, isComponentStyles } from '../src/component/css';
@@ -12,7 +13,7 @@ import { formContextKey, inject, injectionKey, provide } from '../src/component/
 import { keyedList, reconcileKeyed } from '../src/component/keyed-list';
 import { useRef } from '../src/component/refs';
 import { hasSlot, slotText, useSlot } from '../src/component/slots';
-import { useAsync, whenIdle } from '../src/component/async';
+import { useAsync, whenIdle, type UseAsyncResult } from '../src/component/async';
 import { useSignal } from '../src/component/scope';
 
 const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36).slice(2, 9)}`;
@@ -67,7 +68,7 @@ describe('component/useRef', () => {
 describe('component/slots', () => {
   it('useSlot returns assigned elements reactively', async () => {
     const tag = uniqueTag('slot-host');
-    let captured: ReturnType<typeof useSlot> | null = null;
+    let captured: Signal<Element[]> | null = null;
     component(tag, {
       connected() {
         captured = useSlot(this);
@@ -79,7 +80,8 @@ describe('component/slots', () => {
     document.body.appendChild(host);
     // wait for queued lookup
     await new Promise((r) => queueMicrotask(() => r(undefined)));
-    expect(captured?.value.length).toBe(2);
+    const slotSignal = captured as unknown as Signal<Element[]>;
+    expect(slotSignal.value.length).toBe(2);
     expect(hasSlot(host)).toBe(true);
     expect(slotText(host)).toBe('ab');
     host.remove();
@@ -146,7 +148,7 @@ describe('component/inject', () => {
 describe('component/useAsync', () => {
   it('exposes loading/data signals', async () => {
     const tag = uniqueTag('async-host');
-    let captured: ReturnType<typeof useAsync<number>> | null = null;
+    let captured: UseAsyncResult<number> | null = null;
     component(tag, {
       connected() {
         captured = useAsync(async () => 7);
@@ -156,15 +158,16 @@ describe('component/useAsync', () => {
     const host = document.createElement(tag);
     document.body.appendChild(host);
     await new Promise((r) => setTimeout(r, 5));
-    expect(captured?.loading.value).toBe(false);
-    expect(captured?.data.value).toBe(7);
-    expect(captured?.error.value).toBeNull();
+    const asyncState = captured as unknown as UseAsyncResult<number>;
+    expect(asyncState.loading.value).toBe(false);
+    expect(asyncState.data.value).toBe(7);
+    expect(asyncState.error.value).toBeNull();
     host.remove();
   });
 
   it('captures errors', async () => {
     const tag = uniqueTag('async-error');
-    let captured: ReturnType<typeof useAsync<number>> | null = null;
+    let captured: UseAsyncResult<number> | null = null;
     component(tag, {
       connected() {
         captured = useAsync(async () => {
@@ -176,7 +179,8 @@ describe('component/useAsync', () => {
     const host = document.createElement(tag);
     document.body.appendChild(host);
     await new Promise((r) => setTimeout(r, 5));
-    expect(captured?.error.value).toBeInstanceOf(Error);
+    const asyncState = captured as unknown as UseAsyncResult<number>;
+    expect(asyncState.error.value).toBeInstanceOf(Error);
     host.remove();
   });
 });

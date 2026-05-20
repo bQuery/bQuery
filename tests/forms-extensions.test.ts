@@ -451,8 +451,12 @@ describe('forms/form extensions', () => {
     const events: string[] = [];
     const form = createForm({
       fields: { name: { initialValue: 'a' } },
-      onSubmit: async () => events.push('submit'),
-      onSubmitSuccess: async (values) => events.push(`success:${values.name}`),
+      onSubmit: async () => {
+        events.push('submit');
+      },
+      onSubmitSuccess: async (values) => {
+        events.push(`success:${values.name}`);
+      },
     });
     await form.handleSubmit();
     expect(events).toEqual(['submit', 'success:a']);
@@ -604,7 +608,7 @@ describe('forms/form extensions', () => {
         active: { initialValue: true },
         offline: { initialValue: false },
         tags: { initialValue: ['a', 'b'] },
-        numberAsString: { initialValue: 2, format: (value) => `#${value}` },
+        numberAsString: { initialValue: '2', format: (value) => `#${value}` },
       },
     });
     const fd = form.toFormData();
