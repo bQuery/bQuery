@@ -98,7 +98,7 @@ describe('utils/object extras', () => {
     set(target, 'value', 3);
 
     expect(writes).toEqual([3]);
-    expect(Object.hasOwn(target, 'value')).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(target, 'value')).toBe(false);
   });
 
   it('has detects nested presence and prototype-pollution safety', () => {
