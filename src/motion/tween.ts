@@ -92,8 +92,8 @@ function createFrameInterpolator<T extends TweenValue>(from: T, to: T): (t: numb
     const len = from.length;
     const fromArr = from as number[];
     const toArr = to as number[];
-    const out: number[] = new Array(len);
     return (t: number) => {
+      const out: number[] = new Array(len);
       for (let i = 0; i < len; i += 1) {
         out[i] = fromArr[i] + (toArr[i] - fromArr[i]) * t;
       }
@@ -109,11 +109,8 @@ function createFrameInterpolator<T extends TweenValue>(from: T, to: T): (t: numb
       a: key in fromRec ? fromRec[key] : toRec[key],
       b: key in toRec ? toRec[key] : fromRec[key],
     }));
-    const out: Record<string, number> = {};
-    for (const { key } of pairs) {
-      out[key] = 0;
-    }
     return (t: number) => {
+      const out: Record<string, number> = {};
       for (const { key, a, b } of pairs) {
         out[key] = a + (b - a) * t;
       }

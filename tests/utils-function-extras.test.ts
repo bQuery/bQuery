@@ -28,6 +28,20 @@ describe('utils/function extras', () => {
     expect(fn.delete('[2]')).toBe(true);
   });
 
+  it('memoize throws a clear error when default key serialization fails', () => {
+    let calls = 0;
+    const fn = memoize((value: unknown) => {
+      calls += 1;
+      return value;
+    });
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(() => fn(circular)).toThrow(
+      'memoize: failed to compute cache key from arguments; provide keyFn for non-serializable values'
+    );
+    expect(calls).toBe(0);
+  });
+
   it('compose and pipe compose in opposite orders', () => {
     const inc = (n: number) => n + 1;
     const double = (n: number) => n * 2;

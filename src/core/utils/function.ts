@@ -277,7 +277,14 @@ export function memoize<TArgs extends unknown[], TResult>(
 ): MemoizedFn<TArgs, TResult> {
   const cache = new Map<string, TResult>();
   const memo = ((...args: TArgs): TResult => {
-    const key = keyFn ? keyFn(...args) : JSON.stringify(args);
+    let key: string;
+    try {
+      key = keyFn ? keyFn(...args) : JSON.stringify(args);
+    } catch {
+      throw new TypeError(
+        'memoize: failed to compute cache key from arguments; provide keyFn for non-serializable values'
+      );
+    }
     if (cache.has(key)) return cache.get(key) as TResult;
     const result = fn(...args);
     cache.set(key, result);

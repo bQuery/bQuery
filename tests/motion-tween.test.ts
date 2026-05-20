@@ -32,6 +32,23 @@ describe('motion/animateValue', () => {
     expect(final[1]).toBeCloseTo(-20, 5);
   });
 
+  it('returns a new array instance on each interpolated frame', () => {
+    const t = tween<number[]>({
+      from: [0, 0],
+      to: [10, 20],
+      duration: 100,
+      respectReducedMotion: false,
+    });
+    t.seek(0.2);
+    const first = t.current();
+    t.seek(0.8);
+    const second = t.current();
+    t.stop();
+    expect(first).toEqual([2, 4]);
+    expect(second).toEqual([8, 16]);
+    expect(first).not.toBe(second);
+  });
+
   it('throws for arrays with different lengths', () => {
     setReducedMotion(true);
     try {
@@ -66,6 +83,23 @@ describe('motion/animateValue', () => {
     });
     expect(final.x).toBeCloseTo(100, 5);
     expect(final.y).toBeCloseTo(25, 5);
+  });
+
+  it('returns a new record instance on each interpolated frame', () => {
+    const t = tween<Record<string, number>>({
+      from: { x: 0, y: 5 },
+      to: { x: 10, y: 25 },
+      duration: 100,
+      respectReducedMotion: false,
+    });
+    t.seek(0.2);
+    const first = t.current();
+    t.seek(0.8);
+    const second = t.current();
+    t.stop();
+    expect(first).toEqual({ x: 2, y: 9 });
+    expect(second).toEqual({ x: 8, y: 21 });
+    expect(first).not.toBe(second);
   });
 
   it('throws a generic error for unsupported value shapes', () => {
