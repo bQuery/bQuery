@@ -107,6 +107,17 @@ describe('utils/function extras', () => {
     expect(calls).toEqual([1, 3]);
   });
 
+  it('debounce(leading: true, trailing: true) keeps a single call for the trailing edge', async () => {
+    const calls: number[] = [];
+    const fn = debounce((n: number) => calls.push(n), 30, { leading: true, trailing: true });
+
+    fn(1);
+
+    expect(calls).toEqual([1]);
+    await wait(60);
+    expect(calls).toEqual([1, 1]);
+  });
+
   it('debounce maxWait forces invocation', async () => {
     let calls: number[] = [];
     const fn = debounce((n: number) => calls.push(n), 30, { maxWait: 50 });

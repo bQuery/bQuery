@@ -74,9 +74,11 @@ export function debounce<TArgs extends unknown[]>(
   let lastInvokeTime = 0;
   let leadingDone = false;
 
-  const invoke = (args: TArgs): void => {
+  const invoke = (args: TArgs, preservePending = false): void => {
     lastInvokeTime = Date.now();
-    pendingArgs = undefined;
+    if (!preservePending) {
+      pendingArgs = undefined;
+    }
     fn(...args);
   };
 
@@ -110,7 +112,7 @@ export function debounce<TArgs extends unknown[]>(
     const now = Date.now();
     if (leading && !leadingDone) {
       leadingDone = true;
-      invoke(args);
+      invoke(args, trailing);
     }
     clearTrailing();
     timeoutId = setTimeout(trailingTrigger, delayMs);

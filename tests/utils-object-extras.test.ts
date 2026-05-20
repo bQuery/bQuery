@@ -58,6 +58,31 @@ describe('utils/object extras', () => {
     expect(locked.value).toBe(1);
   });
 
+  it('set preserves existing accessors and descriptor flags', () => {
+    const writes: unknown[] = [];
+    let current: unknown;
+    const target: Record<string, unknown> = {};
+    Object.defineProperty(target, 'value', {
+      enumerable: false,
+      configurable: true,
+      get() {
+        return current;
+      },
+      set(value: unknown) {
+        writes.push(value);
+        current = value;
+      },
+    });
+
+    set(target, 'value', 2);
+
+    const descriptor = Object.getOwnPropertyDescriptor(target, 'value');
+    expect(writes).toEqual([2]);
+    expect(target.value).toBe(2);
+    expect(descriptor?.enumerable).toBe(false);
+    expect(typeof descriptor?.set).toBe('function');
+  });
+
   it('has detects nested presence and prototype-pollution safety', () => {
     expect(has({ a: { b: 0 } }, 'a.b')).toBe(true);
     expect(has({ config: { 'theme.color': '#0af' } }, 'config["theme.color"]')).toBe(true);
