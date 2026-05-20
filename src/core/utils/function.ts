@@ -136,7 +136,7 @@ export function debounce<TArgs extends unknown[]>(
   };
 
   debounced.flush = () => {
-    if (pendingArgs) {
+    if (trailing && timeoutId !== undefined && pendingArgs) {
       const args = pendingArgs;
       clearTrailing();
       clearMax();

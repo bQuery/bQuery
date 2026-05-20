@@ -101,7 +101,7 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
       const normalized = maxDistance === 0 ? 0 : distance / maxDistance;
       const eased = easing ? easing(normalized) * maxDistance : distance;
       const randomized = seededRandom
-        ? eased * (1 - 0.5) + seededRandom() * maxDistance
+        ? eased * 0.5 + seededRandom() * maxDistance * 0.5
         : eased;
       return start + randomized * step;
     }

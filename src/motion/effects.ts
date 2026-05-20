@@ -8,7 +8,7 @@
  */
 
 import { animateValue } from './tween';
-import { easeOutCubic, easeInOutCubic } from './easing';
+import { easeOutCubic } from './easing';
 import { prefersReducedMotion } from './reduced-motion';
 import type { EasingFunction } from './types';
 
@@ -283,5 +283,3 @@ export const countUp = (
   }).then(() => undefined);
 };
 
-// Re-export easeInOutCubic locally so tests can verify the default is sensible.
-void easeInOutCubic;
