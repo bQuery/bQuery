@@ -91,6 +91,7 @@ export type {
   SyncValidator,
   UseFormFieldOptions,
   UseFormFieldReturn,
+  UseFormFieldSetValueOptions,
   ValidationResult,
   Validator,
 } from './types';

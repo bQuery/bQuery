@@ -5,14 +5,7 @@
  */
 
 import type { Form, FormSnapshot } from './types';
-
-const escapeForScript = (str: string): string =>
-  str
-    .replace(/</g, '\\u003c')
-    .replace(/>/g, '\\u003e')
-    .replace(/\//g, '\\u002f')
-    .replace(/\u2028/g, '\\u2028')
-    .replace(/\u2029/g, '\\u2029');
+import { escapeForScript } from '../ssr/escape';
 
 /**
  * Serialize a form snapshot to an inline `<script>` tag suitable for embedding

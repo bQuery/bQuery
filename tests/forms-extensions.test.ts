@@ -226,7 +226,7 @@ describe('forms/field extensions', () => {
     expect(form.fields.name.dirtySince.value).toBeNull();
   });
 
-  it('supports setValue with touch/validate options', async () => {
+  it('supports setValue with touch options', async () => {
     const form = createForm({
       fields: { age: { initialValue: 0, validators: [integer()] } },
     });
@@ -296,6 +296,60 @@ describe('forms/field extensions', () => {
     await new Promise((r) => setTimeout(r, 50));
     expect(form.fields.n.error.value).toBe('Req');
     form.destroy();
+  });
+
+  it('per-field validateOn:blur revalidates on every blur', async () => {
+    const form = createForm({
+      fields: {
+        n: { initialValue: 'ok', validators: [required('Req')], validateOn: 'blur' },
+      },
+    });
+
+    form.fields.n.blur();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(form.fields.n.error.value).toBe('');
+
+    form.fields.n.value.value = '';
+    form.fields.n.blur();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(form.fields.n.error.value).toBe('Req');
+
+    form.fields.n.value.value = 'fixed';
+    form.fields.n.blur();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(form.fields.n.error.value).toBe('');
+  });
+
+  it('ignores stale async validation results in createForm()', async () => {
+    const form = createForm({
+      fields: {
+        username: {
+          initialValue: '',
+          validateOn: 'change',
+          validators: [
+            async (value: string) => {
+              if (value === 'slow') {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+                return 'Taken';
+              }
+
+              await new Promise((resolve) => setTimeout(resolve, 0));
+              return true;
+            },
+          ],
+        },
+      },
+    });
+
+    form.fields.username.value.value = 'slow';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(form.fields.username.isValidating.value).toBe(true);
+
+    form.fields.username.value.value = 'fast';
+    await new Promise((resolve) => setTimeout(resolve, 30));
+
+    expect(form.fields.username.error.value).toBe('');
+    expect(form.fields.username.isValidating.value).toBe(false);
   });
 });
 
@@ -577,6 +631,14 @@ describe('forms/schema', () => {
     });
     expect(form.fields.a.value.value).toBe('x');
     expect(form.fields.b.value.value).toBe(5);
+  });
+
+  it('requires defaults for fluent schema entries', () => {
+    expect(() =>
+      schema<{ name: string }>({
+        name: field<string>().required(),
+      })
+    ).toThrow('schema() requires a default value');
   });
 });
 

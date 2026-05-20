@@ -7,6 +7,7 @@
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { isPromise } from '../core/utils/type-guards';
 import { computed, effect, signal } from '../reactive/index';
+import type { Signal } from '../reactive/index';
 import type {
   CrossFieldValidator,
   FieldConfig,
@@ -37,12 +38,15 @@ type FieldRuntime = {
   config: FieldConfig<unknown>;
   initial: unknown;
   parse: (raw: unknown) => unknown;
+  blurCount: Signal<number>;
 };
+
+const fieldValidationIds = new WeakMap<FormField<unknown>, number>();
 
 /** @internal */
 const createField = <T>(
   config: FieldConfig<T>
-): { field: FormField<T>; initial: T; stopDirtyEffect: () => void } => {
+): { field: FormField<T>; initial: T; stopDirtyEffect: () => void; blurCount: Signal<number> } => {
   const initial = config.initialValue;
   const value = signal<T>(initial);
   const error = signal('');
@@ -51,6 +55,7 @@ const createField = <T>(
   const isFocused = signal(false);
   const disabled = signal<boolean>(config.disabled === true);
   const dirtySince = signal<number | null>(null);
+  const blurCount = signal(0);
 
   // Track dirtySince reactively so that any write — via setValue, direct
   // .value mutation, or setValues() — keeps the timestamp in sync.
@@ -71,9 +76,6 @@ const createField = <T>(
     if (options.touch) {
       isTouched.value = true;
     }
-    // 'silent' and 'validate' are handled by form-level wiring.
-    void options.silent;
-    void options.validate;
   };
 
   const field: FormField<T> = {
@@ -111,10 +113,11 @@ const createField = <T>(
     blur: () => {
       isFocused.value = false;
       isTouched.value = true;
+      blurCount.value = blurCount.peek() + 1;
     },
   };
 
-  return { field, initial, stopDirtyEffect };
+  return { field, initial, stopDirtyEffect, blurCount };
 };
 
 /** @internal */
@@ -123,20 +126,31 @@ const validateSingleField = async <T>(
   validators: Validator<T>[] | undefined,
   mode: 'first' | 'all'
 ): Promise<string> => {
+  const currentValidationId = (fieldValidationIds.get(field as FormField<unknown>) ?? 0) + 1;
+  fieldValidationIds.set(field as FormField<unknown>, currentValidationId);
+
   if (field.disabled.peek()) {
-    field.error.value = '';
+    if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.error.value = '';
+    }
     return '';
   }
   if (!validators || validators.length === 0) {
-    field.error.value = '';
+    if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.error.value = '';
+    }
     return '';
   }
 
   field.isValidating.value = true;
   try {
+    const currentValue = field.value.peek();
     if (mode === 'first') {
       for (const validator of validators) {
-        const msg = await runValidator(validator, field.value.peek());
+        const msg = await runValidator(validator, currentValue);
+        if (fieldValidationIds.get(field as FormField<unknown>) !== currentValidationId) {
+          return field.error.peek();
+        }
         if (msg) {
           field.error.value = msg;
           return msg;
@@ -147,7 +161,10 @@ const validateSingleField = async <T>(
     }
     const messages: string[] = [];
     for (const validator of validators) {
-      const msg = await runValidator(validator, field.value.peek());
+      const msg = await runValidator(validator, currentValue);
+      if (fieldValidationIds.get(field as FormField<unknown>) !== currentValidationId) {
+        return field.error.peek();
+      }
       if (msg) messages.push(msg);
     }
     if (messages.length === 0) {
@@ -158,7 +175,9 @@ const validateSingleField = async <T>(
     field.error.value = joined;
     return joined;
   } finally {
-    field.isValidating.value = false;
+    if (fieldValidationIds.get(field as FormField<unknown>) === currentValidationId) {
+      field.isValidating.value = false;
+    }
   }
 };
 
@@ -195,7 +214,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
   const stopDirtyEffects: Array<() => void> = [];
   for (const [name, fieldConfig] of fieldEntries) {
-    const { field, initial, stopDirtyEffect } = createField(
+    const { field, initial, stopDirtyEffect, blurCount } = createField(
       fieldConfig as FieldConfig<T[typeof name]>
     );
     (fields as Record<string, FormField>)[name] = field as FormField;
@@ -205,6 +224,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       config: fieldConfig as FieldConfig<unknown>,
       initial,
       parse: (fieldConfig as FieldConfig<unknown>).parse ?? ((raw: unknown) => raw),
+      blurCount,
     };
     fieldOrder.push(name);
     stopDirtyEffects.push(stopDirtyEffect);
@@ -270,7 +290,6 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
   // --- subscribe() ----------------------------------------------------------
 
   const listeners = new Set<FormChangeListener<T>>();
-  let suppressNotify = false;
   let initialNotifyRun = true;
 
   const stopValuesEffect = effect(() => {
@@ -279,10 +298,6 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     }
     if (initialNotifyRun) {
       initialNotifyRun = false;
-      return;
-    }
-    if (suppressNotify) {
-      suppressNotify = false;
       return;
     }
     if (listeners.size === 0) return;
@@ -347,12 +362,12 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     }
     if (fieldStrategy === 'blur' || fieldStrategy === 'both') {
       const stop = effect(() => {
-        const touched = entry.field.isTouched.value;
+        void entry.blurCount.value;
         if (firstBlurRun) {
           firstBlurRun = false;
           return;
         }
-        if (touched) schedule();
+        schedule();
       });
       stopFieldEffects.push(stop);
     }

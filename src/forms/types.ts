@@ -54,10 +54,8 @@ export type FieldConfig<T = unknown> = {
   validateOn?: FormFieldValidationMode;
   /** Delay automatic validation by the given milliseconds. */
   debounceMs?: number;
-  /** Optional transform applied to incoming raw values before storing them. */
+  /** Optional transform applied to values passed through `setValues()` / `restore()`. */
   parse?: (raw: unknown) => T;
-  /** Optional formatter for derived display strings. Used by bindings. */
-  format?: (value: T) => string;
   /**
    * When `true`, the field starts disabled. Disabled fields are skipped by
    * `validate()` and `handleSubmit()`.
@@ -71,10 +69,14 @@ export type FieldConfig<T = unknown> = {
 export type SetFieldValueOptions = {
   /** Mark the field as touched after writing the value. */
   touch?: boolean;
+};
+
+/**
+ * Options accepted by {@link useFormField().setValue}.
+ */
+export type UseFormFieldSetValueOptions = SetFieldValueOptions & {
   /** Trigger validation after writing the value. */
   validate?: boolean;
-  /** Skip notifying form-level `subscribe()` listeners for this write. */
-  silent?: boolean;
 };
 
 /**
@@ -105,7 +107,7 @@ export type FormField<T = unknown> = {
   touch: () => void;
   /** Reset the field to its initial value and clear errors */
   reset: () => void;
-  /** Atomically set the field value with optional touch / validate / silent flags. */
+  /** Atomically set the field value with an optional touch flag. */
   setValue: (value: T, options?: SetFieldValueOptions) => void;
   /** Set the field's error message. */
   setError: (message: string) => void;
@@ -135,6 +137,8 @@ export type UseFormFieldOptions<T = unknown> = {
  * Return value of {@link useFormField}.
  */
 export type UseFormFieldReturn<T = unknown> = FormField<T> & {
+  /** Standalone fields support immediate validation via `setValue(..., { validate: true })`. */
+  setValue: (value: T, options?: UseFormFieldSetValueOptions) => void;
   /** Whether the current field has no validation error */
   isValid: Computed<boolean>;
   /** Validate the current field value immediately */
@@ -293,8 +297,6 @@ export type FormFieldArray<T = unknown> = {
  * Options for {@link bindField}.
  */
 export type BindFieldOptions = {
-  /** Override the field's `validateOn` for this binding. */
-  validateOn?: FormFieldValidationMode;
   /** Override the field's `debounceMs` for this binding. */
   debounceMs?: number;
   /** Custom DOM-event → field-value extractor. */

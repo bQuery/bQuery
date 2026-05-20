@@ -52,7 +52,7 @@ export const isComponentStyles = (value: unknown): value is ComponentStyles => {
   return (
     typeof value === 'object' &&
     value !== null &&
-    (value as Record<string, unknown>)[COMPONENT_STYLES_MARKER as unknown as string] === true
+    (value as ComponentStyles)[COMPONENT_STYLES_MARKER] === true
   );
 };
 
@@ -138,8 +138,6 @@ export const css = (strings: TemplateStringsArray, ...values: unknown[]): Compon
  * Attempt to apply a `ComponentStyles` payload to a shadow root via
  * `adoptedStyleSheets`. Returns `true` on success; on failure (no support, or
  * sheet construction failed) callers should fall back to a `<style>` element.
- *
- * @internal
  */
 export const applyAdoptedStyles = (
   root: ShadowRoot,

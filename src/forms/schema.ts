@@ -166,7 +166,12 @@ export const schema = <T extends Record<string, unknown>>(
   for (const key of Object.keys(shape) as (keyof T & string)[]) {
     const entry = shape[key];
     if (isFieldSchema<T[typeof key]>(entry)) {
-      const initial = (defaults?.[key] as T[typeof key]) ?? (undefined as T[typeof key]);
+      if (!defaults || !Object.prototype.hasOwnProperty.call(defaults, key)) {
+        throw new Error(
+          `bQuery forms: schema() requires a default value for fluent field "${key}"`
+        );
+      }
+      const initial = defaults[key] as T[typeof key];
       fields[key] = entry.toConfig(initial);
     } else if (isFieldConfig<T[typeof key]>(entry)) {
       fields[key] = entry;

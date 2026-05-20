@@ -336,11 +336,11 @@ export type ComponentDefinition<
      */
     beforeUnmount?: ComponentHook<TState>;
     /**
-     * Error boundary hook. When provided and a render or lifecycle hook throws,
-     * this function is called with the thrown error. If it returns a string,
-     * that string is rendered into the shadow root as the fallback markup
-     * (sanitized like normal render output). If it returns nothing the error is
-     * still routed through `onError` / the default console reporter.
+     * Error boundary hook. When provided and `render()` throws, this function is
+     * called with the thrown error. If it returns a string, that string is
+     * rendered into the shadow root as the fallback markup (sanitized like
+     * normal render output). If it returns nothing the error is still routed
+     * through `onError` / the default console reporter.
      */
     errorBoundary?: (
       this: ComponentElement<TState>,

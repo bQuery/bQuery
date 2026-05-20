@@ -322,7 +322,7 @@ const localized = withMessage(email(), t('Please enter a valid email'));
 ### Field- and form-level state
 
 Every field now exposes `isValidating`, `isFocused`, `dirtySince`, `disabled`,
-`focus()` / `blur()`, `setValue(value, { touch, validate, silent })`,
+`focus()` / `blur()`, `setValue(value, { touch })`,
 `setError(message)`, and `clearError()`. Every form exposes `submitCount`,
 `lastSubmittedAt`, `submitError`, `isValidating`, `isPristine`, plus
 `touchAll()`, `untouchAll()`, `resetField(name)`, `resetErrors()`,
@@ -350,11 +350,16 @@ lineItems.move(0, 1);
 ```ts
 import { schema, field } from '@bquery/bquery/forms';
 
-const fields = schema({
-  name:  field<string>().required().min(2),
-  email: field<string>().required().email(),
+const form = createForm({
+  ...schema(
+    {
+      name: field<string>().required().minLength(2),
+      email: field<string>().required().email(),
+    },
+    { name: '', email: '' }
+  ),
+  onSubmit: save,
 });
-const form = createForm({ fields, onSubmit: save });
 ```
 
 ### DOM bindings
@@ -390,8 +395,10 @@ component('login-form', {
 import { serializeFormState, hydrateForm, readSerializedFormState } from '@bquery/bquery/forms';
 
 // Server:
-const tag = serializeFormState('login', form); // returns a <script> tag
+const tag = serializeFormState('login', form.snapshot()); // returns a <script> tag
 // Client:
 const snapshot = readSerializedFormState('login');
-if (snapshot) hydrateForm(form, snapshot);
+if (snapshot) form.restore(snapshot);
+// or simply:
+hydrateForm(form, 'login');
 ```

@@ -11,7 +11,13 @@ import { Signal } from '../reactive/core';
 import { computed, effect, signal } from '../reactive/index';
 import type { MaybeSignal } from '../reactive/index';
 import { isReadonlySignal } from '../reactive/readonly';
-import type { UseFormFieldOptions, UseFormFieldReturn, ValidationResult, Validator } from './types';
+import type {
+  UseFormFieldOptions,
+  UseFormFieldReturn,
+  UseFormFieldSetValueOptions,
+  ValidationResult,
+  Validator,
+} from './types';
 
 /**
  * Determines whether a validator returned a valid result.
@@ -227,7 +233,7 @@ export const useFormField = <T>(
       disabled.value = false;
       dirtySince.value = null;
     },
-    setValue: (next, opts = {}) => {
+    setValue: (next, opts: UseFormFieldSetValueOptions = {}) => {
       value.value = next;
       if (opts.touch) isTouched.value = true;
       if (opts.validate) scheduleValidation();
