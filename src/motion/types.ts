@@ -215,9 +215,17 @@ export type TimelineRelativeOffset = `+=${number}` | `-=${number}`;
 export type TimelineLabelOffset = `${string}+=${number}` | `${string}-=${number}`;
 
 /**
+ * Timeline label name.
+ *
+ * Uses an intersection instead of plain `string` so relative offset templates
+ * remain visible in editor completions for `TimelineAt`.
+ */
+export type TimelineLabel = string & Record<never, never>;
+
+/**
  * Absolute or relative timeline position.
  */
-export type TimelineAt = number | string | TimelineRelativeOffset | TimelineLabelOffset;
+export type TimelineAt = number | TimelineLabel | TimelineRelativeOffset | TimelineLabelOffset;
 
 /**
  * Timeline step configuration.

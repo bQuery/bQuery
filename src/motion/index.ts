@@ -28,6 +28,7 @@ export type {
   TimelineConfig,
   TimelineAt,
   TimelineControls,
+  TimelineLabel,
   TimelineLabelOffset,
   TimelineRelativeOffset,
   TimelineRepeat,
