@@ -165,10 +165,20 @@ export const timeline = (
   const startUpdateLoop = () => {
     if (typeof requestAnimationFrame !== 'function') return;
     if (updateListeners.size === 0) return;
+    if (updateFrame !== null) return;
+    if (finalized) return;
     const tick = () => {
+      if (finalized || updateListeners.size === 0 || animations.length === 0) {
+        updateFrame = null;
+        return;
+      }
       const sample = animations[0]?.animation;
       const time = typeof sample?.currentTime === 'number' ? sample.currentTime : 0;
       notifyUpdate(time);
+      if (finalized || updateListeners.size === 0 || animations.length === 0) {
+        updateFrame = null;
+        return;
+      }
       updateFrame = requestAnimationFrame(tick);
     };
     updateFrame = requestAnimationFrame(tick);

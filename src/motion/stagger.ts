@@ -60,6 +60,9 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
     // Grid mode ─ compute Euclidean (or axis-restricted) distance in cells.
     if (grid) {
       const [cols, rows] = grid;
+      if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols <= 0 || rows <= 0) {
+        return start;
+      }
       const x = index % cols;
       const y = Math.floor(index / cols);
 
@@ -106,13 +109,11 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
     const origin =
       typeof from === 'number'
         ? from
-        : typeof from === 'object' && from && 'x' in from
-          ? (from as { x: number; y: number }).x
-          : from === 'center'
-            ? (total - 1) / 2
-            : from === 'end'
-              ? total - 1
-              : 0;
+        : from === 'center'
+          ? (total - 1) / 2
+          : from === 'end'
+            ? total - 1
+            : 0;
 
     if (seededRandom && total > 0) {
       // Randomize the *distance* — keep origin influence but shuffle order.

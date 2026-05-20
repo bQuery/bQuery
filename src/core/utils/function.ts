@@ -131,6 +131,7 @@ export function debounce<TArgs extends unknown[]>(
     clearTrailing();
     clearMax();
     pendingArgs = undefined;
+    lastInvokeTime = 0;
     leadingDone = false;
   };
 

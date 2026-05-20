@@ -114,6 +114,20 @@ describe('utils/function extras', () => {
     expect(calls.length).toBeGreaterThan(0);
   });
 
+  it('debounce.cancel resets the maxWait window', async () => {
+    const calls: number[] = [];
+    const fn = debounce((n: number) => calls.push(n), 50, { maxWait: 60 });
+
+    fn(1);
+    await wait(40);
+    fn.cancel();
+    fn(2);
+    await wait(30);
+    expect(calls).toEqual([]);
+    await wait(35);
+    expect(calls).toEqual([2]);
+  });
+
   it('debounce.flush invokes pending immediately', () => {
     let calls: number[] = [];
     const fn = debounce((n: number) => calls.push(n), 100);

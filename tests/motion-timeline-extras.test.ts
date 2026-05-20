@@ -72,6 +72,44 @@ describe('motion/timeline extras', () => {
     tl.reverse();
     expect(anim.playbackRate).toBeLessThan(0);
   });
+
+  it('stops the update loop when the last listener unsubscribes during a tick', async () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+    let frameId = 0;
+    let cancels = 0;
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      frameId += 1;
+      return frameId;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {
+      cancels += 1;
+    }) as typeof cancelAnimationFrame;
+
+    try {
+      const { el } = createElement();
+      const tl = timeline([
+        { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+      ]);
+      void tl.play();
+      let off = () => {};
+      off = tl.onUpdate(() => off());
+      expect(callbacks).toHaveLength(1);
+
+      const first = callbacks.shift();
+      first?.(0);
+
+      expect(callbacks).toHaveLength(0);
+      expect(cancels).toBe(1);
+      tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
 });
 
 describe('motion/stagger extras', () => {
@@ -105,6 +143,17 @@ describe('motion/stagger extras', () => {
     const farCornerIndex = cols * rows - 1;
 
     expect(eased(farCornerIndex, cols * rows)).toBe(linear(farCornerIndex, cols * rows));
+  });
+
+  it('returns the start delay for invalid grid dimensions', () => {
+    expect(stagger(10, { start: 5, grid: [0, 3] })(1, 3)).toBe(5);
+    expect(stagger(10, { start: 5, grid: [3, Number.NaN] })(1, 3)).toBe(5);
+  });
+
+  it('treats coordinate origins as start in linear mode', () => {
+    const fn = stagger(10, { from: { x: 2, y: 5 } });
+    expect(fn(0, 4)).toBe(0);
+    expect(fn(2, 4)).toBe(20);
   });
 });
 
