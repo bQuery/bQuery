@@ -511,10 +511,13 @@ describe('forms/form extensions', () => {
 
   it('getDirtyValues returns only changed fields', () => {
     const form = createForm({
-      fields: { a: { initialValue: 'x' }, b: { initialValue: 'y' } },
+      fields: {
+        a: { initialValue: 'x', format: (value) => value.toUpperCase() },
+        b: { initialValue: 'y' },
+      },
     });
     form.fields.a.value.value = 'a2';
-    expect(form.getDirtyValues()).toEqual({ a: 'a2' });
+    expect(form.getDirtyValues()).toEqual({ a: 'A2' });
   });
 
   it('subscribe receives notifications on value changes', async () => {

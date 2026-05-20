@@ -552,8 +552,9 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
   const getDirtyValues = (): Partial<T> => {
     const values: Record<string, unknown> = {};
     for (const name of fieldOrder) {
+      const entry = runtime[name];
       const f = (fields as Record<string, FormField>)[name];
-      if (f.isDirty.value) values[name] = f.value.value;
+      if (f.isDirty.peek()) values[name] = entry.format(f.value.peek());
     }
     return values as Partial<T>;
   };

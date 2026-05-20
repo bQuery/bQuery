@@ -308,11 +308,13 @@ unchanged — but you can now reach for many more first-party primitives:
 ```ts
 import {
   integer, numeric, between, length, oneOf, notOneOf, arrayOf,
+  required, email,
   requiredIf, requiredUnless, dateAfter, dateBefore, validDate,
   fileSize, fileType,
   compose, all, not, withMessage,
 } from '@bquery/bquery/forms';
 
+const t = (message: string) => message;
 const tagsRule  = arrayOf(required('Tag required'));
 const ageRule   = compose(required(), integer(), between(18, 120));
 const usernameRule = not(oneOf(['admin', 'root']), 'Reserved username');

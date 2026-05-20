@@ -381,7 +381,7 @@ sanitizer-safe. None of the existing APIs changed.
 ### Refs and slots
 
 ```ts
-import { useRef, useSlot, hasSlot, slotText } from '@bquery/bquery/component';
+import { component, html, useEffect, useRef, useSlot } from '@bquery/bquery/component';
 
 component('focus-input', {
   connected() {
@@ -487,18 +487,21 @@ across instances via `document.adoptedStyleSheets`. Otherwise the existing
 ### Keyed lists
 
 ```ts
-import { keyedList, reconcileKeyed } from '@bquery/bquery/component';
+import { component, html, keyedList, reconcileKeyed } from '@bquery/bquery/component';
 
-render({ state }) {
-  return html`<ul>${keyedList(state.items, (it) => it.id, (it) =>
-    `<li>${it.text}</li>`
-  )}</ul>`;
-}
-updated() {
-  const items = this.getState<Array<{ id: string }>>('items');
-  reconcileKeyed(
-    this.shadowRoot!.querySelector('ul')!,
-    items.map((item) => item.id)
-  );
-}
+component('todo-list', {
+  state: { items: [] as Array<{ id: string; text: string }> },
+  render({ state }) {
+    return html`<ul>${keyedList(state.items, (it) => it.id, (it) =>
+      `<li>${it.text}</li>`
+    )}</ul>`;
+  },
+  updated() {
+    const items = this.getState<Array<{ id: string }>>('items');
+    reconcileKeyed(
+      this.shadowRoot!.querySelector('ul')!,
+      items.map((item) => item.id)
+    );
+  },
+});
 ```

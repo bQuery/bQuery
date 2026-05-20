@@ -21,7 +21,8 @@
  *     `;
  *   },
  *   updated() {
- *     reconcileKeyed(this.shadowRoot!.querySelector('ul')!, state.items.map((item) => item.id));
+ *     const items = this.getState<Array<{ id: string }>>('items');
+ *     reconcileKeyed(this.shadowRoot!.querySelector('ul')!, items.map((item) => item.id));
  *   },
  * });
  * ```
