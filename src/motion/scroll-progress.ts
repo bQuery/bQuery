@@ -13,18 +13,18 @@
  */
 export interface ScrollProgressOptions {
   /**
-   * @deprecated Currently ignored by `scrollProgress()`.
-   * Included for backward compatibility and future root-relative support.
+   * Currently ignored by `scrollProgress()`.
+   * Included as a compatibility option for future root-relative support.
    */
   root?: Element | Document | null;
   /**
-   * @deprecated Currently ignored by `scrollProgress()`.
-   * Included for backward compatibility and future root-relative support.
+   * Currently ignored by `scrollProgress()`.
+   * Included as a compatibility option for future root-relative support.
    */
   rootMargin?: string;
   /**
-   * @deprecated Currently ignored by `scrollProgress()`.
-   * Included for backward compatibility and future offset parsing support.
+   * Currently ignored by `scrollProgress()`.
+   * Included as a compatibility option for future offset parsing support.
    *
    * Anchor points (start, end) controlling when progress hits 0 and 1.
    * Defaults to `['top bottom', 'bottom top']` — the element's top entering
