@@ -2,9 +2,10 @@
  * Component-scoped form composables.
  *
  * These wrappers mirror the ergonomics of {@link useSignal} / {@link useComputed} /
- * {@link useEffect} from the component module: any `Form`, `FormField`, or
- * `FormFieldArray` they create is automatically disposed when the owning
- * component disconnects.
+ * {@link useEffect} from the component module: any `Form` or `FormField` they
+ * create is automatically disposed when the owning component disconnects.
+ * `useFieldArray()` still requires a component scope so item factories such as
+ * `useField()` can participate in that lifecycle.
  *
  * @module bquery/forms
  */
@@ -84,10 +85,10 @@ export const useField = <T>(
 /**
  * Scope-aware wrapper around {@link createFieldArray}.
  *
- * Creates a dynamic field array bound to the current component scope. Item
- * fields are created via the supplied `factory`; if those factories are themselves
- * scope-aware (e.g. `useField`), the items participate in the same disposal
- * lifecycle.
+ * Creates a dynamic field array for the current component scope. Item fields
+ * are created via the supplied `factory`; if those factories are themselves
+ * scope-aware (e.g. `useField`), the items participate in the owning
+ * component's disposal lifecycle.
  */
 export const useFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray<T> => {
   requireScope('useFieldArray');
