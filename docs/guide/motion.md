@@ -322,6 +322,9 @@ tl.reverse(); // mid-flight direction flip
 
 `scrollProgress()` drives a `[0, 1]` value as an element moves through the
 viewport; `inView()` resolves a promise the first time the element appears.
+At the moment, `scrollProgress()` computes progress relative to the window
+viewport; `root`, `rootMargin`, and `offset` are compatibility options and are
+not applied yet.
 
 ```ts
 import { scrollProgress, inView } from '@bquery/bquery/motion';

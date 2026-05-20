@@ -12,16 +12,23 @@
  * Options for {@link scrollProgress}.
  */
 export interface ScrollProgressOptions {
-  /** IntersectionObserver root (default: viewport). */
+  /**
+   * @deprecated Currently ignored by `scrollProgress()`.
+   * Included for backward compatibility and future root-relative support.
+   */
   root?: Element | Document | null;
-  /** Root margin string (default: `'0px'`). */
+  /**
+   * @deprecated Currently ignored by `scrollProgress()`.
+   * Included for backward compatibility and future root-relative support.
+   */
   rootMargin?: string;
   /**
+   * @deprecated Currently ignored by `scrollProgress()`.
+   * Included for backward compatibility and future offset parsing support.
+   *
    * Anchor points (start, end) controlling when progress hits 0 and 1.
    * Defaults to `['top bottom', 'bottom top']` — the element's top entering
    * the viewport bottom is `0`, its bottom leaving the viewport top is `1`.
-   * Currently the option is accepted for forward-compat; the default
-   * window-relative calculation is used.
    */
   offset?: [string, string];
   /** Invoked on every progress change with a value in `[0, 1]`. */
@@ -40,6 +47,8 @@ export type ScrollProgressCleanup = () => void;
  * Progress is computed against the window's height: `0` when the element's
  * top sits at the viewport bottom (about to enter) and `1` when the
  * element's bottom passes the viewport top (just exited above).
+ * `root`, `rootMargin`, and `offset` are currently no-op compatibility
+ * options; the computation is always window-relative.
  *
  * @returns A cleanup function that detaches listeners and observers.
  *

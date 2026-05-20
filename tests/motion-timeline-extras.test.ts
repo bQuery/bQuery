@@ -95,6 +95,17 @@ describe('motion/stagger extras', () => {
     const vb = [0, 1, 2, 3, 4].map((i) => b(i, 5));
     expect(va).toEqual(vb);
   });
+
+  it('grid easing preserves the same max delay range as linear distance', () => {
+    const cols = 5;
+    const rows = 5;
+    const origin = { x: 0, y: 0 };
+    const linear = stagger(10, { grid: [cols, rows], from: origin });
+    const eased = stagger(10, { grid: [cols, rows], from: origin, easing: (t) => t });
+    const farCornerIndex = cols * rows - 1;
+
+    expect(eased(farCornerIndex, cols * rows)).toBe(linear(farCornerIndex, cols * rows));
+  });
 });
 
 describe('motion/reduced-motion subscriptions', () => {

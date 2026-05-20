@@ -179,16 +179,16 @@ export const timeline = (
     finalized = true;
     stopUpdateLoop();
 
-    if (commitStyles) {
-      for (const item of animations) {
-        const { animation, step } = item;
+    for (const item of animations) {
+      const { animation, step } = item;
+      if (commitStyles) {
         if (typeof animation.commitStyles === 'function') {
           animation.commitStyles();
         } else {
           applyFinalKeyframeStyles(step.target, step.keyframes);
         }
-        animation.cancel();
       }
+      animation.cancel();
     }
 
     finishListeners.forEach((listener) => listener());

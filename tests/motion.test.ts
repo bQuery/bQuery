@@ -458,6 +458,22 @@ describe('motion/timeline', () => {
     expect(animation.cancel).toHaveBeenCalled();
   });
 
+  it('cancels animations even when commitStyles is false', async () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 10 } }],
+      { commitStyles: false }
+    );
+
+    await tl.play();
+
+    expect(animation.commitStyles).not.toHaveBeenCalled();
+    expect(animation.cancel).toHaveBeenCalled();
+  });
+
   it('seeks to correct time including delay', () => {
     const el1 = document.createElement('div');
     const el2 = document.createElement('div');

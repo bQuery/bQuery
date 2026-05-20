@@ -96,11 +96,9 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
             : Math.sqrt(maxDx * maxDx + maxDy * maxDy);
 
       const normalized = maxDistance === 0 ? 0 : distance / maxDistance;
-      const eased = easing
-        ? easing(normalized) * (axis === 'x' ? maxDx : axis === 'y' ? maxDy : Math.max(maxDx, maxDy))
-        : distance;
+      const eased = easing ? easing(normalized) * maxDistance : distance;
       const randomized = seededRandom
-        ? eased * (1 - 0.5) + seededRandom() * (axis === 'x' ? maxDx : axis === 'y' ? maxDy : Math.max(maxDx, maxDy))
+        ? eased * (1 - 0.5) + seededRandom() * maxDistance
         : eased;
       return start + randomized * step;
     }
