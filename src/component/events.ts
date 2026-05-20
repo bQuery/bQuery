@@ -21,6 +21,7 @@ type EventHandler = (event: Event) => void;
 
 const handlerStore = new Map<string, EventHandler>();
 const usedEventTypes = new Set<string>();
+const delegatedAttributePrefix = 'data-bq-on-';
 
 /**
  * @internal
@@ -79,6 +80,25 @@ export const on = (event: string, handler: EventHandler): string => {
   return `data-bq-on-${event.toLowerCase()}="${id}"`;
 };
 
+/**
+ * @internal
+ */
+export const cleanupDelegatedHandlers = (root: ParentNode): void => {
+  const nodes: Element[] = [];
+  if (root instanceof Element) {
+    nodes.push(root);
+  }
+  nodes.push(...Array.from(root.querySelectorAll('*')));
+
+  for (const node of nodes) {
+    for (const attr of Array.from(node.attributes)) {
+      if (attr.name.startsWith(delegatedAttributePrefix) && attr.value) {
+        handlerStore.delete(attr.value);
+      }
+    }
+  }
+};
+
 export const onClick = (handler: EventHandler): string => on('click', handler);
 export const onInput = (handler: EventHandler): string => on('input', handler);
 export const onChange = (handler: EventHandler): string => on('change', handler);
@@ -109,7 +129,7 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
     if (eventTypes.has(type)) return;
     const listener: EventHandler = (event) => {
       const path = (event.composedPath?.() ?? []) as EventTarget[];
-      const attrName = `data-bq-on-${type.toLowerCase()}`;
+      const attrName = `${delegatedAttributePrefix}${type.toLowerCase()}`;
       for (const node of path) {
         if (!(node instanceof Element)) continue;
         if (node === host) break; // don't walk past the host
@@ -159,7 +179,7 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
     for (const el of candidateSet) {
       for (const attr of Array.from(el.attributes)) {
         if (attr.name.startsWith('data-bq-on-')) {
-          ensureListener(attr.name.slice('data-bq-on-'.length));
+          ensureListener(attr.name.slice(delegatedAttributePrefix.length));
         }
       }
     }

@@ -322,6 +322,54 @@ describe('component/events', () => {
     expect(clicks).toBe(1);
   });
 
+  it('cleans up delegated handlers from previous renders', () => {
+    const tag = uniqueTag('events-rerender');
+    let clicks = 0;
+    component<{ label?: string }>(tag, {
+      props: {
+        label: { type: String, default: 'first' },
+      },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render({ props }) {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>${props.label}</button>
+        `;
+      },
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (key: string, value: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    const firstButton = host.shadowRoot!.querySelector('button')!;
+    const leakedId = firstButton.getAttribute('data-bq-on-click');
+    expect(leakedId).toBeTruthy();
+
+    host.setProp('label', 'second');
+
+    const currentButton = host.shadowRoot!.querySelector('button')!;
+    expect(currentButton.getAttribute('data-bq-on-click')).not.toBe(leakedId);
+
+    currentButton.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    expect(clicks).toBe(1);
+
+    const attacker = document.createElement('div');
+    const root = attacker.attachShadow({ mode: 'open' });
+    root.innerHTML = `<button data-bq-on-click="${leakedId ?? ''}">x</button>`;
+    bindDelegatedEvents(attacker);
+    root
+      .querySelector('button')!
+      .dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+    expect(clicks).toBe(1);
+    host.remove();
+  });
+
   it('onInput convenience is available', () => {
     const attr = onInput(() => {});
     expect(attr.startsWith('data-bq-on-input=')).toBe(true);

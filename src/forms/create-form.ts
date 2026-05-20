@@ -404,7 +404,11 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
           firstChangeRun = false;
           return;
         }
-        if (entry.consumeSilentValidationWrite()) {
+        let suppressed = false;
+        while (entry.consumeSilentValidationWrite()) {
+          suppressed = true;
+        }
+        if (suppressed) {
           return;
         }
         schedule();

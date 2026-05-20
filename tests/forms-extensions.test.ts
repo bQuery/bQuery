@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { batch } from '../src/reactive/index';
 import {
   all,
   arrayOf,
@@ -92,7 +93,7 @@ describe('forms/validators (new)', () => {
     });
     it('checks exact array length', () => {
       expect(length(2)([1, 2])).toBe(true);
-      expect(length(2)([1])).toBe('Must be exactly 2 characters');
+      expect(length(2)([1])).toBe('Must be exactly 2 items');
     });
   });
 
@@ -313,6 +314,25 @@ describe('forms/field extensions', () => {
     // Value didn't actually change yet (still ''), so error stays empty
     form.fields.n.value.value = 'x';
     await Promise.resolve();
+    form.fields.n.value.value = '';
+    await new Promise((r) => setTimeout(r, 5));
+    expect(form.fields.n.error.value).toBe('Req');
+  });
+
+  it('per-field silent validation suppression drains batched writes', async () => {
+    const form = createForm({
+      fields: {
+        n: { initialValue: 'ok', validators: [required('Req')], validateOn: 'change' },
+      },
+    });
+
+    batch(() => {
+      form.fields.n.setValue('', { silent: true });
+      form.fields.n.setValue('ok', { silent: true });
+    });
+    await new Promise((r) => setTimeout(r, 5));
+    expect(form.fields.n.error.value).toBe('');
+
     form.fields.n.value.value = '';
     await new Promise((r) => setTimeout(r, 5));
     expect(form.fields.n.error.value).toBe('Req');

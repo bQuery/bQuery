@@ -409,11 +409,12 @@ export const between = (
  * ```
  */
 export const length = (exact: number, message?: string): SyncValidator<unknown> => {
-  const msg = message ?? `Must be exactly ${exact} characters`;
+  const stringMessage = message ?? `Must be exactly ${exact} characters`;
+  const arrayMessage = message ?? `Must be exactly ${exact} items`;
   return (value: unknown) => {
-    if (Array.isArray(value)) return value.length === exact ? true : msg;
+    if (Array.isArray(value)) return value.length === exact ? true : arrayMessage;
     const str = stringifyValue(value);
-    return str.length === exact ? true : msg;
+    return str.length === exact ? true : stringMessage;
   };
 };
 

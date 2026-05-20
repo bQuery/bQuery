@@ -8,6 +8,7 @@ import type { CleanupFn } from '../reactive/signal';
 import { effect, untrack } from '../reactive/signal';
 import { sanitizeHtml } from '../security/sanitize';
 import { applyAdoptedStyles, isComponentStyles } from './css';
+import { cleanupDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
 import { createComponentScope, setCurrentScope, type ComponentScope } from './scope';
 import type {
@@ -524,6 +525,7 @@ const createComponentClass = <
           );
         }
 
+        cleanupDelegatedHandlers(renderRoot);
         renderRoot.innerHTML = sanitizedMarkup;
 
         if (stylesText && !usedAdoptedSheet) {
