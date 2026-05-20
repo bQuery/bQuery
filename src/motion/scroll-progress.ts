@@ -86,10 +86,14 @@ export const scrollProgress = (
   const compute = () => {
     if (destroyed) return;
     const rect = element.getBoundingClientRect();
+    const ownerDocument = element.ownerDocument;
+    const globalDocument = typeof document !== 'undefined' ? document : undefined;
     const viewport =
       typeof window.innerHeight === 'number' && window.innerHeight > 0
         ? window.innerHeight
-        : (document?.documentElement?.clientHeight ?? 0);
+        : (ownerDocument?.documentElement?.clientHeight ??
+          globalDocument?.documentElement?.clientHeight ??
+          0);
     if (viewport <= 0) {
       onProgress(0);
       return;
@@ -210,6 +214,10 @@ export const inView = (element: Element, options: InViewOptions = {}): InViewHan
     cancelled = true;
     observer?.disconnect();
     observer = null;
+    if (!resolved) {
+      resolved = true;
+      resolveEntered();
+    }
   };
 
   return {

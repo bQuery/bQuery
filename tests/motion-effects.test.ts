@@ -48,13 +48,17 @@ describe('motion/effects', () => {
     expect(el.style.transform).toBe('');
   });
 
-  it('tilt sets a perspective transform on pointer move and resets on leave', () => {
+  it('tilt restores the original transition after the leave reset completes', async () => {
     const el = createElement();
+    el.style.transition = 'opacity 100ms linear';
     const cleanup = tilt(el, { max: 10, perspective: 500, respectReducedMotion: false });
     el.dispatchEvent(new MouseEvent('pointermove', { clientX: 60, clientY: 60 }));
     expect(el.style.transform).toContain('perspective(500px)');
     expect(el.style.transform).toContain('rotateX');
     el.dispatchEvent(new MouseEvent('pointerleave'));
+    expect(el.style.transition).toContain('transform 200ms ease-out');
+    await new Promise((resolve) => setTimeout(resolve, 220));
+    expect(el.style.transition).toBe('opacity 100ms linear');
     cleanup();
     expect(el.style.transform).toBe('');
   });

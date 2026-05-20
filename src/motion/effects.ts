@@ -100,8 +100,17 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
   const el = element as HTMLElement;
   const originalTransform = el.style.transform;
   const originalTransition = el.style.transition;
+  let restoreTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  const clearRestoreTransitionTimeout = () => {
+    if (restoreTransitionTimeout !== undefined) {
+      clearTimeout(restoreTransitionTimeout);
+      restoreTransitionTimeout = undefined;
+    }
+  };
 
   const onMove = (event: PointerEvent | MouseEvent) => {
+    clearRestoreTransitionTimeout();
     const rect = el.getBoundingClientRect();
     const px = (event.clientX - rect.left) / rect.width;
     const py = (event.clientY - rect.top) / rect.height;
@@ -112,14 +121,22 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
   };
 
   const onLeave = () => {
-    el.style.transition = 'transform 200ms ease-out';
+    clearRestoreTransitionTimeout();
+    el.style.transition = originalTransition
+      ? `${originalTransition}, transform 200ms ease-out`
+      : 'transform 200ms ease-out';
     el.style.transform = originalTransform;
+    restoreTransitionTimeout = setTimeout(() => {
+      el.style.transition = originalTransition;
+      restoreTransitionTimeout = undefined;
+    }, 200);
   };
 
   el.addEventListener('pointermove', onMove);
   el.addEventListener('pointerleave', onLeave);
 
   return () => {
+    clearRestoreTransitionTimeout();
     el.removeEventListener('pointermove', onMove);
     el.removeEventListener('pointerleave', onLeave);
     el.style.transform = originalTransform;
@@ -282,4 +299,3 @@ export const countUp = (
     respectReducedMotion: false,
   }).then(() => undefined);
 };
-

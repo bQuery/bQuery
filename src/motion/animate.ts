@@ -183,7 +183,7 @@ export interface AnimateToOptions
   extends Omit<AnimateOptions, 'keyframes' | 'options'>,
     Omit<KeyframeAnimationOptions, 'composite' | 'iterationComposite'> {
   /** Optional override keyframe options merged with the top-level ones. */
-  options?: KeyframeAnimationOptions;
+  options?: Omit<KeyframeAnimationOptions, 'composite' | 'iterationComposite'>;
 }
 
 /**

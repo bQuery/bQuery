@@ -45,6 +45,45 @@ describe('motion/scrollProgress', () => {
     // Idempotent
     expect(() => cleanup()).not.toThrow();
   });
+
+  it('uses ownerDocument when window.innerHeight is unavailable and global document is missing', () => {
+    const originalWindowHeight = Object.getOwnPropertyDescriptor(window, 'innerHeight');
+    const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    const el = {
+      ownerDocument: {
+        documentElement: { clientHeight: 200 },
+      },
+      getBoundingClientRect: () =>
+        ({
+          top: 50,
+          left: 0,
+          right: 100,
+          bottom: 150,
+          width: 100,
+          height: 100,
+          x: 0,
+          y: 50,
+          toJSON: () => ({}),
+        }) as DOMRect,
+    } as unknown as Element;
+    let last = -1;
+
+    Object.defineProperty(window, 'innerHeight', { configurable: true, value: 0 });
+    Object.defineProperty(globalThis, 'document', { configurable: true, value: undefined });
+
+    try {
+      const cleanup = scrollProgress(el, { onProgress: (progress) => (last = progress) });
+      expect(last).toBe(0.5);
+      cleanup();
+    } finally {
+      if (originalWindowHeight) {
+        Object.defineProperty(window, 'innerHeight', originalWindowHeight);
+      }
+      if (originalDocument) {
+        Object.defineProperty(globalThis, 'document', originalDocument);
+      }
+    }
+  });
 });
 
 describe('motion/inView', () => {
@@ -66,6 +105,29 @@ describe('motion/inView', () => {
     const handle = inView(el);
     handle.cancel();
     expect(() => handle.cancel()).not.toThrow();
+  });
+
+  it('cancel() resolves awaiting callers before the first intersection', async () => {
+    let disconnectCalls = 0;
+    class MockIO {
+      observe() {}
+      disconnect() {
+        disconnectCalls += 1;
+      }
+      unobserve() {}
+    }
+    const original = (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver;
+    (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = MockIO;
+    try {
+      const el = document.createElement('div');
+      const handle = inView(el);
+      const awaited = Promise.resolve(handle);
+      handle.cancel();
+      await awaited;
+      expect(disconnectCalls).toBe(1);
+    } finally {
+      (globalThis as { IntersectionObserver?: unknown }).IntersectionObserver = original;
+    }
   });
 
   it('invokes onChange when an entry transitions to intersecting', async () => {

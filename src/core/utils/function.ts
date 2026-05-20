@@ -215,12 +215,10 @@ export function throttle<TArgs extends unknown[]>(
   };
 
   throttled.flush = () => {
-    if (pendingArgs) {
+    if (trailing && timeoutId !== undefined && pendingArgs) {
       const args = pendingArgs;
-      if (timeoutId !== undefined) {
-        clearTimeout(timeoutId);
-        timeoutId = undefined;
-      }
+      clearTimeout(timeoutId);
+      timeoutId = undefined;
       invoke(args);
     }
   };

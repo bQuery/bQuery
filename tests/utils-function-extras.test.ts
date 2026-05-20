@@ -162,6 +162,14 @@ describe('utils/function extras', () => {
     expect(calls.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('throttle.flush is a no-op when no trailing call is scheduled', () => {
+    const calls: number[] = [];
+    const fn = throttle((n: number) => calls.push(n), 100, { leading: false, trailing: false });
+    fn(1);
+    fn.flush();
+    expect(calls).toEqual([]);
+  });
+
   it('backwards-compatible debounce/throttle signatures still work', async () => {
     let dCalls = 0;
     const d = debounce(() => (dCalls += 1), 20);
