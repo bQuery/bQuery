@@ -331,7 +331,14 @@ const safeAssign = (
   const existing = Object.getOwnPropertyDescriptor(target, key);
   if (existing && existing.configurable === false) {
     try {
-      target[key] = value;
+      if ('set' in existing) {
+        existing.set?.call(target, value);
+        return;
+      }
+      Object.defineProperty(target, key, {
+        ...existing,
+        value,
+      });
     } catch {
       // Ignore non-writable or otherwise unsupported assignments.
     }
@@ -345,11 +352,7 @@ const safeAssign = (
       configurable: true,
     });
   } catch {
-    try {
-      target[key] = value;
-    } catch {
-      // Ignore non-writable or otherwise unsupported assignments.
-    }
+    // Ignore non-writable or otherwise unsupported assignments.
   }
 };
 
