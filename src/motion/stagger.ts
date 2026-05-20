@@ -46,7 +46,8 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
   const seededRandom = (() => {
     if (!random) return null;
     if (typeof randomSeed !== 'number') return Math.random;
-    let s = randomSeed | 0 || 1;
+    const normalizedSeed = randomSeed | 0;
+    let s = normalizedSeed === 0 ? 0x9e3779b9 : normalizedSeed;
     return () => {
       // xorshift32 for repeatability.
       s ^= s << 13;

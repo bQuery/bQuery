@@ -161,6 +161,22 @@ describe('utils/function extras', () => {
     expect(calls).toEqual([1]);
   });
 
+  it('debounce maxWait still caps delays when leading is true', async () => {
+    const calls: number[] = [];
+    const fn = debounce((n: number) => calls.push(n), 50, {
+      leading: true,
+      trailing: true,
+      maxWait: 40,
+    });
+
+    fn(1);
+    await wait(20);
+    fn(2);
+    await wait(30);
+
+    expect(calls).toEqual([1, 2]);
+  });
+
   it('debounce.flush invokes pending immediately', () => {
     let calls: number[] = [];
     const fn = debounce((n: number) => calls.push(n), 100);

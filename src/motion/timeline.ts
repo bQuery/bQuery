@@ -38,14 +38,20 @@ const resolveAt = (
   previousEnd: number,
   labels: Map<string, number>
 ): number => {
+  const parseSignedDelta = (value: string): number | null => {
+    if (!/^[+-]?\d+(?:\.\d+)?$/.test(value)) return null;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   if (typeof at === 'number') return at;
   if (typeof at === 'string') {
     const trimmed = at.trim();
     // Plain numeric relative offsets: +=N, -=N
-    const relativeMatch = /^([+-])=\s*(\d+(?:\.\d+)?)$/.exec(trimmed);
+    const relativeMatch = /^([+-])=\s*([+-]?\d+(?:\.\d+)?)$/.exec(trimmed);
     if (relativeMatch) {
-      const delta = Number.parseFloat(relativeMatch[2]);
-      if (!Number.isFinite(delta)) return previousEnd;
+      const delta = parseSignedDelta(relativeMatch[2]);
+      if (delta === null) return previousEnd;
       return relativeMatch[1] === '+' ? previousEnd + delta : previousEnd - delta;
     }
     if (labels.has(trimmed)) {
@@ -59,8 +65,8 @@ const resolveAt = (
       const deltaText = trimmed.slice(relativeLabelIndex + 2).trim();
       const base = labels.get(label);
       if (base === undefined) return previousEnd;
-      const delta = Number.parseFloat(deltaText);
-      if (!Number.isFinite(delta)) return base;
+      const delta = parseSignedDelta(deltaText);
+      if (delta === null) return base;
       return operator === '+' ? base + delta : base - delta;
     }
   }

@@ -65,6 +65,31 @@ describe('motion/timeline extras', () => {
     expect(tl.duration()).toBeGreaterThanOrEqual((point ?? 0) + 50 + 100);
   });
 
+  it('accepts signed deltas for relative and label-relative offsets', () => {
+    const { el } = createElement();
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 100 } }],
+      { respectReducedMotion: true }
+    );
+    tl.addLabel('mid');
+    const mid = tl.label('mid') ?? 0;
+
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 1 }, { opacity: 0 }],
+      options: { duration: 100 },
+      at: '+=-10',
+    });
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 100 },
+      at: 'mid+=-25',
+    });
+
+    expect(tl.duration()).toBeGreaterThanOrEqual(Math.max(190, mid + 75));
+  });
+
   it('repeat + yoyo + playbackRate + progress + onUpdate compile and run', async () => {
     const { el } = createElement();
     const tl = timeline([
@@ -329,6 +354,14 @@ describe('motion/stagger extras', () => {
     const va = [0, 1, 2, 3, 4].map((i) => a(i, 5));
     const vb = [0, 1, 2, 3, 4].map((i) => b(i, 5));
     expect(va).toEqual(vb);
+  });
+
+  it('uses distinct deterministic sequences for randomSeed 0 and 1', () => {
+    const zeroSeed = stagger(10, { random: true, randomSeed: 0 });
+    const oneSeed = stagger(10, { random: true, randomSeed: 1 });
+    const vz = [0, 1, 2, 3, 4].map((i) => zeroSeed(i, 5));
+    const v1 = [0, 1, 2, 3, 4].map((i) => oneSeed(i, 5));
+    expect(vz).not.toEqual(v1);
   });
 
   it('grid easing preserves the same max delay range as linear distance', () => {
