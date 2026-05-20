@@ -332,37 +332,52 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
   // --- subscribe() ----------------------------------------------------------
 
   const listeners = new Set<FormChangeListener<T>>();
-  let initialNotifyRun = true;
+  let stopValuesEffect: (() => void) | undefined;
 
-  const stopValuesEffect = effect(() => {
-    for (const name of fieldOrder) {
-      void (fields as Record<string, FormField>)[name].value.value;
-    }
-    if (initialNotifyRun) {
-      initialNotifyRun = false;
-      return;
-    }
+  const drainSilentNotifyWrites = (): boolean => {
     let hasSilentWrite = false;
     for (const name of fieldOrder) {
       while (runtime[name].consumeSilentNotifyWrite()) {
         hasSilentWrite = true;
       }
     }
-    if (hasSilentWrite || listeners.size === 0) return;
-    const snap = getValuesUntracked();
-    for (const listener of listeners) {
-      try {
-        listener(snap);
-      } catch (listenerError) {
-        console.error('bQuery forms: form change listener threw', listenerError);
+    return hasSilentWrite;
+  };
+
+  const startValuesEffect = (): void => {
+    if (stopValuesEffect) return;
+
+    drainSilentNotifyWrites();
+    let initialNotifyRun = true;
+    stopValuesEffect = effect(() => {
+      for (const name of fieldOrder) {
+        void (fields as Record<string, FormField>)[name].value.value;
       }
-    }
-  });
+      if (initialNotifyRun) {
+        initialNotifyRun = false;
+        return;
+      }
+      if (drainSilentNotifyWrites()) return;
+      const snap = getValuesUntracked();
+      for (const listener of listeners) {
+        try {
+          listener(snap);
+        } catch (listenerError) {
+          console.error('bQuery forms: form change listener threw', listenerError);
+        }
+      }
+    });
+  };
 
   const subscribe = (listener: FormChangeListener<T>): (() => void) => {
     listeners.add(listener);
+    startValuesEffect();
     return () => {
       listeners.delete(listener);
+      if (listeners.size === 0 && stopValuesEffect) {
+        stopValuesEffect();
+        stopValuesEffect = undefined;
+      }
     };
   };
 
@@ -637,7 +652,8 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     stopFieldEffects.length = 0;
     for (const stop of stopDirtyEffects) stop();
     stopDirtyEffects.length = 0;
-    stopValuesEffect();
+    stopValuesEffect?.();
+    stopValuesEffect = undefined;
     listeners.clear();
   };
 

@@ -15,12 +15,13 @@
  * @module bquery/component
  */
 
+import type { ComponentScope } from './scope';
 import { getCurrentScope } from './scope';
 
 type EventHandler = (event: Event) => void;
 
 const handlerStore = new Map<string, EventHandler>();
-const usedEventTypes = new Set<string>();
+const listenerRegistrationsByScope = new WeakMap<ComponentScope, Set<(type: string) => void>>();
 const delegatedAttributePrefix = 'data-bq-on-';
 
 /**
@@ -72,12 +73,15 @@ export const on = (event: string, handler: EventHandler): string => {
   if (!validEventName.test(event)) {
     throw new Error(`bQuery component: invalid event name "${event}"`);
   }
+  const normalizedEvent = event.toLowerCase();
   const id = allocateId();
   handlerStore.set(id, handler);
-  usedEventTypes.add(event.toLowerCase());
   const scope = getCurrentScope();
+  if (scope) {
+    listenerRegistrationsByScope.get(scope)?.forEach((register) => register(normalizedEvent));
+  }
   scope?.addDisposer(() => handlerStore.delete(id));
-  return `data-bq-on-${event.toLowerCase()}="${id}"`;
+  return `data-bq-on-${normalizedEvent}="${id}"`;
 };
 
 /**
@@ -124,6 +128,7 @@ export const onSubmit = (handler: EventHandler): string => on('submit', handler)
 export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
   const root = host.shadowRoot ?? host;
   const eventTypes = new Map<string, EventHandler>();
+  const scope = getCurrentScope();
 
   const ensureListener = (type: string): void => {
     if (eventTypes.has(type)) return;
@@ -157,49 +162,68 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
     root.addEventListener(type, listener);
   };
 
-  // Register listeners for every event type seen so far by `on()`. This
-  // ensures handlers wired into the *next* render are dispatched even though
-  // the shadow DOM may be empty at the time `bindDelegatedEvents` is called
-  // (typically inside `connected()`, before the first render).
-  for (const type of usedEventTypes) ensureListener(type);
-
-  // Scan the rendered DOM once on install to register listeners for any
-  // `data-bq-on-*` attributes present in the initial render. We probe each
-  // known event type with an attribute-presence selector (much cheaper than
-  // querySelectorAll('*') for large trees), then scan attribute names on
-  // matched elements to discover any custom event types that may have been
-  // added since the global `usedEventTypes` set was last consulted.
-  const scanAndRegister = (): void => {
-    const knownTypes = Array.from(usedEventTypes);
-    const candidateSet = new Set<Element>();
-    for (const type of knownTypes) {
-      const matches = root.querySelectorAll(`[data-bq-on-${type}]`);
-      for (let i = 0; i < matches.length; i += 1) candidateSet.add(matches[i]);
-    }
-    for (const el of candidateSet) {
-      for (const attr of Array.from(el.attributes)) {
-        if (attr.name.startsWith('data-bq-on-')) {
-          ensureListener(attr.name.slice(delegatedAttributePrefix.length));
-        }
+  const registerElement = (el: Element): void => {
+    for (const attr of Array.from(el.attributes)) {
+      if (attr.name.startsWith(delegatedAttributePrefix)) {
+        ensureListener(attr.name.slice(delegatedAttributePrefix.length));
       }
     }
   };
-  scanAndRegister();
+
+  const scanAndRegister = (node: ParentNode): void => {
+    if (node instanceof Element) {
+      registerElement(node);
+    }
+    for (const el of Array.from(node.querySelectorAll('*'))) {
+      registerElement(el);
+    }
+  };
+
+  if (scope) {
+    let registrations = listenerRegistrationsByScope.get(scope);
+    if (!registrations) {
+      registrations = new Set();
+      listenerRegistrationsByScope.set(scope, registrations);
+    }
+    registrations.add(ensureListener);
+  }
+
+  scanAndRegister(root);
 
   const observer =
     typeof MutationObserver !== 'undefined'
       ? new MutationObserver((mutations) => {
-          const hasRelevantChange = mutations.some(
-            (m) =>
-              m.type === 'childList' ||
-              (m.type === 'attributes' && m.attributeName?.startsWith('data-bq-on-'))
-          );
-          if (hasRelevantChange) scanAndRegister();
+          for (const mutation of mutations) {
+            if (mutation.type === 'childList') {
+              for (const node of Array.from(mutation.addedNodes)) {
+                if (node instanceof Element) {
+                  scanAndRegister(node);
+                }
+              }
+              continue;
+            }
+            if (
+              mutation.type === 'attributes' &&
+              mutation.attributeName?.startsWith(delegatedAttributePrefix)
+            ) {
+              const target = mutation.target;
+              if (target instanceof Element) {
+                registerElement(target);
+              }
+            }
+          }
         })
       : null;
   observer?.observe(root, { childList: true, subtree: true, attributes: true });
 
   const cleanup = (): void => {
+    if (scope) {
+      const registrations = listenerRegistrationsByScope.get(scope);
+      registrations?.delete(ensureListener);
+      if (registrations && registrations.size === 0) {
+        listenerRegistrationsByScope.delete(scope);
+      }
+    }
     for (const [type, listener] of eventTypes) {
       root.removeEventListener(type, listener);
     }
@@ -207,6 +231,6 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
     observer?.disconnect();
   };
 
-  getCurrentScope()?.addDisposer(cleanup);
+  scope?.addDisposer(cleanup);
   return cleanup;
 };

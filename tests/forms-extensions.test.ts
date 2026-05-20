@@ -552,6 +552,22 @@ describe('forms/form extensions', () => {
     expect(events).toEqual([{ a: '3', b: '2' }]);
   });
 
+  it('subscribe ignores silent writes that happened before the first subscriber', async () => {
+    const form = createForm({
+      fields: { a: { initialValue: '' }, b: { initialValue: '' } },
+    });
+
+    form.fields.a.setValue('1', { silent: true });
+
+    const events: Array<{ a: string; b: string }> = [];
+    form.subscribe((values) => events.push(values));
+
+    form.fields.b.value.value = '2';
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(events).toEqual([{ a: '1', b: '2' }]);
+  });
+
   it('validationStrategy: onChange triggers field validation on change', async () => {
     const form = createForm({
       fields: { a: { initialValue: '', validators: [required()] } },

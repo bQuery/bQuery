@@ -378,6 +378,35 @@ describe('component/events', () => {
     const attr = onInput(() => {});
     expect(attr.startsWith('data-bq-on-input=')).toBe(true);
   });
+
+  it('does not install unrelated delegated listeners from other hosts', () => {
+    on('custom-event', () => {});
+
+    const host = document.createElement('div');
+    const root = host.attachShadow({ mode: 'open' });
+    const clickAttr = onClick(() => {});
+    root.innerHTML = `<button ${clickAttr}>+</button>`;
+
+    const addedTypes: string[] = [];
+    const originalAddEventListener = root.addEventListener;
+    root.addEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions
+    ) => {
+      addedTypes.push(type);
+      return originalAddEventListener.call(
+        root,
+        type,
+        listener as EventListenerOrEventListenerObject,
+        options
+      );
+    }) as typeof root.addEventListener;
+
+    bindDelegatedEvents(host);
+
+    expect(addedTypes).toEqual(['click']);
+  });
 });
 
 // ---------------------------------------------------------------------------
