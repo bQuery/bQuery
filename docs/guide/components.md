@@ -495,9 +495,10 @@ render({ state }) {
   )}</ul>`;
 }
 updated() {
+  const items = this.getState<Array<{ id: string }>>('items');
   reconcileKeyed(
     this.shadowRoot!.querySelector('ul')!,
-    state.items.map((item) => item.id)
+    items.map((item) => item.id)
   );
 }
 ```
