@@ -69,12 +69,38 @@ describe('utils/object extras', () => {
     expect(isEqual).toBe(deepEqual);
   });
 
+  it('deepEqual handles cyclic objects without overflowing', () => {
+    const left: { value: number; self?: unknown; nested?: { parent?: unknown } } = { value: 1 };
+    left.self = left;
+    left.nested = { parent: left };
+
+    const right: { value: number; self?: unknown; nested?: { parent?: unknown } } = { value: 1 };
+    right.self = right;
+    right.nested = { parent: right };
+
+    const mismatch: { value: number; self?: unknown } = { value: 2 };
+    mismatch.self = mismatch;
+
+    expect(deepEqual(left, right)).toBe(true);
+    expect(deepEqual(left, mismatch)).toBe(false);
+  });
+
   it('freeze deeply freezes nested objects', () => {
     const obj = { a: { b: { c: 1 } } };
     freeze(obj);
     expect(Object.isFrozen(obj)).toBe(true);
     expect(Object.isFrozen(obj.a)).toBe(true);
     expect(Object.isFrozen(obj.a.b)).toBe(true);
+  });
+
+  it('freeze handles cyclic objects without overflowing', () => {
+    const obj: { self?: unknown; nested: { parent?: unknown } } = { nested: {} };
+    obj.self = obj;
+    obj.nested.parent = obj;
+
+    expect(() => freeze(obj)).not.toThrow();
+    expect(Object.isFrozen(obj)).toBe(true);
+    expect(Object.isFrozen(obj.nested)).toBe(true);
   });
 
   it('defaults fills undefined keys, ignores prototype-pollution keys', () => {

@@ -430,41 +430,74 @@ export function invert<T extends Record<string, PropertyKey>>(obj: T): Record<st
  * (including `NaN === NaN`).
  */
 export function deepEqual(a: unknown, b: unknown): boolean {
-  if (Object.is(a, b)) return true;
-  if (typeof a !== typeof b) return false;
-  if (a === null || b === null) return false;
-  if (typeof a !== 'object') return false;
-  if (a instanceof Date && b instanceof Date) return a.getTime() === b.getTime();
-  if (a instanceof RegExp && b instanceof RegExp) return a.source === b.source && a.flags === b.flags;
-  if (Array.isArray(a)) {
-    if (!Array.isArray(b)) return false;
-    if (a.length !== b.length) return false;
-    for (let i = 0; i < a.length; i += 1) {
-      if (!deepEqual(a[i], b[i])) return false;
+  const seen = new WeakMap<object, WeakSet<object>>();
+
+  const hasSeenPair = (left: object, right: object): boolean => seen.get(left)?.has(right) ?? false;
+
+  const markSeenPair = (left: object, right: object): void => {
+    let leftSeen = seen.get(left);
+    if (!leftSeen) {
+      leftSeen = new WeakSet<object>();
+      seen.set(left, leftSeen);
+    }
+    leftSeen.add(right);
+
+    let rightSeen = seen.get(right);
+    if (!rightSeen) {
+      rightSeen = new WeakSet<object>();
+      seen.set(right, rightSeen);
+    }
+    rightSeen.add(left);
+  };
+
+  const compare = (left: unknown, right: unknown): boolean => {
+    if (Object.is(left, right)) return true;
+    if (typeof left !== typeof right) return false;
+    if (left === null || right === null) return false;
+    if (typeof left !== 'object') return false;
+
+    const leftObject = left as object;
+    const rightObject = right as object;
+    if (hasSeenPair(leftObject, rightObject)) return true;
+    markSeenPair(leftObject, rightObject);
+
+    if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime();
+    if (left instanceof RegExp && right instanceof RegExp)
+      return left.source === right.source && left.flags === right.flags;
+    if (Array.isArray(left)) {
+      if (!Array.isArray(right)) return false;
+      if (left.length !== right.length) return false;
+      for (let i = 0; i < left.length; i += 1) {
+        if (!compare(left[i], right[i])) return false;
+      }
+      return true;
+    }
+    if (left instanceof Map && right instanceof Map) {
+      if (left.size !== right.size) return false;
+      for (const [key, value] of left) {
+        if (!right.has(key)) return false;
+        if (!compare(value, right.get(key))) return false;
+      }
+      return true;
+    }
+    if (left instanceof Set && right instanceof Set) {
+      if (left.size !== right.size) return false;
+      for (const value of left) if (!right.has(value)) return false;
+      return true;
+    }
+
+    const leftKeys = Object.keys(leftObject);
+    const rightKeys = Object.keys(rightObject);
+    if (leftKeys.length !== rightKeys.length) return false;
+    for (const key of leftKeys) {
+      if (!Object.prototype.hasOwnProperty.call(right, key)) return false;
+      if (!compare((left as Record<string, unknown>)[key], (right as Record<string, unknown>)[key]))
+        return false;
     }
     return true;
-  }
-  if (a instanceof Map && b instanceof Map) {
-    if (a.size !== b.size) return false;
-    for (const [k, v] of a) {
-      if (!b.has(k)) return false;
-      if (!deepEqual(v, b.get(k))) return false;
-    }
-    return true;
-  }
-  if (a instanceof Set && b instanceof Set) {
-    if (a.size !== b.size) return false;
-    for (const v of a) if (!b.has(v)) return false;
-    return true;
-  }
-  const aKeys = Object.keys(a as object);
-  const bKeys = Object.keys(b as object);
-  if (aKeys.length !== bKeys.length) return false;
-  for (const key of aKeys) {
-    if (!Object.prototype.hasOwnProperty.call(b, key)) return false;
-    if (!deepEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) return false;
-  }
-  return true;
+  };
+
+  return compare(a, b);
 }
 
 /**
@@ -477,12 +510,21 @@ export const isEqual = deepEqual;
  * same reference. Functions and primitives are returned unchanged.
  */
 export function freeze<T>(value: T): Readonly<T> {
-  if (value === null || typeof value !== 'object') return value;
-  if (Object.isFrozen(value)) return value;
-  Object.freeze(value);
-  for (const v of Object.values(value as Record<string, unknown>)) {
-    if (v !== null && (typeof v === 'object' || typeof v === 'function')) freeze(v);
-  }
+  const seen = new WeakSet<object>();
+
+  const freezeValue = (current: unknown): void => {
+    if (current === null || typeof current !== 'object') return;
+    if (seen.has(current)) return;
+    seen.add(current);
+    if (!Object.isFrozen(current)) Object.freeze(current);
+    for (const nested of Object.values(current as Record<string, unknown>)) {
+      if (nested !== null && (typeof nested === 'object' || typeof nested === 'function')) {
+        freezeValue(nested);
+      }
+    }
+  };
+
+  freezeValue(value);
   return value;
 }
 

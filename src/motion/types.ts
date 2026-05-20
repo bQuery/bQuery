@@ -205,6 +205,21 @@ export interface SequenceOptions {
 export type TimelineRepeat = number | 'infinite';
 
 /**
+ * Relative offset from the previous step's end.
+ */
+export type TimelineRelativeOffset = `+=${number}` | `-=${number}`;
+
+/**
+ * Label-relative offset from a named timeline label.
+ */
+export type TimelineLabelOffset = `${string}+=${number}` | `${string}-=${number}`;
+
+/**
+ * Absolute or relative timeline position.
+ */
+export type TimelineAt = number | string | TimelineRelativeOffset | TimelineLabelOffset;
+
+/**
  * Timeline step configuration.
  */
 export interface TimelineStep {
@@ -221,7 +236,7 @@ export interface TimelineStep {
    * - a label name (e.g. `'label'`),
    * - a label-relative offset (e.g. `'label+=200'`, `'label-=50'`).
    */
-  at?: number | string;
+  at?: TimelineAt;
   /** Optional label for debugging */
   label?: string;
 }
@@ -259,7 +274,7 @@ export interface TimelineControls {
    * label is positioned at the end of the currently scheduled steps.
    * Accepts the same `at` formats as {@link TimelineStep.at}.
    */
-  addLabel(name: string, at?: number | string): void;
+  addLabel(name: string, at?: TimelineAt): void;
   /** Look up the absolute time (ms) of a label. */
   label(name: string): number | undefined;
   /** Total timeline duration in milliseconds */
