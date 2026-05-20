@@ -285,6 +285,43 @@ describe('component/events', () => {
     host.remove();
   });
 
+  it('cleans up delegated handlers created during render on disconnect', () => {
+    const tag = uniqueTag('events-cleanup');
+    let clicks = 0;
+    component(tag, {
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render() {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>+</button>
+        `;
+      },
+    });
+
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    const button = host.shadowRoot!.querySelector('button')!;
+    const leakedId = button.getAttribute('data-bq-on-click');
+    expect(leakedId).toBeTruthy();
+
+    button.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    expect(clicks).toBe(1);
+    host.remove();
+
+    const attacker = document.createElement('div');
+    const root = attacker.attachShadow({ mode: 'open' });
+    root.innerHTML = `<button data-bq-on-click="${leakedId ?? ''}">x</button>`;
+    bindDelegatedEvents(attacker);
+    root
+      .querySelector('button')!
+      .dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+    expect(clicks).toBe(1);
+  });
+
   it('onInput convenience is available', () => {
     const attr = onInput(() => {});
     expect(attr.startsWith('data-bq-on-input=')).toBe(true);

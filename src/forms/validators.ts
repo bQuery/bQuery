@@ -467,7 +467,7 @@ export const notOneOf = <T>(
  * with `required()` to enforce presence separately.
  *
  * @param itemValidator - Validator applied to every array element
- * @param message - Optional custom prefix; default reports the failing index
+ * @param message - Optional custom message that replaces the default indexed error
  * @returns A sync or async validator
  *
  * @example

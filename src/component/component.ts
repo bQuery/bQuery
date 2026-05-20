@@ -474,12 +474,17 @@ const createComponentClass = <
 
         let markup: string;
         try {
-          markup = definition.render({
-            props: this.props,
-            state: this.state,
-            signals: (definition.signals ?? {}) as TSignals,
-            emit,
-          });
+          const previousScope = setCurrentScope(this.scope);
+          try {
+            markup = definition.render({
+              props: this.props,
+              state: this.state,
+              signals: (definition.signals ?? {}) as TSignals,
+              emit,
+            });
+          } finally {
+            setCurrentScope(previousScope);
+          }
         } catch (renderError) {
           if (definition.errorBoundary) {
             const fallback = definition.errorBoundary.call(this, renderError as Error, {

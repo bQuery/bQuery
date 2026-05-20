@@ -342,7 +342,12 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       initialNotifyRun = false;
       return;
     }
-    const hasSilentWrite = fieldOrder.some((name) => runtime[name].consumeSilentNotifyWrite());
+    let hasSilentWrite = false;
+    for (const name of fieldOrder) {
+      while (runtime[name].consumeSilentNotifyWrite()) {
+        hasSilentWrite = true;
+      }
+    }
     if (hasSilentWrite || listeners.size === 0) return;
     const snap = getValuesUntracked();
     for (const listener of listeners) {
