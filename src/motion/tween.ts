@@ -96,7 +96,9 @@ function interpolate<T extends TweenValue>(from: T, to: T, t: number): T {
     }
     return out as T;
   }
-  throw new TypeError('animateValue: "from" and "to" must be numbers, number[], or Record<string, number>');
+  throw new TypeError(
+    '"from" and "to" must be numbers, number[], or Record<string, number>'
+  );
 }
 
 const safeRaf = (): ((cb: (time: number) => void) => number) => {

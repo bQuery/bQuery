@@ -35,9 +35,7 @@ export interface ScrollProgressOptions {
   onProgress: (progress: number) => void;
 }
 
-/**
- * Cleanup function returned by {@link scrollProgress} and {@link inView}.
- */
+/** Cleanup function returned by {@link scrollProgress}. */
 export type ScrollProgressCleanup = () => void;
 
 /**

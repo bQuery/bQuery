@@ -112,6 +112,7 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
   const onMove = (event: PointerEvent | MouseEvent) => {
     clearRestoreTransitionTimeout();
     const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
     const px = (event.clientX - rect.left) / rect.width;
     const py = (event.clientY - rect.top) / rect.height;
     const rx = (0.5 - py) * 2 * max;
@@ -278,7 +279,13 @@ export const countUp = (
   } = options;
 
   const isInteger = Number.isInteger(from) && Number.isInteger(to);
-  const places = decimals ?? (isInteger ? 0 : 2);
+  const normalizedDecimals =
+    decimals === undefined
+      ? undefined
+      : Number.isFinite(decimals)
+        ? Math.min(100, Math.max(0, Math.trunc(decimals)))
+        : undefined;
+  const places = normalizedDecimals ?? (isInteger ? 0 : 2);
   const formatter = format ?? ((value: number) => value.toFixed(places));
   const write = (value: number) => {
     element.textContent = `${prefix}${formatter(value)}${suffix}`;

@@ -43,6 +43,20 @@ describe('motion/animateValue', () => {
     expect(final.y).toBeCloseTo(25, 5);
   });
 
+  it('throws a generic error for unsupported value shapes', () => {
+    setReducedMotion(true);
+    try {
+      expect(() =>
+        animateValue({
+          from: [0] as unknown as number,
+          to: { x: 1 } as unknown as number,
+        } as never)
+      ).toThrow('"from" and "to" must be numbers, number[], or Record<string, number>');
+    } finally {
+      setReducedMotion(null);
+    }
+  });
+
   it('honors reduced motion by jumping to the final value immediately', async () => {
     setReducedMotion(true);
     try {

@@ -63,6 +63,28 @@ describe('motion/effects', () => {
     expect(el.style.transform).toBe('');
   });
 
+  it('tilt ignores pointer movement when the element has no layout size', () => {
+    const el = createElement();
+    el.getBoundingClientRect = () =>
+      ({
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: 0,
+        height: 0,
+        x: 0,
+        y: 0,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    const cleanup = tilt(el, { respectReducedMotion: false });
+    expect(() =>
+      el.dispatchEvent(new MouseEvent('pointermove', { clientX: 10, clientY: 10 }))
+    ).not.toThrow();
+    expect(el.style.transform).toBe('');
+    cleanup();
+  });
+
   it('shake resolves promptly under reduced motion', async () => {
     setReducedMotion(true);
     const el = createElement();
@@ -100,5 +122,12 @@ describe('motion/effects', () => {
     const el = document.createElement('span');
     await countUp(el, 0, 12.5, { prefix: '$', suffix: ' USD', decimals: 1 });
     expect(el.textContent).toBe('$12.5 USD');
+  });
+
+  it('countUp clamps invalid decimals into the supported toFixed range', async () => {
+    setReducedMotion(true);
+    const el = document.createElement('span');
+    await countUp(el, 0, 12.5, { decimals: -3 });
+    expect(el.textContent).toBe('13');
   });
 });
