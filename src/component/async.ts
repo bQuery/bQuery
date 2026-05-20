@@ -6,7 +6,7 @@
 
 import { signal } from '../reactive/index';
 import type { Signal } from '../reactive/index';
-import { getCurrentScope } from './scope';
+import { getCurrentScope, isCurrentScopeRendering } from './scope';
 
 type IdleCallbackHandle = number;
 
@@ -94,7 +94,7 @@ export const useAsync = <T>(
   fn: (signal: AbortSignal) => Promise<T>
 ): UseAsyncResult<T> => {
   const scope = getCurrentScope();
-  if (!scope) {
+  if (!scope || isCurrentScopeRendering()) {
     throw new Error(
       'bQuery component: useAsync() must be called inside a component lifecycle hook.'
     );

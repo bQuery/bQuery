@@ -677,7 +677,20 @@ describe('forms/createFieldArray', () => {
       initial: [],
       factory: (value) => useFormField(value),
     });
-    expect(() => arr.add()).toThrow('createFieldArray.add() requires a value.');
+    expect(() => (arr.add as unknown as () => unknown)()).toThrow(
+      'createFieldArray.add() requires a value.'
+    );
+  });
+
+  it('types add() as requiring a value', () => {
+    const arr = createFieldArray<string>({
+      initial: [],
+      factory: (value) => useFormField(value),
+    });
+    if (false) {
+      // @ts-expect-error createFieldArray.add requires a value
+      arr.add();
+    }
   });
 
   it('validate runs item-level and array-level validators', async () => {

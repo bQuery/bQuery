@@ -282,7 +282,7 @@ export type FormFieldArray<T = unknown> = {
   items: Signal<readonly FormField<T>[]>;
   length: Computed<number>;
   error: Signal<string>;
-  add: (value?: T) => FormField<T>;
+  add: (value: T) => FormField<T>;
   insert: (index: number, value: T) => FormField<T>;
   remove: (index: number) => boolean;
   move: (from: number, to: number) => void;

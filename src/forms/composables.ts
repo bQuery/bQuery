@@ -10,7 +10,7 @@
  * @module bquery/forms
  */
 
-import { getCurrentScope } from '../component/scope';
+import { getCurrentScope, isCurrentScopeRendering } from '../component/scope';
 import type { MaybeSignal } from '../reactive/index';
 import { createFieldArray } from './field-array';
 import { createForm } from './create-form';
@@ -26,7 +26,7 @@ import type {
 
 const requireScope = (api: string) => {
   const scope = getCurrentScope();
-  if (!scope) {
+  if (!scope || isCurrentScopeRendering()) {
     throw new Error(
       `bQuery forms: ${api}() must be called inside a component lifecycle hook. Avoid calling it directly from render()`
     );

@@ -12,7 +12,7 @@
  * @module bquery/component
  */
 
-import { getCurrentScope } from './scope';
+import { getCurrentScope, isCurrentScopeRendering } from './scope';
 
 /**
  * Strongly-typed injection key. The phantom `__type` property carries the
@@ -77,6 +77,12 @@ export const provide = <T>(
   key: string | InjectionKey<T>,
   value: T
 ): void => {
+  const scope = getCurrentScope();
+  if (!scope || isCurrentScopeRendering()) {
+    throw new Error(
+      'bQuery component: provide() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
+    );
+  }
   const map = getOrCreateProviderMap(host);
   map.set(key as string | InjectionKey<unknown>, value);
 
@@ -92,8 +98,7 @@ export const provide = <T>(
     host.addEventListener(INJECT_EVENT, map.handler);
   }
 
-  const scope = getCurrentScope();
-  scope?.addDisposer(() => {
+  scope.addDisposer(() => {
     map.delete(key as string | InjectionKey<unknown>);
     if (map.size === 0 && map.handler) {
       host.removeEventListener(INJECT_EVENT, map.handler);

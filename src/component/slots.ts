@@ -6,7 +6,7 @@
 
 import { signal } from '../reactive/index';
 import type { Signal } from '../reactive/index';
-import { getCurrentScope } from './scope';
+import { getCurrentScope, isCurrentScopeRendering } from './scope';
 
 const findSlot = (host: HTMLElement, name?: string): HTMLSlotElement | null => {
   const root = host.shadowRoot;
@@ -40,7 +40,7 @@ const findSlot = (host: HTMLElement, name?: string): HTMLSlotElement | null => {
  */
 export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => {
   const scope = getCurrentScope();
-  if (!scope) {
+  if (!scope || isCurrentScopeRendering()) {
     throw new Error(
       'bQuery component: useSlot() must be called inside a component lifecycle hook.'
     );

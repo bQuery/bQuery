@@ -15,6 +15,7 @@ import { useRef } from '../src/component/refs';
 import { hasSlot, slotText, useSlot } from '../src/component/slots';
 import { useAsync, whenIdle, type UseAsyncResult } from '../src/component/async';
 import { useSignal } from '../src/component/scope';
+import { useField, useFieldArray, useForm } from '../src/forms/composables';
 
 const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -86,6 +87,25 @@ describe('component/slots', () => {
     expect(slotText(host)).toBe('ab');
     host.remove();
   });
+
+  it('rejects useSlot() during render()', () => {
+    const tag = uniqueTag('slot-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        useSlot(this as unknown as HTMLElement);
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('must be called inside a component lifecycle hook');
+    host.remove();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -139,6 +159,31 @@ describe('component/inject', () => {
   it('formContextKey is a usable injection key', () => {
     expect(typeof formContextKey).toBe('symbol');
   });
+
+  it('rejects provide() outside a component lifecycle hook', () => {
+    expect(() => provide(document.createElement('div'), 'count', 1)).toThrow(
+      /must be called inside a component lifecycle hook/
+    );
+  });
+
+  it('rejects provide() during render()', () => {
+    const tag = uniqueTag('inject-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        provide(this as unknown as EventTarget, 'count', 1);
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+    host.remove();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -181,6 +226,25 @@ describe('component/useAsync', () => {
     await new Promise((r) => setTimeout(r, 5));
     const asyncState = captured as unknown as UseAsyncResult<number>;
     expect(asyncState.error.value).toBeInstanceOf(Error);
+    host.remove();
+  });
+
+  it('rejects useAsync() during render()', () => {
+    const tag = uniqueTag('async-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        useAsync(async () => 7);
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('must be called inside a component lifecycle hook');
     host.remove();
   });
 });
@@ -556,8 +620,6 @@ describe('component/lifecycle additions', () => {
 // useForm (composable) — quick integration check
 // ---------------------------------------------------------------------------
 
-import { useForm } from '../src/forms/composables';
-
 describe('forms/useForm composable', () => {
   it('creates a form bound to the component scope and disposes on disconnect', () => {
     const tag = uniqueTag('form-host');
@@ -579,6 +641,47 @@ describe('forms/useForm composable', () => {
     // After disconnect, destroy ran — further mutation still works but
     // subscribers are gone. Just verify no throw.
     expect(() => formRef!.fields.name.value.value = 'x').not.toThrow();
+  });
+
+  it('rejects render-time form composables', () => {
+    const cases = [
+      {
+        tag: uniqueTag('form-render'),
+        run() {
+          useForm<{ name: string }>({ fields: { name: { initialValue: '' } } });
+        },
+      },
+      {
+        tag: uniqueTag('field-render'),
+        run() {
+          useField('');
+        },
+      },
+      {
+        tag: uniqueTag('field-array-render'),
+        run() {
+          useFieldArray({ initial: [], factory: (value: string) => useField(value) });
+        },
+      },
+    ];
+
+    for (const { tag, run } of cases) {
+      const capturedErrors: Error[] = [];
+      component(tag, {
+        onError(error) {
+          capturedErrors.push(error);
+        },
+        render() {
+          run();
+          return html`<form>unreachable</form>`;
+        },
+      });
+      const host = document.createElement(tag);
+      document.body.appendChild(host);
+      expect(capturedErrors).toHaveLength(1);
+      expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+      host.remove();
+    }
   });
 });
 
