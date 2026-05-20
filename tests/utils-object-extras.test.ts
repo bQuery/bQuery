@@ -33,6 +33,8 @@ describe('utils/object extras', () => {
     expect((obj.a as { b: { c: number } }).b.c).toBe(1);
     set(obj, 'list[0].name', 'x');
     expect((obj.list as Array<{ name: string }>)[0].name).toBe('x');
+    set(obj, ['items', 0, 'value'], 'y');
+    expect((obj.items as Array<{ value: string }>)[0].value).toBe('y');
     set(obj, '__proto__.polluted', true);
     expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();
   });

@@ -292,9 +292,10 @@ export function set<T extends object>(
     if (!isSafeKey(key)) return obj;
     const next = current[key];
     if (next == null || typeof next !== 'object') {
-      // Decide between array and object based on the next key being a numeric string.
+      // Decide between array and object based on the next key being an array index.
       const nextKey = keys[i + 1];
-      const isIndex = typeof nextKey === 'string' && /^\d+$/.test(nextKey);
+      const isIndex = typeof nextKey === 'number'
+        || (typeof nextKey === 'string' && /^\d+$/.test(nextKey));
       safeAssign(current, key, isIndex ? [] : {});
     }
     current = current[key] as Record<PropertyKey, unknown>;

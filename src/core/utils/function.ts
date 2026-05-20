@@ -30,7 +30,7 @@ export interface DebouncedFn<TArgs extends unknown[]> {
 export interface ThrottleOptions {
   /** Invoke on the leading edge of the interval (default: true). */
   leading?: boolean;
-  /** Invoke on the trailing edge of the interval (default: true). */
+  /** Invoke on the trailing edge of the interval (default: false). */
   trailing?: boolean;
 }
 
