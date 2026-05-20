@@ -407,8 +407,5 @@ export const timeline = (
     },
   };
 
-  // Track running iteration count for diagnostics; currently informational.
-  void currentIteration;
-
   return controls;
 };

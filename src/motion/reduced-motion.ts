@@ -148,10 +148,15 @@ export const onReducedMotionChange = (callback: (reduced: boolean) => void): (()
   };
 };
 
+/** @internal */
+let _reducedMotionSignal: ReadonlySignal<boolean> | null = null;
+
 /**
  * Reactive readonly signal that tracks the effective reduced-motion
  * preference. The signal updates automatically when the user's system
  * preference changes or when {@link setReducedMotion} is called.
+ *
+ * Returns the same singleton signal on every call.
  *
  * @example
  * ```ts
@@ -161,9 +166,11 @@ export const onReducedMotionChange = (callback: (reduced: boolean) => void): (()
  * ```
  */
 export const reducedMotionSignal = (): ReadonlySignal<boolean> => {
+  if (_reducedMotionSignal) return _reducedMotionSignal;
   const inner = signal(evaluateCurrent());
   onReducedMotionChange((value) => {
     inner.value = value;
   });
-  return readonly(inner);
+  _reducedMotionSignal = readonly(inner);
+  return _reducedMotionSignal;
 };

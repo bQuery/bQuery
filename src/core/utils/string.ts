@@ -345,6 +345,7 @@ const DEFAULT_RANDOM_STRING_CHARSET =
  */
 export function randomString(length: number, charset = DEFAULT_RANDOM_STRING_CHARSET): string {
   if (length <= 0) return '';
+  if (charset.length === 0) throw new RangeError('randomString: charset must not be empty');
   const cryptoApi: Crypto | undefined =
     typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.getRandomValues === 'function'
       ? globalThis.crypto

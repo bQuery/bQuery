@@ -186,6 +186,12 @@ export function throttle<TArgs extends unknown[]>(
       } else {
         lastRun = now;
         pendingArgs = args;
+        if (trailing) {
+          timeoutId = setTimeout(() => {
+            timeoutId = undefined;
+            if (pendingArgs) invoke(pendingArgs);
+          }, intervalMs);
+        }
       }
     } else if (trailing) {
       pendingArgs = args;

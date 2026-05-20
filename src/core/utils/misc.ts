@@ -210,6 +210,7 @@ export function pollUntil<T>(
           reject(new Error(`pollUntil timed out after ${timeout}ms`));
           return;
         }
+        if (signal?.aborted) return;
         timer = setTimeout(tick, interval);
       } catch (err) {
         signal?.removeEventListener('abort', onAbort);

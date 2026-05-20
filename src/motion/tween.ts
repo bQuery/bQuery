@@ -112,7 +112,7 @@ const safeCaf = (): ((handle: number) => void) => {
 /**
  * Tween any numeric structure between `from` and `to`. Returns a promise
  * that resolves with the final value when the animation completes
- * naturally, or `from` immediately when reduced motion is preferred.
+ * naturally, or `to` immediately when reduced motion is preferred.
  *
  * For full imperative controls (pause/resume/reverse/seek), use
  * {@link tween} instead.
@@ -176,6 +176,7 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
   let paused = false;
   let stopped = false;
   let finalized = false;
+  let abortHandler: (() => void) | null = null;
   let resolveFinished!: (value: T) => void;
 
   const finished = new Promise<T>((resolve) => {
@@ -188,6 +189,10 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
     onUpdate?.(currentValue, p);
     if (complete && !finalized) {
       finalized = true;
+      if (abortHandler) {
+        signal?.removeEventListener('abort', abortHandler);
+        abortHandler = null;
+      }
       onComplete?.(currentValue);
       resolveFinished(currentValue);
     }
@@ -208,6 +213,10 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
     if (finalized) return;
     finalized = true;
     cancelTimers();
+    if (abortHandler) {
+      signal?.removeEventListener('abort', abortHandler);
+      abortHandler = null;
+    }
     resolveFinished(value);
   };
 
@@ -246,12 +255,12 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
     if (signal.aborted) {
       finalize(currentValue);
     } else {
-      const onAbort = () => {
+      abortHandler = () => {
         stopped = true;
         cancelTimers();
         finalize(currentValue);
       };
-      signal.addEventListener('abort', onAbort, { once: true });
+      signal.addEventListener('abort', abortHandler, { once: true });
     }
   }
 
