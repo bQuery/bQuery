@@ -83,6 +83,24 @@ describe('utils/object extras', () => {
     expect(typeof descriptor?.set).toBe('function');
   });
 
+  it('set honors inherited setters without redefining the property', () => {
+    const writes: unknown[] = [];
+    const prototype = {
+      get value() {
+        return undefined;
+      },
+      set value(next: unknown) {
+        writes.push(next);
+      },
+    };
+    const target = Object.create(prototype) as Record<string, unknown>;
+
+    set(target, 'value', 3);
+
+    expect(writes).toEqual([3]);
+    expect(Object.hasOwn(target, 'value')).toBe(false);
+  });
+
   it('has detects nested presence and prototype-pollution safety', () => {
     expect(has({ a: { b: 0 } }, 'a.b')).toBe(true);
     expect(has({ config: { 'theme.color': '#0af' } }, 'config["theme.color"]')).toBe(true);

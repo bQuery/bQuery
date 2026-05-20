@@ -328,14 +328,8 @@ const safeAssign = (
 ): void => {
   // Defensive double-check: callers must already guard via `isSafeKey`.
   if (!isSafeKey(key)) return;
-  try {
-    target[key] = value;
-    return;
-  } catch {
-    // Fall back to descriptor-aware writes below when direct assignment fails.
-  }
   const existing = Object.getOwnPropertyDescriptor(target, key);
-  if (existing && existing.configurable === false) {
+  if (existing) {
     try {
       if ('set' in existing) {
         existing.set?.call(target, value);
@@ -349,6 +343,28 @@ const safeAssign = (
       // Ignore non-writable or otherwise unsupported assignments.
     }
     return;
+  }
+  const prototypeDescriptor = Object.getOwnPropertyDescriptor(
+    Object.getPrototypeOf(target) as object | null,
+    key
+  );
+  if (prototypeDescriptor && 'set' in prototypeDescriptor) {
+    try {
+      prototypeDescriptor.set?.call(target, value);
+      return;
+    } catch {
+      // Ignore setter failures.
+    }
+  }
+  try {
+    Object.defineProperty(target, key, {
+      value,
+      enumerable: true,
+      writable: true,
+      configurable: true,
+    });
+  } catch {
+    // Ignore non-writable or otherwise unsupported assignments.
   }
 };
 
