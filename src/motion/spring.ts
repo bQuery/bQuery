@@ -217,6 +217,7 @@ export const springVector = <T extends Record<string, number>>(
 
   for (const key of keys) {
     springs[key].onChange(() => {
+      if (listeners.size === 0) return;
       const snap = snapshot();
       for (const listener of listeners) listener(snap);
     });

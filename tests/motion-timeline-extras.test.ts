@@ -6,6 +6,7 @@ import {
   setReducedMotion,
 } from '../src/motion/reduced-motion';
 import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
+import { springVector } from '../src/motion/spring';
 
 const createElement = (finished: Promise<void> = Promise.resolve()) => {
   const el = document.createElement('div');
@@ -165,6 +166,51 @@ describe('motion/timeline extras', () => {
       globalThis.cancelAnimationFrame = originalCancel;
     }
   });
+
+  it('samples the latest animation time for onUpdate and progress', () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
+
+    try {
+      const first = createElement(new Promise(() => {}));
+      const second = createElement(new Promise(() => {}));
+      const tl = timeline([
+        {
+          target: first.el,
+          keyframes: [{ opacity: 0 }, { opacity: 1 }],
+          options: { duration: 50 },
+          at: 0,
+        },
+        {
+          target: second.el,
+          keyframes: [{ opacity: 0 }, { opacity: 1 }],
+          options: { duration: 150 },
+          at: 50,
+        },
+      ]);
+      const updates: number[] = [];
+      tl.onUpdate((time) => updates.push(time));
+
+      void tl.play();
+      first.anim.currentTime = 50;
+      second.anim.currentTime = 120;
+      callbacks.shift()?.(0);
+
+      expect(updates).toEqual([120]);
+      expect(tl.progress()).toBe(0.6);
+      tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
 });
 
 describe('motion/stagger extras', () => {
@@ -229,5 +275,26 @@ describe('motion/reduced-motion subscriptions', () => {
     setReducedMotion(initial ? false : true);
     expect(sig.value).toBe(!initial);
     setReducedMotion(null);
+  });
+});
+
+describe('motion/springVector', () => {
+  it('skips snapshot work when no vector listeners are subscribed', () => {
+    const pos = springVector({ x: 0, y: 0 });
+    const dimensions = pos.dimensions();
+    const xCurrent = mock(() => 10);
+    const yCurrent = mock(() => 0);
+    dimensions.x.current = xCurrent;
+    dimensions.y.current = yCurrent;
+
+    pos.set({ x: 10 });
+    expect(xCurrent).not.toHaveBeenCalled();
+    expect(yCurrent).not.toHaveBeenCalled();
+
+    const off = pos.onChange(() => {});
+    pos.set({ x: 20 });
+    expect(xCurrent).toHaveBeenCalled();
+    expect(yCurrent).toHaveBeenCalled();
+    off();
   });
 });

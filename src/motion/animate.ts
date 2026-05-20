@@ -128,10 +128,10 @@ export const animate = (element: Element, config: AnimateOptions): Promise<void>
       }
     }
     let finalized = false;
-    const finalize = () => {
+    const finalize = (shouldCommitStyles: boolean) => {
       if (finalized) return;
       finalized = true;
-      if (commitStyles) {
+      if (shouldCommitStyles) {
         if (typeof animation.commitStyles === 'function') {
           animation.commitStyles();
         } else {
@@ -145,6 +145,8 @@ export const animate = (element: Element, config: AnimateOptions): Promise<void>
       onFinish?.();
       resolve();
     };
+    const finalizeFinished = () => finalize(commitStyles);
+    const finalizeAborted = () => finalize(false);
 
     let abortHandler: (() => void) | null = null;
     if (signal) {
@@ -155,14 +157,14 @@ export const animate = (element: Element, config: AnimateOptions): Promise<void>
         } catch {
           // ignore
         }
-        finalize();
+        finalizeAborted();
       };
       signal.addEventListener('abort', abortHandler, { once: true });
     }
 
-    animation.onfinish = finalize;
+    animation.onfinish = finalizeFinished;
     if (animation.finished) {
-      animation.finished.then(finalize).catch(finalize);
+      animation.finished.then(finalizeFinished).catch(finalizeFinished);
     }
   });
 };

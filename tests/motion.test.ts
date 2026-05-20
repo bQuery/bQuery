@@ -352,6 +352,30 @@ describe('motion/animate', () => {
     expect(onFinish).toHaveBeenCalledTimes(1);
   });
 
+  it('does not commit final styles when aborted before finish', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      commitStyles: undefined,
+      finished: new Promise<void>(() => {}),
+    };
+    const el = document.createElement('div');
+    el.style.opacity = '0.25';
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+    const controller = new AbortController();
+
+    const promise = animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await promise;
+
+    expect(animation.cancel).toHaveBeenCalled();
+    expect(el.style.opacity).toBe('0.25');
+  });
+
   it('applies final styles when reduced motion is preferred', async () => {
     const original = window.matchMedia;
     window.matchMedia = mock(

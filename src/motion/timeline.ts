@@ -169,6 +169,16 @@ export const timeline = (
     for (const listener of updateListeners) listener(time);
   };
 
+  const getTimelineCurrentTime = (): number => {
+    let current = 0;
+    for (const { animation } of animations) {
+      if (typeof animation.currentTime === 'number') {
+        current = Math.max(current, animation.currentTime);
+      }
+    }
+    return current;
+  };
+
   const startUpdateLoop = () => {
     if (typeof requestAnimationFrame !== 'function') return;
     if (updateListeners.size === 0) return;
@@ -179,8 +189,7 @@ export const timeline = (
         updateFrame = null;
         return;
       }
-      const sample = animations[0]?.animation;
-      const time = typeof sample?.currentTime === 'number' ? sample.currentTime : 0;
+      const time = getTimelineCurrentTime();
       notifyUpdate(time);
       if (finalized || updateListeners.size === 0 || animations.length === 0) {
         updateFrame = null;
@@ -402,8 +411,7 @@ export const timeline = (
 
     progress(): number {
       if (!animations.length || totalDuration <= 0) return 0;
-      const sample = animations[0].animation;
-      const current = typeof sample.currentTime === 'number' ? sample.currentTime : 0;
+      const current = getTimelineCurrentTime();
       return Math.min(1, Math.max(0, current / totalDuration));
     },
 
