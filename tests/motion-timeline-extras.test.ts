@@ -7,11 +7,11 @@ import {
 } from '../src/motion/reduced-motion';
 import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
 
-const createElement = () => {
+const createElement = (finished: Promise<void> = Promise.resolve()) => {
   const el = document.createElement('div');
   const anim = {
     onfinish: null as (() => void) | null,
-    finished: Promise.resolve(),
+    finished,
     cancel: mock(() => {}),
     pause: mock(() => {}),
     play: mock(() => {}),
@@ -92,7 +92,7 @@ describe('motion/timeline extras', () => {
     expect(anim.playbackRate).toBeLessThan(0);
   });
 
-  it('stops the update loop when the last listener unsubscribes during a tick', async () => {
+  it('prevents duplicate update loops and stops when the last listener unsubscribes during a tick', async () => {
     const originalRequest = globalThis.requestAnimationFrame;
     const originalCancel = globalThis.cancelAnimationFrame;
     const callbacks: FrameRequestCallback[] = [];
@@ -109,13 +109,14 @@ describe('motion/timeline extras', () => {
     }) as typeof cancelAnimationFrame;
 
     try {
-      const { el } = createElement();
+      const { el } = createElement(new Promise(() => {}));
       const tl = timeline([
         { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
       ]);
       void tl.play();
       let off = () => {};
       off = tl.onUpdate(() => off());
+      tl.resume();
       expect(callbacks).toHaveLength(1);
 
       const first = callbacks.shift();
@@ -124,6 +125,41 @@ describe('motion/timeline extras', () => {
       expect(callbacks).toHaveLength(0);
       expect(cancels).toBe(1);
       tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
+
+  it('does not reschedule the update loop after stop() during an update callback', async () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+    let frameId = 0;
+    let cancels = 0;
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      frameId += 1;
+      return frameId;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {
+      cancels += 1;
+    }) as typeof cancelAnimationFrame;
+
+    try {
+      const { el } = createElement(new Promise(() => {}));
+      const tl = timeline([
+        { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+      ]);
+      tl.onUpdate(() => tl.stop());
+      void tl.play();
+
+      expect(callbacks).toHaveLength(1);
+      callbacks.shift()?.(0);
+
+      expect(callbacks).toHaveLength(0);
+      expect(cancels).toBe(1);
     } finally {
       globalThis.requestAnimationFrame = originalRequest;
       globalThis.cancelAnimationFrame = originalCancel;
