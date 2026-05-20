@@ -29,6 +29,16 @@ export interface MagneticOptions {
 
 const matrixTranslate = (x: number, y: number) => `translate3d(${x}px, ${y}px, 0)`;
 
+const safeRaf = (): ((cb: (time: number) => void) => number) => {
+  if (typeof requestAnimationFrame === 'function') return requestAnimationFrame;
+  return (cb: (time: number) => void) => setTimeout(() => cb(Date.now()), 16) as unknown as number;
+};
+
+const safeCaf = (): ((handle: number) => void) => {
+  if (typeof cancelAnimationFrame === 'function') return cancelAnimationFrame;
+  return (handle: number) => clearTimeout(handle as unknown as ReturnType<typeof setTimeout>);
+};
+
 /**
  * Apply a pointer-following micro-interaction to an element. The element
  * is translated toward the pointer when it is within `radius` pixels of
@@ -45,6 +55,8 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
   const originalTransform = el.style.transform;
   const baseTransform = originalTransform.trim() === 'none' ? '' : originalTransform;
 
+  const raf = safeRaf();
+  const caf = safeCaf();
   let rafId: number | undefined;
   let lastClientX = 0;
   let lastClientY = 0;
@@ -53,7 +65,7 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
     lastClientX = event.clientX;
     lastClientY = event.clientY;
     if (rafId !== undefined) return;
-    rafId = requestAnimationFrame(() => {
+    rafId = raf(() => {
       rafId = undefined;
       const rect = el.getBoundingClientRect();
       const cx = rect.left + rect.width / 2;
@@ -72,7 +84,7 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
 
   const onLeave = () => {
     if (rafId !== undefined) {
-      cancelAnimationFrame(rafId);
+      caf(rafId);
       rafId = undefined;
     }
     el.style.transform = originalTransform;
@@ -83,7 +95,7 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
 
   return () => {
     if (rafId !== undefined) {
-      cancelAnimationFrame(rafId);
+      caf(rafId);
       rafId = undefined;
     }
     window.removeEventListener('pointermove', onMove);
@@ -120,6 +132,8 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
   const originalTransform = el.style.transform;
   const originalTransition = el.style.transition;
   let restoreTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
+  const raf = safeRaf();
+  const caf = safeCaf();
   let rafId: number | undefined;
   let lastClientX = 0;
   let lastClientY = 0;
@@ -135,7 +149,7 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
     lastClientX = event.clientX;
     lastClientY = event.clientY;
     if (rafId !== undefined) return;
-    rafId = requestAnimationFrame(() => {
+    rafId = raf(() => {
       rafId = undefined;
       clearRestoreTransitionTimeout();
       const rect = el.getBoundingClientRect();
@@ -151,7 +165,7 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
 
   const onLeave = () => {
     if (rafId !== undefined) {
-      cancelAnimationFrame(rafId);
+      caf(rafId);
       rafId = undefined;
     }
     clearRestoreTransitionTimeout();
@@ -170,7 +184,7 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
 
   return () => {
     if (rafId !== undefined) {
-      cancelAnimationFrame(rafId);
+      caf(rafId);
       rafId = undefined;
     }
     clearRestoreTransitionTimeout();
