@@ -646,7 +646,6 @@ export {
   between,
   bindField,
   bindForm,
-  compose,
   createFieldArray,
   createForm,
   custom,
