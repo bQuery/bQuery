@@ -41,8 +41,8 @@ describe('utils/function extras', () => {
     const add = (a: number, b: number, c: number) => a + b + c;
     const c = curry(add) as (a: number) => (b: number) => (c: number) => number;
     expect(c(1)(2)(3)).toBe(6);
-    const c2 = curry(add) as (...a: unknown[]) => unknown;
-    expect(c2(1, 2)(3)).toBe(6);
+    const c2 = curry(add) as (...a: number[]) => unknown;
+    expect((c2(1, 2) as (c: number) => number)(3)).toBe(6);
     expect(c2(1, 2, 3)).toBe(6);
   });
 

@@ -98,7 +98,9 @@ describe('utils/array extras', () => {
   it('sortBy accepts single and multiple selectors', () => {
     const items = [{ k: 'b', n: 2 }, { k: 'a', n: 3 }, { k: 'a', n: 1 }];
     expect(sortBy(items, (i) => i.k).map((i) => i.k)).toEqual(['a', 'a', 'b']);
-    expect(sortBy(items, [(i) => i.k, (i) => i.n]).map((i) => i.n)).toEqual([1, 3, 2]);
+    expect(
+      sortBy(items, [(i): string | number => i.k, (i): string | number => i.n]).map((i) => i.n)
+    ).toEqual([1, 3, 2]);
   });
 
   it('intersection and difference operate as expected', () => {

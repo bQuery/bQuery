@@ -16,8 +16,8 @@ import {
 
 describe('utils/object extras', () => {
   it('get reads nested values with dot and bracket notation', () => {
-    expect(get({ a: { b: { c: 42 } } }, 'a.b.c')).toBe(42);
-    expect(get({ list: [{ name: 'x' }] }, 'list[0].name')).toBe('x');
+    expect(get<number>({ a: { b: { c: 42 } } }, 'a.b.c')).toBe(42);
+    expect(get<string>({ list: [{ name: 'x' }] }, 'list[0].name')).toBe('x');
     expect(get({}, 'a.b', 'fallback')).toBe('fallback');
     expect(get({ a: null }, 'a', 'fallback')).toBeNull();
   });

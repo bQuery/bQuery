@@ -70,7 +70,7 @@ describe('motion/inView', () => {
 
   it('invokes onChange when an entry transitions to intersecting', async () => {
     // Mock IntersectionObserver for this test.
-    let captured: ((entries: IntersectionObserverEntry[]) => void) | null = null;
+    let captured: ((entries: IntersectionObserverEntry[]) => void) | undefined;
     class MockIO {
       callback: (entries: IntersectionObserverEntry[]) => void;
       constructor(cb: (entries: IntersectionObserverEntry[]) => void) {
@@ -88,11 +88,12 @@ describe('motion/inView', () => {
       const changes: boolean[] = [];
       const handle = inView(el, { onChange: (entered) => changes.push(entered) });
       // Simulate an entry.
-      captured?.([
+      if (!captured) throw new Error('IntersectionObserver callback was not captured');
+      captured([
         {
           target: el,
           isIntersecting: true,
-        } as IntersectionObserverEntry,
+        } as unknown as IntersectionObserverEntry,
       ]);
       await handle;
       expect(changes).toContain(true);

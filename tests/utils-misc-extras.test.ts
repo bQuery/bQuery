@@ -14,7 +14,7 @@ describe('utils/misc extras', () => {
     const [ok, value] = tryCatch(() => 42);
     expect(ok).toBeNull();
     expect(value).toBe(42);
-    const [err, undef] = tryCatch<number>(() => {
+    const [err, undef] = tryCatch((): number => {
       throw new Error('nope');
     });
     expect(err).toBeInstanceOf(Error);
