@@ -137,4 +137,22 @@ describe('motion/tween controls', () => {
     expect(firstUpdate).not.toBeNull();
     expect(firstUpdate!).toBeGreaterThanOrEqual(40);
   });
+
+  it('honors reverse() before a reduced-motion delayed start', async () => {
+    setReducedMotion(true);
+    try {
+      const t = tween<number>({
+        from: 0,
+        to: 100,
+        delay: 20,
+      });
+      t.reverse();
+      const value = await t.finished;
+      expect(value).toBe(0);
+      expect(t.current()).toBe(0);
+      expect(t.progress()).toBe(0);
+    } finally {
+      setReducedMotion(null);
+    }
+  });
 });

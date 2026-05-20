@@ -244,7 +244,7 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
   const start = () => {
     if (stopped) return;
     if (respectReducedMotion && prefersReducedMotion()) {
-      update(1, true);
+      update(direction === 1 ? 1 : 0, true);
       return;
     }
     startTimestamp = null;
