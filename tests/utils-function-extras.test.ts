@@ -134,6 +134,22 @@ describe('utils/function extras', () => {
     expect(calls).toEqual([2]);
   });
 
+  it('debounce maxWait stays disabled when trailing is false', async () => {
+    const calls: number[] = [];
+    const fn = debounce((n: number) => calls.push(n), 30, {
+      leading: true,
+      trailing: false,
+      maxWait: 50,
+    });
+
+    fn(1);
+    await wait(20);
+    fn(2);
+    await wait(60);
+
+    expect(calls).toEqual([1]);
+  });
+
   it('debounce.flush invokes pending immediately', () => {
     let calls: number[] = [];
     const fn = debounce((n: number) => calls.push(n), 100);

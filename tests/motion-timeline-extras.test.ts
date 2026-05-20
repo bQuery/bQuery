@@ -211,6 +211,56 @@ describe('motion/timeline extras', () => {
       globalThis.cancelAnimationFrame = originalCancel;
     }
   });
+
+  it('applies the first keyframe styles when a reverse timeline finalizes without commitStyles support', async () => {
+    const el = document.createElement('div');
+    const animation = {
+      ...createElement(new Promise(() => {})).anim,
+      commitStyles: undefined,
+      currentTime: 0,
+      finished: Promise.resolve(),
+    };
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [
+          { opacity: 0, transform: 'translateY(10px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ],
+        options: { duration: 10 },
+      },
+    ]);
+
+    const playing = tl.play();
+    tl.reverse();
+    await playing;
+
+    expect(el.style.opacity).toBe('0');
+    expect(el.style.transform).toBe('translateY(10px)');
+  });
+
+  it('applies the first keyframe styles for reverse reduced-motion playback', async () => {
+    setReducedMotion(true);
+    try {
+      const el = document.createElement('div');
+      const tl = timeline([
+        {
+          target: el,
+          keyframes: [{ opacity: 0 }, { opacity: 1 }],
+          options: { duration: 10 },
+        },
+      ]);
+      tl.reverse();
+
+      await tl.play();
+
+      expect(el.style.opacity).toBe('0');
+    } finally {
+      setReducedMotion(null);
+    }
+  });
 });
 
 describe('motion/stagger extras', () => {

@@ -4,7 +4,7 @@
  * @module bquery/motion
  */
 
-import { animate, applyFinalKeyframeStyles } from './animate';
+import { animate, applyKeyframeStyles } from './animate';
 import { prefersReducedMotion } from './reduced-motion';
 import type {
   SequenceOptions,
@@ -179,6 +179,14 @@ export const timeline = (
     return current;
   };
 
+  const applyResolvedStyles = (
+    target: Element,
+    keyframes: Keyframe[] | PropertyIndexedKeyframes,
+    direction: 1 | -1
+  ) => {
+    applyKeyframeStyles(target, keyframes, direction === -1 ? 'first' : 'last');
+  };
+
   const startUpdateLoop = () => {
     if (typeof requestAnimationFrame !== 'function') return;
     if (updateListeners.size === 0) return;
@@ -211,7 +219,9 @@ export const timeline = (
         if (typeof animation.commitStyles === 'function') {
           animation.commitStyles();
         } else {
-          applyFinalKeyframeStyles(step.target, step.keyframes);
+          const direction =
+            typeof animation.currentTime === 'number' ? (animation.currentTime <= 0 ? -1 : 1) : runningDirection;
+          applyResolvedStyles(step.target, step.keyframes, direction);
         }
       }
       animation.cancel();
@@ -232,7 +242,7 @@ export const timeline = (
 
     if (respectReducedMotion && prefersReducedMotion()) {
       if (commitStyles) {
-        schedule.forEach(({ step }) => applyFinalKeyframeStyles(step.target, step.keyframes));
+        schedule.forEach(({ step }) => applyResolvedStyles(step.target, step.keyframes, direction));
       }
       reducedMotionApplied = true;
       return;
@@ -244,7 +254,7 @@ export const timeline = (
     );
     if (animateUnavailable) {
       if (commitStyles) {
-        schedule.forEach(({ step }) => applyFinalKeyframeStyles(step.target, step.keyframes));
+        schedule.forEach(({ step }) => applyResolvedStyles(step.target, step.keyframes, direction));
       }
       reducedMotionApplied = true;
       return;
@@ -329,7 +339,7 @@ export const timeline = (
     async play(): Promise<void> {
       currentIteration = 0;
       const total = resolveRepeat();
-      let direction: 1 | -1 = 1;
+      let direction: 1 | -1 = runningDirection;
 
       while (currentIteration <= total) {
         await playOnce(direction);

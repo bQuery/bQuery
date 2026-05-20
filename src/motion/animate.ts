@@ -30,18 +30,21 @@ const readCurrentStyleValue = (element: Element, prop: string): string => {
   return computedValue ?? '';
 };
 
+type KeyframeBoundary = 'first' | 'last';
+
 /** @internal */
-export const applyFinalKeyframeStyles = (
+export const applyKeyframeStyles = (
   element: Element,
-  keyframes: Keyframe[] | PropertyIndexedKeyframes
+  keyframes: Keyframe[] | PropertyIndexedKeyframes,
+  boundary: KeyframeBoundary = 'last'
 ): void => {
   const htmlElement = element as HTMLElement;
   const style = htmlElement.style;
 
   if (Array.isArray(keyframes)) {
-    const last = keyframes[keyframes.length - 1];
-    if (!last) return;
-    for (const [prop, value] of Object.entries(last)) {
+    const frame = boundary === 'first' ? keyframes[0] : keyframes[keyframes.length - 1];
+    if (!frame) return;
+    for (const [prop, value] of Object.entries(frame)) {
       if (prop === 'offset' || prop === 'easing' || prop === 'composite') continue;
       if (isStyleValue(value)) {
         // Convert camelCase to kebab-case for CSS properties
@@ -54,13 +57,25 @@ export const applyFinalKeyframeStyles = (
 
   for (const [prop, value] of Object.entries(keyframes)) {
     if (prop === 'offset' || prop === 'easing' || prop === 'composite') continue;
-    const finalValue = Array.isArray(value) ? value[value.length - 1] : value;
-    if (isStyleValue(finalValue)) {
+    const frameValue = Array.isArray(value)
+      ? boundary === 'first'
+        ? value[0]
+        : value[value.length - 1]
+      : value;
+    if (isStyleValue(frameValue)) {
       // Convert camelCase to kebab-case for CSS properties
       const cssProp = prop.startsWith('--') ? prop : toKebabCase(prop);
-      style.setProperty(cssProp, String(finalValue));
+      style.setProperty(cssProp, String(frameValue));
     }
   }
+};
+
+/** @internal */
+export const applyFinalKeyframeStyles = (
+  element: Element,
+  keyframes: Keyframe[] | PropertyIndexedKeyframes
+): void => {
+  applyKeyframeStyles(element, keyframes, 'last');
 };
 
 /**

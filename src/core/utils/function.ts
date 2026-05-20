@@ -115,7 +115,7 @@ export function debounce<TArgs extends unknown[]>(
     clearTrailing();
     timeoutId = setTimeout(trailingTrigger, delayMs);
 
-    if (maxWait !== undefined && maxTimeoutId === undefined) {
+    if (trailing && maxWait !== undefined && maxTimeoutId === undefined) {
       const elapsed = lastInvokeTime === 0 ? 0 : now - lastInvokeTime;
       const remaining = Math.max(0, maxWait - elapsed);
       maxTimeoutId = setTimeout(() => {

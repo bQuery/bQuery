@@ -43,6 +43,17 @@ describe('motion/animateValue', () => {
     expect(final.y).toBeCloseTo(25, 5);
   });
 
+  it('preserves keys that exist only in the target record', async () => {
+    const final = await animateValue<Record<string, number>>({
+      from: { x: 0 },
+      to: { x: 100, y: 25 },
+      duration: 50,
+      respectReducedMotion: false,
+    });
+    expect(final.x).toBeCloseTo(100, 5);
+    expect(final.y).toBeCloseTo(25, 5);
+  });
+
   it('throws a generic error for unsupported value shapes', () => {
     setReducedMotion(true);
     try {

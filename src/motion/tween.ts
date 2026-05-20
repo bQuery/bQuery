@@ -89,9 +89,10 @@ function interpolate<T extends TweenValue>(from: T, to: T, t: number): T {
   }
   if (isNumberRecord(from) && isNumberRecord(to)) {
     const out: Record<string, number> = {};
-    for (const key of Object.keys(from)) {
-      const a = from[key];
-      const b = key in to ? to[key] : a;
+    const keys = new Set([...Object.keys(from), ...Object.keys(to)]);
+    for (const key of keys) {
+      const b = key in to ? to[key] : from[key];
+      const a = key in from ? from[key] : b;
       out[key] = a + (b - a) * t;
     }
     return out as T;

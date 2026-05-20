@@ -292,7 +292,7 @@ await animate(card, {
 ## Timeline
 
 ```ts
-import { timeline } from '@bquery/bquery/motion';
+import { keyframePresets, timeline } from '@bquery/bquery/motion';
 
 const tl = timeline([
   { target: card, keyframes: keyframePresets.slideInUp(), options: { duration: 240 } },
