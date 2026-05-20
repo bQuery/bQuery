@@ -71,6 +71,7 @@ const teardownMediaQuerySubscription = (): void => {
   }
   mediaQueryList = null;
   mediaQueryHandler = null;
+  lastDispatchedValue = null;
 };
 
 /**

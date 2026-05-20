@@ -270,6 +270,56 @@ describe('motion/reduced-motion subscriptions', () => {
     expect(events).toEqual([true, false]);
   });
 
+  it('re-baselines system preference after all listeners unsubscribe', () => {
+    const originalMatchMedia = window.matchMedia;
+    let matches = false;
+    let changeListener: ((event: MediaQueryListEvent) => void) | null = null;
+
+    window.matchMedia = mock(
+      () =>
+        ({
+          get matches() {
+            return matches;
+          },
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: undefined,
+          removeListener: undefined,
+          addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+            changeListener = listener;
+          },
+          removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
+            if (changeListener === listener) changeListener = null;
+          },
+          dispatchEvent: () => true,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const firstEvents: boolean[] = [];
+      const offFirst = onReducedMotionChange((value) => firstEvents.push(value));
+
+      matches = true;
+      changeListener?.({ matches, media: '(prefers-reduced-motion: reduce)' } as MediaQueryListEvent);
+      expect(firstEvents).toEqual([true]);
+
+      offFirst();
+
+      matches = false;
+
+      const secondEvents: boolean[] = [];
+      const offSecond = onReducedMotionChange((value) => secondEvents.push(value));
+
+      matches = true;
+      changeListener?.({ matches, media: '(prefers-reduced-motion: reduce)' } as MediaQueryListEvent);
+      expect(secondEvents).toEqual([true]);
+
+      offSecond();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
   it('reducedMotionSignal exposes the current value and reacts to changes', () => {
     const sig = reducedMotionSignal();
     const initial = sig.value;

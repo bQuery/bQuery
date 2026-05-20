@@ -334,7 +334,8 @@ export const timeline = (
       while (currentIteration <= total) {
         await playOnce(direction);
         if (finalized) {
-          // External stop() finalized us mid-run.
+          // playOnce() finalized the timeline early (for example via stop(),
+          // reduced motion, or animate-unavailable fallback paths).
           return;
         }
         currentIteration += 1;
