@@ -701,6 +701,35 @@ describe('forms/createFieldArray', () => {
     arr.reset();
     expect(arr.getValues()).toEqual(['a']);
   });
+
+  it('disposes removed and replaced items that expose destroy()', () => {
+    const destroyed: string[] = [];
+    const arr = createFieldArray<string>({
+      initial: ['a', 'b'],
+      factory: (value) => {
+        const field = useFormField(value);
+        return {
+          ...field,
+          destroy: () => {
+            destroyed.push(value);
+            field.destroy();
+          },
+        };
+      },
+    });
+
+    expect(arr.remove(0)).toBe(true);
+    expect(destroyed).toEqual(['a']);
+
+    arr.clear();
+    expect(destroyed).toEqual(['a', 'b']);
+
+    arr.reset();
+    expect(destroyed).toEqual(['a', 'b']);
+
+    arr.reset();
+    expect(destroyed).toEqual(['a', 'b', 'a', 'b']);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -842,6 +871,30 @@ describe('forms/bindForm', () => {
     root.dispatchEvent(new Event('submit'));
     await new Promise((r) => setTimeout(r, 5));
     expect(form.submitCount.value).toBe(1);
+
+    cleanup();
+    root.remove();
+  });
+
+  it('keeps error slot lookup keyed by input name when fieldMap is used', () => {
+    const form = createForm({
+      fields: {
+        firstName: { initialValue: '' },
+      },
+    });
+    const root = document.createElement('form');
+    root.innerHTML = `
+      <input name="first_name" />
+      <span data-bq-error-for="first_name"></span>
+    `;
+    document.body.appendChild(root);
+
+    const cleanup = bindForm(form, root, {
+      fieldMap: { first_name: 'firstName' },
+    });
+
+    form.fields.firstName.setError('Required');
+    expect(root.querySelector('[data-bq-error-for="first_name"]')?.textContent).toBe('Required');
 
     cleanup();
     root.remove();

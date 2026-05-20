@@ -11,6 +11,20 @@ import type { FieldArrayConfig, FormField, FormFieldArray, ValidationResult, Val
 const resolveResult = (result: ValidationResult): string | undefined =>
   result === true || result === undefined ? undefined : (result as string);
 
+const destroyItem = <T>(item: FormField<T>): void => {
+  const destroyable = item as FormField<T> & {
+    destroy?: () => void;
+    dispose?: () => void;
+  };
+  if (typeof destroyable.destroy === 'function') {
+    destroyable.destroy();
+    return;
+  }
+  if (typeof destroyable.dispose === 'function') {
+    destroyable.dispose();
+  }
+};
+
 /**
  * Create a reactive array of fields with mutation helpers.
  *
@@ -61,6 +75,7 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
   const remove = (index: number): boolean => {
     const current = items.peek();
     if (index < 0 || index >= current.length) return false;
+    destroyItem(current[index]);
     const updated = [...current.slice(0, index), ...current.slice(index + 1)];
     items.value = updated;
     return true;
@@ -78,12 +93,18 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
   };
 
   const clear = (): void => {
+    for (const item of items.peek()) {
+      destroyItem(item);
+    }
     items.value = [];
   };
 
   const getValues = (): T[] => items.value.map((f) => f.value.value);
 
   const reset = (): void => {
+    for (const item of items.peek()) {
+      destroyItem(item);
+    }
     items.value = initialItems.map((value) => config.factory(value));
     error.value = '';
   };

@@ -251,7 +251,7 @@ export const bindForm = <T extends Record<string, unknown>>(
       options.errorSlot ??
       ((name: string, root: HTMLElement): HTMLElement | null =>
         root.querySelector<HTMLElement>(`[data-bq-error-for="${escapeAttr(name)}"]`));
-    const slot = slotLookup(fieldKey, formElement);
+    const slot = slotLookup(name, formElement);
     if (slot) {
       const stop = effect(() => {
         const err = field.error.value;

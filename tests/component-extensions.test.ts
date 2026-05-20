@@ -407,6 +407,32 @@ describe('component/events', () => {
 
     expect(addedTypes).toEqual(['click']);
   });
+
+  it('routes delegated clicks in light DOM components', async () => {
+    const tag = uniqueTag('events-light-dom');
+    let clicks = 0;
+    component(tag, {
+      shadow: false,
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render() {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>+</button>
+        `;
+      },
+    });
+
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+
+    host.querySelector('button')?.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+    expect(clicks).toBe(1);
+    host.remove();
+  });
 });
 
 // ---------------------------------------------------------------------------

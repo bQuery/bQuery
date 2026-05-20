@@ -127,6 +127,10 @@ export const onSubmit = (handler: EventHandler): string => on('submit', handler)
  */
 export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
   const root = host.shadowRoot ?? host;
+  const usesShadowRoot = host.shadowRoot !== null;
+  const isNodeInHost = (node: Element): boolean => {
+    return usesShadowRoot ? node.getRootNode() === root : node === host || host.contains(node);
+  };
   const eventTypes = new Map<string, EventHandler>();
   const scope = getCurrentScope();
 
@@ -140,7 +144,7 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
         if (node === host) break; // don't walk past the host
         // Only dispatch to nodes that live in this component's shadow root;
         // slotted / projected light-DOM nodes must not reach internal handlers.
-        if (node.getRootNode() !== root) continue;
+        if (!isNodeInHost(node)) continue;
         const id = node.getAttribute(attrName);
         if (id) {
           const handler = handlerStore.get(id);

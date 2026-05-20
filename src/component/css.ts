@@ -61,8 +61,9 @@ export const isComponentStyles = (value: unknown): value is ComponentStyles => {
  *
  * - Numbers and booleans are converted via `String()`.
  * - Strings have characters that could escape a CSS value, attribute, or
- *   comment removed (`<`, `>`, backslashes, control characters, and the
- *   `/* … *\/` comment sequence).
+ *   comment sanitized by stripping NUL bytes, `<` / `</` prefixes, and the
+ *   `/* … *\/` comment sequence, then escaping quotes, braces, semicolons,
+ *   and backslashes.
  * - `null` / `undefined` collapse to the empty string.
  * - {@link ComponentStyles} interpolations are inlined as plain text so
  *   utility partials can be composed.
