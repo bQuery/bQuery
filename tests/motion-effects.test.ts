@@ -29,12 +29,13 @@ describe('motion/effects', () => {
   beforeEach(() => setReducedMotion(null));
   afterEach(() => setReducedMotion(null));
 
-  it('magnetic translates toward the pointer within the radius', () => {
+  it('magnetic translates toward the pointer within the radius', async () => {
     const el = createElement();
     const cleanup = magnetic(el, { strength: 0.5, radius: 200, respectReducedMotion: false });
     window.dispatchEvent(
       new MouseEvent('pointermove', { clientX: 60, clientY: 60 })
     );
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     expect(el.style.transform).toContain('translate3d');
     cleanup();
     expect(el.style.transform).toBe('');
@@ -48,12 +49,13 @@ describe('motion/effects', () => {
     expect(el.style.transform).toBe('');
   });
 
-  it('magnetic treats inline `transform: none` as an empty base transform when composing', () => {
+  it('magnetic treats inline `transform: none` as an empty base transform when composing', async () => {
     const el = createElement();
     el.style.transform = 'none';
     const cleanup = magnetic(el, { strength: 0.5, radius: 200, respectReducedMotion: false });
 
     window.dispatchEvent(new MouseEvent('pointermove', { clientX: 60, clientY: 60 }));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 
     expect(el.style.transform).toContain('translate3d');
     expect(el.style.transform).not.toContain('none translate3d');
@@ -67,6 +69,7 @@ describe('motion/effects', () => {
     el.style.transition = 'opacity 100ms linear';
     const cleanup = tilt(el, { max: 10, perspective: 500, respectReducedMotion: false });
     el.dispatchEvent(new MouseEvent('pointermove', { clientX: 60, clientY: 60 }));
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     expect(el.style.transform).toContain('perspective(500px)');
     expect(el.style.transform).toContain('rotateX');
     el.dispatchEvent(new MouseEvent('pointerleave'));

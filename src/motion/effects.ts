@@ -45,29 +45,47 @@ export const magnetic = (element: Element, options: MagneticOptions = {}): Effec
   const originalTransform = el.style.transform;
   const baseTransform = originalTransform.trim() === 'none' ? '' : originalTransform;
 
+  let rafId: number | undefined;
+  let lastClientX = 0;
+  let lastClientY = 0;
+
   const onMove = (event: PointerEvent | MouseEvent) => {
-    const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = event.clientX - cx;
-    const dy = event.clientY - cy;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > radius) {
-      el.style.transform = originalTransform;
-      return;
-    }
-    const pull = (1 - dist / radius) * strength;
-    el.style.transform = `${baseTransform} ${matrixTranslate(dx * pull, dy * pull)}`.trim();
+    lastClientX = event.clientX;
+    lastClientY = event.clientY;
+    if (rafId !== undefined) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = undefined;
+      const rect = el.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const dx = lastClientX - cx;
+      const dy = lastClientY - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) {
+        el.style.transform = originalTransform;
+        return;
+      }
+      const pull = (1 - dist / radius) * strength;
+      el.style.transform = `${baseTransform} ${matrixTranslate(dx * pull, dy * pull)}`.trim();
+    });
   };
 
   const onLeave = () => {
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+      rafId = undefined;
+    }
     el.style.transform = originalTransform;
   };
 
-  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointermove', onMove, { passive: true });
   el.addEventListener('pointerleave', onLeave);
 
   return () => {
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+      rafId = undefined;
+    }
     window.removeEventListener('pointermove', onMove);
     el.removeEventListener('pointerleave', onLeave);
     el.style.transform = originalTransform;
@@ -102,6 +120,9 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
   const originalTransform = el.style.transform;
   const originalTransition = el.style.transition;
   let restoreTransitionTimeout: ReturnType<typeof setTimeout> | undefined;
+  let rafId: number | undefined;
+  let lastClientX = 0;
+  let lastClientY = 0;
 
   const clearRestoreTransitionTimeout = () => {
     if (restoreTransitionTimeout !== undefined) {
@@ -111,18 +132,28 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
   };
 
   const onMove = (event: PointerEvent | MouseEvent) => {
-    clearRestoreTransitionTimeout();
-    const rect = el.getBoundingClientRect();
-    if (rect.width <= 0 || rect.height <= 0) return;
-    const px = (event.clientX - rect.left) / rect.width;
-    const py = (event.clientY - rect.top) / rect.height;
-    const rx = (0.5 - py) * 2 * max;
-    const ry = (px - 0.5) * 2 * max;
-    el.style.transition = '';
-    el.style.transform = `perspective(${perspective}px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scale})`;
+    lastClientX = event.clientX;
+    lastClientY = event.clientY;
+    if (rafId !== undefined) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = undefined;
+      clearRestoreTransitionTimeout();
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return;
+      const px = (lastClientX - rect.left) / rect.width;
+      const py = (lastClientY - rect.top) / rect.height;
+      const rx = (0.5 - py) * 2 * max;
+      const ry = (px - 0.5) * 2 * max;
+      el.style.transition = '';
+      el.style.transform = `perspective(${perspective}px) rotateX(${rx}deg) rotateY(${ry}deg) scale(${scale})`;
+    });
   };
 
   const onLeave = () => {
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+      rafId = undefined;
+    }
     clearRestoreTransitionTimeout();
     el.style.transition = originalTransition
       ? `${originalTransition}, transform 200ms ease-out`
@@ -134,10 +165,14 @@ export const tilt = (element: Element, options: TiltOptions = {}): EffectCleanup
     }, 200);
   };
 
-  el.addEventListener('pointermove', onMove);
+  el.addEventListener('pointermove', onMove, { passive: true });
   el.addEventListener('pointerleave', onLeave);
 
   return () => {
+    if (rafId !== undefined) {
+      cancelAnimationFrame(rafId);
+      rafId = undefined;
+    }
     clearRestoreTransitionTimeout();
     el.removeEventListener('pointermove', onMove);
     el.removeEventListener('pointerleave', onLeave);
