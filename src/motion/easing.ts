@@ -287,7 +287,7 @@ export function chain(...easings: EasingFunction[]): EasingFunction {
 /**
  * Named easing presets.
  *
- * Every easing function exported from this module is mirrored here so
+ * Every named preset easing exported from this module is mirrored here so
  * callers can look one up by name (e.g. for serialized configuration).
  */
 export const easingPresets = {

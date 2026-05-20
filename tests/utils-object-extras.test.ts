@@ -18,6 +18,7 @@ describe('utils/object extras', () => {
   it('get reads nested values with dot and bracket notation', () => {
     expect(get<number>({ a: { b: { c: 42 } } }, 'a.b.c')).toBe(42);
     expect(get<string>({ list: [{ name: 'x' }] }, 'list[0].name')).toBe('x');
+    expect(get<number>({ 'a.b': 7 }, '["a.b"]')).toBe(7);
     expect(get({}, 'a.b', 'fallback')).toBe('fallback');
     expect(get({ a: null }, 'a', 'fallback')).toBeNull();
   });
@@ -33,6 +34,8 @@ describe('utils/object extras', () => {
     expect((obj.a as { b: { c: number } }).b.c).toBe(1);
     set(obj, 'list[0].name', 'x');
     expect((obj.list as Array<{ name: string }>)[0].name).toBe('x');
+    set(obj, 'config["theme.color"]', '#0af');
+    expect((obj.config as Record<string, string>)['theme.color']).toBe('#0af');
     set(obj, ['items', 0, 'value'], 'y');
     expect((obj.items as Array<{ value: string }>)[0].value).toBe('y');
     set(obj, '__proto__.polluted', true);
@@ -41,6 +44,7 @@ describe('utils/object extras', () => {
 
   it('has detects nested presence and prototype-pollution safety', () => {
     expect(has({ a: { b: 0 } }, 'a.b')).toBe(true);
+    expect(has({ config: { 'theme.color': '#0af' } }, 'config["theme.color"]')).toBe(true);
     expect(has({ a: {} }, 'a.b')).toBe(false);
     expect(has({}, '__proto__')).toBe(false);
   });

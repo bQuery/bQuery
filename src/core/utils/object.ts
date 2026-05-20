@@ -207,14 +207,71 @@ export function hasOwn<T extends object>(obj: T, key: PropertyKey): key is keyof
 
 const parsePath = (path: string | readonly PropertyKey[]): PropertyKey[] => {
   if (Array.isArray(path)) return path as PropertyKey[];
+
   const str = String(path);
-  // Convert ["a"]["b"] to .a.b for splitting; supports both dot and bracket access.
-  const normalized = str.replace(/\[(?:'([^']*)'|"([^"]*)"|(\d+))\]/g, (_, s1, s2, n) => {
-    if (s1 !== undefined) return `.${s1}`;
-    if (s2 !== undefined) return `.${s2}`;
-    return `.${n}`;
-  });
-  return normalized.split('.').filter((part) => part.length > 0);
+  const keys: PropertyKey[] = [];
+  let current = '';
+
+  const pushCurrent = (allowEmpty = false): void => {
+    if (allowEmpty || current.length > 0) {
+      keys.push(current);
+    }
+    current = '';
+  };
+
+  for (let i = 0; i < str.length; i += 1) {
+    const char = str[i];
+
+    if (char === '.') {
+      pushCurrent();
+      continue;
+    }
+
+    if (char !== '[') {
+      current += char;
+      continue;
+    }
+
+    pushCurrent();
+    i += 1;
+
+    while (i < str.length && /\s/.test(str[i])) i += 1;
+    if (i >= str.length) break;
+
+    const quote = str[i];
+    if (quote === '"' || quote === "'") {
+      current = '';
+      i += 1;
+
+      while (i < str.length) {
+        const quotedChar = str[i];
+        if (quotedChar === '\\' && i + 1 < str.length) {
+          current += str[i + 1];
+          i += 2;
+          continue;
+        }
+        if (quotedChar === quote) break;
+        current += quotedChar;
+        i += 1;
+      }
+
+      pushCurrent(true);
+      while (i + 1 < str.length && /\s/.test(str[i + 1])) i += 1;
+      if (str[i + 1] === ']') i += 1;
+      continue;
+    }
+
+    current = '';
+    while (i < str.length && str[i] !== ']') {
+      current += str[i];
+      i += 1;
+    }
+    current = current.trim();
+    pushCurrent();
+  }
+
+  pushCurrent();
+  return keys;
 };
 
 const isSafeKey = (key: PropertyKey): boolean => {
