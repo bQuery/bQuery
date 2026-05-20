@@ -292,7 +292,7 @@ export function uniqueBy<T, K>(items: readonly T[], selector: (item: T) => K): T
 }
 
 /**
- * Returns a stably-sorted copy ordered by one or more selectors. Each
+ * Returns a sorted copy ordered by one or more selectors. Each
  * selector should return a comparable primitive (number, string, boolean,
  * Date).
  *

@@ -85,8 +85,10 @@ app is running) via `onReducedMotionChange()`, or use the reactive
 `reducedMotionSignal()` in components and `view` bindings:
 
 ```ts
-import { onReducedMotionChange, reducedMotionSignal } from '@bquery/bquery/motion';
+import { onReducedMotionChange, prefersReducedMotion, reducedMotionSignal } from '@bquery/bquery/motion';
 import { effect } from '@bquery/bquery/reactive';
+
+document.documentElement.dataset.reducedMotion = String(prefersReducedMotion());
 
 const off = onReducedMotionChange((reduced) => {
   document.documentElement.dataset.reducedMotion = String(reduced);
