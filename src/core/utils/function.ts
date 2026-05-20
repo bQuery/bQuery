@@ -392,6 +392,10 @@ export async function retry<T>(
     onRetry,
   } = options;
 
+  if (!Number.isFinite(attempts) || attempts <= 0) {
+    throw new RangeError('retry: attempts must be greater than 0');
+  }
+
   let lastError: unknown;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     if (signal?.aborted) throw signal.reason ?? new Error('Aborted');

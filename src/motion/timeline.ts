@@ -40,21 +40,28 @@ const resolveAt = (
 ): number => {
   if (typeof at === 'number') return at;
   if (typeof at === 'string') {
+    const trimmed = at.trim();
     // Plain numeric relative offsets: +=N, -=N
-    const relativeMatch = /^([+-])=(\d+(?:\.\d+)?)$/.exec(at);
+    const relativeMatch = /^([+-])=\s*(\d+(?:\.\d+)?)$/.exec(trimmed);
     if (relativeMatch) {
       const delta = Number.parseFloat(relativeMatch[2]);
       if (!Number.isFinite(delta)) return previousEnd;
       return relativeMatch[1] === '+' ? previousEnd + delta : previousEnd - delta;
     }
-    // Label-relative offsets: 'name', 'name+=N', 'name-=N'
-    const labelMatch = /^([A-Za-z_$][\w$]*)\s*(?:([+-])=\s*(\d+(?:\.\d+)?))?$/.exec(at);
-    if (labelMatch && labels.has(labelMatch[1])) {
-      const base = labels.get(labelMatch[1]) ?? previousEnd;
-      if (!labelMatch[2]) return base;
-      const delta = Number.parseFloat(labelMatch[3]);
+    if (labels.has(trimmed)) {
+      return labels.get(trimmed) ?? previousEnd;
+    }
+    // Label-relative offsets: 'name+=N', 'name-=N'
+    const relativeLabelIndex = Math.max(trimmed.lastIndexOf('+='), trimmed.lastIndexOf('-='));
+    if (relativeLabelIndex > 0) {
+      const label = trimmed.slice(0, relativeLabelIndex).trim();
+      const operator = trimmed[relativeLabelIndex];
+      const deltaText = trimmed.slice(relativeLabelIndex + 2).trim();
+      const base = labels.get(label);
+      if (base === undefined) return previousEnd;
+      const delta = Number.parseFloat(deltaText);
       if (!Number.isFinite(delta)) return base;
-      return labelMatch[2] === '+' ? base + delta : base - delta;
+      return operator === '+' ? base + delta : base - delta;
     }
   }
   return previousEnd;

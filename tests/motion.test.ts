@@ -404,6 +404,32 @@ describe('motion/animateTo', () => {
     );
   });
 
+  it('builds explicit start/end keyframes for destination-only styles', async () => {
+    const animation = createMockAnimation();
+    const el = document.createElement('div');
+    el.style.opacity = '0.25';
+    el.style.transform = 'translateY(10px)';
+    const animateMock = mock(() => animation);
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+
+    await animateTo(
+      el,
+      {
+        opacity: 1,
+        transform: 'translateY(0px)',
+      },
+      { duration: 120, fill: 'forwards' }
+    );
+
+    expect(animateMock).toHaveBeenCalledWith(
+      [
+        { opacity: '0.25', transform: 'translateY(10px)' },
+        { opacity: 1, transform: 'translateY(0px)' },
+      ],
+      { duration: 120, fill: 'forwards' }
+    );
+  });
+
   it('applies final styles immediately under reduced motion', async () => {
     setReducedMotion(true);
     const el = document.createElement('div');

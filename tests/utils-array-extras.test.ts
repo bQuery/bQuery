@@ -36,6 +36,19 @@ describe('utils/array extras', () => {
     expect(keyBy([{ id: 1 }, { id: 2 }], 'id')).toEqual({ 1: { id: 1 }, 2: { id: 2 } });
   });
 
+  it('groupBy and keyBy preserve symbol selector keys', () => {
+    const odd = Symbol('odd');
+    const even = Symbol('even');
+
+    const grouped = groupBy([1, 2, 3, 4], (n) => (n % 2 === 0 ? even : odd));
+    const keyed = keyBy([{ id: 1 }, { id: 2 }], (item) => (item.id === 1 ? odd : even));
+
+    expect(grouped[odd]).toEqual([1, 3]);
+    expect(grouped[even]).toEqual([2, 4]);
+    expect(keyed[odd]).toEqual({ id: 1 });
+    expect(keyed[even]).toEqual({ id: 2 });
+  });
+
   it('partition splits items by predicate', () => {
     expect(partition([1, 2, 3, 4], (n) => n % 2 === 0)).toEqual([[2, 4], [1, 3]]);
   });

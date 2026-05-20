@@ -90,6 +90,12 @@ describe('utils/function extras', () => {
     await expect(promise).rejects.toThrow();
   });
 
+  it('retry rejects invalid attempt counts predictably', async () => {
+    await expect(retry(async () => 'ok', { attempts: 0 })).rejects.toThrow(
+      'retry: attempts must be greater than 0'
+    );
+  });
+
   it('debounce(leading: true) fires immediately, trailing on quiet', async () => {
     let calls: number[] = [];
     const fn = debounce((n: number) => calls.push(n), 30, { leading: true, trailing: true });

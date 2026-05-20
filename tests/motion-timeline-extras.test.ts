@@ -44,6 +44,25 @@ describe('motion/timeline extras', () => {
     expect(tl.duration()).toBeGreaterThanOrEqual((mid ?? 0) + 50 + 100);
   });
 
+  it('resolves label-relative offsets for labels with punctuation', () => {
+    const { el } = createElement();
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 200 } }],
+      { respectReducedMotion: true }
+    );
+    tl.addLabel('mid-point:1');
+    const point = tl.label('mid-point:1');
+
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 1 }, { opacity: 0 }],
+      options: { duration: 100 },
+      at: 'mid-point:1+=50',
+    });
+
+    expect(tl.duration()).toBeGreaterThanOrEqual((point ?? 0) + 50 + 100);
+  });
+
   it('repeat + yoyo + playbackRate + progress + onUpdate compile and run', async () => {
     const { el } = createElement();
     const tl = timeline([

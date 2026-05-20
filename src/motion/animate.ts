@@ -20,6 +20,17 @@ const toKebabCase = (str: string): string => {
 };
 
 /** @internal */
+const readCurrentStyleValue = (element: Element, prop: string): string => {
+  const htmlElement = element as HTMLElement;
+  const cssProp = prop.startsWith('--') ? prop : toKebabCase(prop);
+  const inlineValue = htmlElement.style.getPropertyValue(cssProp).trim();
+  if (inlineValue) return inlineValue;
+  const view = element.ownerDocument?.defaultView;
+  const computedValue = view?.getComputedStyle?.(htmlElement).getPropertyValue(cssProp).trim();
+  return computedValue ?? '';
+};
+
+/** @internal */
 export const applyFinalKeyframeStyles = (
   element: Element,
   keyframes: Keyframe[] | PropertyIndexedKeyframes
@@ -222,7 +233,13 @@ export const animateTo = (
     }
   }
 
-  const keyframes: Keyframe[] = hasFromValues ? [fromFrame, toFrame] : [toFrame];
+  if (!hasFromValues) {
+    for (const prop of Object.keys(toFrame)) {
+      fromFrame[prop] = readCurrentStyleValue(element, prop);
+    }
+  }
+
+  const keyframes: Keyframe[] = [fromFrame, toFrame];
 
   return animate(element, {
     keyframes,

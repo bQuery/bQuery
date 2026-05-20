@@ -126,11 +126,13 @@ export function groupBy<T, R extends PropertyKey>(
 export function groupBy<T>(
   items: readonly T[],
   key: PropertyKey | ((item: T) => PropertyKey)
-): Record<string, T[]> {
-  const result: Record<string, T[]> = Object.create(null);
+): Record<PropertyKey, T[]> {
+  const result = Object.create(null) as Record<PropertyKey, T[]>;
   const selector = typeof key === 'function' ? key : (item: T) => (item as Record<PropertyKey, unknown>)[key];
+  const shouldStringify = typeof key !== 'function';
   for (const item of items) {
-    const k = String(selector(item));
+    const rawKey = selector(item) as PropertyKey;
+    const k: PropertyKey = shouldStringify ? String(rawKey) : rawKey;
     if (!result[k]) result[k] = [];
     result[k].push(item);
   }
@@ -154,10 +156,15 @@ export function keyBy<T, R extends PropertyKey>(
 export function keyBy<T>(
   items: readonly T[],
   key: PropertyKey | ((item: T) => PropertyKey)
-): Record<string, T> {
-  const result: Record<string, T> = Object.create(null);
+): Record<PropertyKey, T> {
+  const result = Object.create(null) as Record<PropertyKey, T>;
   const selector = typeof key === 'function' ? key : (item: T) => (item as Record<PropertyKey, unknown>)[key];
-  for (const item of items) result[String(selector(item))] = item;
+  const shouldStringify = typeof key !== 'function';
+  for (const item of items) {
+    const rawKey = selector(item) as PropertyKey;
+    const k: PropertyKey = shouldStringify ? String(rawKey) : rawKey;
+    result[k] = item;
+  }
   return result;
 }
 
