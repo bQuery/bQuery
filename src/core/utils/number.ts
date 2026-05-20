@@ -184,10 +184,11 @@ export function formatBytes(bytes: number, opts: FormatBytesOptions = {}): strin
   const abs = Math.abs(bytes);
   const exp = Math.min(units.length - 1, Math.floor(Math.log(abs) / Math.log(base)));
   const value = bytes / Math.pow(base, exp);
+  const fractionDigits = Number.isFinite(decimals) ? clamp(Math.trunc(decimals), 0, 20) : 2;
   const numberStr = formatNumberLocal(value, {
     locale,
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
+    minimumFractionDigits: fractionDigits,
+    maximumFractionDigits: fractionDigits,
   });
   return `${numberStr} ${units[exp]}`;
 }

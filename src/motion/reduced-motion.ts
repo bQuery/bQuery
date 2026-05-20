@@ -28,6 +28,7 @@ let mediaQueryHandler: ((event: MediaQueryListEvent) => void) | null = null;
 const evaluateCurrent = (): boolean => {
   if (reducedMotionOverride !== null) return reducedMotionOverride;
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (mediaQueryList) return mediaQueryList.matches;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 };
 

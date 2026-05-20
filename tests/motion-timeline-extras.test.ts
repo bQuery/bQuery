@@ -3,6 +3,7 @@ import { timeline } from '../src/motion/timeline';
 import { stagger } from '../src/motion/stagger';
 import {
   onReducedMotionChange,
+  prefersReducedMotion,
   setReducedMotion,
 } from '../src/motion/reduced-motion';
 import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
@@ -365,6 +366,41 @@ describe('motion/reduced-motion subscriptions', () => {
       expect(secondEvents).toEqual([true]);
 
       offSecond();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('reuses the cached media query while reduced-motion subscriptions are active', () => {
+    const originalMatchMedia = window.matchMedia;
+    let matches = false;
+
+    window.matchMedia = mock(
+      () =>
+        ({
+          get matches() {
+            return matches;
+          },
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: undefined,
+          removeListener: undefined,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => true,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const off = onReducedMotionChange(() => {});
+      expect(window.matchMedia).toHaveBeenCalledTimes(1);
+
+      expect(prefersReducedMotion()).toBe(false);
+      matches = true;
+      expect(prefersReducedMotion()).toBe(true);
+      expect(window.matchMedia).toHaveBeenCalledTimes(1);
+
+      off();
     } finally {
       window.matchMedia = originalMatchMedia;
     }

@@ -37,6 +37,11 @@ describe('utils/number extras', () => {
     expect(formatBytes(NaN)).toBe('NaN');
   });
 
+  it('formatBytes clamps invalid decimal precision into Intl limits', () => {
+    expect(formatBytes(1500, { decimals: 25, locale: 'en-US' })).toBe('1.50000000000000000000 KB');
+    expect(formatBytes(1500, { decimals: Number.NaN, locale: 'en-US' })).toBe('1.50 KB');
+  });
+
   it('randomFloat sits within [min, max)', () => {
     for (let i = 0; i < 20; i += 1) {
       const v = randomFloat(0, 1);
