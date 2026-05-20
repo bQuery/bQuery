@@ -90,7 +90,8 @@ export const useField = <T>(
  * scope-aware (e.g. `useField`), the items participate in the owning
  * component's disposal lifecycle and clean themselves up when the component
  * disconnects. The array itself does not automatically dispose items created
- * by non-scope-aware factories.
+ * by non-scope-aware factories when the component disconnects, although items
+ * removed via array operations are still cleaned up by `createFieldArray()`.
  */
 export const useFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray<T> => {
   requireScope('useFieldArray');
