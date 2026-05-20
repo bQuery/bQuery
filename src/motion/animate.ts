@@ -26,7 +26,8 @@ const readCurrentStyleValue = (element: Element, prop: string): string => {
   const inlineValue = htmlElement.style.getPropertyValue(cssProp).trim();
   if (inlineValue) return inlineValue;
   const view = element.ownerDocument?.defaultView;
-  const computedValue = view?.getComputedStyle?.(htmlElement).getPropertyValue(cssProp).trim();
+  const computed = view?.getComputedStyle?.(htmlElement);
+  const computedValue = computed?.getPropertyValue(cssProp).trim();
   return computedValue ?? '';
 };
 

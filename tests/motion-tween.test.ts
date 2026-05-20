@@ -116,6 +116,20 @@ describe('motion/animateValue', () => {
     }
   });
 
+  it('rejects non-plain objects for record tweening', () => {
+    setReducedMotion(true);
+    try {
+      expect(() =>
+        animateValue({
+          from: new Date() as unknown as Record<string, number>,
+          to: new Date() as unknown as Record<string, number>,
+        })
+      ).toThrow('"from" and "to" must be numbers, number[], or Record<string, number>');
+    } finally {
+      setReducedMotion(null);
+    }
+  });
+
   it('honors reduced motion by jumping to the final value immediately', async () => {
     setReducedMotion(true);
     try {

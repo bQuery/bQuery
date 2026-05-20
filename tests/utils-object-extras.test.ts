@@ -58,6 +58,19 @@ describe('utils/object extras', () => {
     expect(locked.value).toBe(1);
   });
 
+  it('set bails out when intermediate assignment is blocked', () => {
+    const locked: Record<string, unknown> = {};
+    Object.defineProperty(locked, 'blocked', {
+      value: undefined,
+      enumerable: true,
+      writable: false,
+      configurable: false,
+    });
+
+    expect(() => set(locked, 'blocked.path', 1)).not.toThrow();
+    expect(locked.blocked).toBeUndefined();
+  });
+
   it('set preserves existing accessors and descriptor flags', () => {
     const writes: unknown[] = [];
     let current: unknown;

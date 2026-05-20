@@ -475,6 +475,39 @@ describe('motion/animateTo', () => {
     );
   });
 
+  it('does not throw when getComputedStyle is unavailable', async () => {
+    const originalGetComputedStyle = window.getComputedStyle;
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    const animateMock = mock(() => animation);
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+    Object.defineProperty(window, 'getComputedStyle', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    try {
+      await expect(
+        animateTo(
+          el,
+          {
+            opacity: 1,
+          },
+          { duration: 120 }
+        )
+      ).resolves.toBeUndefined();
+    } finally {
+      Object.defineProperty(window, 'getComputedStyle', {
+        configurable: true,
+        writable: true,
+        value: originalGetComputedStyle,
+      });
+    }
+
+    expect(animateMock).toHaveBeenCalledWith([{ opacity: '' }, { opacity: 1 }], { duration: 120 });
+  });
+
   it('applies final styles immediately under reduced motion', async () => {
     setReducedMotion(true);
     const el = document.createElement('div');

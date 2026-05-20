@@ -385,6 +385,8 @@ export function set<T extends object>(
       const isIndex = typeof nextKey === 'number'
         || (typeof nextKey === 'string' && /^\d+$/.test(nextKey));
       safeAssign(current, key, isIndex ? [] : {});
+      const assigned = current[key];
+      if (assigned == null || typeof assigned !== 'object') return obj;
     }
     current = current[key] as Record<PropertyKey, unknown>;
   }
