@@ -345,16 +345,18 @@ describe('motion/reduced-motion subscriptions', () => {
           },
           media: '(prefers-reduced-motion: reduce)',
           onchange: null,
-          addListener: undefined,
-          removeListener: undefined,
-          addEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
-            changeListener = listener;
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+            if (typeof listener === 'function') {
+              changeListener = listener as (event: MediaQueryListEvent) => void;
+            }
           },
-          removeEventListener: (_type: string, listener: (event: MediaQueryListEvent) => void) => {
-            if (changeListener === listener) changeListener = null;
+          removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+            if (typeof listener === 'function' && changeListener === listener) changeListener = null;
           },
           dispatchEvent: () => true,
-        }) as MediaQueryList
+        }) as unknown as MediaQueryList
     ) as unknown as typeof window.matchMedia;
 
     try {
@@ -362,7 +364,10 @@ describe('motion/reduced-motion subscriptions', () => {
       const offFirst = onReducedMotionChange((value) => firstEvents.push(value));
 
       matches = true;
-      changeListener?.({ matches, media: '(prefers-reduced-motion: reduce)' } as MediaQueryListEvent);
+      (changeListener as ((event: MediaQueryListEvent) => void) | null)?.({
+        matches,
+        media: '(prefers-reduced-motion: reduce)',
+      } as MediaQueryListEvent);
       expect(firstEvents).toEqual([true]);
 
       offFirst();
@@ -373,7 +378,10 @@ describe('motion/reduced-motion subscriptions', () => {
       const offSecond = onReducedMotionChange((value) => secondEvents.push(value));
 
       matches = true;
-      changeListener?.({ matches, media: '(prefers-reduced-motion: reduce)' } as MediaQueryListEvent);
+      (changeListener as ((event: MediaQueryListEvent) => void) | null)?.({
+        matches,
+        media: '(prefers-reduced-motion: reduce)',
+      } as MediaQueryListEvent);
       expect(secondEvents).toEqual([true]);
 
       offSecond();
@@ -394,12 +402,12 @@ describe('motion/reduced-motion subscriptions', () => {
           },
           media: '(prefers-reduced-motion: reduce)',
           onchange: null,
-          addListener: undefined,
-          removeListener: undefined,
+          addListener: () => {},
+          removeListener: () => {},
           addEventListener: () => {},
           removeEventListener: () => {},
           dispatchEvent: () => true,
-        }) as MediaQueryList
+        }) as unknown as MediaQueryList
     ) as unknown as typeof window.matchMedia;
 
     try {
