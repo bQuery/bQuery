@@ -1322,6 +1322,8 @@ describe('forms/useFormField', () => {
     void field.isPristine.value;
     void field.isValid.value;
 
+    // The exact subscriber count is an internal detail, but destroy() should
+    // always remove whatever subscriptions were created.
     expect(valueSubscribers.subscribers.size).toBeGreaterThan(0);
     expect(errorSubscribers.subscribers.size).toBe(1);
     expect(dirtySubscribers.subscribers.size).toBe(1);

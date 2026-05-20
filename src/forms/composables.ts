@@ -88,7 +88,8 @@ export const useField = <T>(
  * Creates a dynamic field array for the current component scope. Item fields
  * are created via the supplied `factory`; if those factories are themselves
  * scope-aware (e.g. `useField`), the items participate in the owning
- * component's disposal lifecycle.
+ * component's disposal lifecycle. The array itself does not automatically
+ * dispose items created by non-scope-aware factories.
  */
 export const useFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray<T> => {
   requireScope('useFieldArray');
