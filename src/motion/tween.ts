@@ -80,6 +80,9 @@ function interpolate<T extends TweenValue>(from: T, to: T, t: number): T {
     return (from + (to - from) * t) as T;
   }
   if (isNumberArray(from) && isNumberArray(to)) {
+    if (from.length !== to.length) {
+      throw new RangeError('"from" and "to" arrays must have the same length');
+    }
     const len = Math.min(from.length, to.length);
     const out: number[] = new Array(len);
     for (let i = 0; i < len; i += 1) {

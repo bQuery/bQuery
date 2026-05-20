@@ -32,6 +32,20 @@ describe('motion/animateValue', () => {
     expect(final[1]).toBeCloseTo(-20, 5);
   });
 
+  it('throws for arrays with different lengths', () => {
+    setReducedMotion(true);
+    try {
+      expect(() =>
+        animateValue<number[]>({
+          from: [0],
+          to: [10, 20],
+        })
+      ).toThrow('"from" and "to" arrays must have the same length');
+    } finally {
+      setReducedMotion(null);
+    }
+  });
+
   it('interpolates a record by key', async () => {
     const final = await animateValue<Record<string, number>>({
       from: { x: 0, y: 5 },

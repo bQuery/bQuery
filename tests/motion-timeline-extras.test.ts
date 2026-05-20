@@ -83,6 +83,17 @@ describe('motion/timeline extras', () => {
     expect(updates.length).toBeGreaterThanOrEqual(0);
   });
 
+  it('throws for non-finite repeat counts', async () => {
+    const { el } = createElement();
+    const tl = timeline([
+      { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+    ]);
+    tl.repeat(Number.NaN);
+    await expect(tl.play()).rejects.toThrow(
+      'timeline.repeat() count must be a finite number or "infinite"'
+    );
+  });
+
   it('reverse toggles playback rate sign on running animations', () => {
     const { el, anim } = createElement();
     const tl = timeline([

@@ -306,7 +306,10 @@ export const timeline = (
 
   const resolveRepeat = (): number => {
     if (repeatCount === 'infinite') return Number.POSITIVE_INFINITY;
-    return Math.max(0, repeatCount);
+    if (!Number.isFinite(repeatCount)) {
+      throw new RangeError('timeline.repeat() count must be a finite number or "infinite"');
+    }
+    return Math.max(0, Math.floor(repeatCount));
   };
 
   const controls: TimelineControls = {
