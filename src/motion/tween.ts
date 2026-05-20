@@ -74,37 +74,6 @@ const isNumberRecord = (value: unknown): value is Record<string, number> =>
   !Array.isArray(value) &&
   Object.values(value as Record<string, unknown>).every((v) => typeof v === 'number');
 
-/** @internal */
-function interpolate<T extends TweenValue>(from: T, to: T, t: number): T {
-  if (typeof from === 'number' && typeof to === 'number') {
-    return (from + (to - from) * t) as T;
-  }
-  if (isNumberArray(from) && isNumberArray(to)) {
-    if (from.length !== to.length) {
-      throw new RangeError('"from" and "to" arrays must have the same length');
-    }
-    const len = Math.min(from.length, to.length);
-    const out: number[] = new Array(len);
-    for (let i = 0; i < len; i += 1) {
-      out[i] = from[i] + (to[i] - from[i]) * t;
-    }
-    return out as T;
-  }
-  if (isNumberRecord(from) && isNumberRecord(to)) {
-    const out: Record<string, number> = {};
-    const keys = new Set([...Object.keys(from), ...Object.keys(to)]);
-    for (const key of keys) {
-      const b = key in to ? to[key] : from[key];
-      const a = key in from ? from[key] : b;
-      out[key] = a + (b - a) * t;
-    }
-    return out as T;
-  }
-  throw new TypeError(
-    '"from" and "to" must be numbers, number[], or Record<string, number>'
-  );
-}
-
 /**
  * Determine the interpolation strategy once and return a per-frame function
  * that avoids re-checking types on every animation frame.
