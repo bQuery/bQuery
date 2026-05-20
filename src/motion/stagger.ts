@@ -59,10 +59,17 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
   return (index: number, total = 0): number => {
     // Grid mode ─ compute Euclidean (or axis-restricted) distance in cells.
     if (grid) {
-      const [cols, rows] = grid;
-      if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols <= 0 || rows <= 0) {
+      const [rawCols, rawRows] = grid;
+      if (
+        !Number.isSafeInteger(rawCols) ||
+        !Number.isSafeInteger(rawRows) ||
+        rawCols <= 0 ||
+        rawRows <= 0
+      ) {
         return start;
       }
+      const cols = rawCols;
+      const rows = rawRows;
       const x = index % cols;
       const y = Math.floor(index / cols);
 

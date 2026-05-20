@@ -249,6 +249,7 @@ describe('motion/stagger extras', () => {
   it('returns the start delay for invalid grid dimensions', () => {
     expect(stagger(10, { start: 5, grid: [0, 3] })(1, 3)).toBe(5);
     expect(stagger(10, { start: 5, grid: [3, Number.NaN] })(1, 3)).toBe(5);
+    expect(stagger(10, { start: 5, grid: [3.5, 3] })(1, 3)).toBe(5);
   });
 
   it('treats coordinate origins as start in linear mode', () => {

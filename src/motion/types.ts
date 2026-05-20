@@ -156,8 +156,9 @@ export interface StaggerOptions {
   /** Optional easing function for normalized distance */
   easing?: EasingFunction;
   /**
-   * Enable grid mode by supplying `[columns, rows]`. Distance is measured
-   * across the 2D layout from `from` (which may be a `{ x, y }` cell).
+   * Enable grid mode by supplying `[columns, rows]` as positive integers.
+   * Distance is measured across the 2D layout from `from` (which may be a
+   * `{ x, y }` cell).
    */
   grid?: [number, number];
   /**

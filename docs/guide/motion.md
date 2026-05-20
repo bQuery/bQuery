@@ -149,6 +149,9 @@ items.forEach((item, index) => {
 });
 ```
 
+Use `grid: [columns, rows]` for 2D layouts, and pass `from: { x, y }` when the
+origin should be a specific grid cell.
+
 ## Easing presets
 
 ```ts
@@ -314,8 +317,10 @@ tl.playbackRate(1.5);
 tl.onUpdate((t) => console.log('time', t));
 console.log('progress:', tl.progress()); // 0..1
 
-await tl.play();
+const playing = tl.play();
+await new Promise((resolve) => setTimeout(resolve, 150));
 tl.reverse(); // mid-flight direction flip
+await playing;
 ```
 
 ## Scroll progress & in-view
