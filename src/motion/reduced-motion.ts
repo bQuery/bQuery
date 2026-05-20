@@ -4,8 +4,6 @@
  * @module bquery/motion
  */
 
-import { readonly, signal, type ReadonlySignal } from '../reactive/index';
-
 /**
  * Global override for reduced motion preference.
  * When `null`, the system preference is used.
@@ -146,31 +144,4 @@ export const onReducedMotionChange = (callback: (reduced: boolean) => void): (()
     reducedMotionListeners.delete(callback);
     if (reducedMotionListeners.size === 0) teardownMediaQuerySubscription();
   };
-};
-
-/** @internal */
-let _reducedMotionSignal: ReadonlySignal<boolean> | null = null;
-
-/**
- * Reactive readonly signal that tracks the effective reduced-motion
- * preference. The signal updates automatically when the user's system
- * preference changes or when {@link setReducedMotion} is called.
- *
- * Returns the same singleton signal on every call.
- *
- * @example
- * ```ts
- * import { effect } from '@bquery/bquery/reactive';
- * const reduced = reducedMotionSignal();
- * effect(() => console.log('reduced motion:', reduced.value));
- * ```
- */
-export const reducedMotionSignal = (): ReadonlySignal<boolean> => {
-  if (_reducedMotionSignal) return _reducedMotionSignal;
-  const inner = signal(evaluateCurrent());
-  onReducedMotionChange((value) => {
-    inner.value = value;
-  });
-  _reducedMotionSignal = readonly(inner);
-  return _reducedMotionSignal;
 };

@@ -3,9 +3,9 @@ import { timeline } from '../src/motion/timeline';
 import { stagger } from '../src/motion/stagger';
 import {
   onReducedMotionChange,
-  reducedMotionSignal,
   setReducedMotion,
 } from '../src/motion/reduced-motion';
+import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
 
 const createElement = () => {
   const el = document.createElement('div');

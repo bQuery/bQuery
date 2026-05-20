@@ -94,9 +94,9 @@ export { parallax } from './parallax';
 export {
   onReducedMotionChange,
   prefersReducedMotion,
-  reducedMotionSignal,
   setReducedMotion,
 } from './reduced-motion';
+export { reducedMotionSignal } from './reduced-motion-signal';
 export { scrollAnimate } from './scroll';
 export { inView, scrollProgress } from './scroll-progress';
 export type {

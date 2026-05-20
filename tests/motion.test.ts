@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import {
   animate,
+  animateTo,
   capturePosition,
   easingPresets,
   flip,
@@ -308,6 +309,49 @@ describe('motion/animate', () => {
     expect(animation.cancel).toHaveBeenCalled();
   });
 
+  it('applies playbackRate to the underlying animation', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      playbackRate: 1,
+    };
+    const el = document.createElement('div');
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const promise = animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      playbackRate: 0.5,
+    });
+
+    expect(animation.playbackRate).toBe(0.5);
+    await promise;
+  });
+
+  it('resolves and cleans up when aborted', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      finished: new Promise<void>(() => {}),
+    };
+    const el = document.createElement('div');
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+    const controller = new AbortController();
+    const onFinish = mock(() => {});
+
+    const promise = animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      signal: controller.signal,
+      onFinish,
+    });
+
+    controller.abort();
+    await promise;
+    animation.onfinish?.();
+
+    expect(animation.cancel).toHaveBeenCalled();
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+
   it('applies final styles when reduced motion is preferred', async () => {
     const original = window.matchMedia;
     window.matchMedia = mock(
@@ -332,6 +376,49 @@ describe('motion/animate', () => {
     expect(el.style.opacity).toBe('0.5');
 
     window.matchMedia = original;
+  });
+});
+
+describe('motion/animateTo', () => {
+  it('builds keyframes from destination values and explicit tuples', async () => {
+    const animation = createMockAnimation();
+    const el = document.createElement('div');
+    const animateMock = mock(() => animation);
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+
+    await animateTo(
+      el,
+      {
+        opacity: 1,
+        transform: ['scale(0.5)', 'scale(1)'],
+      },
+      { duration: 120, fill: 'forwards' }
+    );
+
+    expect(animateMock).toHaveBeenCalledWith(
+      [
+        { transform: 'scale(0.5)' },
+        { opacity: 1, transform: 'scale(1)' },
+      ],
+      { duration: 120, fill: 'forwards' }
+    );
+  });
+
+  it('applies final styles immediately under reduced motion', async () => {
+    setReducedMotion(true);
+    const el = document.createElement('div');
+    const animateMock = mock(() => createMockAnimation());
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+
+    await animateTo(el, {
+      opacity: [0, 1],
+      transform: 'translateY(0)',
+    });
+
+    expect(animateMock).not.toHaveBeenCalled();
+    expect(el.style.opacity).toBe('1');
+    expect(el.style.transform).toBe('translateY(0)');
+    setReducedMotion(null);
   });
 });
 

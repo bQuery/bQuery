@@ -232,13 +232,15 @@ export function template(str: string, vars: Record<string, unknown>): string {
  */
 export function stripHtml(str: string): string {
   const len = str.length;
-  let out = '';
+  const chunks: string[] = [];
   let i = 0;
   while (i < len) {
     const ch = str.charCodeAt(i);
     if (ch !== 60 /* '<' */) {
-      out += str[i];
-      i += 1;
+      const nextTag = str.indexOf('<', i);
+      const end = nextTag === -1 ? len : nextTag;
+      chunks.push(str.slice(i, end));
+      i = end;
       continue;
     }
     // We're at '<'. Determine whether it's an opening <script|style> raw-text
@@ -261,7 +263,7 @@ export function stripHtml(str: string): string {
     if (end === -1) break;
     i = end + 1;
   }
-  return out.replace(/\s+/g, ' ').trim();
+  return chunks.join('').replace(/\s+/g, ' ').trim();
 }
 
 /**

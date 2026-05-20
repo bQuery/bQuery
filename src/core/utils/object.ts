@@ -251,7 +251,7 @@ export function get<T = unknown>(
     if (!isSafeKey(key)) return defaultValue;
     current = (current as Record<PropertyKey, unknown>)[key];
   }
-  return (current === undefined ? defaultValue : (current as T)) ?? defaultValue;
+  return current === undefined ? defaultValue : (current as T);
 }
 
 /**
