@@ -821,12 +821,23 @@ describe('forms/schema', () => {
       ...schema<{ a: string; b: number; c: string }>({
         a: { initialValue: 'x', validators: [required()] },
         b: 5,
-        c: { initialValue: 'y' },
+        c: { initialValue: 'y', validateOn: 'manual' },
       }),
     });
     expect(form.fields.a.value.value).toBe('x');
     expect(form.fields.b.value.value).toBe(5);
     expect(form.fields.c.value.value).toBe('y');
+  });
+
+  it('preserves object-shaped initial values with only an initialValue key', () => {
+    const raw = { initialValue: 123 };
+    const form = createForm({
+      ...schema<{ meta: typeof raw }>({
+        meta: raw,
+      }),
+    });
+
+    expect(form.fields.meta.value.value).toEqual(raw);
   });
 
   it('preserves object-shaped initial values that happen to expose an initialValue key', () => {

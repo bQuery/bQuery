@@ -131,8 +131,6 @@ const isFieldSchema = <T>(value: unknown): value is FieldSchema<T> => {
 const isFieldConfig = <T>(value: unknown): value is FieldConfig<T> => {
   if (typeof value !== 'object' || value === null) return false;
   if (!Object.prototype.hasOwnProperty.call(value, 'initialValue')) return false;
-  const ownKeys = Object.keys(value as Record<string, unknown>);
-  if (ownKeys.length === 1) return true;
 
   return (
     Object.prototype.hasOwnProperty.call(value, 'validators') ||
