@@ -1262,6 +1262,37 @@ describe('forms/useFormField', () => {
     expect(field.isValidating.value).toBe(false);
   });
 
+  it('cancels in-flight async validation when disabled becomes true', async () => {
+    let resolveValidation: (() => void) | undefined;
+
+    const field = useFormField<string>('', {
+      validators: [
+        customAsync(async () => {
+          await new Promise<void>((resolve) => {
+            resolveValidation = resolve;
+          });
+          return false;
+        }, 'Taken'),
+      ],
+      validateOn: 'change',
+    });
+
+    field.value.value = 'Ada';
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    expect(field.isValidating.value).toBe(true);
+
+    field.disabled.value = true;
+    expect(field.error.value).toBe('');
+    expect(field.isValidating.value).toBe(false);
+
+    resolveValidation?.();
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+    await new Promise<void>((resolve) => queueMicrotask(resolve));
+
+    expect(field.error.value).toBe('');
+    expect(field.isValidating.value).toBe(false);
+  });
+
   it('catches scheduled validation rejections and clears isValidating', async () => {
     const field = useFormField<string>('Ada', {
       validators: [

@@ -105,6 +105,7 @@ export const useFormField = <T>(
   let suppressNextChangeValidation = false;
   let isDestroyed = false;
   let stopChangeValidationEffect: (() => void) | undefined;
+  let stopDisabledEffect: (() => void) | undefined;
 
   const logValidationError = (validationError: unknown): void => {
     console.error('bQuery forms: Error in scheduled field validation', validationError);
@@ -191,6 +192,17 @@ export const useFormField = <T>(
     });
   }
 
+  stopDisabledEffect = effect(() => {
+    if (!disabled.value) {
+      return;
+    }
+
+    validationId += 1;
+    debouncedValidate.cancel();
+    error.value = '';
+    isValidating.value = false;
+  });
+
   const destroy = (): void => {
     if (isDestroyed) {
       return;
@@ -201,6 +213,8 @@ export const useFormField = <T>(
     debouncedValidate.cancel();
     stopChangeValidationEffect?.();
     stopChangeValidationEffect = undefined;
+    stopDisabledEffect?.();
+    stopDisabledEffect = undefined;
     stopDirtyEffect?.();
     stopDirtyEffect = undefined;
     isDirty.dispose();
