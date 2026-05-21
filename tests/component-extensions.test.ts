@@ -596,8 +596,18 @@ describe('component/events', () => {
 
       const root = document.createElement('div');
       const childHost = document.createElement('div');
-      root.innerHTML = `<button ${parentAttr}>parent</button>`;
-      childHost.innerHTML = `<button ${childAttr}>child</button>`;
+
+      const parentButton = document.createElement('button');
+      const [, parentAttrName, parentAttrValue] = parentAttr.match(/^([^=]+)="([^"]+)"$/) ?? [];
+      if (parentAttrName && parentAttrValue) parentButton.setAttribute(parentAttrName, parentAttrValue);
+      parentButton.textContent = 'parent';
+      root.appendChild(parentButton);
+
+      const childButton = document.createElement('button');
+      const [, childAttrName, childAttrValue] = childAttr.match(/^([^=]+)="([^"]+)"$/) ?? [];
+      if (childAttrName && childAttrValue) childButton.setAttribute(childAttrName, childAttrValue);
+      childButton.textContent = 'child';
+      childHost.appendChild(childButton);
       root.appendChild(childHost);
 
       cleanup = bindDelegatedEvents(childHost);
