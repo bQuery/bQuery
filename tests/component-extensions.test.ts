@@ -30,6 +30,17 @@ const createDelegatedClickButton = (handlerId: string, label: string): HTMLButto
   return button;
 };
 
+const withComponentScope = <T>(run: () => T): T => {
+  const scope = createComponentScope();
+  const previousScope = setCurrentScope(scope);
+  try {
+    return run();
+  } finally {
+    setCurrentScope(previousScope);
+    scope.dispose();
+  }
+};
+
 // ---------------------------------------------------------------------------
 // useRef
 // ---------------------------------------------------------------------------
@@ -411,12 +422,16 @@ describe('component/css', () => {
 
 describe('component/events', () => {
   it('produces a data-bq-on-* attribute string', () => {
-    const attr = on('click', () => {});
+    const attr = withComponentScope(() => on('click', () => {}));
     expect(attr).toMatch(/^data-bq-on-click="bq[a-z0-9]+"$/);
   });
 
+  it('requires an active component scope', () => {
+    expect(() => on('click', () => {})).toThrow(/active component scope/);
+  });
+
   it('rejects invalid event names', () => {
-    expect(() => on('bad name', () => {})).toThrow();
+    expect(() => withComponentScope(() => on('bad name', () => {}))).toThrow();
   });
 
   it('routes delegated clicks through the host', () => {
@@ -528,16 +543,16 @@ describe('component/events', () => {
   });
 
   it('onInput convenience is available', () => {
-    const attr = onInput(() => {});
+    const attr = withComponentScope(() => onInput(() => {}));
     expect(attr.startsWith('data-bq-on-input=')).toBe(true);
   });
 
   it('does not install unrelated delegated listeners from other hosts', () => {
-    on('custom-event', () => {});
+    withComponentScope(() => on('custom-event', () => {}));
 
     const host = document.createElement('div');
     const root = host.attachShadow({ mode: 'open' });
-    const clickAttr = onClick(() => {});
+    const clickAttr = withComponentScope(() => onClick(() => {}));
     root.innerHTML = `<button ${clickAttr}>+</button>`;
 
     const addedTypes: string[] = [];

@@ -66,6 +66,7 @@ const validEventName = /^[a-zA-Z][a-zA-Z0-9_-]*$/;
  * `data-bq-on-<event>="<id>"` suitable for embedding into a template via
  * the `${...}` interpolation slot.
  *
+ * Must be called while a component scope is active (typically from `render()`).
  * The handler is automatically removed when the owning component scope
  * disconnects, so handlers do not leak across re-renders for the same component.
  *
@@ -82,31 +83,32 @@ export const on = (event: string, handler: EventHandler): string => {
   if (!validEventName.test(event)) {
     throw new Error(`bQuery component: invalid event name "${event}"`);
   }
+  const scope = getCurrentScope();
+  if (!scope) {
+    throw new Error('bQuery component: on() must be called with an active component scope');
+  }
   const normalizedEvent = event.toLowerCase();
   const id = allocateId();
   handlerStore.set(id, handler);
-  const scope = getCurrentScope();
-  if (scope) {
-    listenerRegistrationsByScope.get(scope)?.forEach((register) => register(normalizedEvent));
-    let ids = handlerIdsByScope.get(scope);
-    if (!ids) {
-      ids = new Set<string>();
-      handlerIdsByScope.set(scope, ids);
-      // Register a single disposer per scope. It runs on component disconnect
-      // and removes any handler IDs still registered for this scope. Per-render
-      // cleanup is handled by `cleanupDelegatedHandlers()`, which also keeps
-      // this set in sync so it does not grow unboundedly across re-renders.
-      const trackedIds = ids;
-      scope.addDisposer(() => {
-        for (const trackedId of trackedIds) {
-          handlerStore.delete(trackedId);
-        }
-        trackedIds.clear();
-        handlerIdsByScope.delete(scope);
-      });
-    }
-    ids.add(id);
+  listenerRegistrationsByScope.get(scope)?.forEach((register) => register(normalizedEvent));
+  let ids = handlerIdsByScope.get(scope);
+  if (!ids) {
+    ids = new Set<string>();
+    handlerIdsByScope.set(scope, ids);
+    // Register a single disposer per scope. It runs on component disconnect
+    // and removes any handler IDs still registered for this scope. Per-render
+    // cleanup is handled by `cleanupDelegatedHandlers()`, which also keeps
+    // this set in sync so it does not grow unboundedly across re-renders.
+    const trackedIds = ids;
+    scope.addDisposer(() => {
+      for (const trackedId of trackedIds) {
+        handlerStore.delete(trackedId);
+      }
+      trackedIds.clear();
+      handlerIdsByScope.delete(scope);
+    });
   }
+  ids.add(id);
   return `data-bq-on-${normalizedEvent}="${id}"`;
 };
 
