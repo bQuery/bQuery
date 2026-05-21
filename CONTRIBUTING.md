@@ -2,6 +2,10 @@
 
 Thanks for your interest in contributing to **bQuery**! This guide explains how to set up the project locally, develop changes, and run tests.
 
+## Community expectations
+
+By participating in this project, you agree to follow the repository's [Code of Conduct](./CODE_OF_CONDUCT.md). Please read it before opening issues, reviewing code, or contributing changes.
+
 ## Prerequisites
 
 - **Node.js** `>=24.0.0`
@@ -57,6 +61,7 @@ If public exports changed, also keep `src/full.ts` aligned with the module barre
 
 - Describe **what** and **why** you changed something.
 - Link relevant issues if available.
+- Use the pull request template and complete the validation checklist honestly.
 - Ensure tests pass locally and the docs still build.
 
 ## Security
