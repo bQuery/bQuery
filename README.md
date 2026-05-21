@@ -6,6 +6,7 @@
 <br/>
 <a href="https://www.npmjs.com/package/@bquery/bquery"><img src="https://img.shields.io/npm/v/@bquery/bquery?style=flat&logo=npm" alt="npm version"/></a>&nbsp;
 <a href="https://bundlephobia.com/package/@bquery/bquery"><img src="https://img.shields.io/bundlephobia/minzip/@bquery/bquery?style=flat" alt="Bundle Size"/></a>&nbsp;
+<a href="https://bundlejs.com/?q=%40bquery%2Fbquery"><img src="https://deno.bundlejs.com/?q=@bquery/bquery&badge=simple&style=flat" alt="Bundle Size"/></a>&nbsp;
 <a href="https://github.com/bQuery/bQuery/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/bquery/bquery?style=flat" alt="License"/></a><br/>
 <a href="https://github.com/bQuery/bQuery/stargazers"><img src="https://img.shields.io/github/stars/bquery/bquery?style=flat&logo=github" alt="Stars"/></a>&nbsp;
 <a href="https://github.com/bQuery/bQuery/issues"><img src="https://img.shields.io/github/issues/bquery/bquery?style=flat&logo=github" alt="Issues"/></a>&nbsp;
