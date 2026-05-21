@@ -24,14 +24,13 @@ const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36
 const createDelegatedButton = (attr: string, label: string): HTMLButtonElement => {
   const button = document.createElement('button');
   const separatorIndex = attr.indexOf('=');
-  const attrName = separatorIndex === -1 ? '' : attr.slice(0, separatorIndex);
-  const rawValue = separatorIndex === -1 ? '' : attr.slice(separatorIndex + 1).trim();
-  const attrValue =
-    rawValue.startsWith('"') && rawValue.endsWith('"')
-      ? rawValue.slice(1, -1)
-      : rawValue.startsWith("'") && rawValue.endsWith("'")
-        ? rawValue.slice(1, -1)
-        : rawValue;
+  const hasEquals = separatorIndex !== -1;
+  const attrName = hasEquals ? attr.slice(0, separatorIndex) : '';
+  const rawValue = hasEquals ? attr.slice(separatorIndex + 1).trim() : '';
+  const needsUnquote =
+    (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+    (rawValue.startsWith("'") && rawValue.endsWith("'"));
+  const attrValue = needsUnquote ? rawValue.slice(1, -1) : rawValue;
 
   if (attrName && attrValue) {
     button.setAttribute(attrName, attrValue);
