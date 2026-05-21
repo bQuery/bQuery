@@ -32,6 +32,19 @@ describe('utils/misc extras', () => {
     expect(undef).toBeUndefined();
   });
 
+  it('tryCatch keeps sync throws from promise callbacks thenable', async () => {
+    const promiseCallback = (): Promise<string> => {
+      throw new Error('sync boom');
+    };
+    const result = tryCatch(promiseCallback);
+
+    expect(result).toBeInstanceOf(Array);
+
+    const [err, undef] = await result;
+    expect((err as Error).message).toBe('sync boom');
+    expect(undef).toBeUndefined();
+  });
+
   it('times invokes the iteratee N times', () => {
     expect(times(3, (i) => i * 2)).toEqual([0, 2, 4]);
     expect(times(0, (i) => i)).toEqual([]);

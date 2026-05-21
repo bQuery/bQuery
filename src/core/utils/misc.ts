@@ -113,10 +113,40 @@ export function uuid(): string {
 /** Tuple returned by {@link tryCatch}. */
 export type TryCatchResult<T, E = unknown> = [E, undefined] | [null, T];
 
+type TryCatchThenableResult<T, E = unknown> = TryCatchResult<T, E> &
+  PromiseLike<TryCatchResult<T, E>> & {
+    catch<TResult = never>(
+      onRejected?: ((reason: unknown) => TResult | PromiseLike<TResult>) | null
+    ): Promise<TryCatchResult<T, E> | TResult>;
+    finally(onFinally?: (() => void) | null): Promise<TryCatchResult<T, E>>;
+  };
+
+function toThenableResult<T, E = unknown>(tuple: TryCatchResult<T, E>): TryCatchThenableResult<T, E> {
+  const settledTuple = [tuple[0], tuple[1]] as TryCatchResult<T, E>;
+  const promise = Promise.resolve(settledTuple);
+  const thenable = tuple as TryCatchThenableResult<T, E>;
+  Object.defineProperties(thenable, {
+    then: {
+      value: promise.then.bind(promise),
+      enumerable: false,
+    },
+    catch: {
+      value: promise.catch.bind(promise),
+      enumerable: false,
+    },
+    finally: {
+      value: promise.finally.bind(promise),
+      enumerable: false,
+    },
+  });
+  return thenable;
+}
+
 /**
  * Runs a synchronous or asynchronous function and returns a Go-style
  * `[error, value]` tuple instead of throwing. The synchronous result
  * variant returns the tuple directly; the async variant returns a Promise.
+ * Synchronous throws from Promise-typed callbacks still remain await/then-compatible.
  *
  * @example
  * ```ts
@@ -139,7 +169,7 @@ export function tryCatch<T, E = unknown>(
     }
     return [null, result as T];
   } catch (e) {
-    return [e as E, undefined];
+    return toThenableResult([e as E, undefined] as TryCatchResult<T, E>);
   }
 }
 
