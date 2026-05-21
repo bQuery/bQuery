@@ -155,7 +155,7 @@
     "type": "git",
     "url": "https://github.com/bQuery/bQuery.git"
   },
-  "homepage": "https://bQuery.flausch-code.de",
+  "homepage": "https://bquery.js.org",
   "bugs": {
     "url": "https://github.com/bQuery/bQuery/issues"
   },
