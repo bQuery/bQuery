@@ -690,10 +690,11 @@ describe('forms/createFieldArray', () => {
       initial: [],
       factory: (value) => useFormField(value),
     });
-    if (false) {
-      // @ts-expect-error createFieldArray.add requires a value
-      arr.add();
-    }
+    type AddParams = Parameters<typeof arr.add>;
+    type Assert<T extends true> = T;
+    const _assertAddRequiresValue: Assert<AddParams extends [string] ? true : false> =
+      true;
+    expect(_assertAddRequiresValue).toBe(true);
   });
 
   it('validate runs item-level and array-level validators', async () => {
