@@ -207,6 +207,7 @@ export const springVector = <T extends Record<string, number>>(
   }
 
   const listeners = new Set<(value: T) => void>();
+  const dimensionUnsubscribers = new Map<keyof T & string, () => void>();
   const snapshot = (): T => {
     const out = {} as T;
     for (const key of keys) {
@@ -215,13 +216,37 @@ export const springVector = <T extends Record<string, number>>(
     return out;
   };
 
-  for (const key of keys) {
-    springs[key].onChange(() => {
-      if (listeners.size === 0) return;
-      const snap = snapshot();
-      for (const listener of listeners) listener(snap);
-    });
-  }
+  const notifyVectorListeners = () => {
+    if (listeners.size === 0) return;
+    const snap = snapshot();
+    for (const listener of listeners) listener(snap);
+  };
+
+  const subscribeDimensions = () => {
+    for (const key of keys) {
+      if (dimensionUnsubscribers.has(key)) continue;
+      const unsubscribe = springs[key].onChange(() => {
+        notifyVectorListeners();
+      });
+      dimensionUnsubscribers.set(key, unsubscribe);
+    }
+  };
+
+  const unsubscribeDimensions = () => {
+    for (const key of keys) {
+      const unsubscribe = dimensionUnsubscribers.get(key);
+      if (!unsubscribe) continue;
+      unsubscribe();
+      dimensionUnsubscribers.delete(key);
+    }
+  };
+
+  const removeListener = (callback: (value: T) => void) => {
+    listeners.delete(callback);
+    if (listeners.size === 0) {
+      unsubscribeDimensions();
+    }
+  };
 
   return {
     to(target: Partial<T>): Promise<void> {
@@ -258,10 +283,11 @@ export const springVector = <T extends Record<string, number>>(
       for (const key of keys) springs[key].stop();
     },
     onChange(callback: (value: T) => void): () => void {
+      if (listeners.size === 0) {
+        subscribeDimensions();
+      }
       listeners.add(callback);
-      return () => {
-        listeners.delete(callback);
-      };
+      return () => removeListener(callback);
     },
     dimensions(): Record<keyof T & string, SpringVectorEntry> {
       return springs;

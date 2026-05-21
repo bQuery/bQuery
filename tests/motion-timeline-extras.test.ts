@@ -502,6 +502,25 @@ describe('motion/reduced-motion subscriptions', () => {
 });
 
 describe('motion/springVector', () => {
+  it('subscribes to and unsubscribes from dimensions lazily', () => {
+    const pos = springVector({ x: 0, y: 0 });
+    const dimensions = pos.dimensions();
+    const unsubX = mock(() => {});
+    const unsubY = mock(() => {});
+    const xOnChange = mock(() => unsubX);
+    const yOnChange = mock(() => unsubY);
+    dimensions.x.onChange = xOnChange;
+    dimensions.y.onChange = yOnChange;
+
+    const off = pos.onChange(() => {});
+    expect(xOnChange).toHaveBeenCalledTimes(1);
+    expect(yOnChange).toHaveBeenCalledTimes(1);
+
+    off();
+    expect(unsubX).toHaveBeenCalledTimes(1);
+    expect(unsubY).toHaveBeenCalledTimes(1);
+  });
+
   it('skips snapshot work when no vector listeners are subscribed', () => {
     const pos = springVector({ x: 0, y: 0 });
     const dimensions = pos.dimensions();

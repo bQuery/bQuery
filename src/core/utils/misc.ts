@@ -237,7 +237,8 @@ export function nextFrame(): Promise<number> {
 }
 
 /**
- * Resolves on the next microtask (or `setImmediate`/`setTimeout(0)` fallback).
+ * Resolves on the next microtask (or `Promise.resolve().then(...)` fallback
+ * when `queueMicrotask` is unavailable).
  */
 export function nextTick(): Promise<void> {
   return new Promise((resolve) => {
