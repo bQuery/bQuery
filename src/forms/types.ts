@@ -290,6 +290,13 @@ export type FormFieldArray<T = unknown> = {
   validate: () => Promise<boolean>;
   reset: () => void;
   getValues: () => T[];
+  /**
+   * Tear down the array: clears every item (calling `destroy()` / `dispose()`
+   * on each if available) and disposes the internal reactive primitives
+   * (`items`, `length`, `error`). After `destroy()`, the field array should
+   * not be used.
+   */
+  destroy: () => void;
 };
 
 // ---------------------------------------------------------------------------

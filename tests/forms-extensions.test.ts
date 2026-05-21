@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { batch } from '../src/reactive/index';
+import { batch, effect } from '../src/reactive/index';
 import {
   all,
   arrayOf,
@@ -686,11 +686,11 @@ describe('forms/createFieldArray', () => {
   });
 
   it('types add() as requiring a value', () => {
-    const arr = createFieldArray<string>({
+    const _arr = createFieldArray<string>({
       initial: [],
       factory: (value) => useFormField(value),
     });
-    type AddParams = Parameters<typeof arr.add>;
+    type AddParams = Parameters<typeof _arr.add>;
     type Assert<T extends true> = T;
     const _assertAddRequiresValue: Assert<AddParams extends [string] ? true : false> =
       true;
@@ -746,6 +746,49 @@ describe('forms/createFieldArray', () => {
 
     arr.reset();
     expect(destroyed).toEqual(['a', 'b', 'a', 'b']);
+  });
+
+  it('destroy() clears items and disposes internal reactive primitives', () => {
+    const destroyed: string[] = [];
+    const arr = createFieldArray<string>({
+      initial: ['a', 'b'],
+      factory: (value) => {
+        const field = useFormField(value);
+        return {
+          ...field,
+          destroy: () => {
+            destroyed.push(value);
+            field.destroy();
+          },
+        };
+      },
+    });
+
+    let itemCount = 0;
+    const stopItems = effect(() => {
+      itemCount = arr.items.value.length;
+    });
+    let lengthSeen = 0;
+    const stopLength = effect(() => {
+      lengthSeen = arr.length.value;
+    });
+
+    expect(itemCount).toBe(2);
+    expect(lengthSeen).toBe(2);
+
+    arr.destroy();
+    expect(destroyed).toEqual(['a', 'b']);
+
+    // After destroy(), the internal signal/computed are disposed: writing to
+    // `items` no longer notifies previously-subscribed effects.
+    itemCount = -1;
+    lengthSeen = -1;
+    arr.items.value = [];
+    expect(itemCount).toBe(-1);
+    expect(lengthSeen).toBe(-1);
+
+    stopItems();
+    stopLength();
   });
 });
 

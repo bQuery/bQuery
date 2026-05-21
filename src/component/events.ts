@@ -22,6 +22,15 @@ type EventHandler = (event: Event) => void;
 
 const handlerStore = new Map<string, EventHandler>();
 const listenerRegistrationsByScope = new WeakMap<ComponentScope, Set<(type: string) => void>>();
+/**
+ * Tracks the set of handler IDs registered via `on()` for a given component
+ * scope. A single disposer is registered per scope (on first `on()` call) that
+ * deletes all tracked IDs from `handlerStore` on disconnect, instead of one
+ * disposer per handler. This prevents the scope's disposer list from growing
+ * unboundedly across re-renders of long-lived components.
+ * @internal
+ */
+const handlerIdsByScope = new WeakMap<ComponentScope, Set<string>>();
 const delegatedAttributePrefix = 'data-bq-on-';
 
 /**
@@ -79,25 +88,44 @@ export const on = (event: string, handler: EventHandler): string => {
   const scope = getCurrentScope();
   if (scope) {
     listenerRegistrationsByScope.get(scope)?.forEach((register) => register(normalizedEvent));
+    let ids = handlerIdsByScope.get(scope);
+    if (!ids) {
+      ids = new Set<string>();
+      handlerIdsByScope.set(scope, ids);
+      // Register a single disposer per scope. It runs on component disconnect
+      // and removes any handler IDs still registered for this scope. Per-render
+      // cleanup is handled by `cleanupDelegatedHandlers()`, which also keeps
+      // this set in sync so it does not grow unboundedly across re-renders.
+      const trackedIds = ids;
+      scope.addDisposer(() => {
+        for (const trackedId of trackedIds) {
+          handlerStore.delete(trackedId);
+        }
+        trackedIds.clear();
+        handlerIdsByScope.delete(scope);
+      });
+    }
+    ids.add(id);
   }
-  scope?.addDisposer(() => handlerStore.delete(id));
   return `data-bq-on-${normalizedEvent}="${id}"`;
 };
 
 /**
  * @internal
  */
-export const cleanupDelegatedHandlers = (root: ParentNode): void => {
+export const cleanupDelegatedHandlers = (root: ParentNode, scope?: ComponentScope): void => {
   const nodes: Element[] = [];
   if (root instanceof Element) {
     nodes.push(root);
   }
   nodes.push(...Array.from(root.querySelectorAll('*')));
 
+  const scopedIds = scope ? handlerIdsByScope.get(scope) : undefined;
   for (const node of nodes) {
     for (const attr of Array.from(node.attributes)) {
       if (attr.name.startsWith(delegatedAttributePrefix) && attr.value) {
         handlerStore.delete(attr.value);
+        scopedIds?.delete(attr.value);
       }
     }
   }

@@ -4,7 +4,7 @@
  * @module bquery/component
  */
 
-import { getCurrentScope } from './scope';
+import { getCurrentScope, isCurrentScopeRendering } from './scope';
 
 /**
  * Reactive-free DOM reference, conceptually similar to React's `useRef` or
@@ -41,6 +41,12 @@ export type Ref<T extends Element = HTMLElement> = {
  * still works as a plain mutable holder.
  */
 export const useRef = <T extends Element = HTMLElement>(): Ref<T> => {
+  const scope = getCurrentScope();
+  if (scope && isCurrentScopeRendering()) {
+    throw new Error(
+      'bQuery component: useRef() must be called inside a component lifecycle hook. Avoid calling it directly from render()'
+    );
+  }
   const ref: Ref<T> = {
     current: null,
     bind(element) {
@@ -50,7 +56,6 @@ export const useRef = <T extends Element = HTMLElement>(): Ref<T> => {
       ref.current = null;
     },
   };
-  const scope = getCurrentScope();
   scope?.addDisposer(() => {
     ref.current = null;
   });

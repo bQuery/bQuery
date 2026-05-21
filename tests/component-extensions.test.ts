@@ -60,8 +60,26 @@ describe('component/useRef', () => {
       });
     });
   });
-});
 
+  it('rejects useRef() during render()', () => {
+    const tag = uniqueTag('ref-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        useRef<HTMLDivElement>();
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+    host.remove();
+  });
+});
 // ---------------------------------------------------------------------------
 // useSlot / hasSlot / slotText
 // ---------------------------------------------------------------------------

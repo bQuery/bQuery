@@ -532,7 +532,7 @@ const createComponentClass = <
           );
         }
 
-        cleanupDelegatedHandlers(renderRoot);
+        cleanupDelegatedHandlers(renderRoot, this.scope);
         renderRoot.innerHTML = sanitizedMarkup;
 
         if (stylesText && !usedAdoptedSheet) {

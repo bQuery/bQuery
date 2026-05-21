@@ -89,16 +89,17 @@ export const useField = <T>(
  * are created via the supplied `factory`; if those factories are themselves
  * scope-aware (e.g. `useField`), the items participate in the owning
  * component's disposal lifecycle and clean themselves up when the component
- * disconnects. Items created by non-scope-aware factories are not
- * automatically disposed when the component disconnects; they remain until
- * removed via array operations, reset by `createFieldArray()`, or the array
- * itself is garbage collected.
+ * disconnects.
+ *
+ * In addition, a single scope disposer is registered that calls
+ * `arr.destroy()` on disconnect. This clears any remaining items and disposes
+ * the internal reactive primitives (`items`, `length`, `error`) so subscribers
+ * to those signals are released and resources are not retained for the
+ * lifetime of the component.
  */
 export const useFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray<T> => {
-  requireScope('useFieldArray');
-  // The underlying `createFieldArray` does not register its own disposable
-  // reactive effects beyond those owned by its items, which are themselves
-  // scope-disposed when created via `useField` / `useForm`. Therefore no
-  // additional disposer is needed.
-  return createFieldArray(config);
+  const scope = requireScope('useFieldArray');
+  const arr = createFieldArray(config);
+  scope.addDisposer(() => arr.destroy());
+  return arr;
 };

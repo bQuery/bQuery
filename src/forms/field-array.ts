@@ -143,6 +143,16 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
     return ok;
   };
 
+  const destroy = (): void => {
+    for (const item of items.peek()) {
+      destroyItem(item);
+    }
+    items.value = [];
+    items.dispose();
+    length.dispose();
+    error.dispose();
+  };
+
   return {
     items,
     length,
@@ -155,5 +165,6 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
     validate,
     reset,
     getValues,
+    destroy,
   };
 };
