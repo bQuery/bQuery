@@ -1,0 +1,942 @@
+import { describe, expect, it } from 'bun:test';
+import type { Signal } from '../src/reactive/index';
+import { component } from '../src/component/component';
+import { html } from '../src/component/html';
+import { css, isComponentStyles } from '../src/component/css';
+import {
+  bindDelegatedEvents,
+  cleanupDelegatedHandlers,
+  on,
+  onClick,
+  onInput,
+} from '../src/component/events';
+import { createComponentScope, setCurrentScope } from '../src/component/scope';
+import { formContextKey, inject, injectionKey, provide } from '../src/component/inject';
+import { keyedList, reconcileKeyed } from '../src/component/keyed-list';
+import { useRef } from '../src/component/refs';
+import { hasSlot, slotText, useSlot } from '../src/component/slots';
+import { useAsync, whenIdle, type UseAsyncResult } from '../src/component/async';
+import { useSignal } from '../src/component/scope';
+import { useField, useFieldArray, useForm } from '../src/forms/composables';
+
+const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36).slice(2, 9)}`;
+
+const delegatedClickAttributePrefix = 'data-bq-on-click="';
+
+const createDelegatedClickButton = (handlerId: string, label: string): HTMLButtonElement => {
+  const button = document.createElement('button');
+  button.setAttribute('data-bq-on-click', handlerId);
+  button.textContent = label;
+  return button;
+};
+
+const withComponentScope = <T>(run: () => T): T => {
+  const scope = createComponentScope();
+  const previousScope = setCurrentScope(scope);
+  try {
+    return run();
+  } finally {
+    setCurrentScope(previousScope);
+    scope.dispose();
+  }
+};
+
+// ---------------------------------------------------------------------------
+// useRef
+// ---------------------------------------------------------------------------
+
+describe('component/useRef', () => {
+  it('creates a mutable ref with bind/clear', () => {
+    const ref = useRef<HTMLInputElement>();
+    expect(ref.current).toBeNull();
+    const input = document.createElement('input');
+    ref.bind(input);
+    expect(ref.current).toBe(input);
+    ref.clear();
+    expect(ref.current).toBeNull();
+  });
+
+  it('clears automatically when the owning component disconnects', () => {
+    const tag = uniqueTag('ref-clear');
+    let capturedRef: ReturnType<typeof useRef<HTMLDivElement>> | null = null;
+    component(tag, {
+      connected() {
+        const ref = useRef<HTMLDivElement>();
+        capturedRef = ref;
+        queueMicrotask(() => {
+          const inner = this.shadowRoot!.querySelector('div')!;
+          ref.bind(inner as HTMLDivElement);
+        });
+      },
+      render: () => html`<div>hi</div>`,
+    });
+    const el = document.createElement(tag);
+    document.body.appendChild(el);
+    // wait microtask
+    return new Promise<void>((resolve) => {
+      queueMicrotask(() => {
+        expect(capturedRef?.current).toBeInstanceOf(HTMLElement);
+        el.remove();
+        expect(capturedRef?.current).toBeNull();
+        resolve();
+      });
+    });
+  });
+
+  it('rejects useRef() during render()', () => {
+    const tag = uniqueTag('ref-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        useRef<HTMLDivElement>();
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+    host.remove();
+  });
+});
+// ---------------------------------------------------------------------------
+// useSlot / hasSlot / slotText
+// ---------------------------------------------------------------------------
+
+describe('component/slots', () => {
+  it('useSlot returns assigned elements reactively', async () => {
+    const tag = uniqueTag('slot-host');
+    let captured: Signal<Element[]> | null = null;
+    component(tag, {
+      connected() {
+        captured = useSlot(this);
+      },
+      render: () => html`<div><slot></slot></div>`,
+    });
+    const host = document.createElement(tag);
+    host.innerHTML = '<span>a</span><span>b</span>';
+    document.body.appendChild(host);
+    // wait for queued lookup
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+    const slotSignal = captured as unknown as Signal<Element[]>;
+    expect(slotSignal.value.length).toBe(2);
+    expect(hasSlot(host)).toBe(true);
+    expect(slotText(host)).toBe('ab');
+    host.remove();
+  });
+
+  it('useSlot keeps reacting after the slot element is replaced', async () => {
+    const tag = uniqueTag('slot-rebind');
+    let captured: Signal<Element[]> | null = null;
+    component<{ mode: string }>(tag, {
+      props: {
+        mode: { type: String, default: 'a' },
+      },
+      connected() {
+        captured = useSlot(this);
+      },
+      render: ({ props }) =>
+        props.mode === 'a'
+          ? html`<div><slot></slot></div>`
+          : html`<section><slot></slot></section>`,
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (key: string, value: unknown) => void;
+    };
+    host.innerHTML = '<span>a</span>';
+    document.body.appendChild(host);
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+
+    const slotSignal = captured as unknown as Signal<Element[]>;
+    expect(slotSignal.value).toHaveLength(1);
+
+    host.setProp('mode', 'b');
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+
+    host.appendChild(document.createElement('span'));
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+
+    expect(slotSignal.value).toHaveLength(2);
+    host.remove();
+  });
+
+  it('slot helpers tolerate invalid selector text when CSS.escape is unavailable', () => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<slot name="safe"></slot>';
+
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'CSS');
+    Object.defineProperty(globalThis, 'CSS', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    try {
+      expect(hasSlot(host, 'bad]\nname')).toBe(false);
+      expect(slotText(host, 'bad]\nname')).toBe('');
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, 'CSS', descriptor);
+      } else {
+        delete (globalThis as { CSS?: unknown }).CSS;
+      }
+    }
+  });
+
+  it('rejects useSlot() during render()', () => {
+    const tag = uniqueTag('slot-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        useSlot(this as unknown as HTMLElement);
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('must be called inside a component lifecycle hook');
+    host.remove();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// provide / inject
+// ---------------------------------------------------------------------------
+
+describe('component/inject', () => {
+  it('resolves provided values through the composed path', () => {
+    const ThemeKey = injectionKey<{ dark: boolean }>('theme');
+    const parentTag = uniqueTag('inject-parent');
+    const childTag = uniqueTag('inject-child');
+
+    let resolvedTheme: unknown = undefined;
+    component(parentTag, {
+      connected() {
+        provide(this, ThemeKey, { dark: true });
+      },
+      render: () => html`<div><slot></slot></div>`,
+    });
+    component(childTag, {
+      connected() {
+        resolvedTheme = inject(this, ThemeKey, { dark: false });
+      },
+      render: () => html`<span>child</span>`,
+    });
+
+    const parent = document.createElement(parentTag);
+    document.body.appendChild(parent);
+    const child = document.createElement(childTag);
+    parent.appendChild(child);
+
+    expect(resolvedTheme).toEqual({ dark: true });
+    parent.remove();
+  });
+
+  it('returns the fallback when no provider exists', () => {
+    const childTag = uniqueTag('inject-orphan');
+    let value: number | undefined = -1;
+    component(childTag, {
+      connected() {
+        value = inject<number>(this, 'count', 99);
+      },
+      render: () => html`<span></span>`,
+    });
+    const child = document.createElement(childTag);
+    document.body.appendChild(child);
+    expect(value).toBe(99);
+    child.remove();
+  });
+
+  it('formContextKey is a usable injection key', () => {
+    expect(typeof formContextKey).toBe('symbol');
+  });
+
+  it('rejects provide() outside a component lifecycle hook', () => {
+    expect(() => provide(document.createElement('div'), 'count', 1)).toThrow(
+      /must be called inside a component lifecycle hook/
+    );
+  });
+
+  it('rejects provide() during render()', () => {
+    const tag = uniqueTag('inject-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        provide(this as unknown as EventTarget, 'count', 1);
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+    host.remove();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useAsync / whenIdle
+// ---------------------------------------------------------------------------
+
+describe('component/useAsync', () => {
+  it('exposes loading/data signals', async () => {
+    const tag = uniqueTag('async-host');
+    let captured: UseAsyncResult<number> | null = null;
+    component(tag, {
+      connected() {
+        captured = useAsync(async () => 7);
+      },
+      render: () => html`<div></div>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    await new Promise((r) => setTimeout(r, 5));
+    const asyncState = captured as unknown as UseAsyncResult<number>;
+    expect(asyncState.loading.value).toBe(false);
+    expect(asyncState.data.value).toBe(7);
+    expect(asyncState.error.value).toBeNull();
+    host.remove();
+  });
+
+  it('captures errors', async () => {
+    const tag = uniqueTag('async-error');
+    let captured: UseAsyncResult<number> | null = null;
+    component(tag, {
+      connected() {
+        captured = useAsync(async () => {
+          throw new Error('boom');
+        });
+      },
+      render: () => html`<div></div>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    await new Promise((r) => setTimeout(r, 5));
+    const asyncState = captured as unknown as UseAsyncResult<number>;
+    expect(asyncState.error.value).toBeInstanceOf(Error);
+    host.remove();
+  });
+
+  it('rejects useAsync() during render()', () => {
+    const tag = uniqueTag('async-render');
+    const capturedErrors: Error[] = [];
+    component(tag, {
+      onError(error) {
+        capturedErrors.push(error);
+      },
+      render() {
+        useAsync(async () => 7);
+        return html`<div>unreachable</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(capturedErrors).toHaveLength(1);
+    expect(capturedErrors[0].message).toContain('must be called inside a component lifecycle hook');
+    host.remove();
+  });
+});
+
+describe('component/whenIdle', () => {
+  it('runs the callback asynchronously', async () => {
+    const tag = uniqueTag('idle-host');
+    let ran = false;
+    component(tag, {
+      connected() {
+        whenIdle(() => {
+          ran = true;
+        });
+      },
+      render: () => html`<div></div>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(ran).toBe(true);
+    host.remove();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// css
+// ---------------------------------------------------------------------------
+
+describe('component/css', () => {
+  it('produces a ComponentStyles payload', () => {
+    const styles = css`
+      :host { color: red; }
+    `;
+    expect(isComponentStyles(styles)).toBe(true);
+    expect(String(styles)).toContain(':host');
+  });
+
+  it('escapes dangerous values inside interpolations', () => {
+    const evil = "'*/ body { background: red } /*";
+    const styles = css`
+      .x { content: '${evil}'; }
+    `;
+    expect(styles.text).not.toContain('*/');
+    expect(styles.text).not.toContain('/*');
+    expect(styles.text).not.toContain("content: ''");
+    expect(styles.text).not.toContain('{ background: red }');
+  });
+
+  it('inlines nested ComponentStyles', () => {
+    const partial = css`color: red;`;
+    const full = css`
+      :host { ${partial} }
+    `;
+    expect(full.text).toContain('color: red');
+  });
+
+  it('attaches as styles in a component', async () => {
+    const tag = uniqueTag('css-component');
+    component(tag, {
+      styles: css`:host { display: block; color: rebeccapurple; }`,
+      render: () => html`<div>x</div>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    await new Promise((r) => setTimeout(r, 5));
+    // Either via <style> or adoptedStyleSheets — at minimum the component must render without throwing.
+    expect(host.shadowRoot?.textContent).toContain('x');
+    host.remove();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+
+describe('component/events', () => {
+  it('produces a data-bq-on-* attribute string', () => {
+    const attr = withComponentScope(() => on('click', () => {}));
+    expect(attr).toMatch(/^data-bq-on-click="bq[a-z0-9]+"$/);
+  });
+
+  it('requires an active component scope', () => {
+    expect(() => on('click', () => {})).toThrow(/active component scope/);
+  });
+
+  it('rejects invalid event names', () => {
+    expect(() => withComponentScope(() => on('bad name', () => {}))).toThrow();
+  });
+
+  it('routes delegated clicks through the host', () => {
+    const tag = uniqueTag('events-host');
+    let clicks = 0;
+    component(tag, {
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render() {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>+</button>
+        `;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    const button = host.shadowRoot!.querySelector('button')!;
+    button.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    expect(clicks).toBe(1);
+    host.remove();
+  });
+
+  it('cleans up delegated handlers created during render on disconnect', () => {
+    const tag = uniqueTag('events-cleanup');
+    let clicks = 0;
+    component(tag, {
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render() {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>+</button>
+        `;
+      },
+    });
+
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    const button = host.shadowRoot!.querySelector('button')!;
+    const leakedId = button.getAttribute('data-bq-on-click');
+    expect(leakedId).toBeTruthy();
+
+    button.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    expect(clicks).toBe(1);
+    host.remove();
+
+    const attacker = document.createElement('div');
+    const root = attacker.attachShadow({ mode: 'open' });
+    root.innerHTML = `<button data-bq-on-click="${leakedId ?? ''}">x</button>`;
+    bindDelegatedEvents(attacker);
+    root
+      .querySelector('button')!
+      .dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+    expect(clicks).toBe(1);
+  });
+
+  it('cleans up delegated handlers from previous renders', () => {
+    const tag = uniqueTag('events-rerender');
+    let clicks = 0;
+    component<{ label?: string }>(tag, {
+      props: {
+        label: { type: String, default: 'first' },
+      },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render({ props }) {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>${props.label}</button>
+        `;
+      },
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (key: string, value: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    const firstButton = host.shadowRoot!.querySelector('button')!;
+    const leakedId = firstButton.getAttribute('data-bq-on-click');
+    expect(leakedId).toBeTruthy();
+
+    host.setProp('label', 'second');
+
+    const currentButton = host.shadowRoot!.querySelector('button')!;
+    expect(currentButton.getAttribute('data-bq-on-click')).not.toBe(leakedId);
+
+    currentButton.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    expect(clicks).toBe(1);
+
+    const attacker = document.createElement('div');
+    const root = attacker.attachShadow({ mode: 'open' });
+    root.innerHTML = `<button data-bq-on-click="${leakedId ?? ''}">x</button>`;
+    bindDelegatedEvents(attacker);
+    root
+      .querySelector('button')!
+      .dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+    expect(clicks).toBe(1);
+    host.remove();
+  });
+
+  it('onInput convenience is available', () => {
+    const attr = withComponentScope(() => onInput(() => {}));
+    expect(attr.startsWith('data-bq-on-input=')).toBe(true);
+  });
+
+  it('does not install unrelated delegated listeners from other hosts', () => {
+    withComponentScope(() => on('custom-event', () => {}));
+
+    const host = document.createElement('div');
+    const root = host.attachShadow({ mode: 'open' });
+    const clickAttr = withComponentScope(() => onClick(() => {}));
+    root.innerHTML = `<button ${clickAttr}>+</button>`;
+
+    const addedTypes: string[] = [];
+    const originalAddEventListener = root.addEventListener;
+    root.addEventListener = ((
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: boolean | AddEventListenerOptions
+    ) => {
+      addedTypes.push(type);
+      return originalAddEventListener.call(
+        root,
+        type,
+        listener as EventListenerOrEventListenerObject,
+        options
+      );
+    }) as typeof root.addEventListener;
+
+    bindDelegatedEvents(host);
+
+    expect(addedTypes).toEqual(['click']);
+  });
+
+  it('routes delegated clicks in light DOM components', async () => {
+    const tag = uniqueTag('events-light-dom');
+    let clicks = 0;
+    component(tag, {
+      shadow: false,
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render() {
+        return html`
+          <button ${onClick(() => {
+            clicks += 1;
+          })}>+</button>
+        `;
+      },
+    });
+
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+
+    host.querySelector('button')?.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+    expect(clicks).toBe(1);
+    host.remove();
+  });
+
+  it('preserves nested scoped delegated handlers during scoped cleanup', () => {
+    const parentScope = createComponentScope();
+    const childScope = createComponentScope();
+    let childClicks = 0;
+
+    const previousScope = setCurrentScope(parentScope);
+    let cleanup: (() => void) | undefined;
+
+    try {
+      const parentAttr = onClick(() => {});
+      setCurrentScope(childScope);
+      const childAttr = onClick(() => {
+        childClicks += 1;
+      });
+      setCurrentScope(previousScope);
+      const parentHandlerId = parentAttr.slice(delegatedClickAttributePrefix.length, -1);
+      const childHandlerId = childAttr.slice(delegatedClickAttributePrefix.length, -1);
+
+      const root = document.createElement('div');
+      const childHost = document.createElement('div');
+      root.appendChild(createDelegatedClickButton(parentHandlerId, 'parent'));
+      childHost.appendChild(createDelegatedClickButton(childHandlerId, 'child'));
+      root.appendChild(childHost);
+
+      cleanup = bindDelegatedEvents(childHost);
+      cleanupDelegatedHandlers(root, parentScope);
+
+      childHost
+        .querySelector('button')
+        ?.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+      expect(childClicks).toBe(1);
+    } finally {
+      cleanup?.();
+      parentScope.dispose();
+      childScope.dispose();
+      setCurrentScope(previousScope);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// keyedList / reconcileKeyed
+// ---------------------------------------------------------------------------
+
+describe('component/keyedList', () => {
+  it('injects data-bq-key attributes into top-level item markup', () => {
+    const html = keyedList(
+      [{ id: 'a', t: 'A' }, { id: 'b', t: 'B' }],
+      (it) => it.id,
+      (it) => `<li>${it.t}</li>`
+    );
+    expect(html).toContain('data-bq-key="a"');
+    expect(html).toContain('data-bq-key="b"');
+    expect(html).toContain('<li');
+  });
+
+  it('reconcileKeyed reorders children to match the provided key order', () => {
+    const ul = document.createElement('ul');
+    ul.innerHTML = `
+      <li data-bq-key="a">A</li>
+      <li data-bq-key="b">B</li>
+      <li data-bq-key="c">C</li>
+    `;
+    // Swap b and c manually:
+    const items = Array.from(ul.querySelectorAll('li'));
+    ul.insertBefore(items[2], items[1]); // c before b
+    const moved = reconcileKeyed(ul, ['a', 'b', 'c']);
+    expect(moved).toBeGreaterThan(0);
+    expect(Array.from(ul.children).map((node) => node.getAttribute('data-bq-key'))).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
+  it('reconcileKeyed preserves leading text nodes while reordering keyed elements', () => {
+    const ul = document.createElement('ul');
+    ul.innerHTML = `
+      <li data-bq-key="a">A</li>
+      <li data-bq-key="c">C</li>
+      <li data-bq-key="b">B</li>
+    `;
+
+    const firstNodeBefore = ul.firstChild;
+    const moved = reconcileKeyed(ul, ['a', 'b', 'c']);
+
+    expect(moved).toBeGreaterThan(0);
+    expect(ul.firstChild).toBe(firstNodeBefore);
+    expect(ul.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+    expect(Array.from(ul.children).map((node) => node.getAttribute('data-bq-key'))).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
+  it('escapes key values', () => {
+    const html = keyedList(
+      [{ id: '<x', t: 'A' }],
+      (it) => it.id,
+      (it) => `<li>${it.t}</li>`
+    );
+    expect(html).toContain('data-bq-key="&lt;x"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// setProp / getProp
+// ---------------------------------------------------------------------------
+
+describe('component/setProp/getProp', () => {
+  it('allows imperatively setting object props and triggers re-render', async () => {
+    const tag = uniqueTag('prop-host');
+    let lastRendered: unknown = null;
+    component<{ items?: string[] }>(tag, {
+      props: {
+        items: { type: Array, default: [] as unknown as string[] },
+      },
+      render({ props }) {
+        lastRendered = props.items;
+        return html`<ul></ul>`;
+      },
+    });
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+      getProp: <T>(k: string) => T;
+    };
+    document.body.appendChild(host);
+    host.setProp('items', ['a', 'b']);
+    expect(host.getProp<string[]>('items')).toEqual(['a', 'b']);
+    expect(lastRendered).toEqual(['a', 'b']);
+    host.remove();
+  });
+
+  it('allows deferred initial mount once a required prop is set imperatively', () => {
+    const tag = uniqueTag('prop-required');
+    let renderCount = 0;
+    component<{ config: { label: string } }>(tag, {
+      props: {
+        config: { type: Object, required: true },
+      },
+      render: ({ props }) => {
+        renderCount += 1;
+        return html`<div>${props.config.label}</div>`;
+      },
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    expect(host.shadowRoot?.childNodes).toHaveLength(0);
+    expect(renderCount).toBe(0);
+
+    host.setProp('config', { label: 'Ready' });
+
+    expect(renderCount).toBe(1);
+    expect(host.shadowRoot?.textContent).toContain('Ready');
+    host.remove();
+  });
+
+  it('validates imperatively set props before rendering', () => {
+    const tag = uniqueTag('prop-validated');
+    component<{ count?: number }>(tag, {
+      props: {
+        count: {
+          type: Number,
+          default: 0,
+          validator: (value) => typeof value === 'number' && value >= 0,
+        },
+      },
+      render: ({ props }) => html`<div>${String(props.count)}</div>`,
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    expect(() => host.setProp('count', -1)).toThrow('validation failed for prop "count"');
+    expect(host.shadowRoot?.textContent).toContain('0');
+    host.remove();
+  });
+
+  it('validates BigInt props and reports meaningful errors', () => {
+    const tag = uniqueTag('prop-validated-bigint');
+    component<{ count?: number }>(tag, {
+      props: {
+        count: {
+          type: Number,
+          default: 0,
+          validator: (value) => typeof value === 'number' && value >= 0,
+        },
+      },
+      render: ({ props }) => html`<div>${String(props.count)}</div>`,
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    let caught: Error | undefined;
+    try {
+      host.setProp('count', 1n);
+    } catch (e) {
+      caught = e as Error;
+    }
+    expect(caught?.message).toContain('validation failed for prop "count"');
+    expect(caught?.message).toContain('1');
+    expect(host.shadowRoot?.textContent).toContain('0');
+    host.remove();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// beforeUnmount / errorBoundary
+// ---------------------------------------------------------------------------
+
+describe('component/lifecycle additions', () => {
+  it('fires beforeUnmount before disconnect cleanup', () => {
+    const tag = uniqueTag('hooks-host');
+    const order: string[] = [];
+    component(tag, {
+      connected() {
+        order.push('connected');
+      },
+      beforeUnmount() {
+        order.push('beforeUnmount');
+      },
+      disconnected() {
+        order.push('disconnected');
+      },
+      render: () => html`<div></div>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    host.remove();
+    expect(order).toEqual(['connected', 'beforeUnmount', 'disconnected']);
+  });
+
+  it('errorBoundary renders fallback markup when render throws', () => {
+    const tag = uniqueTag('boundary-host');
+    component(tag, {
+      render() {
+        throw new Error('boom');
+      },
+      errorBoundary(err) {
+        return `<div data-fallback>${err.message}</div>`;
+      },
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(host.shadowRoot?.innerHTML).toContain('data-fallback');
+    host.remove();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// useForm (composable) — quick integration check
+// ---------------------------------------------------------------------------
+
+describe('forms/useForm composable', () => {
+  it('creates a form bound to the component scope and disposes on disconnect', () => {
+    const tag = uniqueTag('form-host');
+    let formRef: ReturnType<typeof useForm<{ name: string }>> | null = null;
+    component(tag, {
+      connected() {
+        formRef = useForm<{ name: string }>({
+          fields: { name: { initialValue: '' } },
+        });
+      },
+      render: () => html`<form></form>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(formRef).not.toBeNull();
+    formRef!.fields.name.value.value = 'Ada';
+    expect(formRef!.fields.name.value.value).toBe('Ada');
+    host.remove();
+    // After disconnect, destroy ran — further mutation still works but
+    // subscribers are gone. Just verify no throw.
+    expect(() => formRef!.fields.name.value.value = 'x').not.toThrow();
+  });
+
+  it('rejects render-time form composables', () => {
+    const cases = [
+      {
+        tag: uniqueTag('form-render'),
+        run() {
+          useForm<{ name: string }>({ fields: { name: { initialValue: '' } } });
+        },
+      },
+      {
+        tag: uniqueTag('field-render'),
+        run() {
+          useField('');
+        },
+      },
+      {
+        tag: uniqueTag('field-array-render'),
+        run() {
+          useFieldArray({ initial: [], factory: (value: string) => useField(value) });
+        },
+      },
+    ];
+
+    for (const { tag, run } of cases) {
+      const capturedErrors: Error[] = [];
+      component(tag, {
+        onError(error) {
+          capturedErrors.push(error);
+        },
+        render() {
+          run();
+          return html`<form>unreachable</form>`;
+        },
+      });
+      const host = document.createElement(tag);
+      document.body.appendChild(host);
+      expect(capturedErrors).toHaveLength(1);
+      expect(capturedErrors[0].message).toContain('Avoid calling it directly from render()');
+      host.remove();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Touch the useSignal import to ensure it still exists
+// ---------------------------------------------------------------------------
+
+describe('component/regression', () => {
+  it('still exports useSignal', () => {
+    expect(typeof useSignal).toBe('function');
+  });
+});

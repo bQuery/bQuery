@@ -42,6 +42,9 @@ const INTENTIONAL_RUNTIME_OMISSIONS = new Map([
   // a11y.prefersReducedMotion collides with motion.prefersReducedMotion in the
   // flat bundle. Use @bquery/bquery/a11y for the reactive signal variant.
   ['a11y:prefersReducedMotion', 'collides with motion.prefersReducedMotion'],
+  // forms.compose collides with core.compose in the flat bundle. Use
+  // @bquery/bquery/forms for the validator combinator.
+  ['forms:compose', 'collides with core.compose'],
 ]);
 
 const INTENTIONAL_TYPE_OMISSIONS = new Map();

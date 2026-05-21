@@ -11,7 +11,13 @@ import { Signal } from '../reactive/core';
 import { computed, effect, signal } from '../reactive/index';
 import type { MaybeSignal } from '../reactive/index';
 import { isReadonlySignal } from '../reactive/readonly';
-import type { UseFormFieldOptions, UseFormFieldReturn, ValidationResult, Validator } from './types';
+import type {
+  UseFormFieldOptions,
+  UseFormFieldReturn,
+  UseFormFieldSetValueOptions,
+  ValidationResult,
+  Validator,
+} from './types';
 
 /**
  * Determines whether a validator returned a valid result.
@@ -75,17 +81,31 @@ export const useFormField = <T>(
   const error = signal(options.initialError ?? '');
   const isTouched = signal(false);
   const isValidating = signal(false);
+  const isFocused = signal(false);
+  const disabled = signal(false);
+  const dirtySince = signal<number | null>(null);
   const isDirty = computed(() => !Object.is(value.value, initial));
   const isPristine = computed(() => !isDirty.value);
   const isValid = computed(() => error.value === '');
   const validateOn = options.validateOn ?? 'manual';
   const debounceMs = Math.max(0, options.debounceMs ?? 0);
 
+  // Track dirtySince automatically
+  let stopDirtyEffect: (() => void) | undefined = effect(() => {
+    const v = value.value;
+    if (!Object.is(v, initial)) {
+      if (dirtySince.peek() === null) dirtySince.value = Date.now();
+    } else if (dirtySince.peek() !== null) {
+      dirtySince.value = null;
+    }
+  });
+
   let validationId = 0;
   let changeInitialized = false;
   let suppressNextChangeValidation = false;
   let isDestroyed = false;
   let stopChangeValidationEffect: (() => void) | undefined;
+  let stopDisabledEffect: (() => void) | undefined;
 
   const logValidationError = (validationError: unknown): void => {
     console.error('bQuery forms: Error in scheduled field validation', validationError);
@@ -93,6 +113,13 @@ export const useFormField = <T>(
 
   const runValidation = async (): Promise<boolean> => {
     const currentValidationId = ++validationId;
+
+    if (disabled.peek()) {
+      error.value = '';
+      isValidating.value = false;
+      return true;
+    }
+
     const validators = options.validators;
 
     if (!validators || validators.length === 0) {
@@ -165,6 +192,17 @@ export const useFormField = <T>(
     });
   }
 
+  stopDisabledEffect = effect(() => {
+    if (!disabled.value) {
+      return;
+    }
+
+    validationId += 1;
+    debouncedValidate.cancel();
+    error.value = '';
+    isValidating.value = false;
+  });
+
   const destroy = (): void => {
     if (isDestroyed) {
       return;
@@ -175,6 +213,10 @@ export const useFormField = <T>(
     debouncedValidate.cancel();
     stopChangeValidationEffect?.();
     stopChangeValidationEffect = undefined;
+    stopDisabledEffect?.();
+    stopDisabledEffect = undefined;
+    stopDirtyEffect?.();
+    stopDirtyEffect = undefined;
     isDirty.dispose();
     isPristine.dispose();
     isValid.dispose();
@@ -189,6 +231,9 @@ export const useFormField = <T>(
     isPristine,
     isValid,
     isValidating,
+    isFocused,
+    disabled,
+    dirtySince,
     touch: () => {
       isTouched.value = true;
       if (validateOn === 'blur' || validateOn === 'both') {
@@ -205,6 +250,31 @@ export const useFormField = <T>(
       error.value = options.initialError ?? '';
       isTouched.value = false;
       isValidating.value = false;
+      isFocused.value = false;
+      disabled.value = false;
+      dirtySince.value = null;
+    },
+    setValue: (next, opts: UseFormFieldSetValueOptions = {}) => {
+      if (opts.silent) suppressNextChangeValidation = true;
+      value.value = next;
+      if (opts.touch) isTouched.value = true;
+      if (opts.validate) scheduleValidation();
+    },
+    setError: (message: string) => {
+      error.value = message;
+    },
+    clearError: () => {
+      error.value = '';
+    },
+    focus: () => {
+      isFocused.value = true;
+    },
+    blur: () => {
+      isFocused.value = false;
+      isTouched.value = true;
+      if (validateOn === 'blur' || validateOn === 'both') {
+        scheduleValidation();
+      }
     },
     validate: async () => {
       debouncedValidate.cancel();

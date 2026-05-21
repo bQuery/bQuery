@@ -7,8 +7,15 @@
 import type { CleanupFn } from '../reactive/signal';
 import { effect, untrack } from '../reactive/signal';
 import { sanitizeHtml } from '../security/sanitize';
+import { applyAdoptedStyles, isComponentStyles } from './css';
+import { cleanupDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
-import { createComponentScope, setCurrentScope, type ComponentScope } from './scope';
+import {
+  createComponentScope,
+  setCurrentScope,
+  setCurrentScopeIsRendering,
+  type ComponentScope,
+} from './scope';
 import type {
   AttributeChange,
   ComponentClass,
@@ -56,6 +63,14 @@ const COMPONENT_ALLOWED_ATTRIBUTES = [
   'selected',
   'wrap',
 ];
+
+const formatPropValidationValue = (value: unknown): string => {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+};
 
 /**
  * Creates a custom element class for a component definition.
@@ -199,10 +214,61 @@ const createComponentClass = <
     }
 
     /**
+     * Imperatively assigns a non-string prop value (objects, arrays, callbacks)
+     * without round-tripping through HTML attributes. Triggers a re-render.
+     */
+    setProp(name: string, value: unknown): void {
+      const previousProps = this.cloneProps();
+      const propConfig = (definition.props as Record<string, PropDefinition> | undefined)?.[name];
+
+      if (propConfig?.validator && value !== undefined && !propConfig.validator(value)) {
+        throw new Error(
+          `bQuery component: validation failed for prop "${name}" with value ${formatPropValidationValue(value)}`
+        );
+      }
+
+      (this.props as Record<string, unknown>)[name] = value;
+
+      if (propConfig?.required && propConfig.default === undefined && value === undefined) {
+        this.missingRequiredProps.add(name);
+      } else {
+        this.missingRequiredProps.delete(name);
+      }
+
+      if (!this.hasMounted) {
+        if (this.isConnected && this.missingRequiredProps.size === 0) {
+          this.mount();
+        }
+        return;
+      }
+
+      this.render(true, previousProps, undefined, true);
+    }
+
+    /**
+     * Returns the current value of a prop, including values set via
+     * {@link setProp} that were never reflected as attributes.
+     */
+    getProp<TResult = unknown>(name: string): TResult {
+      return (this.props as Record<string, unknown>)[name] as TResult;
+    }
+
+    /**
      * Called when the element is removed from the DOM.
      */
     disconnectedCallback(): void {
       try {
+        // beforeUnmount runs *before* cleanup so authors can read state/scope.
+        if (definition.beforeUnmount) {
+          const previousScope = setCurrentScope(this.scope);
+          try {
+            definition.beforeUnmount.call(this);
+          } catch (error) {
+            this.handleError(error as Error);
+          } finally {
+            setCurrentScope(previousScope);
+          }
+        }
         this.signalEffectCleanup?.();
         this.signalEffectCleanup = undefined;
         // Dispose all scoped reactive resources (useSignal, useComputed, useEffect)
@@ -387,7 +453,7 @@ const createComponentClass = <
           const isValid = config.validator(value);
           if (!isValid) {
             throw new Error(
-              `bQuery component: validation failed for prop "${key}" with value ${JSON.stringify(value)}`
+              `bQuery component: validation failed for prop "${key}" with value ${formatPropValidationValue(value)}`
             );
           }
         }
@@ -440,12 +506,37 @@ const createComponentClass = <
 
         const renderRoot = this.renderRootNode;
 
-        const markup = definition.render({
-          props: this.props,
-          state: this.state,
-          signals: (definition.signals ?? {}) as TSignals,
-          emit,
-        });
+        let markup: string;
+        try {
+          const previousScope = setCurrentScope(this.scope);
+          const previousRenderPhase = setCurrentScopeIsRendering(true);
+          try {
+            markup = definition.render({
+              props: this.props,
+              state: this.state,
+              signals: (definition.signals ?? {}) as TSignals,
+              emit,
+            });
+          } finally {
+            setCurrentScopeIsRendering(previousRenderPhase);
+            setCurrentScope(previousScope);
+          }
+        } catch (renderError) {
+          if (definition.errorBoundary) {
+            const fallback = definition.errorBoundary.call(this, renderError as Error, {
+              phase: 'render',
+            });
+            if (typeof fallback === 'string') {
+              markup = fallback;
+            } else {
+              this.handleError(renderError as Error);
+              return;
+            }
+          } else {
+            this.handleError(renderError as Error);
+            return;
+          }
+        }
 
         // Component render output is authored by the component definition itself,
         // so we can explicitly preserve shadow-DOM-specific markup such as <slot>,
@@ -455,21 +546,29 @@ const createComponentClass = <
           allowTags: componentAllowedTags,
           allowAttributes: componentAllowedAttributes,
         });
+
+        const stylesValue = definition.styles;
+        const stylesText = isComponentStyles(stylesValue) ? stylesValue.text : stylesValue;
         let existingStyleElement: HTMLStyleElement | null = null;
-        if (definition.styles) {
+        let usedAdoptedSheet = false;
+        if (stylesValue && isComponentStyles(stylesValue) && shadowMode !== false) {
+          usedAdoptedSheet = applyAdoptedStyles(renderRoot as ShadowRoot, stylesValue);
+        }
+        if (stylesText && !usedAdoptedSheet) {
           existingStyleElement = renderRoot.querySelector<HTMLStyleElement>(
             'style[data-bquery-component-style]'
           );
         }
 
+        cleanupDelegatedHandlers(renderRoot, this.scope);
         renderRoot.innerHTML = sanitizedMarkup;
 
-        if (definition.styles) {
+        if (stylesText && !usedAdoptedSheet) {
           const styleElement = existingStyleElement ?? document.createElement('style');
           if (!existingStyleElement) {
             styleElement.setAttribute('data-bquery-component-style', '');
           }
-          styleElement.textContent = definition.styles;
+          styleElement.textContent = stylesText;
           renderRoot.prepend(styleElement);
         }
 

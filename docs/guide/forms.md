@@ -296,3 +296,111 @@ mount('#register-form', { form });
 - **Server-side errors** can be applied with `form.setErrors()` after a failed API call
 
 Use forms when you want signal-based state without wiring every input manually.
+
+## What's new in 1.13.0 — Batteries-included tier
+
+The `@bquery/bquery/forms` surface significantly expanded in `1.13.0`. The
+additions are 100% backwards-compatible — existing forms keep working
+unchanged — but you can now reach for many more first-party primitives:
+
+### Validators & combinators
+
+```ts
+import {
+  integer, numeric, between, length, oneOf, notOneOf, arrayOf,
+  required, email,
+  requiredIf, requiredUnless, dateAfter, dateBefore, validDate,
+  fileSize, fileType,
+  compose, all, not, withMessage,
+} from '@bquery/bquery/forms';
+
+const t = (message: string) => message;
+const tagsRule  = arrayOf(required('Tag required'));
+const ageRule   = compose(required(), integer(), between(18, 120));
+const usernameRule = not(oneOf(['admin', 'root']), 'Reserved username');
+const localized = withMessage(email(), t('Please enter a valid email'));
+```
+
+### Field- and form-level state
+
+Every field now exposes `isValidating`, `isFocused`, `dirtySince`, `disabled`,
+`focus()` / `blur()`, `setValue(value, { touch, validate, silent })`,
+`setError(message)`, and `clearError()`. Every form exposes `submitCount`,
+`lastSubmittedAt`, `submitError`, `isValidating`, `isPristine`, plus
+`touchAll()`, `untouchAll()`, `resetField(name)`, `resetErrors()`,
+`getDirtyValues()`, and `subscribe(listener)`. `FormConfig` accepts
+`onSubmitError`, `onSubmitSuccess`, `validationStrategy`, and
+`mode: 'all' | 'first'`.
+
+### Dynamic field arrays
+
+```ts
+import { createFieldArray, useFormField, required } from '@bquery/bquery/forms';
+
+const lineItems = createFieldArray({
+  initial: [],
+  factory: (initial = '') => useFormField(initial, { validators: [required()] }),
+});
+
+lineItems.add('Product A');
+lineItems.add('Product B');
+lineItems.move(0, 1);
+```
+
+### Fluent schema builder
+
+```ts
+import { createForm, schema, field } from '@bquery/bquery/forms';
+
+const form = createForm({
+  ...schema(
+    {
+      name: field<string>().required().minLength(2),
+      email: field<string>().required().email(),
+    },
+    { name: '', email: '' }
+  ),
+  onSubmit: save,
+});
+```
+
+### DOM bindings
+
+```ts
+import { bindForm, bindField } from '@bquery/bquery/forms';
+
+const cleanup = bindForm(form, document.querySelector('form')!);
+// or per-field:
+bindField(form.fields.email, document.querySelector('#email')!);
+```
+
+`bindForm` auto-discovers `[name]` inputs, wires `submit`, marks
+`aria-invalid`, and renders error text via a configurable `errorSlot` mapper.
+
+### Component-scoped composables
+
+```ts
+import { component } from '@bquery/bquery/component';
+import { useForm, useField, useFieldArray } from '@bquery/bquery/forms';
+
+component('login-form', {
+  connected() {
+    const form = useForm({ fields: { … }, onSubmit });
+    // auto-disposed on disconnect
+  },
+});
+```
+
+### SSR
+
+```ts
+import { serializeFormState, hydrateForm, readSerializedFormState } from '@bquery/bquery/forms';
+
+// Server:
+const tag = serializeFormState('login', form.snapshot()); // returns a <script> tag
+// Client:
+const snapshot = readSerializedFormState('login');
+if (snapshot) form.restore(snapshot);
+// or simply:
+hydrateForm(form, 'login');
+```

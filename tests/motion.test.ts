@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, mock } from 'bun:test';
 import {
   animate,
+  animateTo,
   capturePosition,
   easingPresets,
   flip,
@@ -308,6 +309,94 @@ describe('motion/animate', () => {
     expect(animation.cancel).toHaveBeenCalled();
   });
 
+  it('applies playbackRate to the underlying animation', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      playbackRate: 1,
+    };
+    const el = document.createElement('div');
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const promise = animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      playbackRate: 0.5,
+    });
+
+    expect(animation.playbackRate).toBe(0.5);
+    await promise;
+  });
+
+  it('resolves and cleans up when aborted', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      finished: new Promise<void>(() => {}),
+    };
+    const el = document.createElement('div');
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+    const controller = new AbortController();
+    const onFinish = mock(() => {});
+
+    const promise = animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      signal: controller.signal,
+      onFinish,
+    });
+
+    controller.abort();
+    await promise;
+    animation.onfinish?.();
+
+    expect(animation.cancel).toHaveBeenCalledTimes(1);
+    expect(onFinish).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels when the signal aborts immediately after listener registration', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      finished: new Promise<void>(() => {}),
+    };
+    const el = document.createElement('div');
+    const controller = new AbortController();
+    (el as HTMLElement).animate = mock(() => {
+      queueMicrotask(() => controller.abort());
+      return animation;
+    }) as unknown as Element['animate'];
+
+    await animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      signal: controller.signal,
+    });
+
+    expect(animation.cancel).toHaveBeenCalled();
+  });
+
+  it('does not commit final styles when aborted before finish', async () => {
+    const animation = {
+      ...createMockAnimation(),
+      commitStyles: undefined,
+      finished: new Promise<void>(() => {}),
+    };
+    const el = document.createElement('div');
+    el.style.opacity = '0.25';
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+    const controller = new AbortController();
+
+    const promise = animate(el, {
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 10 },
+      signal: controller.signal,
+    });
+
+    controller.abort();
+    await promise;
+
+    expect(animation.cancel).toHaveBeenCalled();
+    expect(el.style.opacity).toBe('0.25');
+  });
+
   it('applies final styles when reduced motion is preferred', async () => {
     const original = window.matchMedia;
     window.matchMedia = mock(
@@ -332,6 +421,111 @@ describe('motion/animate', () => {
     expect(el.style.opacity).toBe('0.5');
 
     window.matchMedia = original;
+  });
+});
+
+describe('motion/animateTo', () => {
+  it('builds keyframes from destination values and explicit tuples', async () => {
+    const animation = createMockAnimation();
+    const el = document.createElement('div');
+    const animateMock = mock(() => animation);
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+
+    await animateTo(
+      el,
+      {
+        opacity: 1,
+        transform: ['scale(0.5)', 'scale(1)'],
+      },
+      { duration: 120, fill: 'forwards' }
+    );
+
+    expect(animateMock).toHaveBeenCalledWith(
+      [
+        { transform: 'scale(0.5)' },
+        { opacity: 1, transform: 'scale(1)' },
+      ],
+      { duration: 120, fill: 'forwards' }
+    );
+  });
+
+  it('builds explicit start/end keyframes for destination-only styles', async () => {
+    const animation = createMockAnimation();
+    const el = document.createElement('div');
+    el.style.opacity = '0.25';
+    el.style.transform = 'translateY(10px)';
+    const animateMock = mock(() => animation);
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+
+    await animateTo(
+      el,
+      {
+        opacity: 1,
+        transform: 'translateY(0px)',
+      },
+      { duration: 120, fill: 'forwards' }
+    );
+
+    expect(animateMock).toHaveBeenCalledWith(
+      [
+        { opacity: '0.25', transform: 'translateY(10px)' },
+        { opacity: 1, transform: 'translateY(0px)' },
+      ],
+      { duration: 120, fill: 'forwards' }
+    );
+  });
+
+  it('does not throw when getComputedStyle is unavailable', async () => {
+    const originalGetComputedStyle = window.getComputedStyle;
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    const animateMock = mock(() => animation);
+    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+    Object.defineProperty(window, 'getComputedStyle', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    try {
+      await expect(
+        animateTo(
+          el,
+          {
+            opacity: 1,
+          },
+          { duration: 120 }
+        )
+      ).resolves.toBeUndefined();
+    } finally {
+      Object.defineProperty(window, 'getComputedStyle', {
+        configurable: true,
+        writable: true,
+        value: originalGetComputedStyle,
+      });
+    }
+
+    expect(animateMock).toHaveBeenCalledWith([{ opacity: '' }, { opacity: 1 }], { duration: 120 });
+  });
+
+  it('applies final styles immediately under reduced motion', async () => {
+    setReducedMotion(true);
+    try {
+      const el = document.createElement('div');
+      const animateMock = mock(() => createMockAnimation());
+      (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+
+      await animateTo(el, {
+        opacity: [0, 1],
+        transform: 'translateY(0)',
+      });
+
+      expect(animateMock).not.toHaveBeenCalled();
+      expect(el.style.opacity).toBe('1');
+      expect(el.style.transform).toBe('translateY(0)');
+    } finally {
+      setReducedMotion(null);
+    }
   });
 });
 
@@ -368,6 +562,22 @@ describe('motion/timeline', () => {
     await tl.play();
 
     expect(animation.commitStyles).toHaveBeenCalled();
+    expect(animation.cancel).toHaveBeenCalled();
+  });
+
+  it('cancels animations even when commitStyles is false', async () => {
+    const el = document.createElement('div');
+    const animation = createMockAnimation();
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 10 } }],
+      { commitStyles: false }
+    );
+
+    await tl.play();
+
+    expect(animation.commitStyles).not.toHaveBeenCalled();
     expect(animation.cancel).toHaveBeenCalled();
   });
 
@@ -763,6 +973,20 @@ describe('motion/stagger', () => {
     expect(delay(0, 3)).toBe(50);
     expect(delay(1, 3)).toBe(0);
     expect(delay(2, 3)).toBe(50);
+  });
+
+  it('falls back to a finite origin when grid coordinates are not finite', () => {
+    const delay = stagger(40, {
+      grid: [3, 3],
+      from: { x: Number.NaN, y: Number.POSITIVE_INFINITY },
+    });
+
+    expect(delay(4, 9)).toBe(40 * Math.sqrt(2));
+  });
+
+  it('falls back to a finite origin when numeric from is not finite', () => {
+    const delay = stagger(25, { from: Number.NaN });
+    expect(delay(2, 4)).toBe(50);
   });
 });
 
