@@ -5,10 +5,12 @@ import { html } from '../src/component/html';
 import { css, isComponentStyles } from '../src/component/css';
 import {
   bindDelegatedEvents,
+  cleanupDelegatedHandlers,
   on,
   onClick,
   onInput,
 } from '../src/component/events';
+import { createComponentScope, setCurrentScope } from '../src/component/scope';
 import { formContextKey, inject, injectionKey, provide } from '../src/component/inject';
 import { keyedList, reconcileKeyed } from '../src/component/keyed-list';
 import { useRef } from '../src/component/refs';
@@ -574,6 +576,44 @@ describe('component/events', () => {
 
     expect(clicks).toBe(1);
     host.remove();
+  });
+
+  it('preserves nested scoped delegated handlers during scoped cleanup', () => {
+    const parentScope = createComponentScope();
+    const childScope = createComponentScope();
+    let childClicks = 0;
+
+    const previousScope = setCurrentScope(parentScope);
+    let cleanup: (() => void) | undefined;
+
+    try {
+      const parentAttr = onClick(() => {});
+      setCurrentScope(childScope);
+      const childAttr = onClick(() => {
+        childClicks += 1;
+      });
+      setCurrentScope(previousScope);
+
+      const root = document.createElement('div');
+      const childHost = document.createElement('div');
+      root.innerHTML = `<button ${parentAttr}>parent</button>`;
+      childHost.innerHTML = `<button ${childAttr}>child</button>`;
+      root.appendChild(childHost);
+
+      cleanup = bindDelegatedEvents(childHost);
+      cleanupDelegatedHandlers(root, parentScope);
+
+      childHost
+        .querySelector('button')
+        ?.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+
+      expect(childClicks).toBe(1);
+    } finally {
+      cleanup?.();
+      parentScope.dispose();
+      childScope.dispose();
+      setCurrentScope(previousScope);
+    }
   });
 });
 

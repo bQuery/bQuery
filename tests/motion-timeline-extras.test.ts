@@ -364,6 +364,14 @@ describe('motion/stagger extras', () => {
     expect(vz).not.toEqual(v1);
   });
 
+  it('returns the same random delay for repeated calls with the same inputs', () => {
+    const seeded = stagger(10, { random: true, randomSeed: 123 });
+    const unseeded = stagger(10, { random: true });
+
+    expect(seeded(2, 5)).toBe(seeded(2, 5));
+    expect(unseeded(2, 5)).toBe(unseeded(2, 5));
+  });
+
   it('grid easing preserves the same max delay range as linear distance', () => {
     const cols = 5;
     const rows = 5;

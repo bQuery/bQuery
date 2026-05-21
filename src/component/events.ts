@@ -124,6 +124,9 @@ export const cleanupDelegatedHandlers = (root: ParentNode, scope?: ComponentScop
   for (const node of nodes) {
     for (const attr of Array.from(node.attributes)) {
       if (attr.name.startsWith(delegatedAttributePrefix) && attr.value) {
+        if (scopedIds && !scopedIds.has(attr.value)) {
+          continue;
+        }
         handlerStore.delete(attr.value);
         scopedIds?.delete(attr.value);
       }

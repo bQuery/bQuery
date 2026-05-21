@@ -42,20 +42,30 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
     randomSeed,
   } = options;
 
-  // Pseudo-random helpers — deterministic when `randomSeed` is supplied.
-  const seededRandom = (() => {
-    if (!random) return null;
-    if (typeof randomSeed !== 'number') return Math.random;
-    const normalizedSeed = randomSeed | 0;
-    let s = normalizedSeed === 0 ? 0x9e3779b9 : normalizedSeed;
-    return () => {
-      // xorshift32 for repeatability.
-      s ^= s << 13;
-      s ^= s >>> 17;
-      s ^= s << 5;
-      return ((s >>> 0) % 1_000_000) / 1_000_000;
-    };
-  })();
+  // Pseudo-random helper — stable for the same `(index, total)` within a
+  // stagger function, while still allowing a per-instance random seed when one
+  // is not provided explicitly.
+  const randomSeedBase = random
+    ? typeof randomSeed === 'number'
+      ? randomSeed | 0
+      : (Math.random() * 0x1_0000_0000) | 0
+    : null;
+
+  const seededRandom =
+    randomSeedBase === null
+      ? null
+      : (index: number, total: number) => {
+          let state =
+            randomSeedBase ^
+            Math.imul((index | 0) + 1, 0x9e3779b1) ^
+            Math.imul((total | 0) + 1, 0x85ebca77);
+
+          // xorshift32 on a per-call mixed seed for repeatability.
+          state ^= state << 13;
+          state ^= state >>> 17;
+          state ^= state << 5;
+          return ((state >>> 0) % 1_000_000) / 1_000_000;
+        };
 
   return (index: number, total = 0): number => {
     // Grid mode ─ compute Euclidean (or axis-restricted) distance in cells.
@@ -109,7 +119,7 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
       const normalized = maxDistance === 0 ? 0 : distance / maxDistance;
       const eased = easing ? easing(normalized) * maxDistance : distance;
       const randomized = seededRandom
-        ? eased * 0.5 + seededRandom() * maxDistance * 0.5
+        ? eased * 0.5 + seededRandom(index, total) * maxDistance * 0.5
         : eased;
       return start + randomized * step;
     }
@@ -129,7 +139,7 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
       const baseDistance = Math.abs(index - origin);
       const normalized = maxDistance === 0 ? 0 : baseDistance / maxDistance;
       const easedBase = easing ? easing(normalized) * maxDistance : baseDistance;
-      const randomShift = seededRandom() * maxDistance;
+      const randomShift = seededRandom(index, total) * maxDistance;
       return start + (easedBase * 0.5 + randomShift * 0.5) * step;
     }
 
