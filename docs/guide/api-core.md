@@ -294,42 +294,71 @@ later.cancel();
 
 ### Utility list
 
+#### Object
 - `clone(value)`
 - `merge(...sources)`
 - `pick(obj, keys)`
 - `omit(obj, keys)`
 - `hasOwn(obj, key)`
-- `debounce(fn, delayMs)` – returns `DebouncedFn` with `.cancel()` method
-- `throttle(fn, intervalMs)` – returns `ThrottledFn` with `.cancel()` method
-- `once(fn)`
-- `noop()`
-- `uid(prefix?)`
-- `isElement(value)`
-- `isCollection(value)`
-- `isEmpty(value)`
 - `isPlainObject(value)`
-- `isFunction(value)`
-- `isString(value)`
-- `isNumber(value)`
-- `isBoolean(value)`
-- `isArray(value)`
-- `isDate(value)`
-- `isPromise(value)`
-- `isObject(value)`
-- `parseJson(json, fallback)`
-- `sleep(ms)`
-- `randomInt(min, max)`
-- `clamp(value, min, max)`
-- `inRange(value, min, max, inclusive?)`
-- `toNumber(value, fallback?)`
-- `capitalize(str)`
-- `toKebabCase(str)`
-- `toCamelCase(str)`
-- `truncate(str, maxLength, suffix?)`
-- `slugify(str)`
-- `escapeRegExp(str)`
-- `ensureArray(value)`
-- `unique(items)`
-- `chunk(items, size)`
-- `compact(items)`
-- `flatten(items)`
+- `get(obj, path, default?)` / `set(obj, path, value)` / `has(obj, path)` – prototype-pollution-safe deep accessors (`'a.b.c'` or `'list[0].name'`)
+- `mapValues(obj, fn)` / `mapKeys(obj, fn)` / `invert(obj)`
+- `deepEqual(a, b)` (alias `isEqual`)
+- `freeze(obj)` – deep `Object.freeze`
+- `defaults(target, ...sources)` – fill `undefined` keys
+- `entriesTyped(obj)` / `keysTyped(obj)` – key-preserving typed wrappers
+
+#### Function
+- `debounce(fn, delayMs, options?)` – `DebouncedFn` with `.cancel()`, `.flush()`. Options: `{ leading?, trailing?, maxWait? }`
+- `throttle(fn, intervalMs, options?)` – `ThrottledFn` with `.cancel()`, `.flush()`. Options: `{ leading?, trailing? }`
+- `once(fn)` / `noop()`
+- `memoize(fn, keyFn?)` – `MemoizedFn` with `.clear()`, `.delete(key)`
+- `compose(...fns)` / `pipe(...fns)`
+- `curry(fn)` / `partial(fn, ...preset)`
+- `retry(fn, opts?)` – exponential backoff with jitter and `AbortSignal`
+
+#### Misc
+- `uid(prefix?)` – short hash-style id
+- `uuid()` – RFC 4122 v4 (uses `crypto.randomUUID()` / `getRandomValues()` when available)
+- `isEmpty(value)` / `parseJson(json, fallback)` / `sleep(ms)`
+- `tryCatch(fn)` – Go-style `[error, value]` for sync **or** async functions
+- `times(n, fn)` / `pollUntil(predicate, opts?)` / `nextFrame()` / `nextTick()`
+
+#### Type guards
+- `isElement` / `isCollection` / `isFunction` / `isString` / `isNumber` / `isBoolean` / `isArray` / `isDate` / `isPromise` / `isObject`
+- `isError` / `isMap` / `isSet` / `isRegExp` / `isSymbol` / `isBigInt`
+- `isAsyncFunction` / `isIterable` / `isAsyncIterable`
+- `isNullish(value)` / `isDefined(value)`
+
+#### Number
+- `randomInt(min, max)` / `randomFloat(min, max)`
+- `clamp(value, min, max)` / `inRange(value, min, max, inclusive?)` / `toNumber(value, fallback?)`
+- `round(value, precision?)` / `roundTo(value, step)`
+- `lerp(a, b, t)` / `inverseLerp(a, b, value)` / `mapRange(value, inMin, inMax, outMin, outMax)`
+- `formatBytes(bytes, opts?)` – decimal/binary, locale-aware via `Intl.NumberFormat`
+- `sum(items)` / `average(items)` / `median(items)`
+- `degToRad(deg)` / `radToDeg(rad)`
+
+> The locale-aware `formatNumber` is exposed by `@bquery/bquery/i18n`. `utils.formatBytes()` accepts the same `locale` option for consistent localized output without pulling in i18n.
+
+#### String
+- `capitalize` / `toKebabCase` / `toCamelCase` / `toSnakeCase` / `toPascalCase` / `toTitleCase`
+- `truncate(str, maxLength, suffix?)` / `slugify(str)` / `escapeRegExp(str)`
+- `pad(str, length, char?)` / `padStart(str, length, char?)` / `padEnd(str, length, char?)`
+- `wordCount(str)` / `lines(str)`
+- `template(str, vars)` – safe `${name}` interpolation (no `eval`)
+- `stripHtml(str)` – DOM-free tag removal (not a sanitizer; use `sanitizeHtml()` from `@bquery/bquery/security` for untrusted input)
+- `randomString(length, charset?)` – crypto-backed when available
+
+#### Array
+- `ensureArray(value)` / `unique(items)` / `uniqueBy(items, fn)`
+- `chunk(items, size)` / `chunkBy(items, predicate)` / `compact(items)`
+- `flatten(items)` / `flattenDeep(items)`
+- `groupBy(items, key|fn)` / `keyBy(items, key|fn)`
+- `partition(items, pred)` / `zip(...arrays)`
+- `range(start, end, step?)`
+- `first(items)` / `last(items)` / `take(items, n)` / `drop(items, n)`
+- `sample(items)` / `shuffle(items)` (Fisher–Yates)
+- `sortBy(items, fn|fns)`
+- `intersection(a, b)` / `difference(a, b)`
+- `move(items, from, to)`

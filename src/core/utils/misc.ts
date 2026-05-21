@@ -80,3 +80,172 @@ export function isEmpty(value: unknown): boolean {
   if (typeof value === 'object') return Object.keys(value as object).length === 0;
   return false;
 }
+
+/**
+ * Returns an RFC 4122 v4 UUID. Uses `crypto.randomUUID()` when available,
+ * falling back to `crypto.getRandomValues()`-backed assembly, and finally
+ * to a `Math.random()`-based variant. The fallback path is **not**
+ * cryptographically secure.
+ */
+export function uuid(): string {
+  const cryptoApi: Crypto | undefined =
+    typeof globalThis.crypto !== 'undefined' ? globalThis.crypto : undefined;
+  if (cryptoApi && typeof cryptoApi.randomUUID === 'function') {
+    return cryptoApi.randomUUID();
+  }
+  if (cryptoApi && typeof cryptoApi.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    cryptoApi.getRandomValues(bytes);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+    bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10
+    const hex: string[] = [];
+    for (const b of bytes) hex.push(b.toString(16).padStart(2, '0'));
+    return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10, 16).join('')}`;
+  }
+  // Math.random fallback.
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/** Tuple returned by {@link tryCatch}. */
+export type TryCatchResult<T, E = unknown> = [E, undefined] | [null, T];
+
+/**
+ * Runs a synchronous or asynchronous function and returns a Go-style
+ * `[error, value]` tuple instead of throwing. The synchronous result
+ * variant returns the tuple directly; the async variant returns a Promise.
+ *
+ * @example
+ * ```ts
+ * const [err, value] = tryCatch(() => JSON.parse(text));
+ * const [aErr, data] = await tryCatch(() => fetch('/api').then((r) => r.json()));
+ * ```
+ */
+export function tryCatch<T, E = unknown>(fn: () => Promise<T>): Promise<TryCatchResult<T, E>>;
+export function tryCatch<T, E = unknown>(fn: () => T): TryCatchResult<T, E>;
+export function tryCatch<T, E = unknown>(
+  fn: () => T | Promise<T>
+): TryCatchResult<T, E> | Promise<TryCatchResult<T, E>> {
+  try {
+    const result = fn();
+    if (result && typeof (result as Promise<T>).then === 'function') {
+      return (result as Promise<T>).then(
+        (v) => [null, v] as TryCatchResult<T, E>,
+        (e: E) => [e, undefined] as TryCatchResult<T, E>
+      );
+    }
+    return [null, result as T];
+  } catch (e) {
+    return [e as E, undefined];
+  }
+}
+
+/**
+ * Invokes `fn(i)` `n` times and returns the collected results.
+ *
+ * @example
+ * ```ts
+ * times(3, (i) => i * 2); // [0, 2, 4]
+ * ```
+ */
+export function times<T>(n: number, fn: (index: number) => T): T[] {
+  const result: T[] = [];
+  for (let i = 0; i < Math.max(0, Math.floor(n)); i += 1) result.push(fn(i));
+  return result;
+}
+
+/** Options for {@link pollUntil}. */
+export interface PollUntilOptions {
+  /** Interval between polls in ms (default: 50). */
+  interval?: number;
+  /** Total timeout in ms; rejects when exceeded (default: 5000). */
+  timeout?: number;
+  /** Optional AbortSignal. */
+  signal?: AbortSignal;
+}
+
+/**
+ * Polls `predicate()` on a fixed interval until it returns a truthy value,
+ * resolving with that value. Rejects on timeout or abort.
+ *
+ * Distinct from the reactive `polling()` helper — this is a small,
+ * one-shot promise-based variant intended for synchronous DOM/state checks.
+ *
+ * @example
+ * ```ts
+ * const el = await pollUntil(() => document.getElementById('lazy'));
+ * ```
+ */
+export function pollUntil<T>(
+  predicate: () => T | false | null | undefined | Promise<T | false | null | undefined>,
+  options: PollUntilOptions = {}
+): Promise<T> {
+  const { interval = 50, timeout = 5000, signal } = options;
+  return new Promise<T>((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason ?? new Error('Aborted'));
+      return;
+    }
+    const start = Date.now();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const onAbort = () => {
+      if (timer !== undefined) clearTimeout(timer);
+      reject(signal?.reason ?? new Error('Aborted'));
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    const tick = async () => {
+      try {
+        const result = await predicate();
+        if (result) {
+          signal?.removeEventListener('abort', onAbort);
+          resolve(result as T);
+          return;
+        }
+        if (Date.now() - start >= timeout) {
+          signal?.removeEventListener('abort', onAbort);
+          reject(new Error(`pollUntil timed out after ${timeout}ms`));
+          return;
+        }
+        if (signal?.aborted) return;
+        timer = setTimeout(tick, interval);
+      } catch (err) {
+        signal?.removeEventListener('abort', onAbort);
+        reject(err);
+      }
+    };
+    tick();
+  });
+}
+
+/**
+ * Resolves on the next animation frame. Falls back to `setTimeout(0)` when
+ * `requestAnimationFrame` is unavailable. Resolves with the frame timestamp
+ * (or `Date.now()` in the fallback case).
+ */
+export function nextFrame(): Promise<number> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame((t) => resolve(t));
+    } else {
+      setTimeout(() => resolve(Date.now()), 0);
+    }
+  });
+}
+
+/**
+ * Resolves on the next microtask (or `Promise.resolve().then(...)` fallback
+ * when `queueMicrotask` is unavailable).
+ */
+export function nextTick(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof queueMicrotask === 'function') {
+      queueMicrotask(resolve);
+    } else {
+      Promise.resolve().then(resolve);
+    }
+  });
+}
