@@ -159,7 +159,7 @@ export const spring = (initialValue: number, config: SpringConfig = {}): Spring 
 /**
  * Preset spring configurations for common use cases.
  *
- * Includes the original four bQuery presets plus five extended presets
+ * Includes the original four bQuery presets plus three extended presets
  * (`wobbly`, `slow`, `molasses`) familiar from popular physics libraries.
  */
 export const springPresets = {
