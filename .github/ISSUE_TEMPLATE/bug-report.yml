@@ -1,0 +1,109 @@
+name: Bug report
+description: Report a reproducible problem in bQuery.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve bQuery.
+
+        Please provide enough detail for maintainers to reproduce the problem. If you are reporting a security issue, do **not** open a public issue—use the private security contact in the issue template chooser instead.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checklist
+      description: Please confirm the following before submitting.
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I can reproduce this on a supported runtime or browser.
+          required: true
+        - label: I included a minimal reproduction or clear reproduction steps.
+          required: true
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: A concise description of the bug.
+      placeholder: What happened, and why is it a problem?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Share the exact steps, sample code, repo link, or sandbox needed to reproduce the issue.
+      placeholder: |
+        1. Install...
+        2. Run...
+        3. Call...
+        4. Observe...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen instead.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages, stack traces, console output, or screenshots if relevant.
+      render: shell
+  - type: dropdown
+    id: package-area
+    attributes:
+      label: Affected area
+      description: Select the main module or area involved.
+      options:
+        - core
+        - reactive
+        - concurrency
+        - component
+        - motion
+        - security
+        - platform
+        - router
+        - store
+        - view
+        - forms
+        - i18n
+        - a11y
+        - dnd
+        - media
+        - plugin
+        - devtools
+        - testing
+        - ssr
+        - server
+        - docs
+        - build or tooling
+        - other
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: bQuery version
+      description: Which version of @bquery/bquery are you using?
+      placeholder: 1.13.0
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Runtime details
+      description: Include your runtime and version, for example Node 24, Bun 1.3.13, Chrome 136, or Safari 18.
+      placeholder: Bun 1.3.13 on macOS 15
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Share anything else that may help, such as recent changes, workarounds, or related links.

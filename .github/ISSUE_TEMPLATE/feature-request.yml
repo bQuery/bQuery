@@ -1,0 +1,81 @@
+name: Feature request
+description: Suggest an improvement to the framework, docs, or developer experience.
+title: "[Feature]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping shape bQuery.
+
+        Strong feature requests explain the user problem, the proposed outcome, and how the change fits the framework's batteries-included, zero-dependency goals.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Pre-flight checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate request.
+          required: true
+        - label: I explained the problem or use case, not just the desired API.
+          required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and where does the current experience fall short?
+      placeholder: Describe the workflow, pain point, or missing capability.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or capability you want to see.
+      placeholder: Explain the desired outcome and who benefits from it.
+    validations:
+      required: true
+  - type: textarea
+    id: api-shape
+    attributes:
+      label: Possible API or UX shape
+      description: Optional. Share an outline of how this could look from a user perspective.
+      placeholder: Imports, method names, docs changes, or UX expectations.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds or alternative approaches have you considered?
+  - type: dropdown
+    id: area
+    attributes:
+      label: Relevant area
+      options:
+        - core
+        - reactive
+        - concurrency
+        - component
+        - motion
+        - security
+        - platform
+        - router
+        - store
+        - view
+        - forms
+        - i18n
+        - a11y
+        - dnd
+        - media
+        - plugin
+        - devtools
+        - testing
+        - ssr
+        - server
+        - docs
+        - build or tooling
+        - other
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add supporting links, screenshots, prior art, or examples from other ecosystems.
