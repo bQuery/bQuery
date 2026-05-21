@@ -17,7 +17,7 @@
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
 | Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.13`                                                                                                                                                                |
 | Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                |
-| Homepage    | <https://bQuery.flausch-code.de>                                                                                                                                                                  |
+| Homepage    | <https://bquery.js.org>                                                                                                                                                                           |
 | Tagline     | The full-stack web framework that speaks jQuery.                                                                                                                                                  |
 | Description | Batteries-included TypeScript framework for the modern web with signals, SSR, Web Components, routing, server helpers, and a jQuery-inspired API — zero mandatory build step, security-by-default |
 
