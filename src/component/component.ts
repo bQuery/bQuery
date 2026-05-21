@@ -453,7 +453,7 @@ const createComponentClass = <
           const isValid = config.validator(value);
           if (!isValid) {
             throw new Error(
-              `bQuery component: validation failed for prop "${key}" with value ${JSON.stringify(value)}`
+              `bQuery component: validation failed for prop "${key}" with value ${formatPropValidationValue(value)}`
             );
           }
         }

@@ -722,7 +722,7 @@ describe('component/setProp/getProp', () => {
     host.remove();
   });
 
-  it('reports validation failures for imperatively set BigInt props without crashing stringification', () => {
+  it('validates BigInt props and reports meaningful errors', () => {
     const tag = uniqueTag('prop-validated-bigint');
     component<{ count?: number }>(tag, {
       props: {
@@ -740,7 +740,14 @@ describe('component/setProp/getProp', () => {
     };
     document.body.appendChild(host);
 
-    expect(() => host.setProp('count', 1n)).toThrow('validation failed for prop "count"');
+    let caught: Error | undefined;
+    try {
+      host.setProp('count', 1n);
+    } catch (e) {
+      caught = e as Error;
+    }
+    expect(caught?.message).toContain('validation failed for prop "count"');
+    expect(caught?.message).toContain('1');
     expect(host.shadowRoot?.textContent).toContain('0');
     host.remove();
   });
