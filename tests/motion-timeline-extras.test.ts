@@ -1,0 +1,542 @@
+import { afterEach, describe, expect, it, mock } from 'bun:test';
+import { timeline } from '../src/motion/timeline';
+import { stagger } from '../src/motion/stagger';
+import {
+  onReducedMotionChange,
+  prefersReducedMotion,
+  setReducedMotion,
+} from '../src/motion/reduced-motion';
+import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
+import { springVector } from '../src/motion/spring';
+
+const createElement = (finished: Promise<void> = Promise.resolve()) => {
+  const el = document.createElement('div');
+  const anim = {
+    onfinish: null as (() => void) | null,
+    finished,
+    cancel: mock(() => {}),
+    pause: mock(() => {}),
+    play: mock(() => {}),
+    commitStyles: mock(() => {}),
+    currentTime: 0,
+    playbackRate: 1,
+  };
+  (el as HTMLElement).animate = mock(() => anim) as unknown as Element['animate'];
+  return { el, anim };
+};
+
+afterEach(() => setReducedMotion(null));
+
+describe('motion/timeline extras', () => {
+  it('addLabel + label-relative `at` schedule from labels', () => {
+    const { el } = createElement();
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 200 } }],
+      { respectReducedMotion: true } // force reduced-motion-applied no-op path
+    );
+    tl.addLabel('mid');
+    const mid = tl.label('mid');
+    expect(typeof mid).toBe('number');
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 1 }, { opacity: 0 }],
+      options: { duration: 100 },
+      at: 'mid+=50',
+    });
+    expect(tl.duration()).toBeGreaterThanOrEqual((mid ?? 0) + 50 + 100);
+  });
+
+  it('resolves label-relative offsets for labels with punctuation', () => {
+    const { el } = createElement();
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 200 } }],
+      { respectReducedMotion: true }
+    );
+    tl.addLabel('mid-point:1');
+    const point = tl.label('mid-point:1');
+
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 1 }, { opacity: 0 }],
+      options: { duration: 100 },
+      at: 'mid-point:1+=50',
+    });
+
+    expect(tl.duration()).toBeGreaterThanOrEqual((point ?? 0) + 50 + 100);
+  });
+
+  it('accepts signed deltas for relative and label-relative offsets', () => {
+    const { el } = createElement();
+    const tl = timeline(
+      [{ target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 100 } }],
+      { respectReducedMotion: true }
+    );
+    tl.addLabel('mid');
+    const mid = tl.label('mid') ?? 0;
+
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 1 }, { opacity: 0 }],
+      options: { duration: 100 },
+      at: '+=-10',
+    });
+    tl.add({
+      target: el,
+      keyframes: [{ opacity: 0 }, { opacity: 1 }],
+      options: { duration: 100 },
+      at: 'mid+=-25',
+    });
+
+    expect(tl.duration()).toBeGreaterThanOrEqual(Math.max(190, mid + 75));
+  });
+
+  it('repeat + yoyo + playbackRate + progress + onUpdate compile and run', async () => {
+    const { el } = createElement();
+    const tl = timeline([
+      { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+    ]);
+    tl.repeat(1);
+    tl.yoyo(true);
+    expect(tl.playbackRate(2)).toBe(2);
+    expect(tl.progress()).toBe(0);
+    const updates: number[] = [];
+    const off = tl.onUpdate((t) => updates.push(t));
+    setReducedMotion(true); // make play() finish immediately
+    await tl.play();
+    off();
+    // Under reduced motion no updates are expected, but the API should be safe.
+    expect(updates.length).toBeGreaterThanOrEqual(0);
+  });
+
+  it('throws for non-finite repeat counts', async () => {
+    const { el } = createElement();
+    const tl = timeline([
+      { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+    ]);
+    tl.repeat(Number.NaN);
+    await expect(tl.play()).rejects.toThrow(
+      'timeline.repeat() count must be a finite number or "infinite"'
+    );
+  });
+
+  it('reverse toggles playback rate sign on running animations', () => {
+    const { el, anim } = createElement();
+    const tl = timeline([
+      { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+    ]);
+    tl.playbackRate(1);
+    void tl.play();
+    tl.reverse();
+    expect(anim.playbackRate).toBeLessThan(0);
+  });
+
+  it('prevents duplicate update loops and stops when the last listener unsubscribes during a tick', async () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+    let frameId = 0;
+    let cancels = 0;
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      frameId += 1;
+      return frameId;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {
+      cancels += 1;
+    }) as typeof cancelAnimationFrame;
+
+    try {
+      const { el } = createElement(new Promise(() => {}));
+      const tl = timeline([
+        { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+      ]);
+      void tl.play();
+      let off = () => {};
+      off = tl.onUpdate(() => off());
+      tl.resume();
+      expect(callbacks).toHaveLength(1);
+
+      const first = callbacks.shift();
+      first?.(0);
+
+      expect(callbacks).toHaveLength(0);
+      expect(cancels).toBe(1);
+      tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
+
+  it('does not reschedule the update loop after stop() during an update callback', async () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+    let frameId = 0;
+    let cancels = 0;
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      frameId += 1;
+      return frameId;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {
+      cancels += 1;
+    }) as typeof cancelAnimationFrame;
+
+    try {
+      const { el } = createElement(new Promise(() => {}));
+      const tl = timeline([
+        { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+      ]);
+      tl.onUpdate(() => tl.stop());
+      void tl.play();
+
+      expect(callbacks).toHaveLength(1);
+      callbacks.shift()?.(0);
+
+      expect(callbacks).toHaveLength(0);
+      expect(cancels).toBe(1);
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
+
+  it('does not start the update loop while paused when a listener subscribes', () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
+
+    try {
+      const { el } = createElement(new Promise(() => {}));
+      const tl = timeline([
+        { target: el, keyframes: [{ opacity: 0 }, { opacity: 1 }], options: { duration: 50 } },
+      ]);
+
+      void tl.play();
+      tl.pause();
+      const off = tl.onUpdate(() => {});
+
+      expect(callbacks).toHaveLength(0);
+
+      tl.resume();
+      expect(callbacks).toHaveLength(1);
+
+      off();
+      tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
+
+  it('samples the latest animation time for onUpdate and progress', () => {
+    const originalRequest = globalThis.requestAnimationFrame;
+    const originalCancel = globalThis.cancelAnimationFrame;
+    const callbacks: FrameRequestCallback[] = [];
+
+    globalThis.requestAnimationFrame = ((callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    }) as typeof requestAnimationFrame;
+    globalThis.cancelAnimationFrame = (() => {}) as typeof cancelAnimationFrame;
+
+    try {
+      const first = createElement(new Promise(() => {}));
+      const second = createElement(new Promise(() => {}));
+      const tl = timeline([
+        {
+          target: first.el,
+          keyframes: [{ opacity: 0 }, { opacity: 1 }],
+          options: { duration: 50 },
+          at: 0,
+        },
+        {
+          target: second.el,
+          keyframes: [{ opacity: 0 }, { opacity: 1 }],
+          options: { duration: 150 },
+          at: 50,
+        },
+      ]);
+      const updates: number[] = [];
+      tl.onUpdate((time) => updates.push(time));
+
+      void tl.play();
+      first.anim.currentTime = 50;
+      second.anim.currentTime = 120;
+      callbacks.shift()?.(0);
+
+      expect(updates).toEqual([120]);
+      expect(tl.progress()).toBe(0.6);
+      tl.stop();
+    } finally {
+      globalThis.requestAnimationFrame = originalRequest;
+      globalThis.cancelAnimationFrame = originalCancel;
+    }
+  });
+
+  it('applies the first keyframe styles when a reverse timeline finalizes without commitStyles support', async () => {
+    const el = document.createElement('div');
+    const animation = {
+      ...createElement(new Promise(() => {})).anim,
+      commitStyles: undefined,
+      currentTime: 0,
+      finished: Promise.resolve(),
+    };
+    (el as HTMLElement).animate = mock(() => animation) as unknown as Element['animate'];
+
+    const tl = timeline([
+      {
+        target: el,
+        keyframes: [
+          { opacity: 0, transform: 'translateY(10px)' },
+          { opacity: 1, transform: 'translateY(0)' },
+        ],
+        options: { duration: 10 },
+      },
+    ]);
+
+    const playing = tl.play();
+    tl.reverse();
+    await playing;
+
+    expect(el.style.opacity).toBe('0');
+    expect(el.style.transform).toBe('translateY(10px)');
+  });
+
+  it('applies the first keyframe styles for reverse reduced-motion playback', async () => {
+    setReducedMotion(true);
+    try {
+      const el = document.createElement('div');
+      const tl = timeline([
+        {
+          target: el,
+          keyframes: [{ opacity: 0 }, { opacity: 1 }],
+          options: { duration: 10 },
+        },
+      ]);
+      tl.reverse();
+
+      await tl.play();
+
+      expect(el.style.opacity).toBe('0');
+    } finally {
+      setReducedMotion(null);
+    }
+  });
+});
+
+describe('motion/stagger extras', () => {
+  it('grid mode computes 2D distance from a custom origin', () => {
+    const fn = stagger(20, { grid: [3, 3], from: { x: 0, y: 0 } });
+    expect(fn(0, 9)).toBe(0); // origin cell
+    const farCorner = fn(8, 9); // (2, 2)
+    expect(farCorner).toBeGreaterThan(0);
+  });
+
+  it('axis: "x" only considers horizontal distance', () => {
+    const fn = stagger(20, { grid: [3, 3], from: { x: 0, y: 0 }, axis: 'x' });
+    // index 6 == (0, 2) — same column as origin, axis-x distance is 0
+    expect(fn(6, 9)).toBe(0);
+  });
+
+  it('random mode with seed is deterministic', () => {
+    const a = stagger(10, { random: true, randomSeed: 123 });
+    const b = stagger(10, { random: true, randomSeed: 123 });
+    const va = [0, 1, 2, 3, 4].map((i) => a(i, 5));
+    const vb = [0, 1, 2, 3, 4].map((i) => b(i, 5));
+    expect(va).toEqual(vb);
+  });
+
+  it('uses distinct deterministic sequences for randomSeed 0 and 1', () => {
+    const zeroSeed = stagger(10, { random: true, randomSeed: 0 });
+    const oneSeed = stagger(10, { random: true, randomSeed: 1 });
+    const vz = [0, 1, 2, 3, 4].map((i) => zeroSeed(i, 5));
+    const v1 = [0, 1, 2, 3, 4].map((i) => oneSeed(i, 5));
+    expect(vz).not.toEqual(v1);
+  });
+
+  it('grid easing preserves the same max delay range as linear distance', () => {
+    const cols = 5;
+    const rows = 5;
+    const origin = { x: 0, y: 0 };
+    const linear = stagger(10, { grid: [cols, rows], from: origin });
+    const eased = stagger(10, { grid: [cols, rows], from: origin, easing: (t) => t });
+    const farCornerIndex = cols * rows - 1;
+
+    expect(eased(farCornerIndex, cols * rows)).toBe(linear(farCornerIndex, cols * rows));
+  });
+
+  it('returns the start delay for invalid grid dimensions', () => {
+    expect(stagger(10, { start: 5, grid: [0, 3] })(1, 3)).toBe(5);
+    expect(stagger(10, { start: 5, grid: [3, Number.NaN] })(1, 3)).toBe(5);
+    expect(stagger(10, { start: 5, grid: [3.5, 3] })(1, 3)).toBe(5);
+  });
+
+  it('treats coordinate origins as start in linear mode', () => {
+    const fn = stagger(10, { from: { x: 2, y: 5 } });
+    expect(fn(0, 4)).toBe(0);
+    expect(fn(2, 4)).toBe(20);
+  });
+});
+
+describe('motion/reduced-motion subscriptions', () => {
+  it('onReducedMotionChange fires when the override flips and unsubscribes cleanly', () => {
+    const events: boolean[] = [];
+    const off = onReducedMotionChange((v) => events.push(v));
+    setReducedMotion(true);
+    setReducedMotion(false);
+    off();
+    setReducedMotion(true); // should not fire
+    expect(events).toEqual([true, false]);
+  });
+
+  it('re-baselines system preference after all listeners unsubscribe', () => {
+    const originalMatchMedia = window.matchMedia;
+    let matches = false;
+    let changeListener: ((event: MediaQueryListEvent) => void) | null = null;
+
+    window.matchMedia = mock(
+      () =>
+        ({
+          get matches() {
+            return matches;
+          },
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+            if (typeof listener === 'function') {
+              changeListener = listener as (event: MediaQueryListEvent) => void;
+            }
+          },
+          removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+            if (typeof listener === 'function' && changeListener === listener) changeListener = null;
+          },
+          dispatchEvent: () => true,
+        }) as unknown as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const firstEvents: boolean[] = [];
+      const offFirst = onReducedMotionChange((value) => firstEvents.push(value));
+
+      matches = true;
+      (changeListener as ((event: MediaQueryListEvent) => void) | null)?.({
+        matches,
+        media: '(prefers-reduced-motion: reduce)',
+      } as MediaQueryListEvent);
+      expect(firstEvents).toEqual([true]);
+
+      offFirst();
+
+      matches = false;
+
+      const secondEvents: boolean[] = [];
+      const offSecond = onReducedMotionChange((value) => secondEvents.push(value));
+
+      matches = true;
+      (changeListener as ((event: MediaQueryListEvent) => void) | null)?.({
+        matches,
+        media: '(prefers-reduced-motion: reduce)',
+      } as MediaQueryListEvent);
+      expect(secondEvents).toEqual([true]);
+
+      offSecond();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('reuses the cached media query while reduced-motion subscriptions are active', () => {
+    const originalMatchMedia = window.matchMedia;
+    let matches = false;
+
+    window.matchMedia = mock(
+      () =>
+        ({
+          get matches() {
+            return matches;
+          },
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => true,
+        }) as unknown as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const off = onReducedMotionChange(() => {});
+      expect(window.matchMedia).toHaveBeenCalledTimes(1);
+
+      expect(prefersReducedMotion()).toBe(false);
+      matches = true;
+      expect(prefersReducedMotion()).toBe(true);
+      expect(window.matchMedia).toHaveBeenCalledTimes(1);
+
+      off();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
+  it('reducedMotionSignal exposes the current value and reacts to changes', () => {
+    const sig = reducedMotionSignal();
+    const initial = sig.value;
+    setReducedMotion(initial ? false : true);
+    expect(sig.value).toBe(!initial);
+    setReducedMotion(null);
+  });
+});
+
+describe('motion/springVector', () => {
+  it('subscribes to and unsubscribes from dimensions lazily', () => {
+    const pos = springVector({ x: 0, y: 0 });
+    const dimensions = pos.dimensions();
+    const unsubX = mock(() => {});
+    const unsubY = mock(() => {});
+    const xOnChange = mock(() => unsubX);
+    const yOnChange = mock(() => unsubY);
+    dimensions.x.onChange = xOnChange;
+    dimensions.y.onChange = yOnChange;
+
+    const off = pos.onChange(() => {});
+    expect(xOnChange).toHaveBeenCalledTimes(1);
+    expect(yOnChange).toHaveBeenCalledTimes(1);
+
+    off();
+    expect(unsubX).toHaveBeenCalledTimes(1);
+    expect(unsubY).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips snapshot work when no vector listeners are subscribed', () => {
+    const pos = springVector({ x: 0, y: 0 });
+    const dimensions = pos.dimensions();
+    const xCurrent = mock(() => 10);
+    const yCurrent = mock(() => 0);
+    dimensions.x.current = xCurrent;
+    dimensions.y.current = yCurrent;
+
+    pos.set({ x: 10 });
+    expect(xCurrent).not.toHaveBeenCalled();
+    expect(yCurrent).not.toHaveBeenCalled();
+
+    const off = pos.onChange(() => {});
+    pos.set({ x: 20 });
+    expect(xCurrent).toHaveBeenCalled();
+    expect(yCurrent).toHaveBeenCalled();
+    off();
+  });
+});

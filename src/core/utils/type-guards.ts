@@ -110,3 +110,85 @@ export function isPromise<T = unknown>(value: unknown): value is Promise<T> {
 export function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
+
+/**
+ * Checks if a value is an `Error` instance (or a subclass thereof).
+ */
+export function isError(value: unknown): value is Error {
+  return value instanceof Error;
+}
+
+/**
+ * Checks if a value is a `Map` instance.
+ */
+export function isMap<K = unknown, V = unknown>(value: unknown): value is Map<K, V> {
+  return value instanceof Map;
+}
+
+/**
+ * Checks if a value is a `Set` instance.
+ */
+export function isSet<T = unknown>(value: unknown): value is Set<T> {
+  return value instanceof Set;
+}
+
+/**
+ * Checks if a value is a `RegExp` instance.
+ */
+export function isRegExp(value: unknown): value is RegExp {
+  return value instanceof RegExp;
+}
+
+/**
+ * Checks if a value is a `symbol`.
+ */
+export function isSymbol(value: unknown): value is symbol {
+  return typeof value === 'symbol';
+}
+
+/**
+ * Checks if a value is a `bigint`.
+ */
+export function isBigInt(value: unknown): value is bigint {
+  return typeof value === 'bigint';
+}
+
+/**
+ * Heuristically checks if a value is an `async function`. Note that
+ * functions transpiled to generators may not match exactly; use with care.
+ */
+export function isAsyncFunction(value: unknown): boolean {
+  if (typeof value !== 'function') return false;
+  return Object.prototype.toString.call(value) === '[object AsyncFunction]';
+}
+
+/**
+ * Checks if a value is iterable (i.e. has a `[Symbol.iterator]` method).
+ */
+export function isIterable<T = unknown>(value: unknown): value is Iterable<T> {
+  if (value === null || value === undefined) return false;
+  return typeof (value as { [Symbol.iterator]?: unknown })[Symbol.iterator] === 'function';
+}
+
+/**
+ * Checks if a value is async-iterable (i.e. has a `[Symbol.asyncIterator]` method).
+ */
+export function isAsyncIterable<T = unknown>(value: unknown): value is AsyncIterable<T> {
+  if (value === null || value === undefined) return false;
+  return typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function';
+}
+
+/**
+ * Checks if a value is `null` or `undefined`.
+ */
+export function isNullish(value: unknown): value is null | undefined {
+  return value == null;
+}
+
+/**
+ * Checks if a value is neither `null` nor `undefined`. Type narrows to
+ * `NonNullable<T>` for downstream usage.
+ */
+export function isDefined<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}

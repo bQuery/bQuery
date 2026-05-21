@@ -4,13 +4,14 @@
  * @module bquery/motion
  */
 
-import { animate, applyFinalKeyframeStyles } from './animate';
+import { animate, applyKeyframeStyles } from './animate';
 import { prefersReducedMotion } from './reduced-motion';
 import type {
   SequenceOptions,
   SequenceStep,
   TimelineConfig,
   TimelineControls,
+  TimelineRepeat,
   TimelineStep,
 } from './types';
 
@@ -32,14 +33,41 @@ const resolveTimeValue = (value?: number | string): number => {
   return 0;
 };
 
-const resolveAt = (at: TimelineStep['at'], previousEnd: number): number => {
+const resolveAt = (
+  at: TimelineStep['at'],
+  previousEnd: number,
+  labels: Map<string, number>
+): number => {
+  const parseSignedDelta = (value: string): number | null => {
+    if (!/^[+-]?\d+(?:\.\d+)?$/.test(value)) return null;
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
   if (typeof at === 'number') return at;
   if (typeof at === 'string') {
-    const match = /^([+-])=(\d+(?:\.\d+)?)$/.exec(at);
-    if (match) {
-      const delta = Number.parseFloat(match[2]);
-      if (!Number.isFinite(delta)) return previousEnd;
-      return match[1] === '+' ? previousEnd + delta : previousEnd - delta;
+    const trimmed = at.trim();
+    // Plain numeric relative offsets: +=N, -=N
+    const relativeMatch = /^([+-])=\s*([+-]?\d+(?:\.\d+)?)$/.exec(trimmed);
+    if (relativeMatch) {
+      const delta = parseSignedDelta(relativeMatch[2]);
+      if (delta === null) return previousEnd;
+      return relativeMatch[1] === '+' ? previousEnd + delta : previousEnd - delta;
+    }
+    if (labels.has(trimmed)) {
+      return labels.get(trimmed) ?? previousEnd;
+    }
+    // Label-relative offsets: 'name+=N', 'name-=N'
+    const relativeLabelIndex = Math.max(trimmed.lastIndexOf('+='), trimmed.lastIndexOf('-='));
+    if (relativeLabelIndex > 0) {
+      const label = trimmed.slice(0, relativeLabelIndex).trim();
+      const operator = trimmed[relativeLabelIndex];
+      const deltaText = trimmed.slice(relativeLabelIndex + 2).trim();
+      const base = labels.get(label);
+      if (base === undefined) return previousEnd;
+      const delta = parseSignedDelta(deltaText);
+      if (delta === null) return base;
+      return operator === '+' ? base + delta : base - delta;
     }
   }
   return previousEnd;
@@ -67,10 +95,10 @@ const normalizeDuration = (options?: KeyframeAnimationOptions): number => {
   return baseDuration * iterations + endDelay;
 };
 
-const scheduleSteps = (steps: TimelineStep[]) => {
+const scheduleSteps = (steps: TimelineStep[], labels: Map<string, number>) => {
   let previousEnd = 0;
   return steps.map((step) => {
-    const baseStart = resolveAt(step.at, previousEnd);
+    const baseStart = resolveAt(step.at, previousEnd, labels);
     const stepDelay = resolveTimeValue(step.options?.delay as number | string | undefined);
     const start = Math.max(0, baseStart + stepDelay);
     const duration = normalizeDuration(step.options);
@@ -108,6 +136,10 @@ export const sequence = async (
 /**
  * Create a timeline controller for multiple animations.
  *
+ * Supports labels (`addLabel('name', at?)`), label-relative `at` strings
+ * (`'label+=200'`), `reverse()`, `playbackRate()`, `repeat()`, `yoyo()`,
+ * `onUpdate()` ticks, and a `progress()` getter in `[0, 1]`.
+ *
  * @param initialSteps - Steps for the timeline
  * @param config - Timeline configuration
  */
@@ -116,45 +148,110 @@ export const timeline = (
   config: TimelineConfig = {}
 ): TimelineControls => {
   const steps = [...initialSteps];
-  const listeners = new Set<() => void>();
+  const labels = new Map<string, number>();
+  const finishListeners = new Set<() => void>();
+  const updateListeners = new Set<(time: number) => void>();
   let animations: Array<{ animation: Animation; step: TimelineStep; start: number }> = [];
   let totalDuration = 0;
   let reducedMotionApplied = false;
   let finalized = false;
+  let rate = 1;
+  let repeatCount: TimelineRepeat = 0;
+  let yoyoEnabled = false;
+  let updateFrame: number | null = null;
+  let currentIteration = 0;
+  let runningDirection: 1 | -1 = 1;
+  let isPlaying = false;
 
   const { commitStyles = true, respectReducedMotion = true, onFinish } = config;
+
+  const stopUpdateLoop = () => {
+    if (updateFrame !== null && typeof cancelAnimationFrame === 'function') {
+      cancelAnimationFrame(updateFrame);
+    }
+    updateFrame = null;
+  };
+
+  const notifyUpdate = (time: number) => {
+    for (const listener of updateListeners) listener(time);
+  };
+
+  const getTimelineCurrentTime = (): number => {
+    let current = 0;
+    for (const { animation } of animations) {
+      if (typeof animation.currentTime === 'number') {
+        current = Math.max(current, animation.currentTime);
+      }
+    }
+    return current;
+  };
+
+  const applyResolvedStyles = (
+    target: Element,
+    keyframes: Keyframe[] | PropertyIndexedKeyframes,
+    direction: 1 | -1
+  ) => {
+    applyKeyframeStyles(target, keyframes, direction === -1 ? 'first' : 'last');
+  };
+
+  const startUpdateLoop = () => {
+    if (typeof requestAnimationFrame !== 'function') return;
+    if (!isPlaying) return;
+    if (updateListeners.size === 0) return;
+    if (updateFrame !== null) return;
+    if (finalized) return;
+    const tick = () => {
+      if (!isPlaying || finalized || updateListeners.size === 0 || animations.length === 0) {
+        updateFrame = null;
+        return;
+      }
+      const time = getTimelineCurrentTime();
+      notifyUpdate(time);
+      if (!isPlaying || finalized || updateListeners.size === 0 || animations.length === 0) {
+        updateFrame = null;
+        return;
+      }
+      updateFrame = requestAnimationFrame(tick);
+    };
+    updateFrame = requestAnimationFrame(tick);
+  };
 
   const finalize = () => {
     if (finalized) return;
     finalized = true;
+    isPlaying = false;
+    stopUpdateLoop();
 
-    if (commitStyles) {
-      for (const item of animations) {
-        const { animation, step } = item;
+    for (const item of animations) {
+      const { animation, step } = item;
+      if (commitStyles) {
         if (typeof animation.commitStyles === 'function') {
           animation.commitStyles();
         } else {
-          applyFinalKeyframeStyles(step.target, step.keyframes);
+          const direction =
+            typeof animation.currentTime === 'number' ? (animation.currentTime <= 0 ? -1 : 1) : runningDirection;
+          applyResolvedStyles(step.target, step.keyframes, direction);
         }
-        animation.cancel();
       }
+      animation.cancel();
     }
 
-    listeners.forEach((listener) => listener());
+    finishListeners.forEach((listener) => listener());
     onFinish?.();
   };
 
-  const buildAnimations = () => {
+  const buildAnimations = (direction: 1 | -1) => {
     animations.forEach(({ animation }) => animation.cancel());
     animations = [];
     finalized = false;
+    runningDirection = direction;
 
-    const schedule = scheduleSteps(steps);
+    const schedule = scheduleSteps(steps, labels);
     totalDuration = schedule.length ? Math.max(...schedule.map((item) => item.end)) : 0;
 
     if (respectReducedMotion && prefersReducedMotion()) {
       if (commitStyles) {
-        schedule.forEach(({ step }) => applyFinalKeyframeStyles(step.target, step.keyframes));
+        schedule.forEach(({ step }) => applyResolvedStyles(step.target, step.keyframes, direction));
       }
       reducedMotionApplied = true;
       return;
@@ -166,7 +263,7 @@ export const timeline = (
     );
     if (animateUnavailable) {
       if (commitStyles) {
-        schedule.forEach(({ step }) => applyFinalKeyframeStyles(step.target, step.keyframes));
+        schedule.forEach(({ step }) => applyResolvedStyles(step.target, step.keyframes, direction));
       }
       reducedMotionApplied = true;
       return;
@@ -180,53 +277,121 @@ export const timeline = (
         delay: start,
         fill: options.fill ?? 'both',
       });
+      try {
+        animation.playbackRate = rate * direction;
+      } catch {
+        // ignore
+      }
       return { animation, step, start };
     });
   };
 
-  return {
+  const playOnce = async (direction: 1 | -1): Promise<void> => {
+    buildAnimations(direction);
+
+    if (reducedMotionApplied || animations.length === 0) {
+      finalize();
+      return;
+    }
+
+    isPlaying = true;
+
+    if (direction === -1) {
+      animations.forEach(({ animation }) => {
+        try {
+          animation.currentTime = totalDuration;
+        } catch {
+          // ignore
+        }
+      });
+    }
+
+    startUpdateLoop();
+
+    const finishPromises = animations.map((item) =>
+      item.animation.finished.catch(() => undefined)
+    );
+    await Promise.all(finishPromises);
+    stopUpdateLoop();
+  };
+
+  const resolveRepeat = (): number => {
+    if (repeatCount === 'infinite') return Number.POSITIVE_INFINITY;
+    if (!Number.isFinite(repeatCount)) {
+      throw new RangeError('timeline.repeat() count must be a finite number or "infinite"');
+    }
+    return Math.max(0, Math.floor(repeatCount));
+  };
+
+  const controls: TimelineControls = {
     add(step: TimelineStep): void {
       steps.push(step);
+    },
+
+    addLabel(name: string, at?: number | string): void {
+      const previousEnd = scheduleSteps(steps, labels).reduce(
+        (acc, item) => Math.max(acc, item.end),
+        0
+      );
+      const time = resolveAt(at, previousEnd, labels);
+      labels.set(name, Math.max(0, time));
+    },
+
+    label(name: string): number | undefined {
+      return labels.get(name);
     },
 
     duration(): number {
       if (!steps.length) return 0;
       if (!animations.length) {
-        const schedule = scheduleSteps(steps);
+        const schedule = scheduleSteps(steps, labels);
         return Math.max(...schedule.map((item) => item.end));
       }
       return totalDuration;
     },
 
     async play(): Promise<void> {
-      buildAnimations();
+      currentIteration = 0;
+      const total = resolveRepeat();
+      let direction: 1 | -1 = runningDirection;
 
-      if (reducedMotionApplied || animations.length === 0) {
-        finalize();
-        return;
+      while (currentIteration <= total) {
+        await playOnce(direction);
+        if (finalized) {
+          // playOnce() finalized the timeline early (for example via stop(),
+          // reduced motion, or animate-unavailable fallback paths).
+          return;
+        }
+        currentIteration += 1;
+        if (currentIteration > total) break;
+        if (yoyoEnabled) direction = direction === 1 ? -1 : 1;
+        // Reset finalized flag for the next iteration's buildAnimations().
       }
 
-      const finishPromises = animations.map((item) =>
-        item.animation.finished.catch(() => undefined)
-      );
-      await Promise.all(finishPromises);
       finalize();
     },
 
     pause(): void {
       if (reducedMotionApplied) return;
+      isPlaying = false;
       animations.forEach(({ animation }) => animation.pause());
+      stopUpdateLoop();
     },
 
     resume(): void {
       if (reducedMotionApplied) return;
+      isPlaying = true;
       animations.forEach(({ animation }) => animation.play());
+      startUpdateLoop();
     },
 
     stop(): void {
+      isPlaying = false;
+      stopUpdateLoop();
       animations.forEach(({ animation }) => animation.cancel());
       animations = [];
       reducedMotionApplied = false;
+      finalized = true;
     },
 
     seek(time: number): void {
@@ -236,11 +401,64 @@ export const timeline = (
         // so we set it directly to the requested timeline time
         animation.currentTime = time;
       });
+      notifyUpdate(time);
+    },
+
+    reverse(): void {
+      runningDirection = runningDirection === 1 ? -1 : 1;
+      animations.forEach(({ animation }) => {
+        try {
+          animation.playbackRate = rate * runningDirection;
+        } catch {
+          // ignore
+        }
+      });
+    },
+
+    playbackRate(value?: number): number {
+      if (typeof value === 'number' && Number.isFinite(value) && value > 0) {
+        rate = value;
+        animations.forEach(({ animation }) => {
+          try {
+            animation.playbackRate = rate * runningDirection;
+          } catch {
+            // ignore
+          }
+        });
+      }
+      return rate;
+    },
+
+    repeat(count: TimelineRepeat): void {
+      repeatCount = count;
+    },
+
+    yoyo(enabled: boolean): void {
+      yoyoEnabled = enabled;
+    },
+
+    progress(): number {
+      if (!animations.length || totalDuration <= 0) return 0;
+      const current = getTimelineCurrentTime();
+      return Math.min(1, Math.max(0, current / totalDuration));
+    },
+
+    onUpdate(callback: (time: number) => void): () => void {
+      updateListeners.add(callback);
+      if (updateListeners.size === 1 && animations.length > 0 && isPlaying) {
+        startUpdateLoop();
+      }
+      return () => {
+        updateListeners.delete(callback);
+        if (updateListeners.size === 0) stopUpdateLoop();
+      };
     },
 
     onFinish(callback: () => void): () => void {
-      listeners.add(callback);
-      return () => listeners.delete(callback);
+      finishListeners.add(callback);
+      return () => finishListeners.delete(callback);
     },
   };
+
+  return controls;
 };

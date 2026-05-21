@@ -15,6 +15,67 @@
 let reducedMotionOverride: boolean | null = null;
 
 /**
+ * Subscribers receiving notifications when the effective reduced-motion
+ * preference changes.
+ * @internal
+ */
+const reducedMotionListeners = new Set<(reduced: boolean) => void>();
+
+let lastDispatchedValue: boolean | null = null;
+let mediaQueryList: MediaQueryList | null = null;
+let mediaQueryHandler: ((event: MediaQueryListEvent) => void) | null = null;
+
+const evaluateCurrent = (): boolean => {
+  if (reducedMotionOverride !== null) return reducedMotionOverride;
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (mediaQueryList) return mediaQueryList.matches;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+};
+
+const dispatchIfChanged = (): void => {
+  const value = evaluateCurrent();
+  if (value === lastDispatchedValue) return;
+  lastDispatchedValue = value;
+  for (const listener of reducedMotionListeners) listener(value);
+};
+
+const ensureMediaQuerySubscription = (): void => {
+  if (mediaQueryList || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+  try {
+    mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
+  } catch {
+    mediaQueryList = null;
+    return;
+  }
+  mediaQueryHandler = () => dispatchIfChanged();
+  if (typeof mediaQueryList.addEventListener === 'function') {
+    mediaQueryList.addEventListener('change', mediaQueryHandler);
+  } else if (typeof (mediaQueryList as MediaQueryList & {
+    addListener?: (cb: (event: MediaQueryListEvent) => void) => void;
+  }).addListener === 'function') {
+    (mediaQueryList as MediaQueryList & {
+      addListener: (cb: (event: MediaQueryListEvent) => void) => void;
+    }).addListener(mediaQueryHandler);
+  }
+};
+
+const teardownMediaQuerySubscription = (): void => {
+  if (!mediaQueryList || !mediaQueryHandler) return;
+  if (typeof mediaQueryList.removeEventListener === 'function') {
+    mediaQueryList.removeEventListener('change', mediaQueryHandler);
+  } else if (typeof (mediaQueryList as MediaQueryList & {
+    removeListener?: (cb: (event: MediaQueryListEvent) => void) => void;
+  }).removeListener === 'function') {
+    (mediaQueryList as MediaQueryList & {
+      removeListener: (cb: (event: MediaQueryListEvent) => void) => void;
+    }).removeListener(mediaQueryHandler);
+  }
+  mediaQueryList = null;
+  mediaQueryHandler = null;
+  lastDispatchedValue = null;
+};
+
+/**
  * Check whether reduced motion should be applied.
  *
  * Returns the global override if set via {@link setReducedMotion},
@@ -30,13 +91,7 @@ let reducedMotionOverride: boolean | null = null;
  * ```
  */
 export const prefersReducedMotion = (): boolean => {
-  if (reducedMotionOverride !== null) {
-    return reducedMotionOverride;
-  }
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
-    return false;
-  }
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  return evaluateCurrent();
 };
 
 /**
@@ -63,4 +118,32 @@ export const prefersReducedMotion = (): boolean => {
  */
 export const setReducedMotion = (override: boolean | null): void => {
   reducedMotionOverride = override;
+  dispatchIfChanged();
+};
+
+/**
+ * Subscribe to changes in the effective reduced-motion preference.
+ *
+ * The callback receives the new value and is invoked whenever the system
+ * preference changes (via `matchMedia` change events) or when
+ * {@link setReducedMotion} updates the override. Returns an unsubscribe
+ * function.
+ *
+ * @example
+ * ```ts
+ * const off = onReducedMotionChange((reduced) => {
+ *   document.documentElement.dataset.reducedMotion = String(reduced);
+ * });
+ * // ... later
+ * off();
+ * ```
+ */
+export const onReducedMotionChange = (callback: (reduced: boolean) => void): (() => void) => {
+  reducedMotionListeners.add(callback);
+  if (lastDispatchedValue === null) lastDispatchedValue = evaluateCurrent();
+  ensureMediaQuerySubscription();
+  return () => {
+    reducedMotionListeners.delete(callback);
+    if (reducedMotionListeners.size === 0) teardownMediaQuerySubscription();
+  };
 };
