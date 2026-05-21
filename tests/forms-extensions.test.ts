@@ -818,13 +818,15 @@ describe('forms/schema', () => {
 
   it('accepts raw FieldConfig and plain initial values', async () => {
     const form = createForm({
-      ...schema<{ a: string; b: number }>({
+      ...schema<{ a: string; b: number; c: string }>({
         a: { initialValue: 'x', validators: [required()] },
         b: 5,
+        c: { initialValue: 'y' },
       }),
     });
     expect(form.fields.a.value.value).toBe('x');
     expect(form.fields.b.value.value).toBe(5);
+    expect(form.fields.c.value.value).toBe('y');
   });
 
   it('preserves object-shaped initial values that happen to expose an initialValue key', () => {

@@ -348,7 +348,7 @@ describe('motion/animate', () => {
     await promise;
     animation.onfinish?.();
 
-    expect(animation.cancel).toHaveBeenCalled();
+    expect(animation.cancel).toHaveBeenCalledTimes(1);
     expect(onFinish).toHaveBeenCalledTimes(1);
   });
 

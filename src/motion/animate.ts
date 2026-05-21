@@ -168,11 +168,6 @@ export const animate = (element: Element, config: AnimateOptions): Promise<void>
     if (signal) {
       abortHandler = () => {
         if (finalized) return;
-        try {
-          animation.cancel();
-        } catch {
-          // ignore
-        }
         finalizeAborted();
       };
       signal.addEventListener('abort', abortHandler, { once: true });
