@@ -21,6 +21,25 @@ import { useField, useFieldArray, useForm } from '../src/forms/composables';
 
 const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36).slice(2, 9)}`;
 
+const createDelegatedButton = (attr: string, label: string): HTMLButtonElement => {
+  const button = document.createElement('button');
+  const separatorIndex = attr.indexOf('=');
+  const attrName = separatorIndex === -1 ? '' : attr.slice(0, separatorIndex);
+  const rawValue = separatorIndex === -1 ? '' : attr.slice(separatorIndex + 1).trim();
+  const attrValue =
+    rawValue.startsWith('"') && rawValue.endsWith('"')
+      ? rawValue.slice(1, -1)
+      : rawValue.startsWith("'") && rawValue.endsWith("'")
+        ? rawValue.slice(1, -1)
+        : rawValue;
+
+  if (attrName && attrValue) {
+    button.setAttribute(attrName, attrValue);
+  }
+  button.textContent = label;
+  return button;
+};
+
 // ---------------------------------------------------------------------------
 // useRef
 // ---------------------------------------------------------------------------
@@ -596,18 +615,8 @@ describe('component/events', () => {
 
       const root = document.createElement('div');
       const childHost = document.createElement('div');
-
-      const parentButton = document.createElement('button');
-      const [, parentAttrName, parentAttrValue] = parentAttr.match(/^([^=]+)="([^"]+)"$/) ?? [];
-      if (parentAttrName && parentAttrValue) parentButton.setAttribute(parentAttrName, parentAttrValue);
-      parentButton.textContent = 'parent';
-      root.appendChild(parentButton);
-
-      const childButton = document.createElement('button');
-      const [, childAttrName, childAttrValue] = childAttr.match(/^([^=]+)="([^"]+)"$/) ?? [];
-      if (childAttrName && childAttrValue) childButton.setAttribute(childAttrName, childAttrValue);
-      childButton.textContent = 'child';
-      childHost.appendChild(childButton);
+      root.appendChild(createDelegatedButton(parentAttr, 'parent'));
+      childHost.appendChild(createDelegatedButton(childAttr, 'child'));
       root.appendChild(childHost);
 
       cleanup = bindDelegatedEvents(childHost);
