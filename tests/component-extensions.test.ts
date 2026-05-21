@@ -21,20 +21,11 @@ import { useField, useFieldArray, useForm } from '../src/forms/composables';
 
 const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36).slice(2, 9)}`;
 
-const createDelegatedButton = (attr: string, label: string): HTMLButtonElement => {
-  const button = document.createElement('button');
-  const separatorIndex = attr.indexOf('=');
-  const hasEquals = separatorIndex !== -1;
-  const attrName = hasEquals ? attr.slice(0, separatorIndex) : '';
-  const rawValue = hasEquals ? attr.slice(separatorIndex + 1).trim() : '';
-  const needsUnquote =
-    (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
-    (rawValue.startsWith("'") && rawValue.endsWith("'"));
-  const attrValue = needsUnquote ? rawValue.slice(1, -1) : rawValue;
+const delegatedClickAttributePrefix = 'data-bq-on-click="';
 
-  if (attrName && attrValue) {
-    button.setAttribute(attrName, attrValue);
-  }
+const createDelegatedClickButton = (handlerId: string, label: string): HTMLButtonElement => {
+  const button = document.createElement('button');
+  button.setAttribute('data-bq-on-click', handlerId);
   button.textContent = label;
   return button;
 };
@@ -611,11 +602,13 @@ describe('component/events', () => {
         childClicks += 1;
       });
       setCurrentScope(previousScope);
+      const parentHandlerId = parentAttr.slice(delegatedClickAttributePrefix.length, -1);
+      const childHandlerId = childAttr.slice(delegatedClickAttributePrefix.length, -1);
 
       const root = document.createElement('div');
       const childHost = document.createElement('div');
-      root.appendChild(createDelegatedButton(parentAttr, 'parent'));
-      childHost.appendChild(createDelegatedButton(childAttr, 'child'));
+      root.appendChild(createDelegatedClickButton(parentHandlerId, 'parent'));
+      childHost.appendChild(createDelegatedClickButton(childHandlerId, 'child'));
       root.appendChild(childHost);
 
       cleanup = bindDelegatedEvents(childHost);
