@@ -7,6 +7,18 @@
 import type { Form, FormSnapshot } from './types';
 import { escapeForScript } from '../ssr/escape';
 
+const FORM_STATE_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+
+const validateFormStateId = (id: string): string => {
+  const value = String(id);
+  if (!FORM_STATE_ID_PATTERN.test(value)) {
+    throw new Error(
+      'bQuery forms: form state id must contain only letters, numbers, underscores, or hyphens.'
+    );
+  }
+  return value;
+};
+
 /**
  * Serialize a form snapshot to an inline `<script>` tag suitable for embedding
  * in SSR-rendered HTML. The snapshot is embedded in a
@@ -14,7 +26,8 @@ import { escapeForScript } from '../ssr/escape';
  * on the client by {@link readSerializedFormState} and applied via
  * {@link Form.restore}.
  *
- * @param id - Stable identifier for this form
+ * @param id - Stable identifier for this form. Must contain only letters,
+ * numbers, underscores, or hyphens.
  * @param snapshot - Snapshot returned by {@link Form.snapshot}
  * @returns A complete `<script>` tag string
  *
@@ -32,7 +45,7 @@ export const serializeFormState = <T extends Record<string, unknown>>(
   id: string,
   snapshot: FormSnapshot<T>
 ): string => {
-  const safeId = String(id).replace(/[^\w-]/g, '');
+  const safeId = validateFormStateId(id);
   const json = JSON.stringify(snapshot);
   const payload = escapeForScript(json);
   return `<script type="application/json" data-bq-form="${safeId}">${payload}</script>`;
@@ -42,14 +55,15 @@ export const serializeFormState = <T extends Record<string, unknown>>(
  * Read a previously-serialized form snapshot from the DOM. Returns `undefined`
  * if no matching `<script data-bq-form="...">` is found.
  *
- * @param id - The id used when calling {@link serializeFormState}
+ * @param id - The id used when calling {@link serializeFormState}. Must contain
+ * only letters, numbers, underscores, or hyphens.
  * @returns The decoded snapshot or `undefined`
  */
 export const readSerializedFormState = <T extends Record<string, unknown>>(
   id: string
 ): FormSnapshot<T> | undefined => {
   if (typeof document === 'undefined') return undefined;
-  const safeId = String(id).replace(/[^\w-]/g, '');
+  const safeId = validateFormStateId(id);
   const node = document.querySelector<HTMLScriptElement>(`script[data-bq-form="${safeId}"]`);
   if (!node) return undefined;
   try {

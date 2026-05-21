@@ -1013,4 +1013,19 @@ describe('forms/ssr', () => {
     expect(form.fields.x.isTouched.value).toBe(true);
     document.body.innerHTML = '';
   });
+
+  it('rejects unsupported form state ids instead of silently normalizing them', () => {
+    const snapshot = {
+      values: { x: 'hello' },
+      errors: {},
+      touched: {},
+    };
+
+    expect(() => serializeFormState('bad id', snapshot)).toThrow(
+      'form state id must contain only letters, numbers, underscores, or hyphens'
+    );
+    expect(() => readSerializedFormState('bad id')).toThrow(
+      'form state id must contain only letters, numbers, underscores, or hyphens'
+    );
+  });
 });

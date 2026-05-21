@@ -17,7 +17,11 @@ const findSlot = (host: HTMLElement, name?: string): HTMLSlotElement | null => {
   // not re-processed), then quotes.
   const cssEscape = (globalThis as { CSS?: { escape?: (value: string) => string } }).CSS?.escape;
   const escaped = cssEscape ? cssEscape(name) : name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-  return root.querySelector<HTMLSlotElement>(`slot[name="${escaped}"]`);
+  try {
+    return root.querySelector<HTMLSlotElement>(`slot[name="${escaped}"]`);
+  } catch {
+    return null;
+  }
 };
 
 /**

@@ -2,7 +2,7 @@
  * `provide` / `inject` — Web Component–native dependency injection.
  *
  * Uses a typed `CustomEvent` over the composed path: a descendant emits a
- * non-bubbling-canceled `__bq_inject__` event, and the nearest ancestor that
+ * bubbling, non-cancelable `__bq_inject__` event, and the nearest ancestor that
  * has called `provide(key)` for the same key answers it via the event's
  * `detail.resolve` callback. No global state is involved.
  *

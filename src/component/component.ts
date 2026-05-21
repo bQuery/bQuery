@@ -64,6 +64,14 @@ const COMPONENT_ALLOWED_ATTRIBUTES = [
   'wrap',
 ];
 
+const formatPropValidationValue = (value: unknown): string => {
+  try {
+    return JSON.stringify(value) ?? String(value);
+  } catch {
+    return String(value);
+  }
+};
+
 /**
  * Creates a custom element class for a component definition.
  *
@@ -215,7 +223,7 @@ const createComponentClass = <
 
       if (propConfig?.validator && value !== undefined && !propConfig.validator(value)) {
         throw new Error(
-          `bQuery component: validation failed for prop "${name}" with value ${JSON.stringify(value)}`
+          `bQuery component: validation failed for prop "${name}" with value ${formatPropValidationValue(value)}`
         );
       }
 

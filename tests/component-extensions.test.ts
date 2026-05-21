@@ -142,6 +142,30 @@ describe('component/slots', () => {
     host.remove();
   });
 
+  it('slot helpers tolerate invalid selector text when CSS.escape is unavailable', () => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<slot name="safe"></slot>';
+
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'CSS');
+    Object.defineProperty(globalThis, 'CSS', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    try {
+      expect(hasSlot(host, 'bad]\nname')).toBe(false);
+      expect(slotText(host, 'bad]\nname')).toBe('');
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, 'CSS', descriptor);
+      } else {
+        delete (globalThis as { CSS?: unknown }).CSS;
+      }
+    }
+  });
+
   it('rejects useSlot() during render()', () => {
     const tag = uniqueTag('slot-render');
     const capturedErrors: Error[] = [];
@@ -694,6 +718,29 @@ describe('component/setProp/getProp', () => {
     document.body.appendChild(host);
 
     expect(() => host.setProp('count', -1)).toThrow('validation failed for prop "count"');
+    expect(host.shadowRoot?.textContent).toContain('0');
+    host.remove();
+  });
+
+  it('reports validation failures for imperatively set BigInt props without crashing stringification', () => {
+    const tag = uniqueTag('prop-validated-bigint');
+    component<{ count?: number }>(tag, {
+      props: {
+        count: {
+          type: Number,
+          default: 0,
+          validator: (value) => typeof value === 'number' && value >= 0,
+        },
+      },
+      render: ({ props }) => html`<div>${String(props.count)}</div>`,
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    expect(() => host.setProp('count', 1n)).toThrow('validation failed for prop "count"');
     expect(host.shadowRoot?.textContent).toContain('0');
     host.remove();
   });
