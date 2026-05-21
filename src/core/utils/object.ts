@@ -298,6 +298,15 @@ const isSafeKey = (key: PropertyKey): boolean => {
  */
 export function get<T = unknown>(
   obj: unknown,
+  path: string | readonly PropertyKey[]
+): T | undefined;
+export function get<T = unknown>(
+  obj: unknown,
+  path: string | readonly PropertyKey[],
+  defaultValue: T
+): T;
+export function get<T = unknown>(
+  obj: unknown,
   path: string | readonly PropertyKey[],
   defaultValue?: T
 ): T | undefined {

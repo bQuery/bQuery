@@ -185,7 +185,8 @@ describe('utils/object extras', () => {
     const target: Record<string, unknown> = { a: 1, b: undefined };
     defaults(target, { a: 99, b: 2, c: 3 });
     expect(target).toEqual({ a: 1, b: 2, c: 3 });
-    defaults(target, { __proto__: { polluted: true } } as unknown as Record<string, unknown>);
+    const source = JSON.parse('{"__proto__":{"polluted":true}}') as Record<string, unknown>;
+    defaults(target, source);
     expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();
   });
 

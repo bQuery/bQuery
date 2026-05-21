@@ -353,10 +353,17 @@ export function randomString(length: number, charset = DEFAULT_RANDOM_STRING_CHA
       ? globalThis.crypto
       : undefined;
   if (cryptoApi) {
-    const bytes = new Uint32Array(length);
-    cryptoApi.getRandomValues(bytes);
+    const limit = Math.floor(0x100000000 / charset.length) * charset.length;
     let out = '';
-    for (let i = 0; i < length; i += 1) out += charset[bytes[i] % charset.length];
+    while (out.length < length) {
+      const bytes = new Uint32Array(length - out.length);
+      cryptoApi.getRandomValues(bytes);
+      for (let i = 0; i < bytes.length && out.length < length; i += 1) {
+        const value = bytes[i];
+        if (value >= limit) continue;
+        out += charset[value % charset.length];
+      }
+    }
     return out;
   }
   let out = '';
