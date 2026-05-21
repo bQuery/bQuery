@@ -77,18 +77,22 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
     typeof queueMicrotask !== 'undefined'
       ? queueMicrotask
       : (cb: () => void): unknown => setTimeout(cb, 0);
-  const observer = new MutationObserver(() => {
-    if (disposed) return;
-    const previousSlot = currentSlot;
-    const nextSlot = bindCurrentSlot();
-    if (previousSlot !== nextSlot) {
-      update();
-    }
-  });
+  const MutationObserverCtor =
+    globalThis.MutationObserver ?? host.ownerDocument?.defaultView?.MutationObserver;
+  const observer = MutationObserverCtor
+    ? new MutationObserverCtor(() => {
+        if (disposed) return;
+        const previousSlot = currentSlot;
+        const nextSlot = bindCurrentSlot();
+        if (previousSlot !== nextSlot) {
+          update();
+        }
+      })
+    : null;
   schedule(() => {
     if (disposed) return;
     const root = host.shadowRoot;
-    if (root) {
+    if (root && observer) {
       observer.observe(root, { childList: true, subtree: true });
     }
     update();
@@ -96,7 +100,7 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
 
   scope.addDisposer(() => {
     disposed = true;
-    observer.disconnect();
+    observer?.disconnect();
     currentSlot?.removeEventListener('slotchange', update);
     currentSlot = null;
     sig.dispose();
