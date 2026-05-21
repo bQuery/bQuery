@@ -516,15 +516,39 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     }
     if (left instanceof Map && right instanceof Map) {
       if (left.size !== right.size) return false;
-      for (const [key, value] of left) {
-        if (!right.has(key)) return false;
-        if (!compare(value, right.get(key))) return false;
+      const rightEntries = Array.from(right.entries());
+      const used = new Set<number>();
+      for (const [leftKey, leftValue] of left) {
+        let matched = false;
+        for (let i = 0; i < rightEntries.length; i += 1) {
+          if (used.has(i)) continue;
+          const [rightKey, rightValue] = rightEntries[i];
+          if (compare(leftKey, rightKey) && compare(leftValue, rightValue)) {
+            used.add(i);
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) return false;
       }
       return true;
     }
     if (left instanceof Set && right instanceof Set) {
       if (left.size !== right.size) return false;
-      for (const value of left) if (!right.has(value)) return false;
+      const rightValues = Array.from(right.values());
+      const used = new Set<number>();
+      for (const leftValue of left) {
+        let matched = false;
+        for (let i = 0; i < rightValues.length; i += 1) {
+          if (used.has(i)) continue;
+          if (compare(leftValue, rightValues[i])) {
+            used.add(i);
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) return false;
+      }
       return true;
     }
 

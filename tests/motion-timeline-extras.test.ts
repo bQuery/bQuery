@@ -104,8 +104,8 @@ describe('motion/timeline extras', () => {
     setReducedMotion(true); // make play() finish immediately
     await tl.play();
     off();
-    // Under reduced motion no updates are expected, but the API should be safe.
-    expect(updates.length).toBeGreaterThanOrEqual(0);
+    // Under reduced motion, playback should complete without per-frame updates.
+    expect(updates.length).toBe(0);
   });
 
   it('throws for non-finite repeat counts', async () => {

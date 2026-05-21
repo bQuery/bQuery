@@ -827,6 +827,17 @@ describe('forms/schema', () => {
     expect(form.fields.b.value.value).toBe(5);
   });
 
+  it('preserves object-shaped initial values that happen to expose an initialValue key', () => {
+    const raw = { initialValue: 'x', other: 1 };
+    const form = createForm({
+      ...schema<{ meta: typeof raw }>({
+        meta: raw,
+      }),
+    });
+
+    expect(form.fields.meta.value.value).toEqual(raw);
+  });
+
   it('requires defaults for fluent schema entries', () => {
     expect(() =>
       schema<{ name: string }>({

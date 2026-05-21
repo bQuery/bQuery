@@ -106,6 +106,42 @@ describe('component/slots', () => {
     host.remove();
   });
 
+  it('useSlot keeps reacting after the slot element is replaced', async () => {
+    const tag = uniqueTag('slot-rebind');
+    let captured: Signal<Element[]> | null = null;
+    component<{ mode: string }>(tag, {
+      props: {
+        mode: { type: String, default: 'a' },
+      },
+      connected() {
+        captured = useSlot(this);
+      },
+      render: ({ props }) =>
+        props.mode === 'a'
+          ? html`<div><slot></slot></div>`
+          : html`<section><slot></slot></section>`,
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (key: string, value: unknown) => void;
+    };
+    host.innerHTML = '<span>a</span>';
+    document.body.appendChild(host);
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+
+    const slotSignal = captured as unknown as Signal<Element[]>;
+    expect(slotSignal.value).toHaveLength(1);
+
+    host.setProp('mode', 'b');
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+
+    host.appendChild(document.createElement('span'));
+    await new Promise((r) => queueMicrotask(() => r(undefined)));
+
+    expect(slotSignal.value).toHaveLength(2);
+    host.remove();
+  });
+
   it('rejects useSlot() during render()', () => {
     const tag = uniqueTag('slot-render');
     const capturedErrors: Error[] = [];
@@ -608,6 +644,57 @@ describe('component/setProp/getProp', () => {
     host.setProp('items', ['a', 'b']);
     expect(host.getProp<string[]>('items')).toEqual(['a', 'b']);
     expect(lastRendered).toEqual(['a', 'b']);
+    host.remove();
+  });
+
+  it('allows deferred initial mount once a required prop is set imperatively', () => {
+    const tag = uniqueTag('prop-required');
+    let renderCount = 0;
+    component<{ config: { label: string } }>(tag, {
+      props: {
+        config: { type: Object, required: true },
+      },
+      render: ({ props }) => {
+        renderCount += 1;
+        return html`<div>${props.config.label}</div>`;
+      },
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    expect(host.shadowRoot?.childNodes).toHaveLength(0);
+    expect(renderCount).toBe(0);
+
+    host.setProp('config', { label: 'Ready' });
+
+    expect(renderCount).toBe(1);
+    expect(host.shadowRoot?.textContent).toContain('Ready');
+    host.remove();
+  });
+
+  it('validates imperatively set props before rendering', () => {
+    const tag = uniqueTag('prop-validated');
+    component<{ count?: number }>(tag, {
+      props: {
+        count: {
+          type: Number,
+          default: 0,
+          validator: (value) => typeof value === 'number' && value >= 0,
+        },
+      },
+      render: ({ props }) => html`<div>${String(props.count)}</div>`,
+    });
+
+    const host = document.createElement(tag) as HTMLElement & {
+      setProp: (k: string, v: unknown) => void;
+    };
+    document.body.appendChild(host);
+
+    expect(() => host.setProp('count', -1)).toThrow('validation failed for prop "count"');
+    expect(host.shadowRoot?.textContent).toContain('0');
     host.remove();
   });
 });

@@ -510,19 +510,22 @@ describe('motion/animateTo', () => {
 
   it('applies final styles immediately under reduced motion', async () => {
     setReducedMotion(true);
-    const el = document.createElement('div');
-    const animateMock = mock(() => createMockAnimation());
-    (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
+    try {
+      const el = document.createElement('div');
+      const animateMock = mock(() => createMockAnimation());
+      (el as HTMLElement).animate = animateMock as unknown as Element['animate'];
 
-    await animateTo(el, {
-      opacity: [0, 1],
-      transform: 'translateY(0)',
-    });
+      await animateTo(el, {
+        opacity: [0, 1],
+        transform: 'translateY(0)',
+      });
 
-    expect(animateMock).not.toHaveBeenCalled();
-    expect(el.style.opacity).toBe('1');
-    expect(el.style.transform).toBe('translateY(0)');
-    setReducedMotion(null);
+      expect(animateMock).not.toHaveBeenCalled();
+      expect(el.style.opacity).toBe('1');
+      expect(el.style.transform).toBe('translateY(0)');
+    } finally {
+      setReducedMotion(null);
+    }
   });
 });
 

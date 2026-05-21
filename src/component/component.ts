@@ -211,10 +211,30 @@ const createComponentClass = <
      */
     setProp(name: string, value: unknown): void {
       const previousProps = this.cloneProps();
-      (this.props as Record<string, unknown>)[name] = value;
-      if (this.hasMounted) {
-        this.render(true, previousProps, undefined, true);
+      const propConfig = (definition.props as Record<string, PropDefinition> | undefined)?.[name];
+
+      if (propConfig?.validator && value !== undefined && !propConfig.validator(value)) {
+        throw new Error(
+          `bQuery component: validation failed for prop "${name}" with value ${JSON.stringify(value)}`
+        );
       }
+
+      (this.props as Record<string, unknown>)[name] = value;
+
+      if (propConfig?.required && propConfig.default === undefined && value === undefined) {
+        this.missingRequiredProps.add(name);
+      } else {
+        this.missingRequiredProps.delete(name);
+      }
+
+      if (!this.hasMounted) {
+        if (this.isConnected && this.missingRequiredProps.size === 0) {
+          this.mount();
+        }
+        return;
+      }
+
+      this.render(true, previousProps, undefined, true);
     }
 
     /**

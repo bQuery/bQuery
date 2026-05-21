@@ -350,7 +350,7 @@ lineItems.move(0, 1);
 ### Fluent schema builder
 
 ```ts
-import { schema, field } from '@bquery/bquery/forms';
+import { createForm, schema, field } from '@bquery/bquery/forms';
 
 const form = createForm({
   ...schema(

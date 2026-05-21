@@ -47,10 +47,22 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
   }
   const sig = signal<Element[]>([]);
   let disposed = false;
+  let currentSlot: HTMLSlotElement | null = null;
+
+  const bindCurrentSlot = (): HTMLSlotElement | null => {
+    const slot = findSlot(host, name);
+    if (slot === currentSlot) {
+      return currentSlot;
+    }
+    currentSlot?.removeEventListener('slotchange', update);
+    currentSlot = slot;
+    currentSlot?.addEventListener('slotchange', update);
+    return currentSlot;
+  };
 
   const update = (): void => {
     if (disposed) return;
-    const slot = findSlot(host, name);
+    const slot = bindCurrentSlot();
     if (!slot) {
       sig.value = [];
       return;
@@ -65,17 +77,28 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
     typeof queueMicrotask !== 'undefined'
       ? queueMicrotask
       : (cb: () => void): unknown => setTimeout(cb, 0);
+  const observer = new MutationObserver(() => {
+    if (disposed) return;
+    const previousSlot = currentSlot;
+    const nextSlot = bindCurrentSlot();
+    if (previousSlot !== nextSlot) {
+      update();
+    }
+  });
   schedule(() => {
     if (disposed) return;
-    const slot = findSlot(host, name);
-    if (slot) slot.addEventListener('slotchange', update);
+    const root = host.shadowRoot;
+    if (root) {
+      observer.observe(root, { childList: true, subtree: true });
+    }
     update();
   });
 
   scope.addDisposer(() => {
     disposed = true;
-    const slot = findSlot(host, name);
-    slot?.removeEventListener('slotchange', update);
+    observer.disconnect();
+    currentSlot?.removeEventListener('slotchange', update);
+    currentSlot = null;
     sig.dispose();
   });
 

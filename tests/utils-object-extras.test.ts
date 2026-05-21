@@ -147,6 +147,20 @@ describe('utils/object extras', () => {
     expect(isEqual).toBe(deepEqual);
   });
 
+  it('deepEqual structurally compares Map keys and Set values', () => {
+    expect(
+      deepEqual(
+        new Map([[{ id: 1 }, { label: 'A' }]]),
+        new Map([[{ id: 1 }, { label: 'A' }]])
+      )
+    ).toBe(true);
+    expect(deepEqual(new Set([{ id: 1 }]), new Set([{ id: 1 }]))).toBe(true);
+    expect(deepEqual(new Map([[{ id: 1 }, { label: 'A' }]]), new Map([[{ id: 2 }, { label: 'A' }]]))).toBe(
+      false
+    );
+    expect(deepEqual(new Set([{ id: 1 }]), new Set([{ id: 2 }]))).toBe(false);
+  });
+
   it('deepEqual handles cyclic objects without overflowing', () => {
     const left: { value: number; self?: unknown; nested?: { parent?: unknown } } = { value: 1 };
     left.self = left;
