@@ -552,6 +552,27 @@ describe('component/keyedList', () => {
     ]);
   });
 
+  it('reconcileKeyed preserves leading text nodes while reordering keyed elements', () => {
+    const ul = document.createElement('ul');
+    ul.innerHTML = `
+      <li data-bq-key="a">A</li>
+      <li data-bq-key="c">C</li>
+      <li data-bq-key="b">B</li>
+    `;
+
+    const firstNodeBefore = ul.firstChild;
+    const moved = reconcileKeyed(ul, ['a', 'b', 'c']);
+
+    expect(moved).toBeGreaterThan(0);
+    expect(ul.firstChild).toBe(firstNodeBefore);
+    expect(ul.firstChild?.nodeType).toBe(Node.TEXT_NODE);
+    expect(Array.from(ul.children).map((node) => node.getAttribute('data-bq-key'))).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+  });
+
   it('escapes key values', () => {
     const html = keyedList(
       [{ id: '<x', t: 'A' }],

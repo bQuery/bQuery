@@ -88,6 +88,14 @@ export const reconcileKeyed = (
   );
   if (children.length < 2) return 0;
 
+  const nextKeyedSibling = (node: Element): Element | null => {
+    let sibling = node.nextElementSibling;
+    while (sibling && !sibling.hasAttribute(DEFAULT_KEY_ATTR)) {
+      sibling = sibling.nextElementSibling;
+    }
+    return sibling;
+  };
+
   const byKey = new Map<string, Element>();
   for (const child of children) {
     const key = child.getAttribute(DEFAULT_KEY_ATTR);
@@ -108,13 +116,13 @@ export const reconcileKeyed = (
   if (ordered.length < 2) return 0;
 
   let moved = 0;
-  let reference: ChildNode | null = container.firstChild;
+  let reference: Element | null = children[0];
   for (const child of ordered) {
     if (reference !== child) {
       container.insertBefore(child, reference);
       moved += 1;
     }
-    reference = child.nextSibling;
+    reference = nextKeyedSibling(child);
   }
   return moved;
 };
