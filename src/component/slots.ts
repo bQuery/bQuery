@@ -77,10 +77,10 @@ export const useSlot = (host: HTMLElement, name?: string): Signal<Element[]> => 
     typeof queueMicrotask !== 'undefined'
       ? queueMicrotask
       : (cb: () => void): unknown => setTimeout(cb, 0);
-  const MutationObserverCtor =
+  const MutationObserverConstructor =
     globalThis.MutationObserver ?? host.ownerDocument?.defaultView?.MutationObserver;
-  const observer = MutationObserverCtor
-    ? new MutationObserverCtor(() => {
+  const observer = MutationObserverConstructor
+    ? new MutationObserverConstructor(() => {
         if (disposed) return;
         const previousSlot = currentSlot;
         const nextSlot = bindCurrentSlot();
