@@ -44,9 +44,9 @@ features:
 
 bQuery.js is a batteries-included framework for the modern web. It brings jQuery's direct API ergonomics to reactivity, async data, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, dependency-free server routing, runtime-agnostic SSR, WebSocket sessions, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, and testing in one modular system.
 
-## New in 1.11.0
+## New in 1.13.0
 
-Runtime-agnostic SSR now spans synchronous, async, streaming, and full `Response` rendering with a DOM-free fallback for Node.js ≥ 24, Deno, and Bun. The new `@bquery/bquery/server` entry point adds dependency-free routing, safe response helpers, and runtime-agnostic WebSocket sessions — while `1.10.0`'s concurrency pools, RPC workers, and collection helpers remain first-class citizens.
+`@bquery/bquery/forms` graduates into a batteries-included tier (new validators, combinators, dynamic field arrays via `createFieldArray`, fluent `schema()`, `bindForm`/`bindField`, scope-aware composables, and SSR resumability). `@bquery/bquery/component` adds slot/ref helpers, DI (`provide`/`inject`), `beforeUnmount` and `errorBoundary` hooks, `useAsync`/`whenIdle`, sanitizer-safe delegated events, a `css` tagged template with adoptable stylesheets, and keyed list rendering. `@bquery/bquery/motion` ships a major expansion (full Penner easings + composers, `tween()`/`animateValue()`, `animateTo()`, `springVector`, label-aware timelines with `reverse`/`repeat`/`yoyo`/`progress`, and new `scrollProgress`/`inView`/`magnetic`/`tilt`/`shake`/`pulse`/`countUp` primitives). `@bquery/bquery/core` grows with array, function, object, string, number, misc, and type-guard helpers via its utilities exports — while all 1.12.x and earlier APIs remain unchanged.
 
 ## New to bQuery?
 

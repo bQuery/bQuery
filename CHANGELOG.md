@@ -11,7 +11,7 @@ and this project adheres to Semantic Versioning.
   - [Unreleased](#unreleased)
     - [Added (Unreleased)](#added-unreleased)
     - [Fixed (Unreleased)](#fixed-unreleased)
-  - [\[1.13.0\] - 2026-05-19](#1130---2026-05-19)
+  - [\[1.13.0\] - 2026-05-21](#1130---2026-05-21)
     - [Added (1.13.0)](#added-1130)
     - [Changed (1.13.0)](#changed-1130)
   - [\[1.12.0\] - 2026-05-16](#1120---2026-05-16)
@@ -84,26 +84,9 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
-- **Motion / Easing**: Full Penner easing family — `easeIn`/`easeOut`/`easeInOut` variants of `Quart`, `Quint`, `Sine`, `Expo`, `Circ`, `Back`, `Elastic`, and `Bounce` are now exported and mirrored in `easingPresets`. Added the `cubicBezier(x1, y1, x2, y2)` factory (Newton-Raphson refinement matching CSS `cubic-bezier()`), `steps(count, position?)` factory mirroring CSS `steps()`, and the `mix(a, b, weight)` / `chain(...easings)` composers.
-- **Motion / Tweens**: New `animateValue<T>()` and `tween<T>()` interpolate numbers, number arrays, or `Record<string, number>` between `from` and `to` using `requestAnimationFrame`. `tween()` returns full imperative controls (`pause`/`resume`/`reverse`/`seek`/`stop`/`progress`) with a `finished` promise, supports an `AbortSignal`, and respects `prefers-reduced-motion`.
-- **Motion / `animate()` controls**: `animate()` now accepts a `signal: AbortSignal` to cancel mid-flight and a `playbackRate` override. New `animateTo(element, styles, opts)` ergonomic wrapper turns a CSS property record (or `[from, to]` tuples) into keyframes.
-- **Motion / Springs**: `spring()` instances now expose `.velocity(v?)` and `.set(v)` for gesture-driven workflows. New `springVector(dims, config)` drives coordinated multi-dimensional motion. `springPresets` expands with `wobbly`, `slow`, and `molasses` presets.
-- **Motion / Timeline**: Timelines now support labels (`addLabel(name, at?)` + label-relative `at` strings like `'label+=200'`), `reverse()`, `playbackRate(n)`, `repeat(count|'infinite')`, `yoyo(boolean)`, `onUpdate(time)` subscriptions, and a `progress()` getter in `[0, 1]`.
-- **Motion / New primitives**: `scrollProgress(element, opts)` exposes a 0..1 scroll-linked stream; `inView(element, opts)` resolves a thenable on enter (with an optional reactive `onChange` callback); `magnetic(element, opts)`, `tilt(element, opts)`, `shake(element, opts)`, `pulse(element, opts)`, and `countUp(element, from, to, opts)` cover the micro-interaction toolkit. All effects honor `prefers-reduced-motion` by default.
-- **Motion / Stagger**: `stagger()` gains `grid: [cols, rows]` + `from: { x, y }` 2D origins, an `axis: 'x' | 'y'` distance restriction, and a deterministic `random` option (with optional `randomSeed`).
-- **Motion / Reduced motion**: `onReducedMotionChange(callback)` subscribes to changes (system preference *or* `setReducedMotion()` override) and returns an unsubscribe; `reducedMotionSignal()` exposes the same value as a reactive `ReadonlySignal<boolean>` for `view`/components.
-- **Utils / Array** (`@bquery/bquery/core`): Added `groupBy`, `keyBy`, `partition`, `zip`, `range`, `first`, `last`, `take`, `drop`, `sample`, `shuffle` (Fisher–Yates), `uniqueBy`, `sortBy` (single or multi-selector), `intersection`, `difference`, `flattenDeep`, `move`, and `chunkBy`.
-- **Utils / Function**: Added `memoize(fn, keyFn?)` (`.clear()` / `.delete(key)`), `compose(...fns)` / `pipe(...fns)`, `curry(fn)`, `partial(fn, ...preset)`, and `retry(fn, opts?)` with exponential backoff, jitter, `shouldRetry`, `onRetry`, and `AbortSignal` support. `debounce()` gained an optional `{ leading?, trailing?, maxWait? }` option bag plus a `.flush()` method; `throttle()` gained `{ leading?, trailing? }` plus `.flush()`. Existing `(fn, ms)` signatures remain fully backward-compatible.
-- **Utils / Object**: Added prototype-pollution-safe deep accessors `get(obj, path, default?)`, `set(obj, path, value)`, and `has(obj, path)` with dot/bracket path syntax; `mapValues`, `mapKeys`, `invert`, `deepEqual` (with `isEqual` alias), `freeze` (deep), `defaults(target, ...sources)`, and typed wrappers `entriesTyped` / `keysTyped`.
-- **Utils / String**: Added `toSnakeCase`, `toPascalCase`, `toTitleCase`, `pad`, `padStart`, `padEnd`, `wordCount`, safe `template(str, vars)` (`${name}` interpolation with no `eval`), DOM-free `stripHtml`, crypto-backed `randomString(length, charset?)`, and universal-terminator `lines(str)`.
-- **Utils / Number**: Added `round(value, precision?)`, `roundTo(value, step)`, `lerp`, `inverseLerp`, `mapRange`, locale-aware `formatBytes(bytes, opts?)` (decimal & binary units), `randomFloat`, `sum`, `average`, `median`, `degToRad`, and `radToDeg`.
-- **Utils / Misc**: Added RFC 4122 v4 `uuid()` (uses `crypto.randomUUID()` / `getRandomValues()` when available, with a `Math.random()` fallback), Go-style sync/async `tryCatch(fn)`, `times(n, fn)`, `pollUntil(predicate, opts?)`, `nextFrame()`, and `nextTick()`.
-- **Utils / Type guards**: Added `isError`, `isMap`, `isSet`, `isRegExp`, `isSymbol`, `isBigInt`, `isAsyncFunction`, `isIterable`, `isAsyncIterable`, `isNullish`, and `isDefined`.
-- The `utils` namespace and `BQueryUtils` interface include every new entry alongside the existing helpers.
-
 ### Fixed (Unreleased)
 
-## [1.13.0] - 2026-05-19
+## [1.13.0] - 2026-05-21
 
 ### Added (1.13.0)
 
@@ -124,11 +107,27 @@ and this project adheres to Semantic Versioning.
 - **Component / Props**: Added imperative `setProp(name, value)` and `getProp(name)` methods on every component instance for non-string objects (arrays, callbacks) that bypass attribute serialization.
 - **Component / Styles**: Added a `css` tagged template literal that produces a `ComponentStyles` payload. When Constructable Stylesheets are available the styles are shared via `document.adoptedStyleSheets`; otherwise the existing `<style>` element pathway is used. Interpolated values are CSS-escaped.
 - **Component / Lists**: Added `keyedList(items, keyFn, renderItem)` and `reconcileKeyed(container)` for keyed list rendering inside shadow DOM.
+- **Motion / Easing**: Full Penner easing family — `easeIn`/`easeOut`/`easeInOut` variants of `Quart`, `Quint`, `Sine`, `Expo`, `Circ`, `Back`, `Elastic`, and `Bounce` are now exported and mirrored in `easingPresets`. Added the `cubicBezier(x1, y1, x2, y2)` factory (Newton-Raphson refinement matching CSS `cubic-bezier()`), `steps(count, position?)` factory mirroring CSS `steps()`, and the `mix(a, b, weight)` / `chain(...easings)` composers.
+- **Motion / Tweens**: New `animateValue<T>()` and `tween<T>()` interpolate numbers, number arrays, or `Record<string, number>` between `from` and `to` using `requestAnimationFrame`. `tween()` returns full imperative controls (`pause`/`resume`/`reverse`/`seek`/`stop`/`progress`) with a `finished` promise, supports an `AbortSignal`, and respects `prefers-reduced-motion`.
+- **Motion / `animate()` controls**: `animate()` now accepts a `signal: AbortSignal` to cancel mid-flight and a `playbackRate` override. New `animateTo(element, styles, opts)` ergonomic wrapper turns a CSS property record (or `[from, to]` tuples) into keyframes.
+- **Motion / Springs**: `spring()` instances now expose `.velocity(v?)` and `.set(v)` for gesture-driven workflows. New `springVector(dims, config)` drives coordinated multi-dimensional motion. `springPresets` expands with `wobbly`, `slow`, and `molasses` presets.
+- **Motion / Timeline**: Timelines now support labels (`addLabel(name, at?)` + label-relative `at` strings like `'label+=200'`), `reverse()`, `playbackRate(n)`, `repeat(count|'infinite')`, `yoyo(boolean)`, `onUpdate(time)` subscriptions, and a `progress()` getter in `[0, 1]`.
+- **Motion / New primitives**: `scrollProgress(element, opts)` exposes a 0..1 scroll-linked stream; `inView(element, opts)` resolves a thenable on enter (with an optional reactive `onChange` callback); `magnetic(element, opts)`, `tilt(element, opts)`, `shake(element, opts)`, `pulse(element, opts)`, and `countUp(element, from, to, opts)` cover the micro-interaction toolkit. All effects honor `prefers-reduced-motion` by default.
+- **Motion / Stagger**: `stagger()` gains `grid: [cols, rows]` + `from: { x, y }` 2D origins, an `axis: 'x' | 'y'` distance restriction, and a deterministic `random` option (with optional `randomSeed`).
+- **Motion / Reduced motion**: `onReducedMotionChange(callback)` subscribes to changes (system preference *or* `setReducedMotion()` override) and returns an unsubscribe; `reducedMotionSignal()` exposes the same value as a reactive `ReadonlySignal<boolean>` for `view`/components.
+- **Utils / Array** (`@bquery/bquery/core`): Added `groupBy`, `keyBy`, `partition`, `zip`, `range`, `first`, `last`, `take`, `drop`, `sample`, `shuffle` (Fisher–Yates), `uniqueBy`, `sortBy` (single or multi-selector), `intersection`, `difference`, `flattenDeep`, `move`, and `chunkBy`.
+- **Utils / Function**: Added `memoize(fn, keyFn?)` (`.clear()` / `.delete(key)`), `compose(...fns)` / `pipe(...fns)`, `curry(fn)`, `partial(fn, ...preset)`, and `retry(fn, opts?)` with exponential backoff, jitter, `shouldRetry`, `onRetry`, and `AbortSignal` support. `debounce()` gained an optional `{ leading?, trailing?, maxWait? }` option bag plus a `.flush()` method; `throttle()` gained `{ leading?, trailing? }` plus `.flush()`. Existing `(fn, ms)` signatures remain fully backward-compatible.
+- **Utils / Object**: Added prototype-pollution-safe deep accessors `get(obj, path, default?)`, `set(obj, path, value)`, and `has(obj, path)` with dot/bracket path syntax; `mapValues`, `mapKeys`, `invert`, `deepEqual` (with `isEqual` alias), `freeze` (deep), `defaults(target, ...sources)`, and typed wrappers `entriesTyped` / `keysTyped`.
+- **Utils / String**: Added `toSnakeCase`, `toPascalCase`, `toTitleCase`, `pad`, `padStart`, `padEnd`, `wordCount`, safe `template(str, vars)` (`${name}` interpolation with no `eval`), DOM-free `stripHtml`, crypto-backed `randomString(length, charset?)`, and universal-terminator `lines(str)`.
+- **Utils / Number**: Added `round(value, precision?)`, `roundTo(value, step)`, `lerp`, `inverseLerp`, `mapRange`, locale-aware `formatBytes(bytes, opts?)` (decimal & binary units), `randomFloat`, `sum`, `average`, `median`, `degToRad`, and `radToDeg`.
+- **Utils / Misc**: Added RFC 4122 v4 `uuid()` (uses `crypto.randomUUID()` / `getRandomValues()` when available, with a `Math.random()` fallback), Go-style sync/async `tryCatch(fn)`, `times(n, fn)`, `pollUntil(predicate, opts?)`, `nextFrame()`, and `nextTick()`.
+- **Utils / Type guards**: Added `isError`, `isMap`, `isSet`, `isRegExp`, `isSymbol`, `isBigInt`, `isAsyncFunction`, `isIterable`, `isAsyncIterable`, `isNullish`, and `isDefined`.
+- The `utils` namespace and `BQueryUtils` interface include every new entry alongside the existing helpers.
 
 ### Changed (1.13.0)
 
-- **Full bundle**: `src/full.ts` re-exports every new public forms and component runtime/type surface; `bun run check:full-bundle` continues to enforce drift detection.
-- **AI guidance**: AGENT.md, llms.txt, copilot-instructions, Cursor / Cline rules, and CHANGELOG were refreshed for the 1.13.0 baseline. `bun run check:ai-guidance` passes.
+- **Full bundle**: `src/full.ts` re-exports every new public forms, component, and motion runtime/type surface alongside the new core utility helpers; `bun run check:full-bundle` continues to enforce drift detection.
+- **AI guidance**: AGENT.md, llms.txt, copilot-instructions, Cursor / Cline rules, README, and CHANGELOG were refreshed for the 1.13.0 baseline. `bun run check:ai-guidance` passes.
 
 ## [1.12.0] - 2026-05-16
 
