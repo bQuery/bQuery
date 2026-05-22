@@ -14,6 +14,8 @@ This page describes how to use bQuery for agent frontends — for example chat U
 **Frontend (bQuery):** rendering, interaction, state binding, animations.
 **Backend/Worker:** agent logic, tool calls, model access, secrets.
 
+The same bQuery package can serve **both** sides of this split. On the browser side you use `core`, `reactive`, `view`, and `component` to render. On the server side you use `@bquery/bquery/server` to expose endpoints, `@bquery/bquery/ssr` to pre-render initial HTML, `@bquery/bquery/reactive` for signals without a DOM, and `@bquery/bquery/store` for stores. The same TypeScript types and validation helpers can be shared between the two — see [Server](./server.md) and [SSR](./ssr.md).
+
 > **Important:** API keys never belong in the browser frontend. Expose agent endpoints via a backend.
 
 ## Installation
@@ -203,8 +205,8 @@ component('tool-pill', {
 
 ## FAQ
 
-**Can bQuery run in the backend?**
-No. bQuery is a DOM library for the browser. Use a server or worker for agent logic.
+**Can bQuery run on the backend?**
+Yes — bQuery is runtime-agnostic. The browser-only modules (`core`, `view`, `component`, `motion`, etc.) require a DOM, but `@bquery/bquery/reactive`, `@bquery/bquery/store`, `@bquery/bquery/ssr`, and `@bquery/bquery/server` run on Node ≥ 24, Bun ≥ 1.3.13, and Deno. For agent backends, host your model calls behind a `createServer()` instance and stream tokens to the browser over SSE or WebSockets — see [Server](./server.md) and [SSR](./ssr.md).
 
 **Can I combine bQuery with frameworks?**
 Yes — for example as a light DOM layer inside existing apps. Keep responsibilities clearly separated.
