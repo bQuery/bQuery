@@ -469,14 +469,16 @@ import { effect } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 import { currentRoute } from './router';
 
-effect(async () => {
+effect(() => {
   const route = currentRoute.value;
   const matched = route.matched;
   if (!matched) return;
 
-  const mod = await (matched.component as () => Promise<{ render: (el: HTMLElement) => void }>)();
-  const host = $('#view').empty().get(0);
-  if (host) mod.render(host);
+  void (async () => {
+    const mod = await (matched.component as () => Promise<{ render: (el: HTMLElement) => void }>)();
+    const host = $('#view').empty().get(0);
+    if (host) mod.render(host);
+  })();
 });
 ```
 
@@ -519,20 +521,23 @@ import { transition } from '@bquery/bquery/motion';
 import { $ } from '@bquery/bquery/core';
 import { currentRoute } from './router';
 
-effect(async () => {
+effect(() => {
   const route = currentRoute.value;
   const matched = route.matched;
   if (!matched) return;
-  const mod = await (matched.component as () => Promise<{ render: (el: HTMLElement) => void }>)();
 
-  await transition({
-    classes: ['route-swap'],
-    skipOnReducedMotion: true,
-    update: () => {
-      const host = $('#view').empty().get(0);
-      if (host) mod.render(host);
-    },
-  });
+  void (async () => {
+    const mod = await (matched.component as () => Promise<{ render: (el: HTMLElement) => void }>)();
+
+    await transition({
+      classes: ['route-swap'],
+      skipOnReducedMotion: true,
+      update: () => {
+        const host = $('#view').empty().get(0);
+        if (host) mod.render(host);
+      },
+    });
+  })();
 });
 ```
 
