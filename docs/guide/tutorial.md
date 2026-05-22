@@ -9,9 +9,9 @@ This tutorial walks through building a real, end-to-end **Notes** application us
 - **Forms** — `createForm()` with synchronous and cross-field validation
 - **Router** — multi-page SPA navigation with route params
 - **Component** — a typed Web Component for a reusable note card
-- **Platform** — `useCookie()` for user preferences, `storage` for persistence, `defineBqueryConfig()` for shared defaults
+- **Platform** — `useCookie()` for user preferences, `storage` for persistence, `useAnnouncer()` for screen-reader announcements, `defineBqueryConfig()` for shared defaults
 - **Motion** — `transition()` for animated page swaps
-- **A11y** — `useAnnouncer()` for screen-reader announcements
+- **A11y** — the `bq-aria` directive for binding ARIA attributes reactively
 - **Testing** — `renderComponent()` and `waitFor()` for the note card
 
 We will start from the simplest possible bQuery script and grow it. Every section is additive — you can stop at any step and still have a working app.
@@ -377,7 +377,7 @@ If you use the forms-specific `compose()` combinator, import it from `@bquery/bq
 Let's extract the rendering of a single note into a typed Web Component. Components in bQuery are plain custom elements with typed props, optional state, lifecycle hooks, and a `render()` returning a tagged-template string.
 
 ```ts
-import { bool, component, safeHtml } from '@bquery/bquery/component';
+import { component, safeHtml } from '@bquery/bquery/component';
 
 component('note-card', {
   props: {
@@ -402,7 +402,7 @@ component('note-card', {
       <article class="${props.pinned ? 'pinned' : ''}">
         <button
           type="button"
-          ${bool('aria-pressed', props.pinned)}
+          aria-pressed="${props.pinned ? 'true' : 'false'}"
           data-action="toggle-pin"
           aria-label="${props.pinned ? 'Unpin note' : 'Pin note'}"
         >${props.pinned ? '★' : '☆'}</button>
@@ -414,7 +414,7 @@ component('note-card', {
 });
 ```
 
-`safeHtml` (from `@bquery/bquery/component`) and `bool()` (boolean-attribute shorthand) keep the template both safe and ergonomic. `props.text` is escaped automatically because interpolated values in the tagged template literal are HTML-escaped unless they are already trusted HTML.
+`safeHtml` (from `@bquery/bquery/component`) keeps the template both safe and ergonomic — `props.text` is escaped automatically because interpolated values in the tagged template literal are HTML-escaped unless they are already trusted HTML. `aria-pressed` is a string-valued ARIA attribute, so we render it as `"true"`/`"false"` explicitly rather than using the `bool()` boolean-attribute shorthand (which is for attributes like `disabled` or `checked`).
 
 Use it from the view template — Web Components are just HTML elements, so directives still work:
 

@@ -334,7 +334,7 @@ component('greeting-card', {
 // Usage: <greeting-card name="World" message="How are you?"></greeting-card>
 ```
 
-`html` stringifies interpolated values, and the component renderer sanitizes the final markup before inserting it into the DOM. Use `safeHtml` when interpolated user input should be escaped as text, and pair it with `bool('aria-pressed', value)` from the same module when you need boolean-attribute shorthand without manual concatenation.
+`html` stringifies interpolated values, and the component renderer sanitizes the final markup before inserting it into the DOM. Use `safeHtml` when interpolated user input should be escaped as text, and pair it with `bool('disabled', value)` from the same module when you need boolean-attribute shorthand (for real HTML boolean attributes such as `disabled` or `checked`) without manual concatenation. For string-valued ARIA states like `aria-pressed`, render the value explicitly (for example `aria-pressed="${value ? 'true' : 'false'}"`) instead of using `bool()`.
 
 ### Default Components & Global Config
 
