@@ -133,7 +133,7 @@ Things to notice:
 
 - `$('#composer').on('submit', …)` is the same chainable shape as jQuery, but the wrapper is bQuery's `BQueryElement`. `$` **throws** if no element matches, so use `$$` when an element is optional. See [Core API](./api-core.md).
 - `signal()`, `computed()`, and `effect()` come from `@bquery/bquery/reactive`. The `.value` accessor is what makes a read **tracked**. Use `.peek()` to read without subscribing. See [Reactive](./reactive.md).
-- `append()` already sanitizes string HTML for you in Core, so the manual `escapeText()` helper is just an explicit baseline before we switch to the **View module** and its declarative `bq-text` bindings.
+- `append()` already sanitizes string HTML for you in Core, but sanitized HTML is still parsed as markup. The manual `escapeText()` helper keeps user input as plain text until we switch to the **View module** and its declarative `bq-text` bindings.
 
 > Always pair a `signal()` mutation with a fresh array (`[...notes.value, …]`) rather than mutating in place. That is what triggers subscribers.
 
