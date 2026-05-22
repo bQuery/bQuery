@@ -105,7 +105,7 @@ effect(() => {
   const ul = $('#notes');
   ul.empty();
   for (const note of notes.value) {
-    ul.append(`<li data-id="${note.id}">${escapeText(note.text)}</li>`);
+    ul.append(`<li data-id="${note.id}">${escapeHtml(note.text)}</li>`);
   }
 });
 
@@ -122,7 +122,7 @@ $('#composer').on('submit', (event) => {
   input.val('');
 });
 
-function escapeText(value: string): string {
+function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   );
@@ -133,7 +133,7 @@ Things to notice:
 
 - `$('#composer').on('submit', …)` is the same chainable shape as jQuery, but the wrapper is bQuery's `BQueryElement`. `$` **throws** if no element matches, so use `$$` when an element is optional. See [Core API](./api-core.md).
 - `signal()`, `computed()`, and `effect()` come from `@bquery/bquery/reactive`. The `.value` accessor is what makes a read **tracked**. Use `.peek()` to read without subscribing. See [Reactive](./reactive.md).
-- `append()` already sanitizes string HTML for you in Core, but sanitized HTML is still parsed as markup. The manual `escapeText()` helper keeps user input as plain text until we switch to the **View module** and its declarative `bq-text` bindings.
+- `append()` sanitizes string HTML by removing dangerous tags and attributes, but the result is still parsed as markup. The manual `escapeHtml()` helper escapes HTML entities so user input is displayed as plain text until we switch to the **View module** and its declarative `bq-text` bindings.
 
 > Always pair a `signal()` mutation with a fresh array (`[...notes.value, …]`) rather than mutating in place. That is what triggers subscribers.
 

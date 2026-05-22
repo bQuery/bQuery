@@ -47,7 +47,7 @@ const fromArray = $$([document.body]);
 
 ### Class & attribute helpers
 
-These helpers mirror standard `classList` / `setAttribute` semantics but stay chainable. `attr(name)` (single argument) returns the current attribute value as a `string`, using `''` when the attribute is missing; calling `attr(name, value)` sets it. `prop()` is the equivalent for IDL properties on the wrapped `Element`; for control-specific properties such as `HTMLInputElement.checked` or `.value`, narrow the underlying `.raw` node (or cast it) first. `data()` reads and writes `data-*` attributes with automatic key normalization.
+These helpers mirror standard `classList` / `setAttribute` semantics but stay chainable. `attr(name)` (single argument) returns the current attribute value as a `string`, using `''` when the attribute is missing; calling `attr(name, value)` sets it. `prop()` is the equivalent for IDL properties on the wrapped `Element`; in TypeScript, control-specific properties such as `checked` or `value` may require narrowing or casting the element type, or using the underlying `.raw` node directly. `data()` reads and writes `data-*` attributes with automatic key normalization.
 
 - `addClass(...classNames)`
 - `removeClass(...classNames)`
