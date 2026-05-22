@@ -62,7 +62,7 @@ What is going on here:
 - `$('#counter')` returns a chainable `BQueryElement` wrapping the matching DOM node. It throws if no element matches — use `$$()` (in `@bquery/bquery/core`) when zero matches is acceptable.
 - `signal(0)` creates a writable reactive value. Reading `count.value` inside a reactive context registers a dependency; writing `count.value = …` notifies dependents.
 - `effect(() => …)` runs the callback immediately and again whenever any signal it read inside changes. Here it reads `count.value`, so the button label re-renders on every click.
-- `.on('click', …)` is the same delegated-event API as jQuery — it returns the wrapper, so you can keep chaining.
+- `.on('click', …)` attaches a direct event listener with the same chainable style as jQuery. For delegated handling on dynamic descendants, use `.delegate()` from Core.
 
 > The full ES module bundle is served from `https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs` (used above) or `https://cdn.jsdelivr.net/npm/@bquery/bquery@1/+esm`. Both expose the same public API surface as the npm package — see [Module Imports](#module-imports) below.
 
@@ -237,7 +237,7 @@ $('#button').on('click', () => {
 });
 ```
 
-The text/html/attr setters automatically sanitize untrusted input via the [Security module](./security.md). When you genuinely need to inject pre-trusted markup, use the explicit escape hatch `.raw.innerHTML` on the underlying element — that opt-in is deliberate.
+`text()` is safe for untrusted input because it writes `textContent`, while `html()` and the HTML insertion helpers sanitize string content via the [Security module](./security.md). `attr()` sets attributes directly with `setAttribute()`, so escape or validate untrusted values before writing them. When you genuinely need to inject pre-trusted markup, use the explicit escape hatch `.raw.innerHTML` on the underlying element — that opt-in is deliberate.
 
 ### Reactive State
 

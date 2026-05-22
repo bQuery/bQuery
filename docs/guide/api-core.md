@@ -8,7 +8,7 @@ The core module provides selectors, DOM manipulation, events, and utilities. The
 
 All mutating methods return `this` so they chain. Read-only getters (`text()`, `attr(name)`, `css(prop)`, `val()`, etc.) return the underlying value. Methods that write strings into the DOM run them through the default sanitizer; the [Security guide](./security.md) covers how to opt in to raw HTML when you genuinely need it.
 
-> `BQueryElement` always wraps exactly one element. `BQueryCollection` wraps zero or more — its mutating methods apply to every element, and its getters read from the first element. Convert between them with `$$(...).eq(0)` (returns a single-element collection) or `$(collection.firstEl()!)` when you have already proven a match exists.
+> `BQueryElement` always wraps exactly one element. `BQueryCollection` wraps zero or more — its mutating methods apply to every element, and its getters read from the first element. Convert between them with `$$(...).eq(0)` or `collection.firstEl()`, both of which return `BQueryElement | undefined` when the collection is empty.
 
 ## Selectors
 
@@ -47,7 +47,7 @@ const fromArray = $$([document.body]);
 
 ### Class & attribute helpers
 
-These helpers mirror standard `classList` / `getAttribute` / `setAttribute` semantics but stay chainable. `attr(name)` (single argument) returns the current attribute value as a `string | null`; calling `attr(name, value)` sets it. `prop()` is the equivalent for IDL properties (e.g. `checked`, `disabled`, `value`) and avoids the string round-trip. `data()` reads and writes `data-*` attributes with automatic key normalisation.
+These helpers mirror standard `classList` / `setAttribute` semantics but stay chainable. `attr(name)` (single argument) returns the current attribute value as a `string`, using `''` when the attribute is missing; calling `attr(name, value)` sets it. `prop()` is the equivalent for IDL properties (e.g. `checked`, `disabled`, `value`) and avoids the string round-trip. `data()` reads and writes `data-*` attributes with automatic key normalisation.
 
 - `addClass(...classNames)`
 - `removeClass(...classNames)`
@@ -132,7 +132,7 @@ $('#el').matches('.active');
 
 ### Traversal & utilities
 
-Traversal methods follow the DOM tree, always returning new wrappers (they never mutate the receiver). `find()` returns the **first** matching descendant for a `BQueryElement` and **all** matching descendants for a `BQueryCollection`; `findOne()` always returns the first match. `closest()` walks **up** the tree (including the element itself when it matches), which is the canonical pattern for resolving the target of an `delegate('click', selector, …)` callback to a known ancestor.
+Traversal methods follow the DOM tree without mutating the receiver, but their return types mirror the underlying DOM operation. On `BQueryElement`, `find()` returns **all** matching descendants as `Element[]`, `findOne()` returns the first match as `Element | null`, and helpers like `closest()`, `parent()`, `next()`, and `prev()` return raw `Element | null` values. On `BQueryCollection`, traversal helpers return new `BQueryCollection` wrappers so you can keep chaining across multiple matches. `closest()` walks **up** the tree (including the element itself when it matches), which is the canonical pattern for resolving the target of a `delegate('click', selector, …)` callback to a known ancestor.
 
 Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the content + padding box (matching `clientWidth`/`clientHeight`), while `outerWidth`/`outerHeight` measure the border box and accept an optional `includeMargin` boolean. `rect()` returns a live `DOMRect`, `offset()` returns the document-relative top/left, and `position()` returns coordinates relative to the offset parent.
 
