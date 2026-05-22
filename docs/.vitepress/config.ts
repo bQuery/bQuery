@@ -31,6 +31,7 @@ export default defineConfig({
           text: 'Introduction',
           items: [
             { text: 'Getting Started', link: '/guide/getting-started' },
+            { text: 'Tutorial', link: '/guide/tutorial' },
             { text: 'Examples & Recipes', link: '/guide/examples' },
             { text: 'FAQ & Troubleshooting', link: '/guide/faq' },
             { text: 'Migrating from jQuery', link: '/guide/migration' },

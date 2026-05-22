@@ -29,7 +29,7 @@ You do not need to adopt the whole framework at once. Start with the layer that 
 
 ### Zero-build via CDN
 
-The quickest way to use bQuery is directly in the browser without any build step:
+The quickest way to use bQuery is directly in the browser without any build step. The example below is fully self-contained — save it as `index.html`, open it in a browser, and clicking the button updates the label reactively.
 
 ```html
 <!DOCTYPE html>
@@ -57,6 +57,15 @@ The quickest way to use bQuery is directly in the browser without any build step
 </html>
 ```
 
+What is going on here:
+
+- `$('#counter')` returns a chainable `BQueryElement` wrapping the matching DOM node. It throws if no element matches — use `$$()` (in `@bquery/bquery/core`) when zero matches is acceptable.
+- `signal(0)` creates a writable reactive value. Reading `count.value` inside a reactive context registers a dependency; writing `count.value = …` notifies dependents.
+- `effect(() => …)` runs the callback immediately and again whenever any signal it read inside changes. Here it reads `count.value`, so the button label re-renders on every click.
+- `.on('click', …)` attaches a direct event listener with the same chainable style as jQuery. For delegated handling on dynamic descendants, use `.delegate()` from Core.
+
+> The full ES module bundle is served from `https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs` (used above) or `https://cdn.jsdelivr.net/npm/@bquery/bquery@1/+esm`. Both expose the same public API surface as the npm package — see [Module Imports](#module-imports) below.
+
 ### Package Manager
 
 Install with your favorite package manager:
@@ -74,6 +83,8 @@ pnpm add @bquery/bquery
 
 ### Vite + TypeScript
 
+Use any modern bundler — Vite, Rspack, esbuild, tsup, Rollup, or webpack — without extra configuration. bQuery ships ESM, CJS, UMD, and `.d.ts` files, so TypeScript projects get full type inference out of the box. A minimal Vite entry looks like this:
+
 ```ts
 import { $, signal, effect } from '@bquery/bquery';
 
@@ -84,9 +95,16 @@ effect(() => {
 });
 ```
 
+The root `@bquery/bquery` entry re-exports the most commonly used helpers (selectors, signals, components, view mount, security, default config, etc.). For smaller bundles, import directly from a sub-path such as `@bquery/bquery/reactive` — every sub-path is tree-shakeable and listed in [Module Imports](#module-imports).
+
 ## Module Imports
 
-bQuery is modular by design. You can import everything from the main entry point or pick specific modules:
+bQuery is modular by design. There are two ways to import:
+
+1. **From the root entry** `@bquery/bquery` — gives you the most commonly used helpers (`$`, `signal`, `component`, `mount`, `sanitize`, `defineBqueryConfig`, …) with the convenience of a single import path. The `/full` entry adds every public type for CDN consumers.
+2. **From a sub-path** such as `@bquery/bquery/reactive` — narrows the bundler's tree-shaking surface and matches the directory layout in `src/`. Every module listed below ships its own `index.ts` barrel and is independently tree-shakeable.
+
+Both paths resolve to the same TypeScript declarations, so type inference, IDE jump-to-definition, and auto-import behave identically.
 
 ```ts
 // Full import
@@ -202,6 +220,8 @@ import { createServer } from '@bquery/bquery/server';
 
 ### DOM Manipulation
 
+`@bquery/bquery/core` provides the chainable selector API. `$()` returns a single-element wrapper that throws when nothing matches; `$$()` returns a collection that may be empty. Both expose the familiar jQuery-style methods (`addClass`, `css`, `text`, `html`, `attr`, `on`, etc.), and every mutating method returns `this` so you can keep chaining.
+
 ```ts
 import { $ } from '@bquery/bquery/core';
 
@@ -217,7 +237,11 @@ $('#button').on('click', () => {
 });
 ```
 
+`text()` is safe for untrusted input because it writes `textContent`, while `html()` and the HTML insertion helpers sanitize string content via the [Security module](./security.md). `attr()` sets attributes directly with `setAttribute()`, so escape or validate untrusted values before writing them. When you genuinely need to inject pre-trusted markup, use the explicit escape hatch `.raw.innerHTML` on the underlying element — that opt-in is deliberate.
+
 ### Reactive State
+
+Signals are the foundation of bQuery's reactivity. A `signal()` holds a value; reading `.value` inside an `effect()`, `computed()`, or component template registers a fine-grained dependency, and writing `.value = …` only re-runs the readers that actually depended on it. Use `.peek()` to read without subscribing.
 
 ```ts
 import { signal, computed, effect } from '@bquery/bquery/reactive';
@@ -238,7 +262,11 @@ effect(() => {
 firstName.value = 'Jane'; // Title updates automatically
 ```
 
+`computed()` is read-only and memoized — it only recomputes when one of its tracked dependencies changes. For two-way derived state, use `linkedSignal()` from the same module. To group several writes into a single notification, wrap them in `batch(() => …)`.
+
 ### Async Data & Fetching
+
+`useFetch()` is the reactive companion to `fetch()`. It returns `data`, `pending`, and `error` signals and re-runs when any signal listed in `watch` changes, so the URL builder always reflects the latest input. For conditional loading, start with `immediate: false` and call `execute()`/`refresh()` when you are ready to issue the request.
 
 ```ts
 import { signal, useFetch } from '@bquery/bquery/reactive';
@@ -256,7 +284,11 @@ if (user.pending.value) {
 console.log(user.data.value, user.error.value);
 ```
 
+See [Reactive › Async data](./reactive.md) for the full option list (`immediate`, `transform`, `cache`, `dedupe`, `retry`, abort signals, etc.).
+
 ### HTTP, resources & streaming
+
+`createHttp()` returns a typed client with shared defaults (base URL, headers, retry, interceptors). `useResource()` is a higher-level wrapper that exposes signal-backed REST state, and `useEventSource()` / `useWebSocket()` lift Server-Sent Events and WebSocket streams into reactive signals you can read from any effect, component, or view binding.
 
 ```ts
 import { createHttp, useEventSource, useResource } from '@bquery/bquery/reactive';
@@ -271,7 +303,11 @@ const { data } = await api.get('/users');
 console.log(data, profile.pending.value, events.status.value);
 ```
 
+All four helpers share the same lifecycle conventions (`pending`, `error`, `abort()`/`close()`), so swapping transports as your needs evolve is mostly a matter of swapping the constructor.
+
 ### Web Components
+
+`component()` defines a real custom element with typed props, optional `styles`, and a `render()` function returning a sanitized tagged-template string. Props are reflected as attributes for primitives; non-string props can be set imperatively via the instance `setProp()` / `getProp()` helpers documented in the [Component guide](./components.md).
 
 ```ts
 import { component, html } from '@bquery/bquery/component';
@@ -298,7 +334,11 @@ component('greeting-card', {
 // Usage: <greeting-card name="World" message="How are you?"></greeting-card>
 ```
 
+`html` stringifies interpolated values, and the component renderer sanitizes the final markup before inserting it into the DOM. Use `safeHtml` when interpolated user input should be escaped as text, and pair it with `bool('disabled', value)` from the same module when you need boolean-attribute shorthand (for real HTML boolean attributes such as `disabled` or `checked`) without manual concatenation. For string-valued ARIA states like `aria-pressed`, render the value explicitly (for example `aria-pressed="${value ? 'true' : 'false'}"`) instead of using `bool()`.
+
 ### Default Components & Global Config
+
+`defineBqueryConfig()` sets framework-wide defaults — component tag prefix, base URL for fetch helpers, and motion preferences. `registerDefaultComponents()` then registers the built-in component library (button, card, modal, etc.) under that prefix and returns the resolved tag names so you can compose them in templates without hard-coding strings.
 
 ```ts
 import { defineBqueryConfig, registerDefaultComponents, useCookie } from '@bquery/bquery';
@@ -315,6 +355,8 @@ const theme = useCookie<'light' | 'dark'>('theme', { defaultValue: 'light' });
 console.log(tags.button); // ui-button
 theme.value = 'dark';
 ```
+
+`useCookie()` returns a writable signal backed by `document.cookie`; setting `.value` updates the cookie and notifies subscribers across the page. The same module exposes `storage` (Web Storage with JSON + signal helpers), `cache`, `notifications`, `definePageMeta`, and `useAnnouncer` — see [Platform](./platform.md) for the full surface.
 
 ### Storybook authoring
 
@@ -334,6 +376,8 @@ export const Playground = {
 ```
 
 ### SSR, server, and testing
+
+bQuery's SSR module operates on standard `Request` / `Response` objects and runs unmodified on Bun, Deno, and Node ≥ 24. `createServer()` from `@bquery/bquery/server` is a minimal, dependency-free router whose `handle()` method accepts a URL or `Request` and returns a `Response`. The [Testing](./testing.md) helpers mount components in `happy-dom`, dispatch events, and `await` async assertions.
 
 ```ts
 import { renderComponent, fireEvent, waitFor } from '@bquery/bquery/testing';
@@ -357,6 +401,8 @@ app.get('/', (ctx) => {
 console.log(await app.handle('http://localhost/'));
 mounted.unmount();
 ```
+
+`renderToResponse()` understands ETags and conditional requests automatically when `etag: true` is set — a `304 Not Modified` is returned to clients whose cached response is still fresh. For streaming responses use `renderToStream()`; for non-HTTP rendering use `renderToStringAsync()`.
 
 ## Local Development
 
@@ -397,6 +443,10 @@ bun run build:docs
 > **Note:** Internet Explorer is not supported by design.
 
 ## Next Steps
+
+Ready to go beyond snippets? The step-by-step [**Tutorial**](./tutorial.md) walks through building a real Notes app from zero, layering in Core, Reactive, View, Store, Forms, Router, Component, Motion, Platform, A11y, and Testing one feature at a time.
+
+For module-specific deep dives:
 
 - [Core API](./api-core.md) - Learn about selectors and DOM manipulation
 - [Agents](./agents.md) - Build agent UIs with bQuery

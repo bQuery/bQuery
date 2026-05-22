@@ -224,7 +224,7 @@ type CustomDirectiveHandler = (
 | Parameter    | Type             | Description                                                  |
 | ------------ | ---------------- | ------------------------------------------------------------ |
 | `el`         | `Element`        | The DOM element with the directive attribute                 |
-| `expression` | `string`         | The evaluated expression string from the template            |
+| `expression` | `string`         | The raw attribute value (expression text) from the template; if you need it evaluated, evaluate it against `context` yourself |
 | `context`    | `BindingContext` | The reactive data context from `mount()`                     |
 | `cleanups`   | `CleanupFn[]`    | Push cleanup functions here; they run when the view unmounts |
 
