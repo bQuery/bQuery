@@ -14,7 +14,7 @@ This page describes how to use bQuery for agent frontends — for example chat U
 **Frontend (bQuery):** rendering, interaction, state binding, animations.
 **Backend/Worker:** agent logic, tool calls, model access, secrets.
 
-The same bQuery package can serve **both** sides of this split. On the browser side you use `core`, `reactive`, `view`, and `component` to render. On the server side you use `@bquery/bquery/server` to expose endpoints, `@bquery/bquery/ssr` to pre-render initial HTML, and `@bquery/bquery/reactive` (signals, stores) without a DOM. The same TypeScript types and validation helpers can be shared between the two — see [Server](./server.md) and [SSR](./ssr.md).
+The same bQuery package can serve **both** sides of this split. On the browser side you use `core`, `reactive`, `view`, and `component` to render. On the server side you use `@bquery/bquery/server` to expose endpoints, `@bquery/bquery/ssr` to pre-render initial HTML, `@bquery/bquery/reactive` for signals without a DOM, and `@bquery/bquery/store` for stores. The same TypeScript types and validation helpers can be shared between the two — see [Server](./server.md) and [SSR](./ssr.md).
 
 > **Important:** API keys never belong in the browser frontend. Expose agent endpoints via a backend.
 
