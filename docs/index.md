@@ -50,7 +50,7 @@ bQuery.js is a batteries-included framework for the modern web. It brings jQuery
 
 ## New to bQuery?
 
-Start with the [Getting Started](/guide/getting-started) guide, then explore the [Examples & Recipes](/guide/examples) for practical, copy-paste-ready code. Coming from jQuery? The [Migration Guide](/guide/migration) maps jQuery patterns to bQuery equivalents.
+Start with the [Getting Started](/guide/getting-started) guide for installation and orientation, then follow the step-by-step [Tutorial](/guide/tutorial) to build a real Notes app that exercises Core, Reactive, View, Store, Forms, Router, Component, Motion, Platform, A11y, and Testing in one project. The [Examples & Recipes](/guide/examples) cookbook has copy-paste-ready snippets for common tasks. Coming from jQuery? The [Migration Guide](/guide/migration) maps jQuery patterns to bQuery equivalents.
 
 ## Looking for answers?
 

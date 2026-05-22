@@ -398,6 +398,10 @@ bun run build:docs
 
 ## Next Steps
 
+Ready to go beyond snippets? The step-by-step [**Tutorial**](./tutorial.md) walks through building a real Notes app from zero, layering in Core, Reactive, View, Store, Forms, Router, Component, Motion, Platform, A11y, and Testing one feature at a time.
+
+For module-specific deep dives:
+
 - [Core API](./api-core.md) - Learn about selectors and DOM manipulation
 - [Agents](./agents.md) - Build agent UIs with bQuery
 - [Reactive](./reactive.md) - Understand signals and reactivity
