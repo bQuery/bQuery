@@ -134,7 +134,7 @@ $('#el').matches('.active');
 
 Traversal methods follow the DOM tree without mutating the receiver, but their return types mirror the underlying DOM operation. On `BQueryElement`, `find()` returns **all** matching descendants as `Element[]`, `findOne()` returns the first match as `Element | null`, and helpers like `closest()`, `parent()`, `next()`, and `prev()` return raw `Element | null` values. On `BQueryCollection`, traversal helpers return new `BQueryCollection` wrappers so you can keep chaining across multiple matches. `closest()` walks **up** the tree (including the element itself when it matches), which is the canonical pattern for resolving the target of a `delegate('click', selector, …)` callback to a known ancestor.
 
-Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the content + padding box (matching `clientWidth`/`clientHeight`), while `outerWidth`/`outerHeight` measure the border box and accept an optional `includeMargin` boolean. `rect()` returns a live `DOMRect`, `offset()` returns the document-relative top/left, and `position()` returns coordinates relative to the offset parent.
+Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the content + padding box (matching `clientWidth`/`clientHeight`), while `outerWidth`/`outerHeight` measure the border box and accept an optional `includeMargin` boolean. `rect()` returns a live `DOMRect`, `offset()` returns `offsetWidth`/`offsetHeight` plus `offsetTop`/`offsetLeft` (relative to the offset parent), and `position()` returns coordinates relative to the offset parent.
 
 - `find(selector)`
 - `findOne(selector)`

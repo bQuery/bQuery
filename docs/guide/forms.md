@@ -12,7 +12,7 @@ A bQuery form is a **graph of signals**. Each field owns its own `value`, `error
 
 - Form fields can be read or rendered anywhere — from raw DOM via `bq-model`, from inside a `component()`, or from a plain `effect()`.
 - Validation is automatic and reactive: triggering modes (`'change' | 'blur' | 'both' | 'manual'`) decide *when* validators run, but the resulting `error` signal updates downstream subscribers immediately.
-- Async validators return promises and update `isValidating` while in flight; later invocations cancel earlier ones, so the final state is always consistent with the most recent input.
+- Async validators return promises and update `isValidating` while in flight; later invocations supersede earlier ones and stale results are ignored, so the final state stays consistent with the most recent input.
 
 There are three entry points, in increasing scope:
 
