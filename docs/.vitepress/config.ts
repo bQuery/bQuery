@@ -10,7 +10,7 @@ export default defineConfig({
     ['meta', { name: 'google-site-verification', content: 'injOs87iZEPOqUJhHQiKuXhzvuD7XL4dyXxyDpx4Sx8' }],
   ],
   sitemap: {
-    hostname: 'https://bquery.js.org'
+    hostname: 'https://bquery.js.org',
   },
   lastUpdated: true,
   vite: {
