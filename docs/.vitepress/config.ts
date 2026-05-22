@@ -7,6 +7,7 @@ export default defineConfig({
   base: process.env.VITEPRESS_BASE ?? '/',
   head: [
     ['link', { rel: 'icon', href: '/assets/bquerry-logo.svg' }],
+    ['meta', { name: 'google-site-verification', content: 'injOs87iZEPOqUJhHQiKuXhzvuD7XL4dyXxyDpx4Sx8' }],
   ],
   lastUpdated: true,
   vite: {
