@@ -65,10 +65,12 @@ operates on the standard `Request`/`Response` interfaces.
   the [View module](../docs/guide/view.md) consumes on the client:
   `bq-text`, `bq-for`, and so on.
 - Declares two routes — `/` and `/about` — passed to `resolveSSRRoute()`.
-- Calls `createSSRContext({ request, mode: 'string' })` so the SSR module
-  knows it should produce a string (rather than a stream) for this
-  response. Use `mode: 'stream'` plus `renderToStream()` for streaming
-  responses (see the [SSR guide](../docs/guide/ssr.md)).
+- Calls `createSSRContext({ request, mode: 'string' })` to build the
+  request-scoped SSR context used by `renderToResponse()`. The `mode`
+  value is a render hint for diagnostics; the actual output shape comes
+  from which renderer you call (`renderToResponse()` / `renderToStringAsync()`
+  for string HTML, `renderToStream()` for streaming responses — see the
+  [SSR guide](../docs/guide/ssr.md)).
 - Honors redirects from the resolved route via `Response.redirect()`.
 - Renders the page with `renderToResponse(TEMPLATE, bindingContext, options)`
   with `etag: true` and a cache-control header so conditional requests

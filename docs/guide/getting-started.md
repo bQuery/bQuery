@@ -266,7 +266,7 @@ firstName.value = 'Jane'; // Title updates automatically
 
 ### Async Data & Fetching
 
-`useFetch()` is the reactive companion to `fetch()`. It returns `data`, `pending`, and `error` signals and re-runs when any signal listed in `watch` changes, so the URL builder always reflects the latest input. Returning a falsy URL pauses the request, which is convenient for conditional loading.
+`useFetch()` is the reactive companion to `fetch()`. It returns `data`, `pending`, and `error` signals and re-runs when any signal listed in `watch` changes, so the URL builder always reflects the latest input. For conditional loading, start with `immediate: false` and call `execute()`/`refresh()` when you are ready to issue the request.
 
 ```ts
 import { signal, useFetch } from '@bquery/bquery/reactive';

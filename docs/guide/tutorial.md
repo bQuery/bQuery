@@ -133,7 +133,7 @@ Things to notice:
 
 - `$('#composer').on('submit', …)` is the same chainable shape as jQuery, but the wrapper is bQuery's `BQueryElement`. `$` **throws** if no element matches, so use `$$` when an element is optional. See [Core API](./api-core.md).
 - `signal()`, `computed()`, and `effect()` come from `@bquery/bquery/reactive`. The `.value` accessor is what makes a read **tracked**. Use `.peek()` to read without subscribing. See [Reactive](./reactive.md).
-- We escape the note text by hand because we are setting `innerHTML` via `append()` with a string. In the next step we will switch to the **View module**, which sanitizes by default.
+- `append()` already sanitizes string HTML for you in Core, so the manual `escapeText()` helper is just an explicit baseline before we switch to the **View module** and its declarative `bq-text` bindings.
 
 > Always pair a `signal()` mutation with a fresh array (`[...notes.value, …]`) rather than mutating in place. That is what triggers subscribers.
 
@@ -414,7 +414,7 @@ component('note-card', {
 });
 ```
 
-`safeHtml` (from `@bquery/bquery/component`) and `bool()` (boolean-attribute shorthand) keep the template both safe and ergonomic. `props.text` is escaped automatically because we interpolate it into a tagged template literal that goes through sanitization.
+`safeHtml` (from `@bquery/bquery/component`) and `bool()` (boolean-attribute shorthand) keep the template both safe and ergonomic. `props.text` is escaped automatically because interpolated values in the tagged template literal are HTML-escaped unless they are already trusted HTML.
 
 Use it from the view template — Web Components are just HTML elements, so directives still work:
 
@@ -476,8 +476,8 @@ effect(() => {
 
   void (async () => {
     const mod = await (matched.component as () => Promise<{ render: (el: HTMLElement) => void }>)();
-    const host = $('#view').empty().get(0);
-    if (host) mod.render(host);
+    const host = $('#view').empty().raw as HTMLElement;
+    mod.render(host);
   })();
 });
 ```
@@ -533,8 +533,8 @@ effect(() => {
       classes: ['route-swap'],
       skipOnReducedMotion: true,
       update: () => {
-        const host = $('#view').empty().get(0);
-        if (host) mod.render(host);
+        const host = $('#view').empty().raw as HTMLElement;
+        mod.render(host);
       },
     });
   })();
