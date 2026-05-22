@@ -18,8 +18,9 @@ SSR surface built around `createSSRContext()`, `resolveSSRRoute()`, and
 | Node    | [`ssr-node/`](./ssr-node) | `node --experimental-strip-types examples/ssr-node/serve.ts` (Node ≥ 24) |
 
 All three serve <http://localhost:3000/> and respond to both `/` and
-`/about`. They share [`shared/app.ts`](./shared/app.ts), which builds the
-binding context, resolves the route, and produces a `Response` via
+`/about` because those paths are the two route definitions in
+[`shared/app.ts`](./shared/app.ts). They share that file to build the
+binding context, resolve the route, and produce a `Response` via
 `renderToResponse()`.
 
 ### Prerequisites
