@@ -6,6 +6,22 @@ The forms module provides reactive form state, sync/async validation, cross-fiel
 import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 ```
 
+## Concepts
+
+A bQuery form is a **graph of signals**. Each field owns its own `value`, `error`, `isTouched`, `isDirty`, `isFocused`, and `isValidating` signal; the parent form derives aggregate signals (`isValid`, `isDirty`, `isSubmitting`, `submitCount`, …) from those. Because everything is signal-based:
+
+- Form fields can be read or rendered anywhere — from raw DOM via `bq-model`, from inside a `component()`, or from a plain `effect()`.
+- Validation is automatic and reactive: triggering modes (`'change' | 'blur' | 'both' | 'manual'`) decide *when* validators run, but the resulting `error` signal updates downstream subscribers immediately.
+- Async validators return promises and update `isValidating` while in flight; later invocations cancel earlier ones, so the final state is always consistent with the most recent input.
+
+There are three entry points, in increasing scope:
+
+1. **`useFormField(initial, options)`** — a single reactive field. Use it for one-off inputs, search boxes, or when you want to compose fields manually.
+2. **`createForm({ fields, crossValidators, onSubmit })`** — a full form. Manages submit lifecycle, cross-field rules, and bulk operations (`reset`, `setValues`, `setErrors`).
+3. **`useForm` / `useField` / `useFieldArray`** — the same primitives bound to the current `component()` scope, so disposal happens automatically on `disconnected`.
+
+> Validators are plain functions (`(value) => string | true | undefined` or async equivalent). The built-ins (`required()`, `email()`, `minLength(n)`, …) are factories that return such functions, which is why they are always called with `()` even when they take no arguments.
+
 ## Standalone fields with `useFormField()`
 
 Use `useFormField()` when you want the same reactive field primitives as `createForm()`,
