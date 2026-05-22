@@ -6,7 +6,7 @@ The core module provides selectors, DOM manipulation, events, and utilities. The
 - **`$$(selector)`** — wraps any number of elements (including zero) in a `BQueryCollection`. Use it for lists, optional matches, or iteration.
 - **Utilities** — pure helpers (`debounce`, `throttle`, `merge`, `uid`, `template`, type guards, …) exposed both as named exports *and* via the `utils` namespace for IntelliSense-friendly destructuring.
 
-All mutating methods return `this` so they chain. Read-only getters (`text()`, `attr(name)`, `css(prop)`, `val()`, etc.) return the underlying value. Methods that write strings into the DOM run them through the default sanitizer; the [Security guide](./security.md) covers how to opt in to raw HTML when you genuinely need it.
+All mutating methods return `this` so they chain. Read-only getters (`text()`, `attr(name)`, `css(prop)`, `val()`, etc.) return the underlying value. HTML insertion methods such as `html()`, `append()`, `prepend()`, `before()`, and `after()` sanitize string content by default, while setters like `attr()`, `data()`, and `css()` write directly; the [Security guide](./security.md) covers how to opt in to raw HTML when you genuinely need it.
 
 > `BQueryElement` always wraps exactly one element. `BQueryCollection` wraps zero or more — its mutating methods apply to every element, and its getters read from the first element. Convert between them with `$$(...).eq(0)` or `collection.firstEl()`, both of which return `BQueryElement | undefined` when the collection is empty.
 

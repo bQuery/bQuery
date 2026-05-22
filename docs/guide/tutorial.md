@@ -509,6 +509,8 @@ export function render(host: HTMLElement) {
 }
 ```
 
+Because this assigns a developer-authored static template to `innerHTML`, keep it free of untrusted interpolations. Bind user data through `bq-text`, `bq-html`, or the mounted state instead of concatenating user input into the template string.
+
 For declarative `<a is="bq-link">` links, guards (`beforeEach`, `beforeEnter`), and the new `isNavigating` signal, see [Router](./router.md).
 
 ## Step 7 — Animate page transitions with `transition()`
