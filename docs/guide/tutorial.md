@@ -368,7 +368,9 @@ What is happening:
 - `crossValidators` runs after individual validators and can return per-field error messages.
 - `handleSubmit()` runs validation, awaits `onSubmit`, and exposes `isSubmitting` as a signal so the button can disable itself reactively.
 
-For async validators, validation strategies (`'manual' | 'change' | 'blur' | 'both'`), validator combinators, and dynamic field arrays via `createFieldArray()`, see [Forms](./forms.md). If you use the forms-specific `compose()` combinator, import it from `@bquery/bquery/forms`; the root and `/full` entries intentionally keep `core.compose` as the unqualified `compose` export.
+For async validators, validation strategies (`'manual' | 'change' | 'blur' | 'both'`), validator combinators, and dynamic field arrays via `createFieldArray()`, see [Forms](./forms.md).
+
+If you use the forms-specific `compose()` combinator, import it from `@bquery/bquery/forms`. The root and `/full` entries intentionally keep `core.compose` as the unqualified `compose` export.
 
 ## Step 5 — A reusable Web Component
 
@@ -438,7 +440,7 @@ function handleNoteClick(event: MouseEvent, note: { id: number }) {
 }
 ```
 
-For props that are objects/arrays, the v1.13 `setProp` / `getProp` instance helpers let you set non-string props directly (see [Components › Props](./components.md#props) in the component guide).
+For props that are objects/arrays, the v1.13 `setProp` / `getProp` instance helpers let you set non-string props directly (see [Components › Props](./components.md#props)).
 
 ## Step 6 — Multi-page SPA with the router
 
