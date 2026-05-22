@@ -47,7 +47,7 @@ const fromArray = $$([document.body]);
 
 ### Class & attribute helpers
 
-These helpers mirror standard `classList` / `setAttribute` semantics but stay chainable. `attr(name)` (single argument) returns the current attribute value as a `string`, using `''` when the attribute is missing; calling `attr(name, value)` sets it. `prop()` is the equivalent for IDL properties (e.g. `checked`, `disabled`, `value`) and avoids the string round-trip. `data()` reads and writes `data-*` attributes with automatic key normalisation.
+These helpers mirror standard `classList` / `setAttribute` semantics but stay chainable. `attr(name)` (single argument) returns the current attribute value as a `string`, using `''` when the attribute is missing; calling `attr(name, value)` sets it. `prop()` is the equivalent for IDL properties (e.g. `checked`, `disabled`, `value`) and avoids the string round-trip. `data()` reads and writes `data-*` attributes with automatic key normalization.
 
 - `addClass(...classNames)`
 - `removeClass(...classNames)`
