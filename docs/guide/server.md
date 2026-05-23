@@ -3,7 +3,7 @@
 The server module adds a lightweight, Express-inspired backend layer to bQuery without introducing runtime dependencies. It focuses on the smallest useful primitives for request pipelines: middleware, route params, query parsing, safe response helpers, direct SSR rendering, and runtime-agnostic WebSocket session routing.
 
 ```ts
-import { createServer } from '@bquery/bquery/server';
+import { ServerHttpError, badRequest, createServer } from '@bquery/bquery/server';
 ```
 
 ---
@@ -15,6 +15,7 @@ Runtime helpers:
 | Export                            | Purpose                                                                                              |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `createServer()`                  | Create an app-like server handle with middleware, HTTP routes, SSR responses, and WebSocket routing. |
+| `ServerHttpError` / `badRequest()` etc. | Structured HTTP errors for reusable status-aware failures.                                      |
 | `isWebSocketRequest(request)`     | Check whether a `Request` is a valid WebSocket upgrade handshake.                                    |
 | `isServerWebSocketSession(value)` | Narrow the result of `handleWebSocket()` to a runtime-agnostic session descriptor.                   |
 
@@ -43,6 +44,14 @@ import type { ServerContext, ServerWebSocketSession } from '@bquery/bquery/serve
 ## `createServer()`
 
 Creates an app-like request handler with `use()`, `get()`, `post()`, `put()`, `patch()`, `delete()`, `all()`, `add()`, `ws()`, `handle()`, and `handleWebSocket()`.
+
+Recent additions:
+
+- `app.listen()` for runtime-native listeners on supported runtimes
+- `ctx.body()` for content-type-aware body parsing
+- `ctx.cookies` and `ctx.setCookie()`
+- `ctx.stream()`, `ctx.sse()`, `ctx.renderStream()`, and `ctx.renderResponse()`
+- structured `ServerHttpError` helpers
 
 ```ts
 const app = createServer();
@@ -83,7 +92,11 @@ Each handler receives a `ServerContext` with:
 - `params` — null-prototype route params captured from `:param` segments
 - `query` — null-prototype query params (`string` or `string[]` for repeated keys)
 - `state` — mutable per-request bag for middleware coordination
+- `cookies` — parsed request cookies
 - `isWebSocketRequest` — `true` for upgrade handshakes
+- `body()` — parse JSON, urlencoded form, multipart form-data, text, or raw buffers
+- `accepts(types)` — returns the first matching accepted media type
+- `setCookie(name, value, options?)` — appends `Set-Cookie`
 
 Response helpers:
 
@@ -91,8 +104,12 @@ Response helpers:
 - `ctx.text(body, init?)`
 - `ctx.html(body, init?)` — sanitizes by default
 - `ctx.json(data, init?)`
+- `ctx.stream(stream, init?)`
+- `ctx.sse(source, init?)`
 - `ctx.redirect(location, status?)`
 - `ctx.render(template, data, options?)` — wraps `renderToString()` with the same DOM-free fallback used by `@bquery/bquery/ssr`
+- `ctx.renderStream(template, data, options?)`
+- `ctx.renderResponse(template, data, options?)`
 
 `params` and `query` are created as null-prototype dictionaries and reserved keys such as `__proto__`, `constructor`, and `prototype` are rejected or ignored to keep request-derived data isolated from object prototypes.
 
@@ -107,6 +124,31 @@ app.get('/search', (ctx) =>
 
 await app.handle('/search?tag=docs&tag=server');
 // => { "tags": ["docs", "server"] }
+```
+
+### Body parsing and cookies
+
+```ts
+app.post('/profile', async (ctx) => {
+  const body = (await ctx.body()) as { name: string };
+  ctx.setCookie('seen-profile', '1', { httpOnly: true, path: '/' });
+  return ctx.json({ name: body.name, theme: ctx.cookies.theme });
+});
+```
+
+### Streaming and SSE helpers
+
+```ts
+app.get('/events', (ctx) =>
+  ctx.sse([
+    { event: 'ready', data: 'connected' },
+    { event: 'message', data: 'hello' },
+  ])
+);
+
+app.get('/stream', (ctx) =>
+  ctx.renderStream('<main><h1 bq-text="title"></h1></main>', { title: 'Streamed' })
+);
 ```
 
 ---
@@ -128,6 +170,14 @@ const app = createServer({
     const message = error instanceof Error ? error.message : 'Unknown error';
     return ctx.json({ message }, { status: 500 });
   },
+});
+```
+
+You can also throw `ServerHttpError` (or helpers such as `badRequest()`) to return a status-aware response through the default error handler:
+
+```ts
+app.get('/input', () => {
+  throw badRequest('Missing required query parameter.');
 });
 ```
 
