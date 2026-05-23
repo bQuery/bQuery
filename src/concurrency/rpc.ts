@@ -135,8 +135,9 @@ self.onmessage = async (event) => {
 /**
  * Creates a reusable RPC-style worker with explicit named method dispatch.
  *
- * The worker processes one request at a time to keep lifecycle, timeout, abort,
- * and cleanup semantics aligned with the minimal Milestone 1 task API.
+ * By default the worker processes one request at a time. Set `maxInFlight` to
+ * allow multiple concurrent calls on the same worker when the handler logic is
+ * safe to overlap; timeout, abort, and cleanup still apply per in-flight call.
  *
  * @example
  * ```ts

@@ -57,7 +57,7 @@ import type { HydrationHandle, HydrationMismatch, SSRStoreSnapshot } from '@bque
 
 ## Server-Side Rendering
 
-## Recent additions
+### Recent additions
 
 - `flushBoundary()` lets `renderToStream()` split output into multiple chunks on explicit boundaries
 - `createSSRCache()` adds a small in-memory response cache for `renderToResponse()`

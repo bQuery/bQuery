@@ -282,21 +282,55 @@ const serializeCookie = (name: string, value: string, options: ServerCookieOptio
   return parts.join('; ');
 };
 
+interface AcceptEntry {
+  q: number;
+  range: string;
+}
+
+const parseAcceptHeader = (header: string): AcceptEntry[] =>
+  header
+    .split(',')
+    .map((entry, index) => {
+      const [rawRange, ...params] = entry.trim().split(';');
+      const qValue = params.find((param) => param.trim().startsWith('q='))?.split('=')[1];
+      const q = qValue === undefined ? 1 : Number.parseFloat(qValue);
+      return {
+        index,
+        q: Number.isFinite(q) ? q : 0,
+        range: rawRange.trim().toLowerCase(),
+      };
+    })
+    .filter((entry) => entry.range && entry.q > 0)
+    .sort((left, right) => right.q - left.q || left.index - right.index)
+    .map(({ q, range }) => ({ q, range }));
+
+const matchesAcceptedType = (type: string, range: string): boolean => {
+  if (range === '*/*') {
+    return true;
+  }
+
+  const [rangeMajor, rangeMinor] = range.split('/');
+  const [typeMajor, typeMinor] = type.split('/');
+  if (!rangeMajor || !rangeMinor || !typeMajor || !typeMinor) {
+    return false;
+  }
+
+  return (rangeMajor === '*' || rangeMajor === typeMajor) &&
+    (rangeMinor === '*' || rangeMinor === typeMinor);
+};
+
 const accepts = (request: Request, types: string[]): string | null => {
   const accept = request.headers.get('accept');
   if (!accept || types.length === 0) {
     return types[0] ?? null;
   }
 
-  const normalized = accept.toLowerCase();
-  for (const type of types) {
-    const lowered = type.toLowerCase();
-    if (normalized.includes(lowered)) {
-      return type;
-    }
-    const [major] = lowered.split('/');
-    if (normalized.includes(`${major}/*`) || normalized.includes('*/*')) {
-      return type;
+  const acceptedTypes = parseAcceptHeader(accept);
+  for (const accepted of acceptedTypes) {
+    for (const type of types) {
+      if (matchesAcceptedType(type.toLowerCase(), accepted.range)) {
+        return type;
+      }
     }
   }
 
@@ -323,7 +357,11 @@ const decodeFormUrlEncoded = (textBody: string): Record<string, string | string[
 
 const formatSseChunk = (event: ServerSseEvent | string, defaultRetry?: number): string => {
   if (typeof event === 'string') {
-    return `data: ${event}\n${typeof defaultRetry === 'number' ? `retry: ${defaultRetry}\n` : ''}\n`;
+    const data = event
+      .split('\n')
+      .map((line) => `data: ${line}\n`)
+      .join('');
+    return `${data}${typeof defaultRetry === 'number' ? `retry: ${defaultRetry}\n` : ''}\n`;
   }
 
   let chunk = '';
@@ -335,6 +373,15 @@ const formatSseChunk = (event: ServerSseEvent | string, defaultRetry?: number): 
     chunk += `data: ${line}\n`;
   }
   return `${chunk}\n`;
+};
+
+const getRequestBodySize = async (request: Request): Promise<number> => {
+  const contentLength = Number.parseInt(request.headers.get('content-length') ?? '', 10);
+  if (Number.isFinite(contentLength) && contentLength >= 0) {
+    return contentLength;
+  }
+
+  return (await request.clone().arrayBuffer()).byteLength;
 };
 
 const createSseResponse = (
@@ -734,6 +781,12 @@ const createBodyReader = (
       if (contentType.includes('multipart/form-data')) {
         if (typeof request.formData !== 'function') {
           throw new ServerHttpError(415, 'multipart/form-data is not supported in this runtime.');
+        }
+        if (
+          limits?.multipart !== undefined &&
+          (await getRequestBodySize(request)) > limits.multipart
+        ) {
+          throw new ServerHttpError(413, 'Multipart form body exceeds the configured limit.');
         }
         const formData = await request.clone().formData();
         const out = new Map<string, FormDataEntryValue | FormDataEntryValue[]>();

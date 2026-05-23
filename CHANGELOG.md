@@ -84,12 +84,6 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
-### Fixed (Unreleased)
-
-## Unreleased
-
-### Added (Unreleased)
-
 - Expanded `@bquery/bquery/concurrency` with richer support metadata, `withTransferables()`, `createSharedBuffer()`, RPC `maxInFlight`, pool priority handling, `pause()` / `resume()`, `onIdle()`, and rolling pool metrics with reactive mirrors.
 - Expanded `@bquery/bquery/ssr` with `flushBoundary()`, `createSSRCache()`, `createSSRMetrics()`, `createEdgeHandler()`, cache-aware `renderToResponse()`, and explicit multi-chunk `renderToStream()` boundaries.
 - Expanded `@bquery/bquery/server` with structured `ServerHttpError` helpers, `ctx.body()`, `ctx.cookies`, `ctx.setCookie()`, `ctx.accepts()`, `ctx.stream()`, `ctx.sse()`, `ctx.renderStream()`, `ctx.renderResponse()`, and `app.listen()` for supported runtimes.

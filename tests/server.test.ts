@@ -208,6 +208,42 @@ describe('server/createServer', () => {
     expect(response.headers.get('set-cookie')).toContain('session=abc123');
   });
 
+  it('enforces multipart body limits', async () => {
+    const app = createServer({
+      limits: {
+        multipart: 32,
+      },
+    });
+    app.post('/upload', async (ctx) => {
+      await ctx.body();
+      return ctx.text('ok');
+    });
+
+    const boundary = '----bquery-boundary';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="demo.txt"',
+      'Content-Type: text/plain',
+      '',
+      'payload that is intentionally too large',
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+
+    const response = await app.handle(
+      new Request('http://localhost/upload', {
+        body,
+        headers: {
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+        },
+        method: 'POST',
+      })
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe('Multipart form body exceeds the configured limit.');
+  });
+
   it('supports stream, sse, and renderStream helpers', async () => {
     const app = createServer();
     const encoder = new TextEncoder();
@@ -235,6 +271,10 @@ describe('server/createServer', () => {
     expect(sseResponse.headers.get('content-type')).toContain('text/event-stream');
     expect(await sseResponse.text()).toContain('event: message');
 
+    app.get('/sse-text', (ctx) => ctx.sse(['hello\nworld']));
+    const sseTextResponse = await app.handle('/sse-text');
+    expect(await sseTextResponse.text()).toContain('data: hello\ndata: world\n');
+
     const renderResponse = await app.handle('/render-stream');
     expect(renderResponse.headers.get('content-type')).toContain('text/html');
     expect(await renderResponse.text()).toContain('streamed html');
@@ -251,7 +291,7 @@ describe('server/createServer', () => {
     const response = await app.handle(
       new Request('http://localhost/response', {
         headers: {
-          accept: 'text/html',
+          accept: 'application/jsonp;q=1, text/html;q=0.8, application/json;q=0.7',
         },
       })
     );

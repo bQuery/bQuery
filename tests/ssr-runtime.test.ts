@@ -93,6 +93,31 @@ describe('runtime detection', () => {
     expect(chunks).toEqual(['<div>before</div>', '<div>after</div>']);
   });
 
+  it('injects head fragments into the streamed chunk that contains </head>', async () => {
+    configureSSR({ backend: 'pure' });
+    const context = createSSRContext();
+    context.head.add({
+      meta: [{ name: 'stream-test', content: 'ok' }],
+    });
+
+    const stream = renderToStream(
+      `<html><head></head>${flushBoundary()}<body><div>after</div></body></html>`,
+      {},
+      { context }
+    );
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value);
+    }
+
+    expect(html).toContain('<head><meta name="stream-test" content="ok"></head>');
+  });
+
   it('records render metrics through the SSR context collector', async () => {
     const metrics = createSSRMetrics();
     const context = createSSRContext({ metrics });
@@ -124,6 +149,26 @@ describe('runtime detection', () => {
 
     expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
     expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
+  });
+
+  it('evicts empty-string cache keys when the cache exceeds maxEntries', () => {
+    const cache = createSSRCache({ maxEntries: 1 });
+
+    cache.set('', {
+      body: 'first',
+      createdAt: Date.now(),
+      headers: [],
+      status: 200,
+    });
+    cache.set('next', {
+      body: 'second',
+      createdAt: Date.now(),
+      headers: [],
+      status: 200,
+    });
+
+    expect(cache.get('')).toBeNull();
+    expect(cache.get('next')?.body).toBe('second');
   });
 
   it('wraps edge handlers with a custom error mapper', async () => {
@@ -970,6 +1015,17 @@ describe('renderToResponse', () => {
 
   it('honours the Cache-Control option', async () => {
     const response = await renderToResponse('<p>x</p>', {}, { cacheControl: 'public, max-age=60' });
+    expect(response.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
+  it('keeps an explicit Cache-Control header when cache shaping is also enabled', async () => {
+    const response = await renderToResponse('<p>x</p>', {}, {
+      cache: {
+        sMaxAge: 30,
+      },
+      cacheControl: 'public, max-age=60',
+    });
+
     expect(response.headers.get('cache-control')).toBe('public, max-age=60');
   });
 

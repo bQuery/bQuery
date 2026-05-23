@@ -99,6 +99,37 @@ const injectBeforeBodyEnd = (html: string, fragment: string): string => {
   return html.slice(0, idx) + fragment + html.slice(idx);
 };
 
+const injectStreamFragments = (
+  chunks: string[],
+  headFragment: string,
+  bodyFragment: string
+): string[] => {
+  if (!headFragment && !bodyFragment) {
+    return chunks;
+  }
+
+  const output = [...chunks];
+
+  if (headFragment) {
+    const headChunkIndex = output.findIndex((chunk) => chunk.toLowerCase().includes('</head>'));
+    if (headChunkIndex !== -1) {
+      output[headChunkIndex] = injectIntoHead(output[headChunkIndex], headFragment);
+    }
+  }
+
+  if (bodyFragment) {
+    for (let index = output.length - 1; index >= 0; index--) {
+      if (!output[index].toLowerCase().includes('</body>')) {
+        continue;
+      }
+      output[index] = injectBeforeBodyEnd(output[index], bodyFragment);
+      break;
+    }
+  }
+
+  return output;
+};
+
 /**
  * Async-aware render. Resolves all `Promise`/`defer()` values in the context,
  * then delegates to `renderToString()` and applies head/asset/store-state
@@ -215,17 +246,31 @@ export const renderToStream = (
       try {
         if (template.includes(FLUSH_BOUNDARY_MARKER)) {
           const parts = template.split(FLUSH_BOUNDARY_MARKER);
-          for (const [index, part] of parts.entries()) {
+          const chunks: string[] = [];
+          let headHtml = '';
+          let assetsHtml = '';
+          let storeScriptTag = '';
+          for (const part of parts) {
             if (!part) {
               continue;
             }
             const result = await renderToStringAsync(part, data, {
               ...merged,
-              injectHead: index === parts.length - 1 ? merged.injectHead : false,
+              injectHead: false,
             });
+            headHtml = result.headHtml;
+            assetsHtml = result.assetsHtml;
+            storeScriptTag = result.storeScriptTag;
             if (result.html) {
-              controller.enqueue(encoder.encode(result.html));
+              chunks.push(result.html);
             }
+          }
+          const renderedChunks =
+            merged.injectHead === false
+              ? chunks
+              : injectStreamFragments(chunks, headHtml + assetsHtml, storeScriptTag);
+          for (const chunk of renderedChunks) {
+            controller.enqueue(encoder.encode(chunk));
           }
         } else {
           const result = await renderToStringAsync(template, data, merged);
@@ -308,7 +353,9 @@ const applyCacheHeaders = (headers: Headers, cacheOptions: RenderToResponseCache
     directives.push(`stale-if-error=${Math.trunc(cacheOptions.staleIfError)}`);
   }
   if (directives.length > 0) {
-    headers.set('cache-control', directives.join(', '));
+    if (!headers.has('cache-control')) {
+      headers.set('cache-control', directives.join(', '));
+    }
   }
   if (cacheOptions.vary && cacheOptions.vary.length > 0) {
     headers.set('vary', cacheOptions.vary.join(', '));

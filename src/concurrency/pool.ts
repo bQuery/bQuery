@@ -22,6 +22,7 @@ import type {
 } from './types';
 
 const DEFAULT_POOL_CONCURRENCY = 4;
+const MAX_METRICS_HISTORY = 128;
 
 interface QueueEntry<TJob, TResult> {
   abortHandler?: () => void;
@@ -122,6 +123,7 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
   const queue: Array<QueueEntry<TJob, TResult>> = [];
   const workers = createWorkers(concurrency);
   const metricsHistory: number[] = [];
+  let metricsRuntimeTotalMs = 0;
   const metrics: PoolMetrics = {
     avgRuntimeMs: 0,
     completed: 0,
@@ -162,8 +164,14 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
 
     metrics.completed += 1;
     metricsHistory.push(durationMs);
-    metrics.avgRuntimeMs =
-      metricsHistory.reduce((total, value) => total + value, 0) / metricsHistory.length;
+    metricsRuntimeTotalMs += durationMs;
+    if (metricsHistory.length > MAX_METRICS_HISTORY) {
+      const removed = metricsHistory.shift();
+      if (typeof removed === 'number') {
+        metricsRuntimeTotalMs -= removed;
+      }
+    }
+    metrics.avgRuntimeMs = metricsRuntimeTotalMs / metricsHistory.length;
     const sorted = [...metricsHistory].sort((a, b) => a - b);
     const index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1);
     metrics.p95RuntimeMs = sorted[index] ?? durationMs;

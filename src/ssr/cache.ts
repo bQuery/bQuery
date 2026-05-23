@@ -57,7 +57,7 @@ export const createSSRCache = (options: SSRCacheOptions = {}): SSRCache => {
 
     while (entries.size > maxEntries) {
       const oldest = entries.keys().next().value;
-      if (!oldest) {
+      if (oldest === undefined) {
         break;
       }
       entries.delete(oldest);
