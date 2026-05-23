@@ -95,6 +95,7 @@ src/
 ├── a11y/               # focus traps, announcements, audits, media prefs
 ├── dnd/                # draggable, droppable, sortable
 ├── media/              # viewport, network, battery, clipboard, sensors, observers
+├── canvas/             # chainable canvas wrapper, reactive render loop, scene graph
 ├── plugin/             # plugin registry for directives/components
 ├── devtools/           # runtime inspection and timeline helpers
 ├── testing/            # renderComponent(), mockSignal(), waitFor()
@@ -346,6 +347,21 @@ When version metadata or public exports change, refresh the AI-facing files as a
 | `useResizeObserver`                       | function  | Reactive ResizeObserver wrapper with box selection and `observe` / `unobserve` / `destroy`                    |
 | `useMutationObserver`                     | function  | Reactive MutationObserver wrapper with `observe` / `takeRecords` / `destroy`                                  |
 | `clipboard`                               | object    | Async clipboard read/write helpers                                                                            |
+
+### Canvas (`@bquery/bquery/canvas`)
+
+| Export                                                                                  | Kind       | Description                                                                                                          |
+| --------------------------------------------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `$canvas(target)`                                                                       | function   | Wrap an existing `<canvas>` (throws if missing/non-canvas), parallel to core `$()`                                   |
+| `$$canvas(target)`                                                                      | function   | Wrap zero or more `<canvas>` elements into a `BQueryCanvasCollection`; never throws                                  |
+| `createCanvas(options?)`                                                                | function   | Build a detached, DPR-correct canvas wrapper                                                                         |
+| `BQueryCanvas`, `BQueryCanvasCollection`                                                | classes    | Chainable wrappers exposing `.size()`, `.dpr`, `.autoResize()`, immediate-mode shapes, `style()`, transforms, events |
+| `render(fn)`, `frame(fn)`                                                               | methods    | Signal-driven render loop and RAF frame loop (respects `prefersReducedMotion()`)                                     |
+| `createPathBuilder()`                                                                   | function   | Fluent `Path2D` builder used by `.path()` and scene `PathNode`                                                       |
+| `loadImage`, `peekImage`, `clearImageCache`                                             | functions  | Cached image loader with abort/`crossOrigin`/`referrerPolicy` support                                                |
+| `createScene`, `rectNode`, `circleNode`, `pathNode`, `textNode`, `imageNode`, `groupNode`, `layerNode` | factories  | Opt-in retained-mode scene graph with z-index ordering, transforms, and pointer hit-testing                       |
+| `toBlob`, `toDataURL`, `pickPixel`, `measureText`, `clearMeasureCache`, `offscreen`, `imageDataSignal` | utils      | Promise wrappers, pixel reads, cached text measurement, OffscreenCanvas fallback, reactive `ImageData`             |
+| `renderOnWorker(canvas, worker, opts?)`                                                 | function   | Transfer rendering to a Worker via `OffscreenCanvas`                                                                 |
 
 ### Plugin (`@bquery/bquery/plugin`)
 

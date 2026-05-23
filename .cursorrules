@@ -76,6 +76,7 @@ import {
   useMutationObserver,
   useResizeObserver,
 } from '@bquery/bquery/media';
+import { $canvas, createScene, rectNode } from '@bquery/bquery/canvas';
 import { use } from '@bquery/bquery/plugin';
 import { enableDevtools } from '@bquery/bquery/devtools';
 import { renderComponent } from '@bquery/bquery/testing';

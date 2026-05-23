@@ -82,6 +82,7 @@ Version `1.12.0` adds Store plugin teardown APIs (`unregisterPlugin()`, `clearPl
 | `createRpcWorker()` / `createRpcPool()` / `createReactiveTaskWorker()` / `createReactiveRpcPool()` / `parallel()` / `pipeline()` | Explicit browser-first concurrency surface with reusable workers and helpers  |
 | `bq-error` / `bq-aria`                                                                                                           | Reactive inline error output plus declarative ARIA binding in the view module |
 | `useIntersectionObserver()` / `useResizeObserver()` / `useMutationObserver()`                                                    | Cleanup-friendly media observer composables                                   |
+| `$canvas()` / `createCanvas()` / `BQueryCanvas.render(fn)` / `createScene()`                                                     | Chainable canvas wrapper, reactive render loop, RAF frame loop, opt-in scene graph |
 
 ## Files to Consult
 

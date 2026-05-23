@@ -29,6 +29,10 @@ const window = new Window();
 (globalThis as unknown as { customElements: CustomElementRegistry }).customElements =
   window.customElements as unknown as CustomElementRegistry;
 
+// Register HTMLCanvasElement for canvas tests
+(globalThis as unknown as { HTMLCanvasElement: typeof HTMLCanvasElement }).HTMLCanvasElement =
+  window.HTMLCanvasElement as unknown as typeof HTMLCanvasElement;
+
 // Polyfill requestAnimationFrame for spring animation tests
 (
   globalThis as unknown as {

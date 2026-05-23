@@ -62,6 +62,7 @@ export default defineConfig({
             { text: 'Accessibility', link: '/guide/a11y' },
             { text: 'Drag & Drop', link: '/guide/dnd' },
             { text: 'Media', link: '/guide/media' },
+            { text: 'Canvas', link: '/guide/canvas' },
             { text: 'Plugin System', link: '/guide/plugin' },
             { text: 'Devtools', link: '/guide/devtools' },
             { text: 'Testing', link: '/guide/testing' },

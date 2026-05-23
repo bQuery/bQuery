@@ -58,6 +58,13 @@ media:
   - changed-files:
       - any-glob-to-any-file: 'src/media/**'
 
+canvas:
+  - changed-files:
+      - any-glob-to-any-file:
+          - 'src/canvas/**'
+          - 'tests/canvas-*.test.ts'
+          - 'docs/guide/canvas.md'
+
 plugin:
   - changed-files:
       - any-glob-to-any-file: 'src/plugin/**'

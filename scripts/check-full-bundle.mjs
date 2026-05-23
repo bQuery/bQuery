@@ -30,6 +30,7 @@ const MODULES = [
   'a11y',
   'dnd',
   'media',
+  'canvas',
   'plugin',
   'devtools',
   'testing',

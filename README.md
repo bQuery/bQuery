@@ -220,6 +220,7 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **A11y**        | Beta         | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                                             |
 | **DnD**         | Beta         | Draggable elements, droppable zones, and sortable lists                                                                                                                     |
 | **Media**       | Beta         | Reactive browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers                                                                   |
+| **Canvas**      | Beta         | Chainable `<canvas>` wrapper, signal-driven render loop, RAF frame loop, opt-in scene graph, offscreen/worker helpers                                                       |
 | **Plugin**      | Beta         | Global plugin registration for custom directives and Web Components                                                                                                         |
 | **Devtools**    | Beta         | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
 | **Testing**     | Beta         | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |

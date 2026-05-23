@@ -14,7 +14,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 ## Quick orientation
 
-bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
+bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **24 public entry points**.
 
 Current release baseline: **1.13.0**.
 
@@ -127,6 +127,7 @@ Public modules live under `src/<module>/index.ts`. Important module groups:
 - `a11y` — focus management, live regions, audits, and media preferences
 - `dnd` — draggable elements, drop zones, and sortable lists
 - `media` — viewport, network, battery, clipboard, and DOM observer signals
+- `canvas` — chainable `<canvas>` wrapper, reactive render loop, RAF frame loop, retained-mode scene graph, offscreen/worker helpers
 - `plugin` — plugin registration for custom directives and Web Components
 - `devtools` — runtime inspection helpers for signals, stores, components, and timelines
 - `testing` — component mounts, mock signals/router helpers, and async test utilities

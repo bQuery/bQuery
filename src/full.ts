@@ -832,6 +832,76 @@ export type {
 } from './media/index';
 
 // ---------------------------------------------------------------------------
+// Canvas module: chainable wrapper, reactive render loop, scene graph
+// ---------------------------------------------------------------------------
+export {
+  $canvas,
+  $$canvas,
+  BQueryCanvas,
+  BQueryCanvasCollection,
+  circleNode,
+  clearImageCache,
+  clearMeasureCache,
+  createCanvas,
+  createPathBuilder,
+  createScene,
+  groupNode,
+  imageDataSignal,
+  imageNode,
+  layerNode,
+  loadImage,
+  measureText,
+  offscreen,
+  pathNode,
+  peekImage,
+  pickPixel,
+  rectNode,
+  renderOnWorker,
+  textNode,
+  toBlob,
+  toDataURL,
+} from './canvas/index';
+export type {
+  AutoResizeTarget,
+  BQueryCanvasLike,
+  CanvasPaint,
+  CanvasPointerEvent,
+  CanvasViewport,
+  CanvasRenderOptions,
+  CircleNode,
+  CreateCanvasOptions,
+  CreateSceneOptions,
+  DrawOptions,
+  FrameFn,
+  FrameHandle,
+  FrameInfo,
+  FrameOptions,
+  GroupNode,
+  ImageDrawOptions,
+  ImageNode,
+  LayerNode,
+  LoadImageOptions,
+  PathBuilder,
+  PathNode,
+  Point,
+  RGBA,
+  Rect,
+  RectNode,
+  RenderFn,
+  RenderHandle,
+  RenderOnWorkerHandle,
+  RenderOnWorkerOptions,
+  Scene,
+  SceneNode,
+  SceneNodeBase,
+  SnapshotFormat,
+  SnapshotOptions,
+  StyleOptions,
+  TextNode,
+  TextOptions,
+} from './canvas/index';
+
+// ---------------------------------------------------------------------------
 // Plugin module
 // ---------------------------------------------------------------------------
 export {

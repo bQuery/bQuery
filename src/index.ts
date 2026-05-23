@@ -155,6 +155,9 @@ export * from './dnd/index';
 // Media module: reactive browser and device API signals
 export * from './media/index';
 
+// Canvas module: chainable wrapper, reactive render loop, scene graph
+export * from './canvas/index';
+
 // Plugin module: global plugin registration system
 export * from './plugin/index';
 

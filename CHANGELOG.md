@@ -84,6 +84,8 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
+- **Canvas**: Added `@bquery/bquery/canvas` — a chainable, jQuery-flavored wrapper around `HTMLCanvasElement` with DPR-correct sizing, `autoResize()` via `ResizeObserver`, immediate-mode shapes (`rect`, `roundRect`, `circle`, `ellipse`, `line`, `polygon`, `path`, `text`, `image`), batch `style()`, transforms, gradients/patterns, and pointer events with canvas-local coordinates. Includes a signal-driven `render()` loop, a `frame()` RAF loop that respects `prefers-reduced-motion`, an opt-in retained-mode scene graph (`createScene`, `rectNode`/`circleNode`/`pathNode`/`textNode`/`imageNode`/`groupNode`/`layerNode`) with z-index ordering and pointer hit-testing, an image cache (`loadImage`, `clearImageCache`, `peekImage`) with abort and `crossOrigin` support, utility helpers (`toBlob`, `toDataURL`, `pickPixel`, `measureText`, `offscreen`, `imageDataSignal`), and a thin `renderOnWorker()` adapter over `OffscreenCanvas`. The module is tree-shakeable, has zero runtime dependencies, and is SSR-safe — no DOM/canvas access runs at import time.
+
 ### Fixed (Unreleased)
 
 ## [1.13.0] - 2026-05-21
