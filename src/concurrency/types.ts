@@ -33,10 +33,14 @@ export type WorkerTaskHandler<TInput = void, TResult = unknown> = {
 /** Lifecycle state of a reusable task worker. */
 export type TaskWorkerState = 'idle' | 'running' | 'terminated';
 
+/** Supported concurrency runtime identifiers. */
+export type ConcurrencyRuntime = 'auto' | 'browser' | 'bun' | 'deno' | 'node' | 'unknown';
+
 /** Structured error codes emitted by the concurrency module. */
 export type TaskWorkerErrorCode =
   | 'ABORT'
   | 'BUSY'
+  | 'CONCURRENT_LIMIT'
   | 'METHOD_NOT_FOUND'
   | 'QUEUE_CLEARED'
   | 'QUEUE_FULL'
@@ -59,6 +63,11 @@ export interface TaskRunOptions {
    */
   timeout?: number;
   /**
+   * Optional queue priority for pool-backed execution.
+   * Higher values run sooner; equal priorities stay FIFO.
+   */
+  priority?: number;
+  /**
    * Transferable values passed together with the task payload.
    * Use this for large `ArrayBuffer`-backed payloads when appropriate.
    */
@@ -70,6 +79,11 @@ export interface CreateTaskWorkerOptions {
   /** Optional worker name shown in browser tooling where supported. */
   name?: string;
   /**
+   * Runtime override used for feature-detection and tests.
+   * @default 'auto'
+   */
+  runtime?: ConcurrencyRuntime;
+  /**
    * Default timeout applied to `run()` calls when the run itself does not
    * override it.
    */
@@ -80,7 +94,13 @@ export interface CreateTaskWorkerOptions {
 export interface RunTaskOptions extends CreateTaskWorkerOptions, TaskRunOptions {}
 
 /** Options for creating a reusable RPC worker. */
-export type CreateRpcWorkerOptions = CreateTaskWorkerOptions;
+export interface CreateRpcWorkerOptions extends CreateTaskWorkerOptions {
+  /**
+   * Maximum number of in-flight RPC calls allowed on a single worker.
+   * @default 1
+   */
+  maxInFlight?: number;
+}
 
 /** Options accepted by the one-off RPC method helper. */
 export interface CallWorkerMethodOptions extends CreateRpcWorkerOptions, TaskRunOptions {}
@@ -221,6 +241,8 @@ export type ParallelResults<TTasks extends readonly ParallelTask<unknown, unknow
 
 /** Feature-detection snapshot for the browser concurrency runtime. */
 export interface ConcurrencySupport {
+  /** Detected runtime identifier. */
+  runtime: Exclude<ConcurrencyRuntime, 'auto'>;
   /** `Worker` constructor availability. */
   worker: boolean;
   /** `Blob` availability for zero-build inline worker scripts. */
@@ -229,8 +251,24 @@ export interface ConcurrencySupport {
   objectUrl: boolean;
   /** `AbortController` availability for cancellation ergonomics. */
   abortController: boolean;
+  /** `SharedArrayBuffer` availability for shared-memory workflows. */
+  sharedArrayBuffer: boolean;
+  /** Whether the page/runtime is cross-origin isolated. */
+  crossOriginIsolated: boolean;
   /** Whether the minimum browser primitives for this module are present. */
   supported: boolean;
+}
+
+/** Rolling task-pool metrics exposed by reactive wrappers. */
+export interface PoolMetrics {
+  /** Total completed runs/calls. */
+  completed: number;
+  /** Total failed or rejected runs/calls. */
+  failed: number;
+  /** Average observed runtime in milliseconds for completed work. */
+  avgRuntimeMs: number;
+  /** Approximate p95 observed runtime in milliseconds for completed work. */
+  p95RuntimeMs: number;
 }
 
 /**
@@ -332,6 +370,10 @@ export interface TaskPool<TInput = void, TResult = unknown> {
   readonly pending: number;
   /** Number of tasks currently waiting in the queue. */
   readonly size: number;
+  /** Whether queue dispatch is paused. */
+  readonly paused: boolean;
+  /** Rolling runtime metrics for finished work. */
+  readonly metrics: PoolMetrics;
   /**
    * Queue or immediately execute one task in the pool.
    *
@@ -344,6 +386,12 @@ export interface TaskPool<TInput = void, TResult = unknown> {
    * Active tasks continue running.
    */
   clear(): void;
+  /** Pause queued work dispatch without interrupting active tasks. */
+  pause(): void;
+  /** Resume queued work dispatch after a previous `pause()`. */
+  resume(): void;
+  /** Resolves once there are no running or queued tasks left. */
+  onIdle(): Promise<void>;
   /**
    * Permanently terminate the pool and all backing workers.
    * Active and queued tasks reject with termination errors.
@@ -371,6 +419,10 @@ export interface ReactiveTaskPool<TInput = void, TResult = unknown> extends Task
   readonly pending$: ReadonlySignalHandle<number>;
   /** Reactive mirror of {@link TaskPool.size}. */
   readonly size$: ReadonlySignalHandle<number>;
+  /** Reactive mirror of {@link TaskPool.paused}. */
+  readonly paused$: ReadonlySignalHandle<boolean>;
+  /** Reactive mirror of {@link TaskPool.metrics}. */
+  readonly metrics$: ReadonlySignalHandle<PoolMetrics>;
 }
 
 /** Reusable pool of RPC workers with bounded concurrency and queueing. */
@@ -385,6 +437,10 @@ export interface RpcPool<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> 
   readonly pending: number;
   /** Number of calls currently waiting in the queue. */
   readonly size: number;
+  /** Whether queue dispatch is paused. */
+  readonly paused: boolean;
+  /** Rolling runtime metrics for finished work. */
+  readonly metrics: PoolMetrics;
   /**
    * Queue or immediately execute one RPC call in the pool.
    *
@@ -402,6 +458,12 @@ export interface RpcPool<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> 
    * Active calls continue running.
    */
   clear(): void;
+  /** Pause queued work dispatch without interrupting active calls. */
+  pause(): void;
+  /** Resume queued work dispatch after a previous `pause()`. */
+  resume(): void;
+  /** Resolves once there are no running or queued calls left. */
+  onIdle(): Promise<void>;
   /**
    * Permanently terminate the pool and all backing workers.
    * Active and queued calls reject with termination errors.
@@ -428,4 +490,8 @@ export interface ReactiveRpcPool<
   readonly pending$: ReadonlySignalHandle<number>;
   /** Reactive mirror of {@link RpcPool.size}. */
   readonly size$: ReadonlySignalHandle<number>;
+  /** Reactive mirror of {@link RpcPool.paused}. */
+  readonly paused$: ReadonlySignalHandle<boolean>;
+  /** Reactive mirror of {@link RpcPool.metrics}. */
+  readonly metrics$: ReadonlySignalHandle<PoolMetrics>;
 }

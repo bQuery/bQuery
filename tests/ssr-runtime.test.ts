@@ -15,14 +15,18 @@ import {
   createAssetManager,
   createBunHandler,
   createDenoHandler,
+  createEdgeHandler,
   createHeadManager,
   createNodeHandler,
+  createSSRCache,
   createSSRContext,
   createSSRHandler,
+  createSSRMetrics,
   createWebHandler,
   defer,
   defineLoader,
   detectRuntime,
+  flushBoundary,
   getSSRConfig,
   getSSRRuntimeFeatures,
   hydrateIsland,
@@ -72,6 +76,74 @@ describe('runtime detection', () => {
     expect(typeof features.fetchApi).toBe('boolean');
     expect(typeof features.webStreams).toBe('boolean');
     expect(typeof features.textEncoder).toBe('boolean');
+  });
+
+  it('renders manual flush boundaries as multiple stream chunks', async () => {
+    const stream = renderToStream(`<div>before</div>${flushBoundary()}<div>after</div>`, {});
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    const chunks: string[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(decoder.decode(value));
+    }
+
+    expect(chunks).toEqual(['<div>before</div>', '<div>after</div>']);
+  });
+
+  it('records render metrics through the SSR context collector', async () => {
+    const metrics = createSSRMetrics();
+    const context = createSSRContext({ metrics });
+
+    await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'metrics' }, { context });
+
+    expect(metrics.snapshot().renderCount).toBe(1);
+    expect(metrics.snapshot().totalRenderMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('serves cached SSR responses when a cache store is provided', async () => {
+    const cache = createSSRCache();
+    const first = await renderToResponse('<p bq-text="msg"></p>', { msg: 'cached' }, {
+      cache: { store: cache, vary: ['accept-language'] },
+      context: createSSRContext({
+        request: new Request('http://localhost/cached', {
+          headers: { 'accept-language': 'en' },
+        }),
+      }),
+    });
+    const second = await renderToResponse('<p bq-text="msg"></p>', { msg: 'fresh' }, {
+      cache: { store: cache, vary: ['accept-language'] },
+      context: createSSRContext({
+        request: new Request('http://localhost/cached', {
+          headers: { 'accept-language': 'en' },
+        }),
+      }),
+    });
+
+    expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
+    expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
+  });
+
+  it('wraps edge handlers with a custom error mapper', async () => {
+    const handler = createEdgeHandler(
+      () => {
+        throw new Error('edge-boom');
+      },
+      {
+        onError(error, request) {
+          return new Response(`${request.url}:${error instanceof Error ? error.message : 'unknown'}`, {
+            status: 502,
+          });
+        },
+      }
+    );
+
+    const response = await handler(new Request('https://example.com/test'));
+
+    expect(response.status).toBe(502);
+    expect(await response.text()).toBe('https://example.com/test:edge-boom');
   });
 });
 

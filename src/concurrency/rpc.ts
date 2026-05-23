@@ -47,6 +47,7 @@ interface PendingRun<TResult> {
   id: number;
   reject: (reason?: unknown) => void;
   resolve: (value: TResult | PromiseLike<TResult>) => void;
+  signal?: AbortSignal;
   timeoutId?: ReturnType<typeof setTimeout>;
 }
 
@@ -161,48 +162,59 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
   const handlerSources = validateRpcHandlers(handlers);
   const scriptSource = createRpcWorkerScript(handlerSources);
   const defaultTimeout = normalizeTimeout(options.timeout);
+  const maxInFlight =
+    typeof options.maxInFlight === 'number' &&
+    Number.isInteger(options.maxInFlight) &&
+    options.maxInFlight > 0
+      ? options.maxInFlight
+      : 1;
   let disposed = false;
   let worker: Worker | null = null;
-  let pending: PendingRun<unknown> | null = null;
+  const pending = new Map<number, PendingRun<unknown>>();
   let nextRunId = 0;
-  let pendingAbortSignal: AbortSignal | undefined;
 
-  const cleanupPending = (): void => {
-    if (!pending) {
+  const cleanupPending = (pendingRun: PendingRun<unknown>): void => {
+    if (pendingRun.timeoutId !== undefined) {
+      clearTimeout(pendingRun.timeoutId);
+    }
+
+    if (pendingRun.abortHandler && pendingRun.signal) {
+      pendingRun.signal.removeEventListener('abort', pendingRun.abortHandler);
+    }
+  };
+
+  const detachPending = (id: number): PendingRun<unknown> | undefined => {
+    const current = pending.get(id);
+    if (!current) {
+      return undefined;
+    }
+
+    cleanupPending(current);
+    pending.delete(id);
+    return current;
+  };
+
+  const rejectPending = (error: Error): void => {
+    if (pending.size === 0) {
       return;
     }
 
-    if (pending.timeoutId !== undefined) {
-      clearTimeout(pending.timeoutId);
+    const currentRuns = [...pending.values()];
+    pending.clear();
+    for (const current of currentRuns) {
+      cleanupPending(current);
+      current.reject(error);
     }
-
-    if (pending.abortHandler) {
-      pendingAbortSignal?.removeEventListener('abort', pending.abortHandler);
-    }
-
-    pending = null;
-    pendingAbortSignal = undefined;
   };
 
   const detachWorker = (): void => {
     if (!worker) {
       return;
     }
-
     worker.onmessage = null;
     worker.onerror = null;
     worker.terminate();
     worker = null;
-  };
-
-  const rejectPending = (error: Error): void => {
-    if (!pending) {
-      return;
-    }
-
-    const current = pending;
-    cleanupPending();
-    current.reject(error);
   };
 
   const ensureWorker = (): Worker => {
@@ -216,17 +228,15 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
 
     const instance = createWorkerInstance(scriptSource, options.name);
     instance.onmessage = (event: MessageEvent<WorkerResponse<unknown>>) => {
-      const current = pending;
+      const message = event.data;
+      if (!message) {
+        return;
+      }
+
+      const current = detachPending(message.id);
       if (!current) {
         return;
       }
-
-      const message = event.data;
-      if (!message || message.id !== current.id) {
-        return;
-      }
-
-      cleanupPending();
 
       if (message.type === 'bq:error') {
         current.reject(restoreWorkerError(message.error));
@@ -246,21 +256,28 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
     return instance;
   };
 
-  const resetAfterInterruptedRun = (error: Error): void => {
+  const resetAfterInterruptedRun = (error: Error, runId?: number): void => {
     detachWorker();
+    if (typeof runId === 'number') {
+      const current = detachPending(runId);
+      current?.reject(error);
+      rejectPending(error);
+      return;
+    }
+
     rejectPending(error);
   };
 
   return {
     get busy(): boolean {
-      return pending !== null;
+      return pending.size > 0;
     },
     get state(): TaskWorkerState {
       if (disposed) {
         return 'terminated';
       }
 
-      return pending ? 'running' : 'idle';
+      return pending.size > 0 ? 'running' : 'idle';
     },
     call<TMethod extends keyof TRoutes & string>(
       method: TMethod,
@@ -273,11 +290,14 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
         );
       }
 
-      if (pending) {
+      if (pending.size >= maxInFlight) {
+        const errorCode = maxInFlight === 1 ? 'BUSY' : 'CONCURRENT_LIMIT';
         return Promise.reject(
           new TaskWorkerError(
-            'This RPC worker is already processing a request. Wait for the current call to finish or create another worker.',
-            'BUSY'
+            maxInFlight === 1
+              ? 'This RPC worker is already processing a request. Wait for the current call to finish or create another worker.'
+              : `This RPC worker already has ${maxInFlight} in-flight calls. Wait for an active call to finish or raise maxInFlight.`,
+            errorCode
           )
         );
       }
@@ -299,21 +319,22 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
 
         if (runOptions.signal) {
           current.abortHandler = () => {
-            resetAfterInterruptedRun(new TaskWorkerAbortError());
+            resetAfterInterruptedRun(new TaskWorkerAbortError(), runId);
           };
-          pendingAbortSignal = runOptions.signal;
+          current.signal = runOptions.signal;
           runOptions.signal.addEventListener('abort', current.abortHandler, { once: true });
         }
 
         if (timeout !== undefined) {
           current.timeoutId = setTimeout(() => {
             resetAfterInterruptedRun(
-              new TaskWorkerTimeoutError(`Worker RPC call exceeded the timeout of ${timeout}ms.`)
+              new TaskWorkerTimeoutError(`Worker RPC call exceeded the timeout of ${timeout}ms.`),
+              runId
             );
           }, timeout);
         }
 
-        pending = current as PendingRun<unknown>;
+        pending.set(runId, current as PendingRun<unknown>);
 
         try {
           activeWorker.postMessage(

@@ -15,6 +15,7 @@ import type {
   CreateRpcWorkerOptions,
   CreateTaskPoolOptions,
   CreateTaskWorkerOptions,
+  PoolMetrics,
   ReactiveRpcPool,
   ReactiveRpcWorker,
   ReactiveTaskPool,
@@ -34,14 +35,16 @@ interface WorkerSignalMirror {
 
 interface PoolSignalMirror extends WorkerSignalMirror {
   concurrency: Signal<number>;
+  metrics: Signal<PoolMetrics>;
   pending: Signal<number>;
+  paused: Signal<boolean>;
   size: Signal<number>;
 }
 
 type WorkerStateSource = Pick<TaskWorker<unknown, unknown>, 'busy' | 'state'>;
 type PoolStateSource = Pick<
   TaskPool<unknown, unknown>,
-  'busy' | 'concurrency' | 'pending' | 'size' | 'state'
+  'busy' | 'concurrency' | 'metrics' | 'paused' | 'pending' | 'size' | 'state'
 >;
 
 const syncWorkerSignals = (source: WorkerStateSource, mirror: WorkerSignalMirror): void => {
@@ -56,7 +59,9 @@ const syncPoolSignals = (source: PoolStateSource, mirror: PoolSignalMirror): voi
     mirror.state.value = source.state;
     mirror.busy.value = source.busy;
     mirror.concurrency.value = source.concurrency;
+    mirror.metrics.value = source.metrics;
     mirror.pending.value = source.pending;
+    mirror.paused.value = source.paused;
     mirror.size.value = source.size;
   });
 };
@@ -72,7 +77,9 @@ const createPoolSignalMirror = (source: PoolStateSource): PoolSignalMirror => {
   return {
     busy: signal(source.busy),
     concurrency: signal(source.concurrency),
+    metrics: signal(source.metrics),
     pending: signal(source.pending),
+    paused: signal(source.paused),
     size: signal(source.size),
     state: signal(source.state),
   };
@@ -233,15 +240,23 @@ export function createReactiveTaskPool<TInput = void, TResult = unknown>(
     get pending(): number {
       return pool.pending;
     },
+    get paused(): boolean {
+      return pool.paused;
+    },
     get size(): number {
       return pool.size;
     },
     get state(): TaskWorkerState {
       return pool.state;
     },
+    get metrics(): PoolMetrics {
+      return pool.metrics;
+    },
     busy$: readonly(mirror.busy),
     concurrency$: readonly(mirror.concurrency),
+    metrics$: readonly(mirror.metrics),
     pending$: readonly(mirror.pending),
+    paused$: readonly(mirror.paused),
     size$: readonly(mirror.size),
     state$: readonly(mirror.state),
     run(input: TInput, runOptions: TaskRunOptions = {}): Promise<TResult> {
@@ -250,6 +265,17 @@ export function createReactiveTaskPool<TInput = void, TResult = unknown>(
     clear(): void {
       pool.clear();
       sync();
+    },
+    pause(): void {
+      pool.pause();
+      sync();
+    },
+    resume(): void {
+      pool.resume();
+      sync();
+    },
+    onIdle(): Promise<void> {
+      return pool.onIdle();
     },
     terminate(): void {
       pool.terminate();
@@ -309,15 +335,23 @@ export function createReactiveRpcPool<TRoutes extends WorkerRpcHandlers>(
     get pending(): number {
       return pool.pending;
     },
+    get paused(): boolean {
+      return pool.paused;
+    },
     get size(): number {
       return pool.size;
     },
     get state(): TaskWorkerState {
       return pool.state;
     },
+    get metrics(): PoolMetrics {
+      return pool.metrics;
+    },
     busy$: readonly(mirror.busy),
     concurrency$: readonly(mirror.concurrency),
+    metrics$: readonly(mirror.metrics),
     pending$: readonly(mirror.pending),
+    paused$: readonly(mirror.paused),
     size$: readonly(mirror.size),
     state$: readonly(mirror.state),
     call<TMethod extends keyof TRoutes & string>(
@@ -330,6 +364,17 @@ export function createReactiveRpcPool<TRoutes extends WorkerRpcHandlers>(
     clear(): void {
       pool.clear();
       sync();
+    },
+    pause(): void {
+      pool.pause();
+      sync();
+    },
+    resume(): void {
+      pool.resume();
+      sync();
+    },
+    onIdle(): Promise<void> {
+      return pool.onIdle();
     },
     terminate(): void {
       pool.terminate();

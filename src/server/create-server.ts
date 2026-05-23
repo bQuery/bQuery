@@ -1,12 +1,24 @@
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { sanitizeHtml } from '../security/index';
-import { renderToString, serializeStoreState } from '../ssr/index';
+import { callWorkerMethod, runTask } from '../concurrency/index';
+import {
+  createNodeHandler,
+  detectRuntime,
+  renderToResponse,
+  renderToStream,
+  renderToString,
+  serializeStoreState,
+} from '../ssr/index';
+import { ServerHttpError } from './errors';
 import type {
   CreateServerOptions,
   ServerApp,
+  ServerCookieOptions,
   ServerContext,
   ServerHandler,
   ServerHtmlResponseInit,
+  ServerListenHandle,
+  ServerListenOptions,
   ServerMiddleware,
   ServerNext,
   ServerQuery,
@@ -15,6 +27,8 @@ import type {
   ServerRequestInit,
   ServerResponseInit,
   ServerRoute,
+  ServerSseEvent,
+  ServerSseOptions,
   ServerWebSocketConnection,
   ServerWebSocketHandlerSet,
   ServerWebSocketMiddleware,
@@ -229,6 +243,125 @@ const withContentType = (headers: Headers, contentType: string): Headers => {
   return headers;
 };
 
+const parseCookies = (header: string | null): Record<string, string> => {
+  const cookies = createDictionary<string>();
+  if (!header) {
+    return cookies;
+  }
+
+  for (const pair of header.split(/;\s*/)) {
+    const index = pair.indexOf('=');
+    if (index === -1) {
+      continue;
+    }
+    const key = pair.slice(0, index).trim();
+    if (!key || isPrototypePollutionKey(key)) {
+      continue;
+    }
+    const rawValue = pair.slice(index + 1).trim();
+    try {
+      cookies[key] = decodeURIComponent(rawValue);
+    } catch {
+      cookies[key] = rawValue;
+    }
+  }
+
+  return cookies;
+};
+
+const serializeCookie = (name: string, value: string, options: ServerCookieOptions = {}): string => {
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  if (options.path) parts.push(`Path=${options.path}`);
+  if (options.domain) parts.push(`Domain=${options.domain}`);
+  if (typeof options.maxAge === 'number' && Number.isFinite(options.maxAge)) {
+    parts.push(`Max-Age=${Math.trunc(options.maxAge)}`);
+  }
+  if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
+  if (options.httpOnly) parts.push('HttpOnly');
+  if (options.secure) parts.push('Secure');
+  return parts.join('; ');
+};
+
+const accepts = (request: Request, types: string[]): string | null => {
+  const accept = request.headers.get('accept');
+  if (!accept || types.length === 0) {
+    return types[0] ?? null;
+  }
+
+  const normalized = accept.toLowerCase();
+  for (const type of types) {
+    const lowered = type.toLowerCase();
+    if (normalized.includes(lowered)) {
+      return type;
+    }
+    const [major] = lowered.split('/');
+    if (normalized.includes(`${major}/*`) || normalized.includes('*/*')) {
+      return type;
+    }
+  }
+
+  return null;
+};
+
+const decodeFormUrlEncoded = (textBody: string): Record<string, string | string[] | undefined> => {
+  const out = createDictionary<string | string[] | undefined>();
+  for (const [key, value] of new URLSearchParams(textBody).entries()) {
+    if (isPrototypePollutionKey(key)) {
+      continue;
+    }
+    const current = out[key];
+    if (typeof current === 'undefined') {
+      out[key] = value;
+    } else if (Array.isArray(current)) {
+      current.push(value);
+    } else {
+      out[key] = [current, value];
+    }
+  }
+  return out;
+};
+
+const formatSseChunk = (event: ServerSseEvent | string, defaultRetry?: number): string => {
+  if (typeof event === 'string') {
+    return `data: ${event}\n${typeof defaultRetry === 'number' ? `retry: ${defaultRetry}\n` : ''}\n`;
+  }
+
+  let chunk = '';
+  if (event.id) chunk += `id: ${event.id}\n`;
+  if (event.event) chunk += `event: ${event.event}\n`;
+  if (typeof event.retry === 'number') chunk += `retry: ${Math.trunc(event.retry)}\n`;
+  else if (typeof defaultRetry === 'number') chunk += `retry: ${Math.trunc(defaultRetry)}\n`;
+  for (const line of event.data.split('\n')) {
+    chunk += `data: ${line}\n`;
+  }
+  return `${chunk}\n`;
+};
+
+const createSseResponse = (
+  source: AsyncIterable<ServerSseEvent | string> | Iterable<ServerSseEvent | string>,
+  init: ServerSseOptions = {}
+): Response => {
+  const headers = withContentType(createHeaders(init.headers), 'text/event-stream; charset=utf-8');
+  headers.set('cache-control', headers.get('cache-control') ?? 'no-cache');
+  headers.set('connection', headers.get('connection') ?? 'keep-alive');
+  const encoder = new TextEncoder();
+  const asyncSource =
+    Symbol.asyncIterator in Object(source)
+      ? (source as AsyncIterable<ServerSseEvent | string>)
+      : (async function* () {
+          yield* (source as Iterable<ServerSseEvent | string>);
+        })();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      for await (const event of asyncSource) {
+        controller.enqueue(encoder.encode(formatSseChunk(event, init.retry)));
+      }
+      controller.close();
+    },
+  });
+  return response(stream, { ...init, headers });
+};
+
 const response = (body?: BodyInit | null, init: ServerResponseInit = {}): Response => {
   const { headers, ...rest } = init;
   return new Response(body, { ...rest, headers: createHeaders(headers) });
@@ -261,6 +394,10 @@ const redirect = (location: string | URL, status = 302): Response => {
   return response(null, { headers, status });
 };
 
+const stream = (body: ReadableStream<Uint8Array>, init: ServerResponseInit = {}): Response => {
+  return response(body, init);
+};
+
 const render = (
   template: string,
   data: Parameters<typeof renderToString>[1],
@@ -275,6 +412,18 @@ const render = (
     : '';
   const body = `${result.html}${storeState}`;
   return html(body, { headers, status, trusted: true });
+};
+
+const renderStreamResponse = (
+  template: string,
+  data: Parameters<typeof renderToString>[1],
+  options: ServerRenderResponseOptions = {}
+): Response => {
+  const { headers, status = 200, ...renderOptions } = options;
+  return response(renderToStream(template, data, renderOptions), {
+    headers: withContentType(createHeaders(headers), 'text/html; charset=utf-8'),
+    status,
+  });
 };
 
 /**
@@ -548,6 +697,156 @@ const compileRoute = (route: ServerRoute): CompiledRoute => {
   };
 };
 
+const createBodyReader = (
+  request: Request,
+  limits: CreateServerOptions['limits']
+): (() => Promise<unknown>) => {
+  let cached: Promise<unknown> | null = null;
+
+  return async (): Promise<unknown> => {
+    cached ??= (async () => {
+      const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+
+      if (!contentType) {
+        return null;
+      }
+
+      if (contentType.includes('application/json')) {
+        const textBody = await request.clone().text();
+        if (limits?.json !== undefined && textBody.length > limits.json) {
+          throw new ServerHttpError(413, 'Request JSON body exceeds the configured limit.');
+        }
+        try {
+          return textBody ? JSON.parse(textBody) : null;
+        } catch {
+          throw new ServerHttpError(400, 'Request body contains invalid JSON.');
+        }
+      }
+
+      if (contentType.includes('application/x-www-form-urlencoded')) {
+        const textBody = await request.clone().text();
+        if (limits?.form !== undefined && textBody.length > limits.form) {
+          throw new ServerHttpError(413, 'Form body exceeds the configured limit.');
+        }
+        return decodeFormUrlEncoded(textBody);
+      }
+
+      if (contentType.includes('multipart/form-data')) {
+        if (typeof request.formData !== 'function') {
+          throw new ServerHttpError(415, 'multipart/form-data is not supported in this runtime.');
+        }
+        const formData = await request.clone().formData();
+        const out = new Map<string, FormDataEntryValue | FormDataEntryValue[]>();
+        for (const [key, value] of formData.entries()) {
+          if (isPrototypePollutionKey(key)) {
+            continue;
+          }
+          const current = out.get(key);
+          if (typeof current === 'undefined') {
+            out.set(key, value);
+          } else if (Array.isArray(current)) {
+            current.push(value);
+          } else {
+            out.set(key, [current, value]);
+          }
+        }
+        return out;
+      }
+
+      if (contentType.startsWith('text/')) {
+        const textBody = await request.clone().text();
+        if (limits?.text !== undefined && textBody.length > limits.text) {
+          throw new ServerHttpError(413, 'Text body exceeds the configured limit.');
+        }
+        return textBody;
+      }
+
+      return request.clone().arrayBuffer();
+    })();
+
+    return cached;
+  };
+};
+
+const createServerContext = (
+  request: Request,
+  baseUrl: string,
+  limits: CreateServerOptions['limits']
+): ServerContext => {
+  const url = new URL(request.url, baseUrl);
+  const method = request.method.toUpperCase();
+  const path = normalizePath(url.pathname || '/');
+  const query = parseQuery(url);
+  const cookies = parseCookies(request.headers.get('cookie'));
+  const readBody = createBodyReader(request, limits);
+  const responseHeaders = createHeaders();
+
+  return {
+    request,
+    url,
+    method,
+    path,
+    params: createDictionary<string>(),
+    query,
+    cookies,
+    state: {},
+    body: readBody,
+    response: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return response(body, { ...init, headers });
+    },
+    text: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return text(body, { ...init, headers });
+    },
+    html: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return html(body, { ...init, headers });
+    },
+    json: (data, init = {}) => {
+      const headers = createHeaders(init.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return json(data, { ...init, headers });
+    },
+    stream: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return stream(body, { ...init, headers });
+    },
+    sse: (source, init = {}) => {
+      const headers = createHeaders(init.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return createSseResponse(source, { ...init, headers });
+    },
+    accepts: (types) => accepts(request, types),
+    setCookie(name, value, options = {}) {
+      responseHeaders.append('set-cookie', serializeCookie(name, value, options));
+    },
+    redirect,
+    render: (template, data, options = {}) => {
+      const headers = createHeaders(options.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return render(template, data, { ...options, headers });
+    },
+    renderStream: (template, data, options = {}) => {
+      const headers = createHeaders(options.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return renderStreamResponse(template, data, { ...options, headers });
+    },
+    async renderResponse(template, data, options = {}) {
+      const headers = createHeaders(options.headers);
+      responseHeaders.forEach((value, name) => headers.append(name, value));
+      return await renderToResponse(template, data, { ...options, headers });
+    },
+    runTask,
+    callWorker: callWorkerMethod,
+    isWebSocketRequest: isWebSocketRequest(request),
+  };
+};
+
 /**
  * Create a lightweight, Express-inspired request pipeline for SSR-aware
  * backends without introducing runtime dependencies.
@@ -564,6 +863,7 @@ const compileRoute = (route: ServerRoute): CompiledRoute => {
  */
 export const createServer = (options: CreateServerOptions = {}): ServerApp => {
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+  const limits = options.limits;
   const middlewares = [...(options.middlewares ?? [])];
   const routes: CompiledRoute[] = [];
   const webSocketRoutes: CompiledWebSocketRoute[] = [];
@@ -579,6 +879,11 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
     ((error: unknown, context: ServerContext) => {
       if (error instanceof Response) {
         return error;
+      }
+      if (error instanceof ServerHttpError) {
+        return context.text(error.expose ? error.message : 'Internal Server Error', {
+          status: error.status,
+        });
       }
       return context.text('Internal Server Error', { status: 500 });
     });
@@ -662,30 +967,10 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
 
     async handle(input) {
       const request = normalizeRequest(input, baseUrl);
-      const url = new URL(request.url);
-      const method = request.method.toUpperCase();
-      const path = normalizePath(url.pathname || '/');
-      const query = parseQuery(url);
-
-      const context: ServerContext = {
-        request,
-        url,
-        method,
-        path,
-        params: createDictionary<string>(),
-        query,
-        state: {},
-        response,
-        text,
-        html,
-        json,
-        redirect,
-        render,
-        isWebSocketRequest: isWebSocketRequest(request),
-      };
+      const context = createServerContext(request, baseUrl, limits);
 
       try {
-        const route = resolveMatchingRoute(routes, method, path, context);
+       const route = resolveMatchingRoute(routes, context.method, context.path, context);
 
         if (!route) {
           return await notFound(context);
@@ -708,34 +993,14 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
 
     async handleWebSocket(input) {
       const request = normalizeRequest(input, baseUrl);
-      const url = new URL(request.url);
-      const method = request.method.toUpperCase();
-      const path = normalizePath(url.pathname || '/');
-      const query = parseQuery(url);
-
-      const context: ServerContext = {
-        request,
-        url,
-        method,
-        path,
-        params: createDictionary<string>(),
-        query,
-        state: {},
-        response,
-        text,
-        html,
-        json,
-        redirect,
-        render,
-        isWebSocketRequest: isWebSocketRequest(request),
-      };
+      const context = createServerContext(request, baseUrl, limits);
 
       if (!context.isWebSocketRequest) {
         return null;
       }
 
       try {
-        const route = resolveMatchingRoute(webSocketRoutes, method, path, context);
+        const route = resolveMatchingRoute(webSocketRoutes, context.method, context.path, context);
         if (!route) {
           return null;
         }
@@ -752,6 +1017,75 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
       } catch (error) {
         return await onError(error, context);
       }
+    },
+
+    async listen(listenOptions: ServerListenOptions = {}): Promise<ServerListenHandle> {
+      const runtime = listenOptions.runtime ?? 'auto';
+      const resolvedRuntime = runtime === 'auto' ? detectRuntime() : runtime;
+      const port = listenOptions.port ?? 3000;
+      const hostname = listenOptions.hostname ?? '127.0.0.1';
+
+      if (resolvedRuntime === 'bun') {
+        const bunGlobal = globalThis as typeof globalThis & {
+          Bun?: {
+            serve(options: {
+              fetch: (request: Request) => Promise<Response>;
+              hostname?: string;
+              port?: number;
+            }): { hostname?: string; port?: number; stop(): void };
+          };
+        };
+        if (!bunGlobal.Bun?.serve) {
+          throw new Error('Bun runtime APIs are unavailable.');
+        }
+        const server = bunGlobal.Bun.serve({
+          fetch: (request) => app.handle(request),
+          hostname,
+          port,
+        });
+        listenOptions.signal?.addEventListener('abort', () => server.stop(), { once: true });
+        return {
+          addresses: [`http://${server.hostname ?? hostname}:${server.port ?? port}`],
+          async close() {
+            server.stop();
+          },
+          async stop() {
+            server.stop();
+          },
+          url: `http://${server.hostname ?? hostname}:${server.port ?? port}`,
+        };
+      }
+
+      if (resolvedRuntime === 'node') {
+        const nodeHttp = (await import('node:http')) as typeof import('node:http');
+        const handler = createNodeHandler((request) => app.handle(request));
+        const server = nodeHttp.createServer(handler);
+        await new Promise<void>((resolve, reject) => {
+          server.once('error', reject);
+          server.listen(port, hostname, () => resolve());
+        });
+        listenOptions.signal?.addEventListener('abort', () => server.close(), { once: true });
+        return {
+          addresses: [`http://${hostname}:${port}`],
+          async close() {
+            await new Promise<void>((resolve, reject) => {
+              server.close((error) => (error ? reject(error) : resolve()));
+            });
+          },
+          async stop() {
+            await new Promise<void>((resolve, reject) => {
+              server.close((error) => (error ? reject(error) : resolve()));
+            });
+          },
+          url: `http://${hostname}:${port}`,
+        };
+      }
+
+      if (resolvedRuntime === 'deno') {
+        throw new Error('createServer().listen() is not yet implemented for Deno in this runtime.');
+      }
+
+      throw new Error(`createServer().listen() is not supported in runtime "${resolvedRuntime}".`);
     },
   };
 

@@ -162,9 +162,12 @@ describe('concurrency/support', () => {
   it('detects support when zero-build worker primitives are present', async () => {
     await withMockWorkerEnvironment(() => {
       const support = getConcurrencySupport();
+      expect(['browser', 'bun', 'deno', 'node', 'unknown']).toContain(support.runtime);
       expect(support.worker).toBe(true);
       expect(support.blob).toBe(true);
       expect(support.objectUrl).toBe(true);
+      expect(typeof support.sharedArrayBuffer).toBe('boolean');
+      expect(typeof support.crossOriginIsolated).toBe('boolean');
       expect(support.supported).toBe(true);
       expect(isConcurrencySupported()).toBe(true);
     });
@@ -405,6 +408,29 @@ describe('concurrency/createRpcWorker', () => {
         code: 'BUSY',
       });
       expect(await firstCall).toBe(1);
+      rpc.terminate();
+    });
+  });
+
+  it('allows multiple in-flight RPC calls when maxInFlight is raised', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const rpc = createRpcWorker(
+        {
+          wait: async ({ delay, value }: { delay: number; value: number }) => {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            return value;
+          },
+        },
+        { maxInFlight: 2 }
+      );
+
+      const first = rpc.call('wait', { delay: 15, value: 1 });
+      const second = rpc.call('wait', { delay: 15, value: 2 });
+
+      await expect(rpc.call('wait', { delay: 0, value: 3 })).rejects.toMatchObject({
+        code: 'CONCURRENT_LIMIT',
+      });
+      await expect(Promise.all([first, second])).resolves.toEqual([1, 2]);
       rpc.terminate();
     });
   });
@@ -829,6 +855,35 @@ describe('concurrency/createTaskPool', () => {
     });
   });
 
+  it('prioritizes queued tasks, supports pause/resume, and resolves onIdle after drain', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const pool = createTaskPool(
+        async ({ delay, value }: { delay: number; value: number }) => {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return value;
+        },
+        { concurrency: 1 }
+      );
+
+      pool.pause();
+
+      const fast = pool.run({ delay: 0, value: 'fast' }, { priority: 10 });
+      const slow = pool.run({ delay: 0, value: 'slow' }, { priority: 1 });
+
+      expect(pool.paused).toBe(true);
+      expect(pool.size).toBe(2);
+
+      pool.resume();
+
+      await expect(Promise.all([fast, slow])).resolves.toEqual(['fast', 'slow']);
+      await expect(pool.onIdle()).resolves.toBeUndefined();
+      expect(pool.metrics.completed).toBe(2);
+      expect(pool.metrics.failed).toBe(0);
+
+      pool.terminate();
+    });
+  });
+
   it('rejects queued tasks when aborted before execution starts', async () => {
     await withMockWorkerEnvironment(async () => {
       const pool = createTaskPool(
@@ -1149,6 +1204,34 @@ describe('concurrency/reactive wrappers', () => {
         expect(pool.state$.peek()).toBe('terminated');
         expect(pool.pending$.peek()).toBe(0);
         expect(pool.size$.peek()).toBe(0);
+      });
+    });
+
+    it('mirrors paused state and metrics through readonly signals', async () => {
+      await withMockWorkerEnvironment(async () => {
+        const pool = createReactiveTaskPool(
+          async ({ delay, value }: { delay: number; value: number }) => {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            return value;
+          },
+          { concurrency: 1 }
+        );
+
+        pool.pause();
+        expect(pool.paused).toBe(true);
+        expect(pool.paused$.peek()).toBe(true);
+
+        const first = pool.run({ delay: 0, value: 1 });
+        pool.resume();
+
+        await expect(first).resolves.toBe(1);
+        await expect(pool.onIdle()).resolves.toBeUndefined();
+
+        expect(pool.metrics.completed).toBe(1);
+        expect(pool.metrics$.peek().completed).toBe(1);
+        expect(pool.metrics$.peek().failed).toBe(0);
+
+        pool.terminate();
       });
     });
   });

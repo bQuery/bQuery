@@ -6,6 +6,34 @@
 
 import type { ConcurrencySupport } from './types';
 
+const detectConcurrencyRuntime = (): ConcurrencySupport['runtime'] => {
+  const g = globalThis as typeof globalThis & {
+    Bun?: { version?: string };
+    Deno?: { version?: { deno?: string } };
+    process?: { versions?: { node?: string } };
+    window?: unknown;
+    document?: unknown;
+  };
+
+  if (typeof g.Bun?.version === 'string') {
+    return 'bun';
+  }
+
+  if (typeof g.Deno?.version?.deno === 'string') {
+    return 'deno';
+  }
+
+  if (typeof g.process?.versions?.node === 'string') {
+    return 'node';
+  }
+
+  if (typeof g.window !== 'undefined' && typeof g.document !== 'undefined') {
+    return 'browser';
+  }
+
+  return 'unknown';
+};
+
 /**
  * Returns a feature snapshot for zero-build inline worker execution.
  *
@@ -17,6 +45,7 @@ import type { ConcurrencySupport } from './types';
  * ```
  */
 export function getConcurrencySupport(): ConcurrencySupport {
+  const runtime = detectConcurrencyRuntime();
   const worker = typeof globalThis.Worker === 'function';
   const blob = typeof globalThis.Blob === 'function';
   const hasUrl = typeof globalThis.URL !== 'undefined' && globalThis.URL !== null;
@@ -25,12 +54,17 @@ export function getConcurrencySupport(): ConcurrencySupport {
     typeof globalThis.URL.createObjectURL === 'function' &&
     typeof globalThis.URL.revokeObjectURL === 'function';
   const abortController = typeof globalThis.AbortController === 'function';
+  const sharedArrayBuffer = typeof globalThis.SharedArrayBuffer === 'function';
+  const crossOriginIsolated = globalThis.crossOriginIsolated === true;
 
   return {
+    runtime,
     worker,
     blob,
     objectUrl,
     abortController,
+    sharedArrayBuffer,
+    crossOriginIsolated,
     supported: worker && blob && objectUrl,
   };
 }

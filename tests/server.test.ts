@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import type { ServerWebSocketPeer } from '../src/server/index';
-import { createServer, isServerWebSocketSession, isWebSocketRequest } from '../src/server/index';
+import {
+  badRequest,
+  createServer,
+  isServerWebSocketSession,
+  isWebSocketRequest,
+  ServerHttpError,
+} from '../src/server/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 
 const SSR_TEST_STORE_ID = 'server-ssr-test';
@@ -174,6 +180,86 @@ describe('server/createServer', () => {
     expect(body).toContain(SSR_TEST_STORE_ID);
   });
 
+  it('parses json bodies, request cookies, and appends response cookies', async () => {
+    const app = createServer();
+    app.post('/body', async (ctx) => {
+      const body = (await ctx.body()) as { message: string };
+      ctx.setCookie('session', 'abc123', { httpOnly: true, path: '/' });
+      return ctx.json({
+        body,
+        cookie: ctx.cookies.theme,
+      });
+    });
+
+    const response = await app.handle({
+      body: JSON.stringify({ message: 'hello' }),
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'theme=dark',
+      },
+      method: 'POST',
+      url: '/body',
+    });
+
+    expect(await response.json()).toEqual({
+      body: { message: 'hello' },
+      cookie: 'dark',
+    });
+    expect(response.headers.get('set-cookie')).toContain('session=abc123');
+  });
+
+  it('supports stream, sse, and renderStream helpers', async () => {
+    const app = createServer();
+    const encoder = new TextEncoder();
+
+    app.get('/stream', (ctx) =>
+      ctx.stream(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('streamed'));
+            controller.close();
+          },
+        }),
+        { headers: { 'content-type': 'text/plain; charset=utf-8' } }
+      )
+    );
+    app.get('/sse', (ctx) => ctx.sse([{ event: 'message', data: 'hello' }]));
+    app.get('/render-stream', (ctx) =>
+      ctx.renderStream('<main><h1 bq-text="title"></h1></main>', { title: 'streamed html' })
+    );
+
+    const streamResponse = await app.handle('/stream');
+    expect(await streamResponse.text()).toBe('streamed');
+
+    const sseResponse = await app.handle('/sse');
+    expect(sseResponse.headers.get('content-type')).toContain('text/event-stream');
+    expect(await sseResponse.text()).toContain('event: message');
+
+    const renderResponse = await app.handle('/render-stream');
+    expect(renderResponse.headers.get('content-type')).toContain('text/html');
+    expect(await renderResponse.text()).toContain('streamed html');
+  });
+
+  it('supports renderResponse and accepted content negotiation helpers', async () => {
+    const app = createServer();
+    app.get('/response', async (ctx) => {
+      const accepted = ctx.accepts(['application/json', 'text/html']);
+      ctx.setCookie('accepted', accepted ?? 'none');
+      return await ctx.renderResponse('<div bq-text="value"></div>', { value: accepted });
+    });
+
+    const response = await app.handle(
+      new Request('http://localhost/response', {
+        headers: {
+          accept: 'text/html',
+        },
+      })
+    );
+
+    expect(await response.text()).toContain('text/html');
+    expect(response.headers.get('set-cookie')).toContain('accepted=text%2Fhtml');
+  });
+
   it('returns 404 for unmatched routes', async () => {
     const app = createServer();
 
@@ -199,6 +285,25 @@ describe('server/createServer', () => {
 
     expect(response.status).toBe(418);
     expect(await response.json()).toEqual({ message: 'boom' });
+  });
+
+  it('maps structured server http errors to their configured status codes', async () => {
+    const app = createServer();
+
+    app.get('/bad-request', () => {
+      throw badRequest('broken');
+    });
+    app.get('/hidden-error', () => {
+      throw new ServerHttpError(500, 'sensitive', { expose: false });
+    });
+
+    const badResponse = await app.handle('/bad-request');
+    expect(badResponse.status).toBe(400);
+    expect(await badResponse.text()).toBe('broken');
+
+    const hiddenResponse = await app.handle('/hidden-error');
+    expect(hiddenResponse.status).toBe(500);
+    expect(await hiddenResponse.text()).toBe('Internal Server Error');
   });
 
   it('returns thrown Response instances from the default error handler', async () => {

@@ -19,6 +19,7 @@ export interface SerializedWorkerError {
 const TASK_WORKER_ERROR_CODES = new Set<TaskWorkerErrorCode>([
   'ABORT',
   'BUSY',
+  'CONCURRENT_LIMIT',
   'METHOD_NOT_FOUND',
   'QUEUE_CLEARED',
   'QUEUE_FULL',

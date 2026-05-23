@@ -14,11 +14,14 @@
  */
 
 import type { BindingContext } from '../view/types';
+import { createSSRCache, type SSRCache } from './cache';
 import { resolveContext } from './async';
 import { createSSRContext, type SSRContext } from './context';
 import { renderToString } from './render';
 import { serializeStoreState } from './serialize';
 import type { RenderOptions, SSRResult } from './types';
+
+const FLUSH_BOUNDARY_MARKER = '<!--bq-flush-->';
 
 const escapeAttr = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -77,6 +80,11 @@ export interface AsyncSSRResult extends SSRResult {
   storeScriptTag: string;
 }
 
+/**
+ * Marks a manual stream flush boundary in an SSR template.
+ */
+export const flushBoundary = (): string => FLUSH_BOUNDARY_MARKER;
+
 const injectIntoHead = (html: string, fragment: string): string => {
   if (!fragment) return html;
   const idx = html.toLowerCase().indexOf('</head>');
@@ -101,6 +109,7 @@ export const renderToStringAsync = async (
   data: BindingContext,
   options: AsyncRenderOptions = {}
 ): Promise<AsyncSSRResult> => {
+  const startedAt = performance.now();
   const context = options.context ?? createSSRContext({ mode: 'string' });
 
   if (context.signal.aborted) {
@@ -147,6 +156,8 @@ export const renderToStringAsync = async (
     html = injectIntoHead(html, headHtml + assetsHtml);
     html = injectBeforeBodyEnd(html, storeScriptTag);
   }
+
+  context.metrics.recordRender(performance.now() - startedAt);
 
   return {
     html,
@@ -202,8 +213,24 @@ export const renderToStream = (
       ctx.signal.addEventListener('abort', onAbort, { once: true });
 
       try {
-        const result = await renderToStringAsync(template, data, merged);
-        controller.enqueue(encoder.encode(result.html));
+        if (template.includes(FLUSH_BOUNDARY_MARKER)) {
+          const parts = template.split(FLUSH_BOUNDARY_MARKER);
+          for (const [index, part] of parts.entries()) {
+            if (!part) {
+              continue;
+            }
+            const result = await renderToStringAsync(part, data, {
+              ...merged,
+              injectHead: index === parts.length - 1 ? merged.injectHead : false,
+            });
+            if (result.html) {
+              controller.enqueue(encoder.encode(result.html));
+            }
+          }
+        } else {
+          const result = await renderToStringAsync(template, data, merged);
+          controller.enqueue(encoder.encode(result.html));
+        }
         controller.close();
       } catch (error) {
         ctx.signal.removeEventListener('abort', onAbort);
@@ -234,6 +261,17 @@ const computeWeakEtag = async (text: string): Promise<string | null> => {
 };
 
 /** Options for `renderToResponse()`. */
+export interface RenderToResponseCacheOptions {
+  /** Cache-Control s-maxage in seconds. */
+  sMaxAge?: number;
+  /** Cache-Control stale-while-revalidate in seconds. */
+  staleWhileRevalidate?: number;
+  /** Cache-Control stale-if-error in seconds. */
+  staleIfError?: number;
+  /** Vary header names that participate in caching. */
+  vary?: string[];
+}
+
 export interface RenderToResponseOptions extends AsyncRenderOptions {
   /** Override the response status code. */
   status?: number;
@@ -245,7 +283,37 @@ export interface RenderToResponseOptions extends AsyncRenderOptions {
   etag?: boolean;
   /** Extra headers merged into the response. */
   headers?: HeadersInit;
+  /** Cache-Control shaping and optional in-memory cache integration. */
+  cache?:
+    | RenderToResponseCacheOptions
+    | (RenderToResponseCacheOptions & {
+        store: SSRCache;
+      });
 }
+
+const applyCacheHeaders = (headers: Headers, cacheOptions: RenderToResponseCacheOptions): void => {
+  const directives: string[] = [];
+  if (typeof cacheOptions.sMaxAge === 'number' && cacheOptions.sMaxAge >= 0) {
+    directives.push(`s-maxage=${Math.trunc(cacheOptions.sMaxAge)}`);
+  }
+  if (
+    typeof cacheOptions.staleWhileRevalidate === 'number' &&
+    cacheOptions.staleWhileRevalidate >= 0
+  ) {
+    directives.push(
+      `stale-while-revalidate=${Math.trunc(cacheOptions.staleWhileRevalidate)}`
+    );
+  }
+  if (typeof cacheOptions.staleIfError === 'number' && cacheOptions.staleIfError >= 0) {
+    directives.push(`stale-if-error=${Math.trunc(cacheOptions.staleIfError)}`);
+  }
+  if (directives.length > 0) {
+    headers.set('cache-control', directives.join(', '));
+  }
+  if (cacheOptions.vary && cacheOptions.vary.length > 0) {
+    headers.set('vary', cacheOptions.vary.join(', '));
+  }
+};
 
 /**
  * Renders a template and returns a `Response` ready to be returned from a
@@ -260,6 +328,27 @@ export const renderToResponse = async (
   options: RenderToResponseOptions = {}
 ): Promise<Response> => {
   const ctx = options.context ?? createSSRContext({ ...options, mode: 'string' });
+  const cacheStore =
+    options.cache && 'store' in options.cache ? options.cache.store : undefined;
+  const cacheKey =
+    cacheStore && options.cache
+      ? cacheStore.getKey({
+          headers: ctx.headers,
+          url: ctx.url,
+          vary: options.cache.vary,
+        })
+      : '';
+
+  if (cacheStore && cacheKey) {
+    const cached = cacheStore.get(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: new Headers(cached.headers),
+        status: cached.status,
+      });
+    }
+  }
+
   const merged: AsyncRenderOptions = { ...options, context: ctx };
   const result = await renderToStringAsync(template, data, merged);
   const status = options.status ?? ctx.status ?? 200;
@@ -270,6 +359,9 @@ export const renderToResponse = async (
     headers.set('content-type', options.contentType ?? 'text/html; charset=utf-8');
   }
   if (options.cacheControl) headers.set('cache-control', options.cacheControl);
+  if (options.cache) {
+    applyCacheHeaders(headers, options.cache);
+  }
 
   if (options.etag) {
     const etag = await computeWeakEtag(result.html);
@@ -282,5 +374,16 @@ export const renderToResponse = async (
     }
   }
 
-  return new Response(result.html, { status, headers });
+  const response = new Response(result.html, { status, headers });
+  if (cacheStore && cacheKey && response.ok) {
+    cacheStore.set(cacheKey, {
+      body: result.html,
+      createdAt: Date.now(),
+      headers: [...headers.entries()],
+      status,
+    });
+  }
+  return response;
 };
+
+export { createSSRCache };
