@@ -208,6 +208,30 @@ describe('server/createServer', () => {
     expect(response.headers.get('set-cookie')).toContain('session=abc123');
   });
 
+  it('rejects cookie names and attributes with invalid header characters', async () => {
+    const app = createServer({
+      onError(error, ctx) {
+        return ctx.text(error instanceof Error ? error.message : 'error', { status: 400 });
+      },
+    });
+    app.get('/cookie-name', (ctx) => {
+      ctx.setCookie('session\r\nx', 'abc123');
+      return ctx.text('ok');
+    });
+    app.get('/cookie-path', (ctx) => {
+      ctx.setCookie('session', 'abc123', { path: '/\r\nx' });
+      return ctx.text('ok');
+    });
+
+    const invalidName = await app.handle('/cookie-name');
+    const invalidPath = await app.handle('/cookie-path');
+
+    expect(invalidName.status).toBe(400);
+    expect(await invalidName.text()).toBe('Cookie name contains invalid characters.');
+    expect(invalidPath.status).toBe(400);
+    expect(await invalidPath.text()).toBe('Cookie path contains invalid characters.');
+  });
+
   it('enforces multipart body limits', async () => {
     const app = createServer({
       limits: {
@@ -242,6 +266,30 @@ describe('server/createServer', () => {
 
     expect(response.status).toBe(413);
     expect(await response.text()).toBe('Multipart form body exceeds the configured limit.');
+  });
+
+  it('measures text body limits in bytes', async () => {
+    const app = createServer({
+      limits: {
+        text: 7,
+      },
+    });
+    app.post('/text', async (ctx) => {
+      await ctx.body();
+      return ctx.text('ok');
+    });
+
+    const response = await app.handle({
+      body: '🙂🙂',
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+      },
+      method: 'POST',
+      url: '/text',
+    });
+
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe('Text body exceeds the configured limit.');
   });
 
   it('supports stream, sse, and renderStream helpers', async () => {

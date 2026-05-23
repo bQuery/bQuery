@@ -1002,6 +1002,31 @@ describe('renderToStream', () => {
     const reader = stream.getReader();
     await expect(reader.read()).rejects.toBeDefined();
   });
+
+  it('resolves async loader data once across flush-boundary chunks', async () => {
+    let calls = 0;
+    const loader = defineLoader(async () => {
+      calls += 1;
+      return 'stream';
+    });
+    const stream = renderToStream(
+      `<p bq-text="msg"></p>${flushBoundary()}<span bq-text="msg"></span>`,
+      { msg: loader }
+    );
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value);
+    }
+
+    expect(html).toContain('<p bq-text="msg">stream</p>');
+    expect(html).toContain('<span bq-text="msg">stream</span>');
+    expect(calls).toBe(1);
+  });
 });
 
 describe('renderToResponse', () => {
@@ -1027,6 +1052,19 @@ describe('renderToResponse', () => {
     });
 
     expect(response.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
+  it('merges cache vary values with existing Vary headers', async () => {
+    const response = await renderToResponse('<p>x</p>', {}, {
+      cache: {
+        vary: ['accept-language', 'accept-encoding'],
+      },
+      headers: {
+        vary: 'accept-encoding',
+      },
+    });
+
+    expect(response.headers.get('vary')).toBe('accept-encoding, accept-language');
   });
 
   it('computes a weak ETag when requested', async () => {

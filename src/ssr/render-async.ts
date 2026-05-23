@@ -130,6 +130,81 @@ const injectStreamFragments = (
   return output;
 };
 
+const mergeHeaderValues = (existingValue: string | null, nextValues: readonly string[]): string | null => {
+  const merged = new Map<string, string>();
+
+  const addValues = (values: readonly string[]): void => {
+    for (const value of values) {
+      const normalized = value.trim();
+      if (!normalized) {
+        continue;
+      }
+      const key = normalized.toLowerCase();
+      if (!merged.has(key)) {
+        merged.set(key, normalized);
+      }
+    }
+  };
+
+  if (existingValue) {
+    addValues(existingValue.split(','));
+  }
+  addValues(nextValues);
+
+  return merged.size > 0 ? [...merged.values()].join(', ') : null;
+};
+
+const renderResolvedToStringResult = (
+  template: string,
+  resolvedData: BindingContext,
+  context: SSRContext,
+  options: AsyncRenderOptions,
+  startedAt = performance.now()
+): AsyncSSRResult => {
+  const baseOptions: RenderOptions = {
+    prefix: options.prefix,
+    stripDirectives: options.stripDirectives,
+    includeStoreState: false,
+    annotateHydration: options.annotateHydration,
+  };
+
+  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
+
+  const headHtml = context.head.render({ nonce: context.nonce });
+  const assetsHtml = context.assets.render({ nonce: context.nonce });
+
+  let storeScriptTag = '';
+  if (options.includeStoreState) {
+    const storeIds = Array.isArray(options.includeStoreState) ? options.includeStoreState : undefined;
+    const result = serializeStoreState({
+      storeIds,
+      scriptId: options.storeScriptId,
+      globalKey: options.storeGlobalKey,
+    });
+    storeState = result.stateJson;
+    storeScriptTag = result.scriptTag;
+    if (context.nonce) {
+      storeScriptTag = injectScriptNonce(storeScriptTag, context.nonce);
+    }
+  }
+
+  if (options.injectHead !== false) {
+    html = injectIntoHead(html, headHtml + assetsHtml);
+    html = injectBeforeBodyEnd(html, storeScriptTag);
+  }
+
+  context.metrics.recordRender(performance.now() - startedAt);
+
+  return {
+    html,
+    storeState,
+    context,
+    headHtml,
+    assetsHtml,
+    storeScriptTag,
+  };
+};
+
 /**
  * Async-aware render. Resolves all `Promise`/`defer()` values in the context,
  * then delegates to `renderToString()` and applies head/asset/store-state
@@ -153,51 +228,7 @@ export const renderToStringAsync = async (
     throw new DOMException('SSR render aborted', 'AbortError');
   }
 
-  const baseOptions: RenderOptions = {
-    prefix: options.prefix,
-    stripDirectives: options.stripDirectives,
-    includeStoreState: false,
-    annotateHydration: options.annotateHydration,
-  };
-
-  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
-
-  const headHtml = context.head.render({ nonce: context.nonce });
-  const assetsHtml = context.assets.render({ nonce: context.nonce });
-
-  let storeScriptTag = '';
-  if (options.includeStoreState) {
-    const storeIds = Array.isArray(options.includeStoreState)
-      ? options.includeStoreState
-      : undefined;
-    const result = serializeStoreState({
-      storeIds,
-      scriptId: options.storeScriptId,
-      globalKey: options.storeGlobalKey,
-    });
-    storeState = result.stateJson;
-    storeScriptTag = result.scriptTag;
-    if (context.nonce) {
-      // Inject nonce into the script tag.
-      storeScriptTag = injectScriptNonce(storeScriptTag, context.nonce);
-    }
-  }
-
-  if (options.injectHead !== false) {
-    html = injectIntoHead(html, headHtml + assetsHtml);
-    html = injectBeforeBodyEnd(html, storeScriptTag);
-  }
-
-  context.metrics.recordRender(performance.now() - startedAt);
-
-  return {
-    html,
-    storeState,
-    context,
-    headHtml,
-    assetsHtml,
-    storeScriptTag,
-  };
+  return renderResolvedToStringResult(template, resolvedData, context, options, startedAt);
 };
 
 const getEncoder = (): TextEncoder => {
@@ -250,11 +281,15 @@ export const renderToStream = (
           let headHtml = '';
           let assetsHtml = '';
           let storeScriptTag = '';
+          const resolvedData = await resolveContext(data, ctx);
           for (const part of parts) {
             if (!part) {
               continue;
             }
-            const result = await renderToStringAsync(part, data, {
+            if (ctx.signal.aborted) {
+              throw new DOMException('SSR stream aborted', 'AbortError');
+            }
+            const result = renderResolvedToStringResult(part, resolvedData, ctx, {
               ...merged,
               injectHead: false,
             });
@@ -358,7 +393,10 @@ const applyCacheHeaders = (headers: Headers, cacheOptions: RenderToResponseCache
     }
   }
   if (cacheOptions.vary && cacheOptions.vary.length > 0) {
-    headers.set('vary', cacheOptions.vary.join(', '));
+    const vary = mergeHeaderValues(headers.get('vary'), cacheOptions.vary);
+    if (vary) {
+      headers.set('vary', vary);
+    }
   }
 };
 

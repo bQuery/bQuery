@@ -26,6 +26,7 @@ import {
   TaskWorkerSerializationError,
   TaskWorkerTimeoutError,
   TaskWorkerUnsupportedError,
+  withTransferables,
 } from '../src/concurrency/index';
 import { effect } from '../src/reactive/index';
 
@@ -493,6 +494,23 @@ describe('concurrency/callWorkerMethod', () => {
 
       expect(total).toBe(12);
     });
+  });
+});
+
+describe('concurrency/withTransferables', () => {
+  it('skips SharedArrayBuffer-backed views in transfer lists', () => {
+    if (typeof SharedArrayBuffer !== 'function') {
+      return;
+    }
+
+    const shared = new SharedArrayBuffer(8);
+    const arrayBuffer = new ArrayBuffer(4);
+    const { transfer } = withTransferables({
+      sharedView: new Uint8Array(shared),
+      typedArray: new Uint8Array(arrayBuffer),
+    });
+
+    expect(transfer).toEqual([arrayBuffer]);
   });
 });
 

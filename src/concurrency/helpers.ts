@@ -32,7 +32,10 @@ const visitTransferables = (value: unknown, seen: WeakSet<object>, out: Transfer
   seen.add(objectValue);
 
   if (ArrayBuffer.isView(value)) {
-    out.push((value as ArrayBufferView).buffer);
+    const buffer = (value as ArrayBufferView).buffer;
+    if (buffer instanceof ArrayBuffer) {
+      out.push(buffer);
+    }
     return;
   }
 

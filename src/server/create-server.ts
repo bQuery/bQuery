@@ -69,6 +69,13 @@ const JSON_ESCAPE_LOOKUP: Record<string, string> = {
 const JSON_ESCAPE_PATTERN = /[<>&\u2028\u2029]/g;
 const METHOD_ALL = null;
 const WEBSOCKET_PASSTHROUGH_HEADER = 'x-bquery-websocket-passthrough';
+const COOKIE_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const INVALID_COOKIE_ATTRIBUTE_VALUE_PATTERN = /[\u0000-\u001F\u007F;]/;
+const COOKIE_SAME_SITE_LOOKUP = {
+  lax: 'Lax',
+  none: 'None',
+  strict: 'Strict',
+} as const;
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
@@ -269,14 +276,34 @@ const parseCookies = (header: string | null): Record<string, string> => {
   return cookies;
 };
 
+const assertCookieName = (name: string): void => {
+  if (!COOKIE_NAME_PATTERN.test(name)) {
+    throw new TypeError('Cookie name contains invalid characters.');
+  }
+};
+
+const assertCookieAttributeValue = (label: string, value: string): string => {
+  if (INVALID_COOKIE_ATTRIBUTE_VALUE_PATTERN.test(value)) {
+    throw new TypeError(`Cookie ${label} contains invalid characters.`);
+  }
+  return value;
+};
+
 const serializeCookie = (name: string, value: string, options: ServerCookieOptions = {}): string => {
+  assertCookieName(name);
   const parts = [`${name}=${encodeURIComponent(value)}`];
-  if (options.path) parts.push(`Path=${options.path}`);
-  if (options.domain) parts.push(`Domain=${options.domain}`);
+  if (options.path) parts.push(`Path=${assertCookieAttributeValue('path', options.path)}`);
+  if (options.domain) parts.push(`Domain=${assertCookieAttributeValue('domain', options.domain)}`);
   if (typeof options.maxAge === 'number' && Number.isFinite(options.maxAge)) {
     parts.push(`Max-Age=${Math.trunc(options.maxAge)}`);
   }
-  if (options.sameSite) parts.push(`SameSite=${options.sameSite}`);
+  if (options.sameSite) {
+    const sameSite = COOKIE_SAME_SITE_LOOKUP[options.sameSite.toLowerCase() as keyof typeof COOKIE_SAME_SITE_LOOKUP];
+    if (!sameSite) {
+      throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
+    }
+    parts.push(`SameSite=${sameSite}`);
+  }
   if (options.httpOnly) parts.push('HttpOnly');
   if (options.secure) parts.push('Secure');
   return parts.join('; ');
@@ -375,13 +402,60 @@ const formatSseChunk = (event: ServerSseEvent | string, defaultRetry?: number): 
   return `${chunk}\n`;
 };
 
-const getRequestBodySize = async (request: Request): Promise<number> => {
+const readRequestBodyBuffer = async (
+  request: Request,
+  limit: number | undefined,
+  errorMessage: string
+): Promise<Uint8Array> => {
   const contentLength = Number.parseInt(request.headers.get('content-length') ?? '', 10);
-  if (Number.isFinite(contentLength) && contentLength >= 0) {
-    return contentLength;
+  if (
+    typeof limit === 'number' &&
+    Number.isFinite(limit) &&
+    limit >= 0 &&
+    Number.isFinite(contentLength) &&
+    contentLength >= 0 &&
+    contentLength > limit
+  ) {
+    throw new ServerHttpError(413, errorMessage);
   }
 
-  return (await request.clone().arrayBuffer()).byteLength;
+  const clone = request.clone();
+  const body = clone.body;
+  if (!body) {
+    return new Uint8Array(0);
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (!value) {
+        continue;
+      }
+
+      total += value.byteLength;
+      if (typeof limit === 'number' && Number.isFinite(limit) && limit >= 0 && total > limit) {
+        throw new ServerHttpError(413, errorMessage);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
 };
 
 const createSseResponse = (
@@ -759,10 +833,13 @@ const createBodyReader = (
       }
 
       if (contentType.includes('application/json')) {
-        const textBody = await request.clone().text();
-        if (limits?.json !== undefined && textBody.length > limits.json) {
-          throw new ServerHttpError(413, 'Request JSON body exceeds the configured limit.');
-        }
+        const textBody = new TextDecoder().decode(
+          await readRequestBodyBuffer(
+            request,
+            limits?.json,
+            'Request JSON body exceeds the configured limit.'
+          )
+        );
         try {
           return textBody ? JSON.parse(textBody) : null;
         } catch {
@@ -771,10 +848,9 @@ const createBodyReader = (
       }
 
       if (contentType.includes('application/x-www-form-urlencoded')) {
-        const textBody = await request.clone().text();
-        if (limits?.form !== undefined && textBody.length > limits.form) {
-          throw new ServerHttpError(413, 'Form body exceeds the configured limit.');
-        }
+        const textBody = new TextDecoder().decode(
+          await readRequestBodyBuffer(request, limits?.form, 'Form body exceeds the configured limit.')
+        );
         return decodeFormUrlEncoded(textBody);
       }
 
@@ -782,13 +858,18 @@ const createBodyReader = (
         if (typeof request.formData !== 'function') {
           throw new ServerHttpError(415, 'multipart/form-data is not supported in this runtime.');
         }
-        if (
-          limits?.multipart !== undefined &&
-          (await getRequestBodySize(request)) > limits.multipart
-        ) {
-          throw new ServerHttpError(413, 'Multipart form body exceeds the configured limit.');
-        }
-        const formData = await request.clone().formData();
+        const bodyBuffer = await readRequestBodyBuffer(
+          request,
+          limits?.multipart,
+          'Multipart form body exceeds the configured limit.'
+        );
+        const requestBody =
+          bodyBuffer.byteLength > 0 ? bodyBuffer.slice().buffer : undefined;
+        const formData = await new Request(request.url, {
+          body: requestBody,
+          headers: request.headers,
+          method: request.method,
+        }).formData();
         const out = new Map<string, FormDataEntryValue | FormDataEntryValue[]>();
         for (const [key, value] of formData.entries()) {
           if (isPrototypePollutionKey(key)) {
@@ -807,10 +888,9 @@ const createBodyReader = (
       }
 
       if (contentType.startsWith('text/')) {
-        const textBody = await request.clone().text();
-        if (limits?.text !== undefined && textBody.length > limits.text) {
-          throw new ServerHttpError(413, 'Text body exceeds the configured limit.');
-        }
+        const textBody = new TextDecoder().decode(
+          await readRequestBodyBuffer(request, limits?.text, 'Text body exceeds the configured limit.')
+        );
         return textBody;
       }
 
