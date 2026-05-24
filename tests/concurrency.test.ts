@@ -879,7 +879,7 @@ describe('concurrency/createTaskPool', () => {
   it('prioritizes queued tasks, supports pause/resume, and resolves onIdle after drain', async () => {
     await withMockWorkerEnvironment(async () => {
       const pool = createTaskPool(
-        async ({ delay, value }: { delay: number; value: number }) => {
+        async ({ delay, value }: { delay: number; value: string }) => {
           await new Promise((resolve) => setTimeout(resolve, delay));
           return value;
         },
