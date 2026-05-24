@@ -59,6 +59,13 @@ export const enableDevtools = (enabled: boolean, options?: DevtoolsOptions): voi
     _timeline.length = 0;
     _trackedSignals.clear();
     _signalCounter = 0;
+    _timelineListeners.clear();
+  } else {
+    // Apply ring buffer immediately if a smaller max was provided.
+    const max = _options.maxTimelineEntries ?? DEFAULT_MAX_TIMELINE_ENTRIES;
+    if (Number.isFinite(max) && max > 0) {
+      while (_timeline.length > max) _timeline.shift();
+    }
   }
 };
 
@@ -141,20 +148,18 @@ export const generateSignalLabel = (): string => `signal_${_signalCounter++}`;
 /**
  * List all tracked signals with their current values.
  *
- * @returns An array of {@link SignalSnapshot} objects.
+ * @param options - When `{ includeValues: false }`, the `value` field is
+ *   replaced with `undefined` for privacy-sensitive inspection. (1.14+)
  *
- * @example
- * ```ts
- * import { inspectSignals } from '@bquery/bquery/devtools';
- * console.table(inspectSignals());
- * ```
+ * @returns An array of {@link SignalSnapshot} objects.
  */
-export const inspectSignals = (): SignalSnapshot[] => {
+export const inspectSignals = (options?: { includeValues?: boolean }): SignalSnapshot[] => {
+  const includeValues = options?.includeValues !== false;
   const result: SignalSnapshot[] = [];
   for (const [label, entry] of _trackedSignals) {
     result.push({
       label,
-      value: entry.peek(),
+      value: includeValues ? entry.peek() : undefined,
       subscriberCount: entry.subscriberCount(),
     });
   }
@@ -241,6 +246,16 @@ export const inspectComponents = (): ComponentSnapshot[] => {
 // Timeline
 // ---------------------------------------------------------------------------
 
+const DEFAULT_MAX_TIMELINE_ENTRIES = 1000;
+
+const _timelineListeners = new Set<(entry: TimelineEntry) => void>();
+
+const trimTimeline = (): void => {
+  const max = _options.maxTimelineEntries ?? DEFAULT_MAX_TIMELINE_ENTRIES;
+  if (!Number.isFinite(max) || max <= 0) return;
+  while (_timeline.length > max) _timeline.shift();
+};
+
 /**
  * Record a timeline event.
  *
@@ -249,26 +264,47 @@ export const inspectComponents = (): ComponentSnapshot[] => {
  *
  * @param type - The event category.
  * @param detail - A human-readable description.
- *
- * @example
- * ```ts
- * import { recordEvent } from '@bquery/bquery/devtools';
- * recordEvent('signal:update', 'count changed to 5');
- * ```
+ * @param extra - Optional `{ payload, source, duration }` metadata (1.14+).
  */
-export const recordEvent = (type: TimelineEventType, detail: string): void => {
+export const recordEvent = (
+  type: TimelineEventType,
+  detail: string,
+  extra?: { payload?: unknown; source?: string; duration?: number }
+): void => {
   if (!_enabled) return;
 
   const entry: TimelineEntry = {
     timestamp: Date.now(),
     type,
     detail,
+    ...(extra?.payload !== undefined ? { payload: extra.payload } : {}),
+    ...(extra?.source !== undefined ? { source: extra.source } : {}),
+    ...(extra?.duration !== undefined ? { duration: extra.duration } : {}),
   };
   _timeline.push(entry);
+  trimTimeline();
 
   if (_options.logToConsole) {
     console.log(`[bq:devtools] ${type} — ${detail}`);
   }
+
+  for (const listener of _timelineListeners) {
+    try {
+      listener(entry);
+    } catch {
+      // ignore listener errors
+    }
+  }
+};
+
+/**
+ * Subscribe to timeline events as they are recorded (1.14+).
+ *
+ * @returns Unsubscribe function.
+ */
+export const subscribeTimeline = (listener: (entry: TimelineEntry) => void): (() => void) => {
+  _timelineListeners.add(listener);
+  return () => _timelineListeners.delete(listener);
 };
 
 /**
