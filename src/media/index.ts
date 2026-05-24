@@ -59,10 +59,49 @@ export { useGeolocation } from './geolocation';
 export { useDeviceMotion, useDeviceOrientation } from './device-sensors';
 
 // Clipboard
-export { clipboard } from './clipboard';
+export { clipboard, clipboardText } from './clipboard';
 
 // Observers
 export { useIntersectionObserver, useMutationObserver, useResizeObserver } from './observers';
+
+// 1.14+ — User-preference media queries
+export {
+  usePreferredColorScheme,
+  usePreferredContrast,
+  usePreferredReducedTransparency,
+} from './preferences';
+
+// 1.14+ — Browser & navigator state
+export {
+  useBroadcastChannel,
+  useDocumentFocus,
+  useEventListener,
+  useIdle,
+  useMediaDevices,
+  useOnlineStatus,
+  usePageVisibility,
+  usePermission,
+  usePreferredLanguage,
+  usePreferredLanguages,
+  useShare,
+  useShareSupported,
+  useStorage,
+  useWakeLock,
+  useWindowFocus,
+} from './browser-state';
+
+// 1.14+ — DOM-target composables
+export {
+  useActiveElement,
+  useElementBounding,
+  useElementSize,
+  useElementVisibility,
+  useFocus,
+  useFocusWithin,
+  useHover,
+  usePointer,
+  useScroll,
+} from './dom-targets';
 
 // Types
 export type {
@@ -92,3 +131,27 @@ export type {
   ViewportSignal,
   ViewportState,
 } from './types';
+
+// 1.14+ — Clipboard text options
+export type { ClipboardTextOptions } from './clipboard';
+
+// 1.14+ — Extended types
+export type {
+  BroadcastChannelHandle,
+  ShareHandle,
+  StorageHandle,
+  UseIdleOptions,
+  UseEventListenerOptions,
+  UseStorageOptions,
+  WakeLockHandle,
+} from './browser-state';
+
+export type {
+  ElementBoundingRect,
+  ElementSize,
+  PointerState,
+  ScrollState,
+  UseScrollOptions,
+} from './dom-targets';
+
+export type { AbortableOptions } from './internal';
