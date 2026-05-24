@@ -41,7 +41,6 @@ import {
   renderToString,
   renderToStringAsync,
   type NodeIncomingMessage,
-  type SSRContext,
 } from '../src/ssr/index';
 
 type LegacyMediaQueryList = MediaQueryList & {
@@ -1038,6 +1037,54 @@ describe('renderToStream', () => {
     expect(html).toContain('<p bq-text="msg">stream</p>');
     expect(html).toContain('<span bq-text="msg">stream</span>');
     expect(calls).toBe(1);
+  });
+
+  it('renders stream fragments once after flush-boundary chunks resolve', async () => {
+    configureSSR({ backend: 'pure' });
+    const context = createSSRContext({
+      metrics: createSSRMetrics(),
+    });
+    context.head.add({
+      meta: [{ name: 'stream-once', content: 'ok' }],
+    });
+
+    let headRenderCalls = 0;
+    let assetsRenderCalls = 0;
+    const originalHeadRender = context.head.render.bind(context.head);
+    const originalAssetsRender = context.assets.render.bind(context.assets);
+
+    context.head.render = ((options) => {
+      headRenderCalls += 1;
+      return originalHeadRender(options);
+    }) as typeof context.head.render;
+    context.assets.render = ((options) => {
+      assetsRenderCalls += 1;
+      return originalAssetsRender(options);
+    }) as typeof context.assets.render;
+
+    const stream = renderToStream(
+      `<html><head></head>${flushBoundary()}<body><p bq-text="msg"></p></body></html>`,
+      { msg: 'stream' },
+      {
+        context,
+        includeStoreState: true,
+      }
+    );
+
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value);
+    }
+
+    expect(html).toContain('<meta name="stream-once" content="ok">');
+    expect(headRenderCalls).toBe(1);
+    expect(assetsRenderCalls).toBe(1);
+    expect(context.metrics?.snapshot().renderCount).toBe(1);
   });
 });
 

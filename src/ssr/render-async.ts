@@ -161,26 +161,24 @@ const mergeHeaderValues = (existingValue: string | null, nextValues: readonly st
   return merged.size > 0 ? [...merged.values()].join(', ') : null;
 };
 
-const renderResolvedToStringResult = (
-  template: string,
-  resolvedData: BindingContext,
+const createBaseRenderOptions = (options: AsyncRenderOptions): RenderOptions => ({
+  prefix: options.prefix,
+  stripDirectives: options.stripDirectives,
+  includeStoreState: false,
+  annotateHydration: options.annotateHydration,
+});
+
+const createRenderFragments = (
   context: SSRContext,
-  options: AsyncRenderOptions,
-  startedAt = performance.now()
-): AsyncSSRResult => {
-  const baseOptions: RenderOptions = {
-    prefix: options.prefix,
-    stripDirectives: options.stripDirectives,
-    includeStoreState: false,
-    annotateHydration: options.annotateHydration,
-  };
-
-  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
-
+  options: AsyncRenderOptions
+): Pick<AsyncSSRResult, 'headHtml' | 'assetsHtml' | 'storeScriptTag'> & {
+  storeState?: string;
+} => {
   const headHtml = context.head.render({ nonce: context.nonce });
   const assetsHtml = context.assets.render({ nonce: context.nonce });
-
+  let storeState: string | undefined;
   let storeScriptTag = '';
+
   if (options.includeStoreState) {
     const storeIds = Array.isArray(options.includeStoreState) ? options.includeStoreState : undefined;
     const result = serializeStoreState({
@@ -194,6 +192,30 @@ const renderResolvedToStringResult = (
       storeScriptTag = injectScriptNonce(storeScriptTag, context.nonce);
     }
   }
+
+  return {
+    headHtml,
+    assetsHtml,
+    storeState,
+    storeScriptTag,
+  };
+};
+
+const renderResolvedToStringResult = (
+  template: string,
+  resolvedData: BindingContext,
+  context: SSRContext,
+  options: AsyncRenderOptions,
+  startedAt = performance.now()
+): AsyncSSRResult => {
+  const baseOptions = createBaseRenderOptions(options);
+
+  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
+  const fragments = createRenderFragments(context, options);
+  const headHtml = fragments.headHtml;
+  const assetsHtml = fragments.assetsHtml;
+  const storeScriptTag = fragments.storeScriptTag;
+  storeState = fragments.storeState ?? storeState;
 
   if (options.injectHead !== false) {
     html = injectIntoHead(html, headHtml + assetsHtml);
@@ -283,12 +305,11 @@ export const renderToStream = (
 
       try {
         if (template.includes(FLUSH_BOUNDARY_MARKER)) {
+          const startedAt = performance.now();
           const parts = template.split(FLUSH_BOUNDARY_MARKER);
           const chunks: string[] = [];
-          let headHtml = '';
-          let assetsHtml = '';
-          let storeScriptTag = '';
           const resolvedData = await resolveContext(data, ctx);
+          const baseOptions = createBaseRenderOptions(merged);
           for (const part of parts) {
             if (!part) {
               continue;
@@ -296,13 +317,7 @@ export const renderToStream = (
             if (ctx.signal.aborted) {
               throw new DOMException('SSR stream aborted', 'AbortError');
             }
-            const result = renderResolvedToStringResult(part, resolvedData, ctx, {
-              ...merged,
-              injectHead: false,
-            });
-            headHtml = result.headHtml;
-            assetsHtml = result.assetsHtml;
-            storeScriptTag = result.storeScriptTag;
+            const result = renderToString(part, resolvedData, baseOptions);
             if (result.html) {
               chunks.push(result.html);
             }
@@ -310,7 +325,15 @@ export const renderToStream = (
           const renderedChunks =
             merged.injectHead === false
               ? chunks
-              : injectStreamFragments(chunks, headHtml + assetsHtml, storeScriptTag);
+              : (() => {
+                  const fragments = createRenderFragments(ctx, merged);
+                  return injectStreamFragments(
+                    chunks,
+                    fragments.headHtml + fragments.assetsHtml,
+                    fragments.storeScriptTag
+                  );
+                })();
+          ctx.metrics?.recordRender(performance.now() - startedAt);
           for (const chunk of renderedChunks) {
             controller.enqueue(encoder.encode(chunk));
           }
