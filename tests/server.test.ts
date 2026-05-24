@@ -243,6 +243,23 @@ describe('server/createServer', () => {
     }
   });
 
+  it('preserves multiple set-cookie values passed through ctx.response headers', async () => {
+    const app = createServer();
+    app.get('/response-cookies', (ctx) => {
+      const headers = new Headers();
+      headers.append('set-cookie', 'session=abc123; Path=/; HttpOnly');
+      headers.append('set-cookie', 'theme=dark; Path=/');
+      return ctx.response('ok', { headers });
+    });
+
+    const response = await app.handle('/response-cookies');
+    const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
+
+    expect(response.headers.get('set-cookie')).toContain('session=abc123');
+    expect(response.headers.get('set-cookie')).toContain('theme=dark');
+    expect(setCookieEntries).toHaveLength(2);
+  });
+
   it('rejects cookie names and attributes with invalid header characters', async () => {
     const app = createServer({
       onError(error, ctx) {

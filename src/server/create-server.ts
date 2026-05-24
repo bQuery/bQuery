@@ -523,7 +523,10 @@ const createSseResponse = (
 
 const response = (body?: BodyInit | null, init: ServerResponseInit = {}): Response => {
   const { headers, ...rest } = init;
-  return new Response(body, { ...rest, headers: createHeaders(headers) });
+  return new Response(body, {
+    ...rest,
+    headers: headers instanceof Headers ? headers : createHeaders(headers),
+  });
 };
 
 const text = (body: string, init: ServerResponseInit = {}): Response => {
