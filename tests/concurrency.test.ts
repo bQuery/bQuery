@@ -426,12 +426,15 @@ describe('concurrency/createRpcWorker', () => {
       );
 
       const first = rpc.call('wait', { delay: 15, value: 1 });
+      expect(rpc.busy).toBe(false);
       const second = rpc.call('wait', { delay: 15, value: 2 });
+      expect(rpc.busy).toBe(true);
 
       await expect(rpc.call('wait', { delay: 0, value: 3 })).rejects.toMatchObject({
         code: 'CONCURRENT_LIMIT',
       });
       await expect(Promise.all([first, second])).resolves.toEqual([1, 2]);
+      expect(rpc.busy).toBe(false);
       rpc.terminate();
     });
   });
@@ -936,6 +939,31 @@ describe('concurrency/createTaskPool', () => {
 });
 
 describe('concurrency/createRpcPool', () => {
+  it('uses maxInFlight worker capacity before queueing more RPC calls', async () => {
+    await withMockWorkerEnvironment(async () => {
+      const pool = createRpcPool(
+        {
+          wait: async ({ delay, value }: { delay: number; value: number }) => {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            return value;
+          },
+        },
+        { concurrency: 1, maxInFlight: 2 }
+      );
+
+      const first = pool.call('wait', { delay: 20, value: 1 });
+      const second = pool.call('wait', { delay: 20, value: 2 });
+      const third = pool.call('wait', { delay: 0, value: 3 });
+
+      expect(pool.pending).toBe(2);
+      expect(pool.size).toBe(1);
+
+      await expect(Promise.all([first, second, third])).resolves.toEqual([1, 2, 3]);
+
+      pool.terminate();
+    });
+  });
+
   it('executes RPC calls across multiple workers and queues overflow', async () => {
     await withMockWorkerEnvironment(async () => {
       const pool = createRpcPool(

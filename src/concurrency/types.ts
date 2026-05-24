@@ -322,7 +322,7 @@ export type WorkerRpcHandlers = Record<string, WorkerRpcHandler<unknown, unknown
 export interface RpcWorker<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> {
   /** Current lifecycle state. */
   readonly state: TaskWorkerState;
-  /** Whether a method call is currently in progress. */
+  /** Whether the worker is currently at capacity for additional method calls. */
   readonly busy: boolean;
   /**
    * Call one named RPC method in the backing worker.

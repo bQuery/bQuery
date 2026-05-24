@@ -353,6 +353,14 @@ const matchesAcceptedType = (type: string, range: string): boolean => {
     (rangeMinor === '*' || rangeMinor === typeMinor);
 };
 
+const getMediaType = (contentType: string): string => {
+  const [mediaType = ''] = contentType.split(';', 1);
+  return mediaType.trim().toLowerCase();
+};
+
+const isJsonMediaType = (mediaType: string): boolean =>
+  mediaType === 'application/json' || mediaType.endsWith('+json');
+
 const accepts = (request: Request, types: string[]): string | null => {
   const accept = request.headers.get('accept');
   if (!accept || types.length === 0) {
@@ -867,13 +875,14 @@ const createBodyReader = (
 
   return async (): Promise<unknown> => {
     cached ??= (async () => {
-      const contentType = request.headers.get('content-type')?.toLowerCase() ?? '';
+      const contentType = request.headers.get('content-type') ?? '';
+      const mediaType = getMediaType(contentType);
 
-      if (!contentType) {
+      if (!mediaType) {
         return null;
       }
 
-      if (contentType.includes('application/json')) {
+      if (isJsonMediaType(mediaType)) {
         const textBody = new TextDecoder().decode(
           await readRequestBodyBuffer(
             request,
@@ -888,14 +897,14 @@ const createBodyReader = (
         }
       }
 
-      if (contentType.includes('application/x-www-form-urlencoded')) {
+      if (mediaType === 'application/x-www-form-urlencoded') {
         const textBody = new TextDecoder().decode(
           await readRequestBodyBuffer(request, limits?.form, 'Form body exceeds the configured limit.')
         );
         return decodeFormUrlEncoded(textBody);
       }
 
-      if (contentType.includes('multipart/form-data')) {
+      if (mediaType === 'multipart/form-data') {
         if (typeof request.formData !== 'function') {
           throw new ServerHttpError(415, 'multipart/form-data is not supported in this runtime.');
         }
@@ -928,7 +937,7 @@ const createBodyReader = (
         return out;
       }
 
-      if (contentType.startsWith('text/')) {
+      if (mediaType.startsWith('text/')) {
         const textBody = new TextDecoder().decode(
           await readRequestBodyBuffer(request, limits?.text, 'Text body exceeds the configured limit.')
         );

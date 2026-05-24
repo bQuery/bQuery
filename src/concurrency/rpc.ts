@@ -273,7 +273,7 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
 
   return {
     get busy(): boolean {
-      return pending.size > 0;
+      return pending.size >= maxInFlight;
     },
     get state(): TaskWorkerState {
       if (disposed) {

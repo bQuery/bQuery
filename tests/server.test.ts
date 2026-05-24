@@ -208,6 +208,37 @@ describe('server/createServer', () => {
     expect(response.headers.get('set-cookie')).toContain('session=abc123');
   });
 
+  it('parses +json bodies without treating application/jsonp as JSON', async () => {
+    const app = createServer();
+    app.post('/typed-body', async (ctx) => {
+      const body = await ctx.body();
+      if (body instanceof ArrayBuffer) {
+        return ctx.text(new TextDecoder().decode(body));
+      }
+      return ctx.json(body);
+    });
+
+    const jsonResponse = await app.handle({
+      body: JSON.stringify({ message: 'hello' }),
+      headers: {
+        'content-type': 'application/ld+json; charset=utf-8',
+      },
+      method: 'POST',
+      url: '/typed-body',
+    });
+    const jsonpResponse = await app.handle({
+      body: 'callback({"message":"hello"})',
+      headers: {
+        'content-type': 'application/jsonp',
+      },
+      method: 'POST',
+      url: '/typed-body',
+    });
+
+    expect(await jsonResponse.json()).toEqual({ message: 'hello' });
+    expect(await jsonpResponse.text()).toBe('callback({"message":"hello"})');
+  });
+
   it('preserves response cookies when Headers.getSetCookie is unavailable', async () => {
     const app = createServer();
     app.get('/cookies', (ctx) => {
