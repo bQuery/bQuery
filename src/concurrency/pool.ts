@@ -10,6 +10,7 @@ import { createTaskWorker } from './task';
 import type {
   CreateRpcPoolOptions,
   CreateTaskPoolOptions,
+  PoolMetrics,
   RpcPool,
   RpcWorker,
   TaskPool,
@@ -21,11 +22,13 @@ import type {
 } from './types';
 
 const DEFAULT_POOL_CONCURRENCY = 4;
+const MAX_METRICS_HISTORY = 128;
 
 interface QueueEntry<TJob, TResult> {
   abortHandler?: () => void;
   job: TJob;
   options: TaskRunOptions;
+  order: number;
   reject: (reason?: unknown) => void;
   resolve: (value: TResult | PromiseLike<TResult>) => void;
   signal?: AbortSignal;
@@ -37,8 +40,13 @@ interface PoolRuntime<TJob, TResult> {
   readonly concurrency: number;
   readonly pending: number;
   readonly size: number;
+  readonly paused: boolean;
+  readonly metrics: PoolMetrics;
   enqueue(job: TJob, options?: TaskRunOptions): Promise<TResult>;
   clear(): void;
+  pause(): void;
+  resume(): void;
+  onIdle(): Promise<void>;
   terminate(): void;
 }
 
@@ -82,6 +90,42 @@ const normalizeMaxQueue = (maxQueue: number | undefined, label: string): number 
   return maxQueue;
 };
 
+const normalizePriority = (priority: number | undefined): number => {
+  if (typeof priority !== 'number' || !Number.isFinite(priority)) {
+    return 0;
+  }
+
+  return priority;
+};
+
+const compareQueueEntries = <TJob, TResult>(
+  left: QueueEntry<TJob, TResult>,
+  right: QueueEntry<TJob, TResult>
+): number =>
+  normalizePriority(right.options.priority) - normalizePriority(left.options.priority) ||
+  left.order - right.order;
+
+const insertQueueEntry = <TJob, TResult>(
+  queue: Array<QueueEntry<TJob, TResult>>,
+  entry: QueueEntry<TJob, TResult>
+): void => {
+  let low = 0;
+  let high = queue.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (compareQueueEntries(entry, queue[mid]!) < 0) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+
+  queue.splice(low, 0, entry);
+};
+
+const cloneMetrics = (metrics: PoolMetrics): PoolMetrics => ({ ...metrics });
+
 const detachAbortListener = <TJob, TResult>(entry: QueueEntry<TJob, TResult>): void => {
   if (entry.abortHandler && entry.signal) {
     entry.signal.removeEventListener('abort', entry.abortHandler);
@@ -104,11 +148,64 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
 }: CreatePoolRuntimeOptions<TWorker, TJob, TResult>): PoolRuntime<TJob, TResult> => {
   const queue: Array<QueueEntry<TJob, TResult>> = [];
   const workers = createWorkers(concurrency);
+  const metricsHistory: number[] = [];
+  let metricsRuntimeTotalMs = 0;
+  const metrics: PoolMetrics = {
+    avgRuntimeMs: 0,
+    completed: 0,
+    failed: 0,
+    p95RuntimeMs: 0,
+  };
   let disposed = false;
+  let paused = false;
   let running = 0;
+  let nextOrder = 0;
+  let idleWaiters: Array<{ reject: (reason?: unknown) => void; resolve: () => void }> = [];
+
+  const resolveIdle = (): void => {
+    if (running > 0 || queue.length > 0) {
+      return;
+    }
+
+    const waiters = idleWaiters;
+    idleWaiters = [];
+    for (const waiter of waiters) {
+      waiter.resolve();
+    }
+  };
+
+  const rejectIdle = (error: TaskWorkerError): void => {
+    const waiters = idleWaiters;
+    idleWaiters = [];
+    for (const waiter of waiters) {
+      waiter.reject(error);
+    }
+  };
+
+  const updateMetrics = (durationMs: number, failed: boolean): void => {
+    if (failed) {
+      metrics.failed += 1;
+      return;
+    }
+
+    metrics.completed += 1;
+    metricsHistory.push(durationMs);
+    metricsRuntimeTotalMs += durationMs;
+    if (metricsHistory.length > MAX_METRICS_HISTORY) {
+      const removed = metricsHistory.shift();
+      if (typeof removed === 'number') {
+        metricsRuntimeTotalMs -= removed;
+      }
+    }
+    metrics.avgRuntimeMs = metricsRuntimeTotalMs / metricsHistory.length;
+    const sorted = [...metricsHistory].sort((a, b) => a - b);
+    const index = Math.max(0, Math.ceil(sorted.length * 0.95) - 1);
+    metrics.p95RuntimeMs = sorted[index] ?? durationMs;
+  };
 
   const drain = (): void => {
-    if (disposed || queue.length === 0) {
+    if (disposed || paused || queue.length === 0) {
+      resolveIdle();
       return;
     }
 
@@ -125,16 +222,28 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
       if (entry.signal?.aborted) {
         detachAbortListener(entry);
         entry.reject(new TaskWorkerAbortError(abortedWhileQueuedMessage));
+        resolveIdle();
         continue;
       }
 
       detachAbortListener(entry);
       running++;
+      const startedAt = performance.now();
       void runWorker(worker, entry.job, entry.options)
-        .then(entry.resolve, entry.reject)
+        .then(
+          (value) => {
+            updateMetrics(performance.now() - startedAt, false);
+            entry.resolve(value);
+          },
+          (error) => {
+            updateMetrics(performance.now() - startedAt, true);
+            entry.reject(error);
+          }
+        )
         .finally(() => {
           running--;
           drain();
+          resolveIdle();
         });
     }
   };
@@ -165,6 +274,12 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
     get size(): number {
       return queue.length;
     },
+    get paused(): boolean {
+      return paused;
+    },
+    get metrics(): PoolMetrics {
+      return cloneMetrics(metrics);
+    },
     enqueue(job: TJob, options: TaskRunOptions = {}): Promise<TResult> {
       if (disposed) {
         return Promise.reject(new TaskWorkerError(workerTerminatedMessage, 'TERMINATED'));
@@ -178,18 +293,30 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
         const entry: QueueEntry<TJob, TResult> = {
           job,
           options,
+          order: nextOrder++,
           reject,
           resolve,
         };
 
-        const idleWorker = workers.find((worker) => !worker.busy);
+        const idleWorker = paused ? undefined : workers.find((worker) => !worker.busy);
         if (idleWorker) {
           running++;
+          const startedAt = performance.now();
           void runWorker(idleWorker, job, options)
-            .then(resolve, reject)
+            .then(
+              (value) => {
+                updateMetrics(performance.now() - startedAt, false);
+                resolve(value);
+              },
+              (error) => {
+                updateMetrics(performance.now() - startedAt, true);
+                reject(error);
+              }
+            )
             .finally(() => {
               running--;
               drain();
+              resolveIdle();
             });
           return;
         }
@@ -214,7 +341,7 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
           options.signal.addEventListener('abort', entry.abortHandler, { once: true });
         }
 
-        queue.push(entry);
+        insertQueueEntry(queue, entry);
       });
     },
     clear(): void {
@@ -223,6 +350,35 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
       }
 
       rejectQueued(new TaskWorkerError(clearMessage, 'QUEUE_CLEARED'));
+      resolveIdle();
+    },
+    pause(): void {
+      if (disposed) {
+        return;
+      }
+
+      paused = true;
+    },
+    resume(): void {
+      if (disposed || !paused) {
+        return;
+      }
+
+      paused = false;
+      drain();
+    },
+    onIdle(): Promise<void> {
+      if (running === 0 && queue.length === 0) {
+        return Promise.resolve();
+      }
+
+      if (disposed) {
+        return Promise.reject(new TaskWorkerError(workerTerminatedMessage, 'TERMINATED'));
+      }
+
+      return new Promise<void>((resolve, reject) => {
+        idleWaiters.push({ reject, resolve });
+      });
     },
     terminate(): void {
       if (disposed) {
@@ -230,7 +386,9 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
       }
 
       disposed = true;
-      rejectQueued(new TaskWorkerError(terminatedMessage, 'TERMINATED'));
+      const terminationError = new TaskWorkerError(terminatedMessage, 'TERMINATED');
+      rejectQueued(terminationError);
+      rejectIdle(terminationError);
       for (const worker of workers) {
         if ('terminate' in worker && typeof worker.terminate === 'function') {
           worker.terminate();
@@ -336,11 +494,26 @@ export function createTaskPool<TInput = void, TResult = unknown>(
     get size(): number {
       return runtime.size;
     },
+    get paused(): boolean {
+      return runtime.paused;
+    },
+    get metrics(): PoolMetrics {
+      return runtime.metrics;
+    },
     run(input: TInput, runOptions?: TaskRunOptions): Promise<TResult> {
       return runtime.enqueue(input, runOptions);
     },
     clear(): void {
       runtime.clear();
+    },
+    pause(): void {
+      runtime.pause();
+    },
+    resume(): void {
+      runtime.resume();
+    },
+    onIdle(): Promise<void> {
+      return runtime.onIdle();
     },
     terminate(): void {
       runtime.terminate();
@@ -431,6 +604,12 @@ export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
     get size(): number {
       return runtime.size;
     },
+    get paused(): boolean {
+      return runtime.paused;
+    },
+    get metrics(): PoolMetrics {
+      return runtime.metrics;
+    },
     call<TMethod extends keyof TRoutes & string>(
       method: TMethod,
       input: Parameters<TRoutes[TMethod]>[0],
@@ -442,6 +621,15 @@ export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
     },
     clear(): void {
       runtime.clear();
+    },
+    pause(): void {
+      runtime.pause();
+    },
+    resume(): void {
+      runtime.resume();
+    },
+    onIdle(): Promise<void> {
+      return runtime.onIdle();
     },
     terminate(): void {
       runtime.terminate();

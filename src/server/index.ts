@@ -8,13 +8,25 @@
  */
 
 export { createServer, isServerWebSocketSession, isWebSocketRequest } from './create-server';
+export {
+  ServerHttpError,
+  badRequest,
+  conflict,
+  forbidden,
+  notFound,
+  unauthorized,
+} from './errors';
 export type {
   CreateServerOptions,
   ServerApp,
+  ServerCookieOptions,
   ServerContext,
   ServerHandler,
   ServerResult,
   ServerHtmlResponseInit,
+  ServerLimits,
+  ServerListenHandle,
+  ServerListenOptions,
   ServerMiddleware,
   ServerNext,
   ServerQuery,
@@ -22,6 +34,8 @@ export type {
   ServerRequestInit,
   ServerResponseInit,
   ServerRoute,
+  ServerSseEvent,
+  ServerSseOptions,
   ServerWebSocketConnection,
   ServerWebSocketData,
   ServerWebSocketHandlerSet,

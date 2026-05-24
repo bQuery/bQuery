@@ -17,6 +17,11 @@ export type SSRRequestHandler = (
   context?: SSRContext
 ) => Promise<Response> | Response;
 
+export interface EdgeHandlerOptions {
+  /** Optional error mapper for fetch-style edge runtimes. */
+  onError?: (error: unknown, request: Request) => Promise<Response> | Response;
+}
+
 /* ---------------------------------------------------------------------------
  * Web (generic fetch) adapter
  * ------------------------------------------------------------------------- */
@@ -26,6 +31,25 @@ export type SSRRequestHandler = (
  * runtimes). Exists for symmetry and future logging hooks.
  */
 export const createWebHandler = (handler: SSRRequestHandler): SSRRequestHandler => handler;
+
+/**
+ * Wraps a fetch-style handler for edge runtimes with optional error handling.
+ */
+export const createEdgeHandler = (
+  handler: SSRRequestHandler,
+  options: EdgeHandlerOptions = {}
+): SSRRequestHandler => {
+  return async (request, context) => {
+    try {
+      return await Promise.resolve(handler(request, context));
+    } catch (error) {
+      if (options.onError) {
+        return await Promise.resolve(options.onError(error, request));
+      }
+      throw error;
+    }
+  };
+};
 
 /* ---------------------------------------------------------------------------
  * Bun adapter
