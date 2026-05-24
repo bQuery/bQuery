@@ -98,6 +98,32 @@ const normalizePriority = (priority: number | undefined): number => {
   return priority;
 };
 
+const compareQueueEntries = <TJob, TResult>(
+  left: QueueEntry<TJob, TResult>,
+  right: QueueEntry<TJob, TResult>
+): number =>
+  normalizePriority(right.options.priority) - normalizePriority(left.options.priority) ||
+  left.order - right.order;
+
+const insertQueueEntry = <TJob, TResult>(
+  queue: Array<QueueEntry<TJob, TResult>>,
+  entry: QueueEntry<TJob, TResult>
+): void => {
+  let low = 0;
+  let high = queue.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    if (compareQueueEntries(entry, queue[mid]!) < 0) {
+      high = mid;
+    } else {
+      low = mid + 1;
+    }
+  }
+
+  queue.splice(low, 0, entry);
+};
+
 const cloneMetrics = (metrics: PoolMetrics): PoolMetrics => ({ ...metrics });
 
 const detachAbortListener = <TJob, TResult>(entry: QueueEntry<TJob, TResult>): void => {
@@ -315,12 +341,7 @@ const createPoolRuntime = <TWorker extends { busy: boolean }, TJob, TResult>({
           options.signal.addEventListener('abort', entry.abortHandler, { once: true });
         }
 
-        queue.push(entry);
-        queue.sort(
-          (left, right) =>
-            normalizePriority(right.options.priority) - normalizePriority(left.options.priority) ||
-            left.order - right.order
-        );
+        insertQueueEntry(queue, entry);
       });
     },
     clear(): void {

@@ -498,7 +498,7 @@ describe('concurrency/callWorkerMethod', () => {
 });
 
 describe('concurrency/withTransferables', () => {
-  it('skips SharedArrayBuffer-backed views in transfer lists', () => {
+  it('dedupes transfer lists and skips SharedArrayBuffer-backed views', () => {
     if (typeof SharedArrayBuffer !== 'function') {
       return;
     }
@@ -506,11 +506,14 @@ describe('concurrency/withTransferables', () => {
     const shared = new SharedArrayBuffer(8);
     const arrayBuffer = new ArrayBuffer(4);
     const { transfer } = withTransferables({
+      duplicateView: new DataView(arrayBuffer),
+      nested: [arrayBuffer],
       sharedView: new Uint8Array(shared),
       typedArray: new Uint8Array(arrayBuffer),
     });
 
-    expect(transfer).toEqual([arrayBuffer]);
+    expect(transfer).toHaveLength(1);
+    expect(transfer[0]).toBe(arrayBuffer);
   });
 });
 

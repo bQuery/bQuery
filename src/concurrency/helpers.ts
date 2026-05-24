@@ -13,9 +13,27 @@ const isTransferable = (value: unknown): value is Transferable => {
   );
 };
 
-const visitTransferables = (value: unknown, seen: WeakSet<object>, out: Transferable[]): void => {
+const pushTransferable = (
+  value: Transferable,
+  seenTransferables: Set<Transferable>,
+  out: Transferable[]
+): void => {
+  if (seenTransferables.has(value)) {
+    return;
+  }
+
+  seenTransferables.add(value);
+  out.push(value);
+};
+
+const visitTransferables = (
+  value: unknown,
+  seen: WeakSet<object>,
+  seenTransferables: Set<Transferable>,
+  out: Transferable[]
+): void => {
   if (isTransferable(value)) {
-    out.push(value);
+    pushTransferable(value, seenTransferables, out);
     return;
   }
 
@@ -34,28 +52,28 @@ const visitTransferables = (value: unknown, seen: WeakSet<object>, out: Transfer
   if (ArrayBuffer.isView(value)) {
     const buffer = (value as ArrayBufferView).buffer;
     if (buffer instanceof ArrayBuffer) {
-      out.push(buffer);
+      pushTransferable(buffer, seenTransferables, out);
     }
     return;
   }
 
   if (objectValue instanceof Map) {
     for (const [key, mapValue] of objectValue as Map<unknown, unknown>) {
-      visitTransferables(key, seen, out);
-      visitTransferables(mapValue, seen, out);
+      visitTransferables(key, seen, seenTransferables, out);
+      visitTransferables(mapValue, seen, seenTransferables, out);
     }
     return;
   }
 
   if (objectValue instanceof Set) {
     for (const setValue of objectValue as Set<unknown>) {
-      visitTransferables(setValue, seen, out);
+      visitTransferables(setValue, seen, seenTransferables, out);
     }
     return;
   }
 
   for (const nested of Object.values(objectValue)) {
-    visitTransferables(nested, seen, out);
+    visitTransferables(nested, seen, seenTransferables, out);
   }
 };
 
@@ -69,7 +87,7 @@ export const withTransferables = <TValue>(
   value: TValue;
 } => {
   const transfer: Transferable[] = [];
-  visitTransferables(value, new WeakSet<object>(), transfer);
+  visitTransferables(value, new WeakSet<object>(), new Set<Transferable>(), transfer);
   return { transfer, value };
 };
 

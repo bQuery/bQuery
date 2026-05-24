@@ -328,6 +328,49 @@ describe('server/createServer', () => {
     expect(await renderResponse.text()).toContain('streamed html');
   });
 
+  it('cancels SSE iterators when the client disconnects', async () => {
+    const app = createServer();
+    let nextCallCount = 0;
+    let pendingResolve: ((result: IteratorResult<string>) => void) | undefined;
+    let returnCallCount = 0;
+
+    const source: AsyncIterable<string> & AsyncIterator<string> = {
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next() {
+        nextCallCount += 1;
+        if (nextCallCount === 1) {
+          return Promise.resolve({ done: false, value: 'hello' });
+        }
+
+        return new Promise<IteratorResult<string>>((resolve) => {
+          pendingResolve = resolve;
+        });
+      },
+      return() {
+        returnCallCount += 1;
+        pendingResolve?.({ done: true, value: undefined });
+        return Promise.resolve({ done: true, value: undefined });
+      },
+    };
+
+    app.get('/sse-cancel', (ctx) => ctx.sse(source));
+
+    const response = await app.handle('/sse-cancel');
+    const reader = response.body?.getReader();
+
+    expect(reader).toBeDefined();
+    expect(await reader?.read()).toMatchObject({
+      done: false,
+      value: expect.any(Uint8Array),
+    });
+
+    await reader?.cancel();
+
+    expect(returnCallCount).toBe(1);
+  });
+
   it('supports renderResponse and accepted content negotiation helpers', async () => {
     const app = createServer();
     app.get('/response', async (ctx) => {

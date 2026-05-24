@@ -472,12 +472,43 @@ const createSseResponse = (
       : (async function* () {
           yield* (source as Iterable<ServerSseEvent | string>);
         })();
+  const iterator = asyncSource[Symbol.asyncIterator]();
+  let cancelled = false;
+  let iteratorClosed = false;
+  const closeIterator = async (): Promise<void> => {
+    if (iteratorClosed || typeof iterator.return !== 'function') {
+      return;
+    }
+
+    iteratorClosed = true;
+    await iterator.return();
+  };
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      for await (const event of asyncSource) {
-        controller.enqueue(encoder.encode(formatSseChunk(event, init.retry)));
+      try {
+        while (!cancelled) {
+          const { done, value } = await iterator.next();
+          if (done || cancelled) {
+            break;
+          }
+
+          controller.enqueue(encoder.encode(formatSseChunk(value, init.retry)));
+        }
+
+        if (!cancelled) {
+          controller.close();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          controller.error(error);
+        }
+      } finally {
+        await closeIterator().catch(() => undefined);
       }
-      controller.close();
+    },
+    async cancel() {
+      cancelled = true;
+      await closeIterator().catch(() => undefined);
     },
   });
   return response(stream, { ...init, headers });
