@@ -250,12 +250,14 @@ describe('server/createServer', () => {
     const descriptor = Object.getOwnPropertyDescriptor(Headers.prototype, 'getSetCookie');
 
     try {
-      if (descriptor) {
+      if (descriptor?.configurable === true) {
         Object.defineProperty(Headers.prototype, 'getSetCookie', {
           configurable: true,
           value: undefined,
           writable: true,
         });
+      } else if (descriptor) {
+        return;
       }
 
       const response = await app.handle('/cookies');
@@ -266,7 +268,7 @@ describe('server/createServer', () => {
       expect(setCookie).toContain('theme=dark');
       expect(setCookieEntries).toHaveLength(2);
     } finally {
-      if (descriptor) {
+      if (descriptor?.configurable === true) {
         Object.defineProperty(Headers.prototype, 'getSetCookie', descriptor);
       } else {
         delete (Headers.prototype as { getSetCookie?: unknown }).getSetCookie;
