@@ -539,6 +539,58 @@ export function fireEvent(el: Element, eventName: string, options: FireEventOpti
   return result;
 }
 
+// Attach shortcut methods (1.14+) so callers can use `fireEvent.click(el)`,
+// `fireEvent.input(el, 'value')`, etc.
+const setInputValue = (el: Element, value: string): void => {
+  (el as HTMLInputElement).value = value;
+};
+
+interface FireEventShortcuts {
+  click: (el: Element) => boolean;
+  dblClick: (el: Element) => boolean;
+  input: (el: Element, value: string) => boolean;
+  change: (el: Element, value: string) => boolean;
+  submit: (el: Element) => boolean;
+  focus: (el: Element) => boolean;
+  blur: (el: Element) => boolean;
+  keyDown: (el: Element, detail?: unknown) => boolean;
+  keyUp: (el: Element, detail?: unknown) => boolean;
+}
+
+const shortcuts: FireEventShortcuts = {
+  click: (el) => fireEvent(el, 'click'),
+  dblClick: (el) => fireEvent(el, 'dblclick'),
+  input: (el, value) => {
+    setInputValue(el, value);
+    return fireEvent(el, 'input');
+  },
+  change: (el, value) => {
+    setInputValue(el, value);
+    return fireEvent(el, 'change');
+  },
+  submit: (el) => fireEvent(el, 'submit'),
+  focus: (el) => fireEvent(el, 'focus'),
+  blur: (el) => fireEvent(el, 'blur'),
+  keyDown: (el, detail) => fireEvent(el, 'keydown', { detail }),
+  keyUp: (el, detail) => fireEvent(el, 'keyup', { detail }),
+};
+
+Object.assign(fireEvent, shortcuts);
+
+// Augment the exported function type so TypeScript callers see the shortcuts.
+// eslint-disable-next-line @typescript-eslint/no-namespace
+export namespace fireEvent {
+  export const click: (el: Element) => boolean = shortcuts.click;
+  export const dblClick: (el: Element) => boolean = shortcuts.dblClick;
+  export const input: (el: Element, value: string) => boolean = shortcuts.input;
+  export const change: (el: Element, value: string) => boolean = shortcuts.change;
+  export const submit: (el: Element) => boolean = shortcuts.submit;
+  export const focus: (el: Element) => boolean = shortcuts.focus;
+  export const blur: (el: Element) => boolean = shortcuts.blur;
+  export const keyDown: (el: Element, detail?: unknown) => boolean = shortcuts.keyDown;
+  export const keyUp: (el: Element, detail?: unknown) => boolean = shortcuts.keyUp;
+}
+
 // ============================================================================
 // waitFor
 // ============================================================================

@@ -49,6 +49,9 @@ const INTENTIONAL_RUNTIME_OMISSIONS = new Map([
   // in the flat bundle. Use @bquery/bquery/plugin for the global DI helpers.
   ['plugin:provide', 'collides with component.provide'],
   ['plugin:inject', 'collides with component.inject'],
+  // testing.nextTick collides with core.utils.nextTick in the flat bundle.
+  // Use @bquery/bquery/testing for the effect-flushing variant.
+  ['testing:nextTick', 'collides with core.utils.nextTick'],
 ]);
 
 const INTENTIONAL_TYPE_OMISSIONS = new Map([
