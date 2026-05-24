@@ -643,8 +643,8 @@ export type {
 // ============================================================================
 // View Module: Declarative DOM bindings without compiler
 // ============================================================================
-export { clearExpressionCache, createTemplate, mount } from './view/index';
-export type { BindingContext, MountOptions, View } from './view/index';
+export { clearExpressionCache, createTemplate, mount, parseDirective } from './view/index';
+export type { BindingContext, MountOptions, ParsedDirective, View } from './view/index';
 
 // ============================================================================
 // Forms Module: Reactive form handling and validation
