@@ -476,7 +476,7 @@ const response = await renderToResponse('<main bq-text="title"></main>', { title
 
 ### `renderToStream()` + `flushBoundary()`
 
-Use `flushBoundary()` to insert a temporary streaming marker that `renderToStream()` removes while splitting the rendered template into multiple chunks:
+Use `flushBoundary()` to insert a temporary streaming marker that `renderToStream()` removes while splitting the rendered template into multiple chunks. Place the boundary only between complete HTML fragments—never inside a tag, attribute, or incomplete element pair—or streamed chunks may become invalid HTML on their own:
 
 ```ts
 const stream = renderToStream(

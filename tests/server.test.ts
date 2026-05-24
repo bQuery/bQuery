@@ -247,20 +247,21 @@ describe('server/createServer', () => {
       return ctx.text('ok');
     });
 
-    const descriptor = Object.getOwnPropertyDescriptor(Headers.prototype, 'getSetCookie');
-    let overrideApplied = false;
-
-    try {
-      if (descriptor?.configurable === true) {
-        Object.defineProperty(Headers.prototype, 'getSetCookie', {
+    const NativeHeaders = Headers;
+    const HeadersWithoutGetSetCookie = class extends NativeHeaders {
+      constructor(init?: ConstructorParameters<typeof NativeHeaders>[0]) {
+        super(init);
+        Object.defineProperty(this, 'getSetCookie', {
           configurable: true,
           value: undefined,
           writable: true,
         });
-        overrideApplied = true;
-      } else if (descriptor) {
-        return;
       }
+    };
+
+    try {
+      (globalThis as typeof globalThis & { Headers: typeof Headers }).Headers =
+        HeadersWithoutGetSetCookie as typeof Headers;
 
       const response = await app.handle('/cookies');
       const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
@@ -270,11 +271,7 @@ describe('server/createServer', () => {
       expect(setCookie).toContain('theme=dark');
       expect(setCookieEntries).toHaveLength(2);
     } finally {
-      if (overrideApplied) {
-        Object.defineProperty(Headers.prototype, 'getSetCookie', descriptor);
-      } else if (!descriptor) {
-        delete (Headers.prototype as { getSetCookie?: unknown }).getSetCookie;
-      }
+      (globalThis as typeof globalThis & { Headers: typeof Headers }).Headers = NativeHeaders;
     }
   });
 

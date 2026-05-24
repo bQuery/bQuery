@@ -82,6 +82,10 @@ export interface AsyncSSRResult extends SSRResult {
 
 /**
  * Marks a manual stream flush boundary in an SSR template.
+ *
+ * Insert boundaries only between complete HTML fragments. Because
+ * `renderToStream()` splits the rendered template on this marker, placing it
+ * inside tags, attributes, or other partial markup can produce invalid chunks.
  */
 export const flushBoundary = (): string => FLUSH_BOUNDARY_MARKER;
 
