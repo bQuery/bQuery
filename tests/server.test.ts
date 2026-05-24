@@ -683,7 +683,7 @@ describe('server/createServer', () => {
     try {
       expect(handle.url.startsWith('http://[')).toBe(true);
       const url = new URL(handle.url);
-      expect(url.hostname).toBe('::1');
+      expect(url.hostname.replace(/^\[|\]$/g, '')).toBe('::1');
       expect(url.port).not.toBe('0');
     } finally {
       await handle.close();
