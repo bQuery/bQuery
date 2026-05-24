@@ -15,14 +15,18 @@ import {
   createAssetManager,
   createBunHandler,
   createDenoHandler,
+  createEdgeHandler,
   createHeadManager,
   createNodeHandler,
+  createSSRCache,
   createSSRContext,
   createSSRHandler,
+  createSSRMetrics,
   createWebHandler,
   defer,
   defineLoader,
   detectRuntime,
+  flushBoundary,
   getSSRConfig,
   getSSRRuntimeFeatures,
   hydrateIsland,
@@ -72,6 +76,130 @@ describe('runtime detection', () => {
     expect(typeof features.fetchApi).toBe('boolean');
     expect(typeof features.webStreams).toBe('boolean');
     expect(typeof features.textEncoder).toBe('boolean');
+  });
+
+  it('renders manual flush boundaries as multiple stream chunks', async () => {
+    const stream = renderToStream(`<div>before</div>${flushBoundary()}<div>after</div>`, {});
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    const chunks: string[] = [];
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(decoder.decode(value));
+    }
+
+    expect(chunks).toEqual(['<div>before</div>', '<div>after</div>']);
+  });
+
+  it('injects head fragments into the streamed chunk that contains </head>', async () => {
+    configureSSR({ backend: 'pure' });
+    const context = createSSRContext();
+    context.head.add({
+      meta: [{ name: 'stream-test', content: 'ok' }],
+    });
+
+    const stream = renderToStream(
+      `<html><head></head>${flushBoundary()}<body><div>after</div></body></html>`,
+      {},
+      { context }
+    );
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value);
+    }
+
+    expect(html).toContain('<head><meta name="stream-test" content="ok"></head>');
+  });
+
+  it('records render metrics through the SSR context collector', async () => {
+    const metrics = createSSRMetrics();
+    const context = createSSRContext({ metrics });
+
+    await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'metrics' }, { context });
+
+    expect(metrics.snapshot().renderCount).toBe(1);
+    expect(metrics.snapshot().totalRenderMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('renders when the default SSR context omits metrics', async () => {
+    const context = createSSRContext();
+    expect(context.metrics).toBeUndefined();
+
+    const result = await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'no-metrics' }, {
+      context,
+    });
+
+    expect(result.html).toContain('no-metrics');
+  });
+
+  it('serves cached SSR responses when a cache store is provided', async () => {
+    const cache = createSSRCache();
+    const first = await renderToResponse('<p bq-text="msg"></p>', { msg: 'cached' }, {
+      cache: { store: cache, vary: ['accept-language'] },
+      context: createSSRContext({
+        request: new Request('http://localhost/cached', {
+          headers: { 'accept-language': 'en' },
+        }),
+      }),
+    });
+    const second = await renderToResponse('<p bq-text="msg"></p>', { msg: 'fresh' }, {
+      cache: { store: cache, vary: ['accept-language'] },
+      context: createSSRContext({
+        request: new Request('http://localhost/cached', {
+          headers: { 'accept-language': 'en' },
+        }),
+      }),
+    });
+
+    expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
+    expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
+  });
+
+  it('evicts empty-string cache keys when the cache exceeds maxEntries', () => {
+    const cache = createSSRCache({ maxEntries: 1 });
+
+    cache.set('', {
+      body: 'first',
+      createdAt: Date.now(),
+      headers: [],
+      status: 200,
+    });
+    cache.set('next', {
+      body: 'second',
+      createdAt: Date.now(),
+      headers: [],
+      status: 200,
+    });
+
+    expect(cache.get('')).toBeNull();
+    expect(cache.get('next')?.body).toBe('second');
+  });
+
+  it('wraps edge handlers with a custom error mapper', async () => {
+    const handler = createEdgeHandler(
+      () => {
+        throw new Error('edge-boom');
+      },
+      {
+        onError(error, request) {
+          return new Response(`${request.url}:${error instanceof Error ? error.message : 'unknown'}`, {
+            status: 502,
+          });
+        },
+      }
+    );
+
+    const response = await handler(new Request('https://example.com/test'));
+
+    expect(response.status).toBe(502);
+    expect(await response.text()).toBe('https://example.com/test:edge-boom');
   });
 });
 
@@ -885,6 +1013,79 @@ describe('renderToStream', () => {
     const reader = stream.getReader();
     await expect(reader.read()).rejects.toBeDefined();
   });
+
+  it('resolves async loader data once across flush-boundary chunks', async () => {
+    let calls = 0;
+    const loader = defineLoader(async () => {
+      calls += 1;
+      return 'stream';
+    });
+    const stream = renderToStream(
+      `<p bq-text="msg"></p>${flushBoundary()}<span bq-text="msg"></span>`,
+      { msg: loader }
+    );
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value);
+    }
+
+    expect(html).toContain('<p bq-text="msg">stream</p>');
+    expect(html).toContain('<span bq-text="msg">stream</span>');
+    expect(calls).toBe(1);
+  });
+
+  it('renders stream fragments once after flush-boundary chunks resolve', async () => {
+    configureSSR({ backend: 'pure' });
+    const context = createSSRContext({
+      metrics: createSSRMetrics(),
+    });
+    context.head.add({
+      meta: [{ name: 'stream-once', content: 'ok' }],
+    });
+
+    let headRenderCalls = 0;
+    let assetsRenderCalls = 0;
+    const originalHeadRender = context.head.render.bind(context.head);
+    const originalAssetsRender = context.assets.render.bind(context.assets);
+
+    context.head.render = ((options) => {
+      headRenderCalls += 1;
+      return originalHeadRender(options);
+    }) as typeof context.head.render;
+    context.assets.render = ((options) => {
+      assetsRenderCalls += 1;
+      return originalAssetsRender(options);
+    }) as typeof context.assets.render;
+
+    const stream = renderToStream(
+      `<html><head></head>${flushBoundary()}<body><p bq-text="msg"></p></body></html>`,
+      { msg: 'stream' },
+      {
+        context,
+        includeStoreState: true,
+      }
+    );
+
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    let html = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      html += decoder.decode(value);
+    }
+
+    expect(html).toContain('<meta name="stream-once" content="ok">');
+    expect(headRenderCalls).toBe(1);
+    expect(assetsRenderCalls).toBe(1);
+    expect(context.metrics?.snapshot().renderCount).toBe(1);
+  });
 });
 
 describe('renderToResponse', () => {
@@ -899,6 +1100,59 @@ describe('renderToResponse', () => {
   it('honours the Cache-Control option', async () => {
     const response = await renderToResponse('<p>x</p>', {}, { cacheControl: 'public, max-age=60' });
     expect(response.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
+  it('keeps an explicit Cache-Control header when cache shaping is also enabled', async () => {
+    const response = await renderToResponse('<p>x</p>', {}, {
+      cache: {
+        sMaxAge: 30,
+      },
+      cacheControl: 'public, max-age=60',
+    });
+
+    expect(response.headers.get('cache-control')).toBe('public, max-age=60');
+  });
+
+  it('merges cache vary values with existing Vary headers', async () => {
+    const response = await renderToResponse('<p>x</p>', {}, {
+      cache: {
+        vary: ['accept-language', 'accept-encoding'],
+      },
+      headers: {
+        vary: 'accept-encoding',
+      },
+    });
+
+    expect(response.headers.get('vary')).toBe('accept-encoding, accept-language');
+  });
+
+  it('uses empty-string cache keys returned by custom cache stores', async () => {
+    const cache = createSSRCache({
+      getKey: () => '',
+    });
+
+    const first = await renderToResponse('<p bq-text="msg"></p>', { msg: 'cached' }, {
+      cache: { store: cache },
+    });
+    const second = await renderToResponse('<p bq-text="msg"></p>', { msg: 'fresh' }, {
+      cache: { store: cache },
+    });
+
+    expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
+    expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
+  });
+
+  it('keeps Vary as "*" when cache vary values include wildcard', async () => {
+    const response = await renderToResponse('<p>x</p>', {}, {
+      cache: {
+        vary: ['*', 'accept-language'],
+      },
+      headers: {
+        vary: 'accept-encoding',
+      },
+    });
+
+    expect(response.headers.get('vary')).toBe('*');
   });
 
   it('computes a weak ETag when requested', async () => {
