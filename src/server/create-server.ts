@@ -939,6 +939,26 @@ const createBodyReader = (
   };
 };
 
+/**
+ * Merge headers from `from` into `to`, keeping `Set-Cookie` values separate so
+ * that multiple cookies are not collapsed into a single comma-joined header by
+ * the Fetch/undici `Headers.forEach` behaviour.
+ *
+ * @internal
+ */
+const mergeResponseHeaders = (from: Headers, to: Headers): void => {
+  const setCookies: string[] =
+    (from as Headers & { getSetCookie?(): string[] }).getSetCookie?.() ?? [];
+  from.forEach((value, name) => {
+    if (name.toLowerCase() !== 'set-cookie') {
+      to.append(name, value);
+    }
+  });
+  for (const v of setCookies) {
+    to.append('set-cookie', v);
+  }
+};
+
 const createServerContext = (
   request: Request,
   baseUrl: string,
@@ -964,32 +984,32 @@ const createServerContext = (
     body: readBody,
     response: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return response(body, { ...init, headers });
     },
     text: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return text(body, { ...init, headers });
     },
     html: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return html(body, { ...init, headers });
     },
     json: (data, init = {}) => {
       const headers = createHeaders(init.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return json(data, { ...init, headers });
     },
     stream: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return stream(body, { ...init, headers });
     },
     sse: (source, init = {}) => {
       const headers = createHeaders(init.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return createSseResponse(source, { ...init, headers });
     },
     accepts: (types) => accepts(request, types),
@@ -999,17 +1019,17 @@ const createServerContext = (
     redirect,
     render: (template, data, options = {}) => {
       const headers = createHeaders(options.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return render(template, data, { ...options, headers });
     },
     renderStream: (template, data, options = {}) => {
       const headers = createHeaders(options.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return renderStreamResponse(template, data, { ...options, headers });
     },
     async renderResponse(template, data, options = {}) {
       const headers = createHeaders(options.headers);
-      responseHeaders.forEach((value, name) => headers.append(name, value));
+      mergeResponseHeaders(responseHeaders, headers);
       return await renderToResponse(template, data, { ...options, headers });
     },
     runTask,
@@ -1232,8 +1252,12 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
         const handler = createNodeHandler((request) => app.handle(request));
         const server = nodeHttp.createServer(handler);
         await new Promise<void>((resolve, reject) => {
-          server.once('error', reject);
-          server.listen(port, hostname, () => resolve());
+          const onError = (err: Error) => reject(err);
+          server.once('error', onError);
+          server.listen(port, hostname, () => {
+            server.removeListener('error', onError);
+            resolve();
+          });
         });
         listenOptions.signal?.addEventListener('abort', () => server.close(), { once: true });
         const address = server.address();

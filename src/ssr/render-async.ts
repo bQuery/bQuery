@@ -460,7 +460,7 @@ export const renderToResponse = async (
   }
 
   const response = new Response(result.html, { status, headers });
-  if (cacheStore && cacheKey && response.ok) {
+  if (cacheStore && cacheKey && response.ok && !headers.has('set-cookie')) {
     cacheStore.set(cacheKey, {
       body: result.html,
       createdAt: Date.now(),
