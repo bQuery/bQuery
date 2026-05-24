@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'bun:test';
 import type { ServerWebSocketPeer } from '../src/server/index';
-import { createServer, isServerWebSocketSession, isWebSocketRequest } from '../src/server/index';
+import {
+  badRequest,
+  createServer,
+  isServerWebSocketSession,
+  isWebSocketRequest,
+  ServerHttpError,
+} from '../src/server/index';
 import { createStore, destroyStore, listStores } from '../src/store/index';
 
 const SSR_TEST_STORE_ID = 'server-ssr-test';
@@ -174,6 +180,334 @@ describe('server/createServer', () => {
     expect(body).toContain(SSR_TEST_STORE_ID);
   });
 
+  it('parses json bodies, request cookies, and appends response cookies', async () => {
+    const app = createServer();
+    app.post('/body', async (ctx) => {
+      const body = (await ctx.body()) as { message: string };
+      ctx.setCookie('session', 'abc123', { httpOnly: true, path: '/' });
+      return ctx.json({
+        body,
+        cookie: ctx.cookies.theme,
+      });
+    });
+
+    const response = await app.handle({
+      body: JSON.stringify({ message: 'hello' }),
+      headers: {
+        'content-type': 'application/json',
+        cookie: 'theme=dark',
+      },
+      method: 'POST',
+      url: '/body',
+    });
+
+    expect(await response.json()).toEqual({
+      body: { message: 'hello' },
+      cookie: 'dark',
+    });
+    expect(response.headers.get('set-cookie')).toContain('session=abc123');
+  });
+
+  it('parses +json bodies without treating application/jsonp as JSON', async () => {
+    const app = createServer();
+    app.post('/typed-body', async (ctx) => {
+      const body = await ctx.body();
+      if (body instanceof ArrayBuffer) {
+        return ctx.text(new TextDecoder().decode(body));
+      }
+      return ctx.json(body);
+    });
+
+    const jsonResponse = await app.handle({
+      body: JSON.stringify({ message: 'hello' }),
+      headers: {
+        'content-type': 'application/ld+json; charset=utf-8',
+      },
+      method: 'POST',
+      url: '/typed-body',
+    });
+    const jsonpResponse = await app.handle({
+      body: 'callback({"message":"hello"})',
+      headers: {
+        'content-type': 'application/jsonp',
+      },
+      method: 'POST',
+      url: '/typed-body',
+    });
+
+    expect(await jsonResponse.json()).toEqual({ message: 'hello' });
+    expect(await jsonpResponse.text()).toBe('callback({"message":"hello"})');
+  });
+
+  it('preserves response cookies when Headers.getSetCookie is unavailable', async () => {
+    const app = createServer();
+    app.get('/cookies', (ctx) => {
+      ctx.setCookie('session', 'abc123', { httpOnly: true, path: '/' });
+      ctx.setCookie('theme', 'dark', { path: '/' });
+      return ctx.text('ok');
+    });
+
+    const NativeHeaders = Headers;
+    const HeadersWithoutGetSetCookie = class extends NativeHeaders {
+      constructor(init?: ConstructorParameters<typeof NativeHeaders>[0]) {
+        super(init);
+        Object.defineProperty(this, 'getSetCookie', {
+          configurable: true,
+          value: undefined,
+          writable: true,
+        });
+      }
+    };
+
+    try {
+      (globalThis as typeof globalThis & { Headers: typeof Headers }).Headers =
+        HeadersWithoutGetSetCookie as typeof Headers;
+
+      const response = await app.handle('/cookies');
+      const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
+      const setCookie = response.headers.get('set-cookie');
+
+      expect(setCookie).toContain('session=abc123');
+      expect(setCookie).toContain('theme=dark');
+      expect(setCookieEntries).toHaveLength(2);
+    } finally {
+      (globalThis as typeof globalThis & { Headers: typeof Headers }).Headers = NativeHeaders;
+    }
+  });
+
+  it('preserves response cookies when redirecting after ctx.setCookie', async () => {
+    const app = createServer();
+    app.get('/redirect', (ctx) => {
+      ctx.setCookie('session', 'abc123', { httpOnly: true, path: '/' });
+      return ctx.redirect('/login');
+    });
+
+    const response = await app.handle('/redirect');
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/login');
+    expect(response.headers.get('set-cookie')).toContain('session=abc123');
+  });
+
+  it('preserves multiple set-cookie values passed through ctx.response headers', async () => {
+    const app = createServer();
+    app.get('/response-cookies', (ctx) => {
+      const headers = new Headers();
+      headers.append('set-cookie', 'session=abc123; Path=/; HttpOnly');
+      headers.append('set-cookie', 'theme=dark; Path=/');
+      return ctx.response('ok', { headers });
+    });
+
+    const response = await app.handle('/response-cookies');
+    const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
+
+    expect(response.headers.get('set-cookie')).toContain('session=abc123');
+    expect(response.headers.get('set-cookie')).toContain('theme=dark');
+    expect(setCookieEntries).toHaveLength(2);
+  });
+
+  it('rejects cookie names and attributes with invalid header characters', async () => {
+    const app = createServer({
+      onError(error, ctx) {
+        return ctx.text(error instanceof Error ? error.message : 'error', { status: 400 });
+      },
+    });
+    app.get('/cookie-name', (ctx) => {
+      ctx.setCookie('session\r\nx', 'abc123');
+      return ctx.text('ok');
+    });
+    app.get('/cookie-path', (ctx) => {
+      ctx.setCookie('session', 'abc123', { path: '/\r\nx' });
+      return ctx.text('ok');
+    });
+
+    const invalidName = await app.handle('/cookie-name');
+    const invalidPath = await app.handle('/cookie-path');
+
+    expect(invalidName.status).toBe(400);
+    expect(await invalidName.text()).toBe('Cookie name contains invalid characters.');
+    expect(invalidPath.status).toBe(400);
+    expect(await invalidPath.text()).toBe('Cookie path contains invalid characters.');
+  });
+
+  it('rejects non-string sameSite cookie values with a validation error', async () => {
+    const app = createServer({
+      onError(error, ctx) {
+        return ctx.text(error instanceof Error ? error.message : 'error', { status: 400 });
+      },
+    });
+    app.get('/cookie-same-site', (ctx) => {
+      ctx.setCookie('session', 'abc123', {
+        sameSite: 1 as unknown as 'lax',
+      });
+      return ctx.text('ok');
+    });
+
+    const response = await app.handle('/cookie-same-site');
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe('Cookie sameSite must be one of "lax", "none", or "strict".');
+  });
+
+  it('enforces multipart body limits', async () => {
+    const app = createServer({
+      limits: {
+        multipart: 32,
+      },
+    });
+    app.post('/upload', async (ctx) => {
+      await ctx.body();
+      return ctx.text('ok');
+    });
+
+    const boundary = '----bquery-boundary';
+    const body = [
+      `--${boundary}`,
+      'Content-Disposition: form-data; name="file"; filename="demo.txt"',
+      'Content-Type: text/plain',
+      '',
+      'payload that is intentionally too large',
+      `--${boundary}--`,
+      '',
+    ].join('\r\n');
+
+    const response = await app.handle(
+      new Request('http://localhost/upload', {
+        body,
+        headers: {
+          'content-type': `multipart/form-data; boundary=${boundary}`,
+        },
+        method: 'POST',
+      })
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe('Multipart form body exceeds the configured limit.');
+  });
+
+  it('measures text body limits in bytes', async () => {
+    const app = createServer({
+      limits: {
+        text: 7,
+      },
+    });
+    app.post('/text', async (ctx) => {
+      await ctx.body();
+      return ctx.text('ok');
+    });
+
+    const response = await app.handle({
+      body: '🙂🙂',
+      headers: {
+        'content-type': 'text/plain; charset=utf-8',
+      },
+      method: 'POST',
+      url: '/text',
+    });
+
+    expect(response.status).toBe(413);
+    expect(await response.text()).toBe('Text body exceeds the configured limit.');
+  });
+
+  it('supports stream, sse, and renderStream helpers', async () => {
+    const app = createServer();
+    const encoder = new TextEncoder();
+
+    app.get('/stream', (ctx) =>
+      ctx.stream(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(encoder.encode('streamed'));
+            controller.close();
+          },
+        }),
+        { headers: { 'content-type': 'text/plain; charset=utf-8' } }
+      )
+    );
+    app.get('/sse', (ctx) => ctx.sse([{ event: 'message', data: 'hello' }]));
+    app.get('/render-stream', (ctx) =>
+      ctx.renderStream('<main><h1 bq-text="title"></h1></main>', { title: 'streamed html' })
+    );
+
+    const streamResponse = await app.handle('/stream');
+    expect(await streamResponse.text()).toBe('streamed');
+
+    const sseResponse = await app.handle('/sse');
+    expect(sseResponse.headers.get('content-type')).toContain('text/event-stream');
+    expect(await sseResponse.text()).toContain('event: message');
+
+    app.get('/sse-text', (ctx) => ctx.sse(['hello\nworld']));
+    const sseTextResponse = await app.handle('/sse-text');
+    expect(await sseTextResponse.text()).toContain('data: hello\ndata: world\n');
+
+    const renderResponse = await app.handle('/render-stream');
+    expect(renderResponse.headers.get('content-type')).toContain('text/html');
+    expect(await renderResponse.text()).toContain('streamed html');
+  });
+
+  it('cancels SSE iterators when the client disconnects', async () => {
+    const app = createServer();
+    let nextCallCount = 0;
+    let pendingResolve: ((result: IteratorResult<string>) => void) | undefined;
+    let returnCallCount = 0;
+
+    const source: AsyncIterable<string> & AsyncIterator<string> = {
+      [Symbol.asyncIterator]() {
+        return this;
+      },
+      next() {
+        nextCallCount += 1;
+        if (nextCallCount === 1) {
+          return Promise.resolve({ done: false, value: 'hello' });
+        }
+
+        return new Promise<IteratorResult<string>>((resolve) => {
+          pendingResolve = resolve;
+        });
+      },
+      return() {
+        returnCallCount += 1;
+        pendingResolve?.({ done: true, value: undefined });
+        return Promise.resolve({ done: true, value: undefined });
+      },
+    };
+
+    app.get('/sse-cancel', (ctx) => ctx.sse(source));
+
+    const response = await app.handle('/sse-cancel');
+    const reader = response.body?.getReader();
+
+    expect(reader).toBeDefined();
+    expect(await reader?.read()).toMatchObject({
+      done: false,
+      value: expect.any(Uint8Array),
+    });
+
+    await reader?.cancel();
+
+    expect(returnCallCount).toBe(1);
+  });
+
+  it('supports renderResponse and accepted content negotiation helpers', async () => {
+    const app = createServer();
+    app.get('/response', async (ctx) => {
+      const accepted = ctx.accepts(['application/json', 'text/html']);
+      ctx.setCookie('accepted', accepted ?? 'none');
+      return await ctx.renderResponse('<div bq-text="value"></div>', { value: accepted });
+    });
+
+    const response = await app.handle(
+      new Request('http://localhost/response', {
+        headers: {
+          accept: 'application/jsonp;q=1, text/html;q=0.8, application/json;q=0.7',
+        },
+      })
+    );
+
+    expect(await response.text()).toContain('text/html');
+    expect(response.headers.get('set-cookie')).toContain('accepted=text%2Fhtml');
+  });
+
   it('returns 404 for unmatched routes', async () => {
     const app = createServer();
 
@@ -199,6 +533,25 @@ describe('server/createServer', () => {
 
     expect(response.status).toBe(418);
     expect(await response.json()).toEqual({ message: 'boom' });
+  });
+
+  it('maps structured server http errors to their configured status codes', async () => {
+    const app = createServer();
+
+    app.get('/bad-request', () => {
+      throw badRequest('broken');
+    });
+    app.get('/hidden-error', () => {
+      throw new ServerHttpError(500, 'sensitive', { expose: false });
+    });
+
+    const badResponse = await app.handle('/bad-request');
+    expect(badResponse.status).toBe(400);
+    expect(await badResponse.text()).toBe('broken');
+
+    const hiddenResponse = await app.handle('/hidden-error');
+    expect(hiddenResponse.status).toBe(500);
+    expect(await hiddenResponse.text()).toBe('Internal Server Error');
   });
 
   it('returns thrown Response instances from the default error handler', async () => {
@@ -282,6 +635,59 @@ describe('server/createServer', () => {
 
     expect(response.headers.get('content-type')).toContain('application/json');
     expect(await response.text()).toBe('null');
+  });
+
+  it('returns the bound node listen address when using an ephemeral port', async () => {
+    const app = createServer();
+    app.get('/health', (ctx) => ctx.text('ok'));
+
+    const handle = await app.listen({
+      hostname: '127.0.0.1',
+      port: 0,
+      runtime: 'node',
+    });
+
+    try {
+      const url = new URL(handle.url);
+
+      expect(url.hostname).toBe('127.0.0.1');
+      expect(url.port).not.toBe('0');
+      expect(handle.addresses).toEqual([handle.url]);
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('returns a valid URL for IPv6 node listen addresses', async () => {
+    const app = createServer();
+    app.get('/health', (ctx) => ctx.text('ok'));
+
+    const handle = await app
+      .listen({
+        hostname: '::1',
+        port: 0,
+        runtime: 'node',
+      })
+      .catch((error: unknown) => {
+        const code = (error as { code?: string }).code;
+        if (code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') {
+          return null;
+        }
+        throw error;
+      });
+
+    if (!handle) {
+      return;
+    }
+
+    try {
+      expect(handle.url.startsWith('http://[')).toBe(true);
+      const url = new URL(handle.url);
+      expect(url.hostname.replace(/^\[|\]$/g, '')).toBe('::1');
+      expect(url.port).not.toBe('0');
+    } finally {
+      await handle.close();
+    }
   });
 
   it('detects websocket upgrade requests', () => {

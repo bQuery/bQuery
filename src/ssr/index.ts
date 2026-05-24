@@ -62,12 +62,26 @@ export type { SSRRuntime, SSRRuntimeFeatures } from './runtime';
 // ---------------------------------------------------------------------------
 export { configureSSR, getSSRConfig } from './config';
 export type { SSRDocumentImpl, SSRRendererBackend } from './config';
+export { createSSRMetrics } from './metrics';
+export type { SSRMetrics, SSRMetricsSnapshot } from './metrics';
 
 // ---------------------------------------------------------------------------
 // Async/streaming render pipeline
 // ---------------------------------------------------------------------------
-export { renderToResponse, renderToStream, renderToStringAsync } from './render-async';
-export type { AsyncRenderOptions, AsyncSSRResult, RenderToResponseOptions } from './render-async';
+export {
+  createSSRCache,
+  flushBoundary,
+  renderToResponse,
+  renderToStream,
+  renderToStringAsync,
+} from './render-async';
+export type {
+  AsyncRenderOptions,
+  AsyncSSRResult,
+  RenderToResponseCacheOptions,
+  RenderToResponseOptions,
+} from './render-async';
+export type { SSRCache, SSRCacheEntry, SSRCacheOptions, SSRCacheRequest } from './cache';
 
 // ---------------------------------------------------------------------------
 // SSR context
@@ -151,11 +165,13 @@ export type { CreateResumableStateOptions, ResumableState, ResumeReader } from '
 export {
   createBunHandler,
   createDenoHandler,
+  createEdgeHandler,
   createNodeHandler,
   createSSRHandler,
   createWebHandler,
 } from './adapters';
 export type {
+  EdgeHandlerOptions,
   NodeHandlerOptions,
   NodeIncomingMessage,
   NodeServerResponse,
