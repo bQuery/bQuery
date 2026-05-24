@@ -940,9 +940,8 @@ const createBodyReader = (
 };
 
 /**
- * Merge headers from `from` into `to`, keeping `Set-Cookie` values separate so
- * that multiple cookies are not collapsed into a single comma-joined header by
- * the Fetch/undici `Headers.forEach` behaviour.
+ * Formats a listen URL, bracketing IPv6 hosts so the returned string is a
+ * valid absolute URL.
  *
  * @internal
  */
@@ -954,6 +953,13 @@ const formatListenUrl = (hostname: string, port: number): string => {
   return `http://${host}:${port}`;
 };
 
+/**
+ * Merge headers from `from` into `to`, keeping `Set-Cookie` values separate so
+ * that multiple cookies are not collapsed into a single comma-joined header by
+ * the Fetch/undici `Headers.forEach` behaviour.
+ *
+ * @internal
+ */
 const mergeResponseHeaders = (
   from: Headers,
   to: Headers,

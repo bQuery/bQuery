@@ -47,6 +47,15 @@ type PoolStateSource = Pick<
   'busy' | 'concurrency' | 'metrics' | 'paused' | 'pending' | 'size' | 'state'
 >;
 
+const poolMetricsEqual = (left: PoolMetrics, right: PoolMetrics): boolean => {
+  return (
+    left.completed === right.completed &&
+    left.failed === right.failed &&
+    left.avgRuntimeMs === right.avgRuntimeMs &&
+    left.p95RuntimeMs === right.p95RuntimeMs
+  );
+};
+
 const syncWorkerSignals = (source: WorkerStateSource, mirror: WorkerSignalMirror): void => {
   batch(() => {
     mirror.state.value = source.state;
@@ -59,7 +68,10 @@ const syncPoolSignals = (source: PoolStateSource, mirror: PoolSignalMirror): voi
     mirror.state.value = source.state;
     mirror.busy.value = source.busy;
     mirror.concurrency.value = source.concurrency;
-    mirror.metrics.value = source.metrics;
+    const metrics = source.metrics;
+    if (!poolMetricsEqual(mirror.metrics.peek(), metrics)) {
+      mirror.metrics.value = metrics;
+    }
     mirror.pending.value = source.pending;
     mirror.paused.value = source.paused;
     mirror.size.value = source.size;

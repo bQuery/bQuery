@@ -1255,6 +1255,39 @@ describe('concurrency/reactive wrappers', () => {
         pool.terminate();
       });
     });
+
+    it('avoids redundant metrics signal updates when the snapshot is unchanged', async () => {
+      await withMockWorkerEnvironment(async () => {
+        const pool = createReactiveTaskPool(
+          async ({ delay, value }: { delay: number; value: number }) => {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+            return value;
+          },
+          { concurrency: 1 }
+        );
+        const snapshots: Array<{ completed: number; failed: number }> = [];
+        const stop = effect(() => {
+          const metrics = pool.metrics$.value;
+          snapshots.push({
+            completed: metrics.completed,
+            failed: metrics.failed,
+          });
+        });
+
+        await expect(pool.run({ delay: 0, value: 1 })).resolves.toBe(1);
+        await expect(pool.onIdle()).resolves.toBeUndefined();
+
+        pool.pause();
+        pool.resume();
+        pool.terminate();
+        stop();
+
+        expect(snapshots).toEqual([
+          { completed: 0, failed: 0 },
+          { completed: 1, failed: 0 },
+        ]);
+      });
+    });
   });
 
   describe('createReactiveRpcPool', () => {
