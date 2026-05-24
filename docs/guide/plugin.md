@@ -5,13 +5,103 @@ The plugin module lets you register reusable integrations that add custom direct
 ```ts
 import {
   use,
+  unuse,
   isInstalled,
   getInstalledPlugins,
+  getPluginInfo,
   getCustomDirective,
   getCustomDirectives,
   resetPlugins,
+  // Hooks (1.14+)
+  addFilter,
+  applyFilters,
+  addAction,
+  doAction,
+  // DI (1.14+)
+  createInjectionKey,
+  provide,
+  inject,
 } from '@bquery/bquery/plugin';
 ```
+
+## What's new in 1.14
+
+### Hooks, filters, and DI
+
+Plugins (and your app code) can publish and consume named hooks. Filters are
+WP-style synchronous pipelines; actions are fire-and-forget event buses.
+
+```ts
+import { addFilter, applyFilters, addAction, doAction } from '@bquery/bquery/plugin';
+
+addFilter('format-title', (title: string) => title.toUpperCase());
+const out = applyFilters('format-title', 'hello'); // 'HELLO'
+
+addAction('analytics:event', (name: string) => track(name));
+doAction('analytics:event', 'page-view');
+```
+
+Dependency injection works at container scope (parallel to component-level
+`provide` / `inject`):
+
+```ts
+import { createInjectionKey, provide, inject } from '@bquery/bquery/plugin';
+
+const ApiClientKey = createInjectionKey<ApiClient>('api-client');
+provide(ApiClientKey, new ApiClient());
+const api = inject(ApiClientKey);
+```
+
+### Plugin install context
+
+Plugins receive an enriched context with `addFilter`, `addAction`, `provide`,
+`inject`, and `onCleanup`. Anything registered through the context is
+plugin-owned and removed automatically by `unuse(name)` / `uninstall(name)`.
+
+```ts
+use({
+  name: 'tooltip',
+  version: '1.0.0',
+  description: 'Lightweight tooltip directive',
+  dependencies: ['popper'],
+  dependencyMode: 'throw',
+  install(ctx) {
+    ctx.registerDirective({
+      name: 'tooltip',
+      mounted(el, value) { /* ... */ },
+      unmounted(el) { /* ... */ },
+    });
+    ctx.onCleanup(() => {
+      // detach global listeners, caches, etc.
+    });
+  },
+});
+```
+
+### Async install
+
+`install` may return `void | Promise<void>`. Concurrent installs of the same
+plugin are serialised, and `use()` resolves once any async install finishes.
+
+### Uninstall
+
+```ts
+unuse('tooltip'); // detach directives, hooks, DI bindings, run onCleanup callbacks
+```
+
+### Plugin metadata
+
+```ts
+getInstalledPlugins({ withMetadata: true });
+// [{ name: 'tooltip', version: '1.0.0', description: '...', dependencies: ['popper'] }]
+
+getPluginInfo('tooltip');
+```
+
+### Directive lifecycle objects
+
+Directives can now declare `{ mounted, updated, unmounted }` hooks and use
+plugin-namespaced names like `tooltip:arrow`.
 
 ---
 

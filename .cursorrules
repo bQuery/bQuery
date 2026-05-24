@@ -4,7 +4,7 @@ You are working on bQuery.js, a batteries-included TypeScript full-stack web fra
 
 > Derived snapshot for Cursor. If this file conflicts with `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files in that order and then realign this one.
 
-Current release baseline: **1.13.0**.
+Current release baseline: **1.14.0**.
 
 bQuery.js is not a utility library; treat its broad module surface as the product, and keep guidance aligned with that scope.
 
@@ -21,6 +21,13 @@ bQuery.js is not a utility library; treat its broad module surface as the produc
 - Signal `.value` tracks dependencies → use `.peek()` to avoid tracking.
 - `useSignal()`, `useComputed()`, and `useEffect()` from `@bquery/bquery/component` must be called from component lifecycle hooks, not from `render()`.
 - When version, engine, or repo guidance files change, run `bun run check:ai-guidance` before finishing.
+
+## 1.14.0 API Notes
+
+- `@bquery/bquery/media` becomes batteries-included with 25+ new reactive composables: preferences (`usePreferredColorScheme`, `usePreferredContrast`, `usePreferredReducedTransparency`, `usePreferredLanguage`, `usePreferredLanguages`); page state (`useOnlineStatus`, `usePageVisibility`, `useDocumentFocus`, `useWindowFocus`, `useIdle`); element observers (`useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`, `useFocus`, `useFocusWithin`, `useActiveElement`); pointer/scroll (`usePointer`, `useScroll`); platform (`usePermission`, `useWakeLock`, `useShare`, `useShareSupported`, `useBroadcastChannel`, `useEventListener`, `useMediaDevices`, `useStorage`); clipboard upgrades (`isSupported`, `isImageSupported`, `readImage`, `writeImage`, `clipboardText`). All accept optional `{ signal: AbortSignal }`.
+- `@bquery/bquery/plugin` adds a WP-style hook bus + DI: `addFilter`/`applyFilters`/`removeFilter`/`listFilters`, `addAction`/`doAction`/`removeAction`/`listActions`, `createInjectionKey`/`provide`/`inject`/`hasProvided`/`resetDi`, `ctx.onCleanup`. New `unuse(name)`/`uninstall(name)` lifecycle; `install` may return `void | Promise<void>`; plugin metadata (`version`, `description`, `dependencies`, `dependencyMode`), `getPluginInfo`, `getInstalledPlugins({ withMetadata: true })`, directive lifecycle objects, namespaced directive names.
+- `@bquery/bquery/devtools` ships ring-buffered timelines (`maxTimelineEntries`), expanded `TimelineEntry` (`payload`/`source`/`duration`), new event types (`signal:create`/`signal:dispose`/`effect:dispose`/`component:mount`/`component:unmount`/`component:render`/`route:guard`/`error:caught`/`measure`/`mark`), `filterTimeline`, `subscribeTimeline`, privacy-aware `inspectSignals({ includeValues: false })`, `diffSignals`/`diffStores`, `traceSignal`/`untraceSignal`, `inspectEffects`, `exportDevtoolsSnapshot`/`importDevtoolsSnapshot`, `installBrowserBridge`, plus `time`/`measureRender`/`getPerformanceSummary`.
+- `@bquery/bquery/testing` becomes batteries-included: auto-cleanup, `fireEvent.click`/`.input`/`.change`/`.submit`/`.focus`/`.blur`/`.dblClick`/`.keyDown`/`.keyUp` shortcuts; `userEvent` namespace; shadow-DOM-aware screen queries via `screen` + `within`; reactive harnesses (`mockComputed`, `mockEffect`); async helpers (`tick`, `flushPromises`, `runScheduled`); module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`); snapshot/a11y (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).
 
 ## 1.13.0 API Notes
 

@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.13.0
+- Version: 1.14.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,15 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
+
+## Version 1.14.0 Highlights
+
+- Media: `@bquery/bquery/media` becomes batteries-included with 25+ new reactive composables — preferences (`usePreferredColorScheme`, `usePreferredContrast`, `usePreferredReducedTransparency`, `usePreferredLanguage`, `usePreferredLanguages`); page state (`useOnlineStatus`, `usePageVisibility`, `useDocumentFocus`, `useWindowFocus`, `useIdle`); element observers (`useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`, `useFocus`, `useFocusWithin`, `useActiveElement`); pointer/scroll (`usePointer`, `useScroll`); platform (`usePermission`, `useWakeLock`, `useShare`, `useShareSupported`, `useBroadcastChannel`, `useEventListener`, `useMediaDevices`, `useStorage`); plus clipboard upgrades (`isSupported`, `isImageSupported`, `readImage`, `writeImage`, `clipboardText`). All accept optional `{ signal: AbortSignal }` for auto-teardown.
+- Plugin: `@bquery/bquery/plugin` gains a hook bus and DI — `addFilter`/`applyFilters`/`removeFilter`/`listFilters`, `addAction`/`doAction`/`removeAction`/`listActions`, `createInjectionKey`/`provide`/`inject`/`hasProvided`/`resetDi`, and `ctx.onCleanup` for plugin-scoped teardown. New `unuse(name)`/`uninstall(name)` detach plugin-owned directives, hooks, and DI bindings; `install()` may now return `void | Promise<void>` (concurrent installs of the same plugin are serialised). Plugin metadata (`version`, `description`, `dependencies`, `dependencyMode: 'throw' | 'warn'`), `getPluginInfo(name)`, `getInstalledPlugins({ withMetadata: true })`, directive lifecycle objects (`{ mounted, updated, unmounted }`), and namespaced directive names (`tooltip:arrow`).
+- Devtools: `@bquery/bquery/devtools` gains ring-buffered timelines (`maxTimelineEntries`, default 1000), an expanded `TimelineEntry` with optional `payload`/`source`/`duration`, new event types (`signal:create`/`signal:dispose`/`effect:dispose`/`component:mount`/`component:unmount`/`component:render`/`route:guard`/`error:caught`/`measure`/`mark`), `filterTimeline({ types, since, until, search })`, `subscribeTimeline(listener)`, privacy-aware `inspectSignals({ includeValues: false })`, structural `diffSignals`/`diffStores`, `traceSignal`/`untraceSignal`, `inspectEffects`, snapshot import/export, `installBrowserBridge()`, and performance helpers (`time`, `measureRender`, `getPerformanceSummary`).
+- Testing: `@bquery/bquery/testing` becomes batteries-included — auto cleanup (`cleanup`, `autoCleanup`), `fireEvent.click`/`.input`/`.change`/`.submit`/`.focus`/`.blur`/`.dblClick`/`.keyDown`/`.keyUp` shortcuts, a `userEvent` namespace (`click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`), shadow-DOM-aware screen queries via `screen`/`within(el)` with `getByRole`/`getByText`/`getByLabelText`/`getByPlaceholderText`/`getByTestId` + their `query*` and `find*` variants, reactive harnesses (`mockComputed`, `mockEffect`, `tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), and snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).
+- All earlier 1.13.0 / 1.12.0 / 1.11.0 / 1.10.0 / 1.9.0 public surface remains stable.
+- Repo AI guidance stays aligned through `bun run check:ai-guidance`.
 
 ## Version 1.13.0 Highlights
 

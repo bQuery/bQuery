@@ -20,8 +20,78 @@ import {
   recordEvent,
   trackSignal,
   untrackSignal,
+  // 1.14+ extensions
+  filterTimeline,
+  subscribeTimeline,
+  diffSignals,
+  diffStores,
+  traceSignal,
+  untraceSignal,
+  inspectEffects,
+  exportDevtoolsSnapshot,
+  importDevtoolsSnapshot,
+  installBrowserBridge,
+  time,
+  measureRender,
+  getPerformanceSummary,
 } from '@bquery/bquery/devtools';
 ```
+
+## What's new in 1.14
+
+### Configurable ring buffer
+
+The timeline is capped at `maxTimelineEntries` events (default 1000) so
+long-running sessions never grow without bound.
+
+```ts
+enableDevtools(true, { maxTimelineEntries: 500 });
+```
+
+### Timeline filtering & subscriptions
+
+```ts
+const failures = filterTimeline({ types: ['error:caught'], since: Date.now() - 60_000 });
+const off = subscribeTimeline((entry) => console.debug(entry));
+```
+
+Entries now carry optional `payload`, `source`, and `duration`. New event
+types: `signal:create`, `signal:dispose`, `effect:dispose`, `component:mount`,
+`component:unmount`, `component:render`, `route:guard`, `error:caught`,
+`measure`, `mark`.
+
+### Inspection upgrades
+
+```ts
+inspectSignals({ includeValues: false }); // privacy-friendly snapshot
+diffSignals(prev, next); // structural diff
+traceSignal('cart.total');
+inspectEffects(); // active reactive scopes
+```
+
+### Snapshot export / import
+
+```ts
+const snap = exportDevtoolsSnapshot();
+// Save snap to a file, send with a bug report, etc.
+const replay = importDevtoolsSnapshot(JSON.stringify(snap));
+```
+
+### Browser bridge
+
+```ts
+installBrowserBridge(); // mirrors events to window.__BQUERY_DEVTOOLS__.events
+```
+
+### Performance helpers
+
+```ts
+const value = time('expensive', () => compute());
+measureRender('my-card', () => render());
+getPerformanceSummary(); // counts + averages per event type
+```
+
+---
 
 ---
 
