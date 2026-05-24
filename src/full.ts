@@ -725,15 +725,30 @@ export type {
 // ============================================================================
 // i18n Module: Internationalization, translations, formatting
 // ============================================================================
-export { createI18n, formatDate, formatNumber } from './i18n/index';
+export {
+  createI18n,
+  detectLocale,
+  formatDate,
+  formatDisplayName,
+  formatList,
+  formatNumber,
+  formatRelativeTime,
+  isRTL,
+  negotiateLocale,
+  segment,
+} from './i18n/index';
 export type {
   DateFormatOptions,
+  DetectLocaleOptions,
   I18nConfig,
   I18nInstance,
+  ListFormatOptions,
   LocaleLoader,
   LocaleMessages,
   Messages,
+  NegotiateLocaleOptions,
   NumberFormatOptions,
+  RelativeTimeFormatOptions,
   TranslateParams,
 } from './i18n/index';
 
