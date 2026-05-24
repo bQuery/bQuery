@@ -131,6 +131,13 @@ const injectStreamFragments = (
 };
 
 const mergeHeaderValues = (existingValue: string | null, nextValues: readonly string[]): string | null => {
+  const hasWildcard = (values: readonly string[]): boolean =>
+    values.some((value) => value.trim() === '*');
+
+  if ((existingValue && hasWildcard(existingValue.split(','))) || hasWildcard(nextValues)) {
+    return '*';
+  }
+
   const merged = new Map<string, string>();
 
   const addValues = (values: readonly string[]): void => {

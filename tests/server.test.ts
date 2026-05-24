@@ -228,15 +228,17 @@ describe('server/createServer', () => {
       }
 
       const response = await app.handle('/cookies');
+      const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
       const setCookie = response.headers.get('set-cookie');
 
       expect(setCookie).toContain('session=abc123');
       expect(setCookie).toContain('theme=dark');
+      expect(setCookieEntries).toHaveLength(2);
     } finally {
       if (descriptor) {
         Object.defineProperty(Headers.prototype, 'getSetCookie', descriptor);
       } else {
-        delete (Headers.prototype as Headers & { getSetCookie?: unknown }).getSetCookie;
+        delete (Headers.prototype as { getSetCookie?: unknown }).getSetCookie;
       }
     }
   });
@@ -588,6 +590,38 @@ describe('server/createServer', () => {
       expect(url.hostname).toBe('127.0.0.1');
       expect(url.port).not.toBe('0');
       expect(handle.addresses).toEqual([handle.url]);
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('returns a valid URL for IPv6 node listen addresses', async () => {
+    const app = createServer();
+    app.get('/health', (ctx) => ctx.text('ok'));
+
+    const handle = await app
+      .listen({
+        hostname: '::1',
+        port: 0,
+        runtime: 'node',
+      })
+      .catch((error: unknown) => {
+        const code = (error as { code?: string }).code;
+        if (code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') {
+          return null;
+        }
+        throw error;
+      });
+
+    if (!handle) {
+      return;
+    }
+
+    try {
+      expect(handle.url.startsWith('http://[')).toBe(true);
+      const url = new URL(handle.url);
+      expect(url.hostname).toBe('::1');
+      expect(url.port).not.toBe('0');
     } finally {
       await handle.close();
     }

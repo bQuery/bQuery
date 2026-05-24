@@ -946,7 +946,19 @@ const createBodyReader = (
  *
  * @internal
  */
-const mergeResponseHeaders = (from: Headers, to: Headers): void => {
+const formatListenUrl = (hostname: string, port: number): string => {
+  const host =
+    hostname.includes(':') && !hostname.startsWith('[') && !hostname.endsWith(']')
+      ? `[${hostname}]`
+      : hostname;
+  return `http://${host}:${port}`;
+};
+
+const mergeResponseHeaders = (
+  from: Headers,
+  to: Headers,
+  trackedSetCookies: readonly string[] = []
+): void => {
   const getSetCookie = (from as Headers & { getSetCookie?(): string[] }).getSetCookie;
   const setCookies = typeof getSetCookie === 'function' ? getSetCookie.call(from) : [];
   from.forEach((value, name) => {
@@ -954,13 +966,19 @@ const mergeResponseHeaders = (from: Headers, to: Headers): void => {
       to.append(name, value);
     }
   });
-  const fallbackSetCookie = setCookies.length === 0 ? from.get('set-cookie') : null;
-  if (fallbackSetCookie !== null) {
-    to.append('set-cookie', fallbackSetCookie);
+  if (trackedSetCookies.length > 0) {
+    for (const value of trackedSetCookies) {
+      to.append('set-cookie', value);
+    }
     return;
   }
+
+  const fallbackSetCookie = setCookies.length === 0 ? from.get('set-cookie') : null;
   for (const v of setCookies) {
     to.append('set-cookie', v);
+  }
+  if (fallbackSetCookie !== null) {
+    to.append('set-cookie', fallbackSetCookie);
   }
 };
 
@@ -976,6 +994,7 @@ const createServerContext = (
   const cookies = parseCookies(request.headers.get('cookie'));
   const readBody = createBodyReader(request, limits);
   const responseHeaders = createHeaders();
+  const responseSetCookies: string[] = [];
 
   return {
     request,
@@ -989,52 +1008,54 @@ const createServerContext = (
     body: readBody,
     response: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return response(body, { ...init, headers });
     },
     text: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return text(body, { ...init, headers });
     },
     html: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return html(body, { ...init, headers });
     },
     json: (data, init = {}) => {
       const headers = createHeaders(init.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return json(data, { ...init, headers });
     },
     stream: (body, init = {}) => {
       const headers = createHeaders(init.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return stream(body, { ...init, headers });
     },
     sse: (source, init = {}) => {
       const headers = createHeaders(init.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return createSseResponse(source, { ...init, headers });
     },
     accepts: (types) => accepts(request, types),
     setCookie(name, value, options = {}) {
-      responseHeaders.append('set-cookie', serializeCookie(name, value, options));
+      const serializedCookie = serializeCookie(name, value, options);
+      responseSetCookies.push(serializedCookie);
+      responseHeaders.append('set-cookie', serializedCookie);
     },
     redirect,
     render: (template, data, options = {}) => {
       const headers = createHeaders(options.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return render(template, data, { ...options, headers });
     },
     renderStream: (template, data, options = {}) => {
       const headers = createHeaders(options.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return renderStreamResponse(template, data, { ...options, headers });
     },
     async renderResponse(template, data, options = {}) {
       const headers = createHeaders(options.headers);
-      mergeResponseHeaders(responseHeaders, headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
       return await renderToResponse(template, data, { ...options, headers });
     },
     runTask,
@@ -1240,15 +1261,16 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
           port,
         });
         listenOptions.signal?.addEventListener('abort', () => server.stop(), { once: true });
+        const listenUrl = formatListenUrl(server.hostname ?? hostname, server.port ?? port);
         return {
-          addresses: [`http://${server.hostname ?? hostname}:${server.port ?? port}`],
+          addresses: [listenUrl],
           async close() {
             server.stop();
           },
           async stop() {
             server.stop();
           },
-          url: `http://${server.hostname ?? hostname}:${server.port ?? port}`,
+          url: listenUrl,
         };
       }
 
@@ -1270,7 +1292,7 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
           address && typeof address !== 'string'
             ? { hostname: address.address || hostname, port: address.port ?? port }
             : { hostname, port };
-        const url = `http://${resolvedAddress.hostname}:${resolvedAddress.port}`;
+        const url = formatListenUrl(resolvedAddress.hostname, resolvedAddress.port);
         return {
           addresses: [url],
           async close() {

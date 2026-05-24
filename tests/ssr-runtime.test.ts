@@ -1079,6 +1079,19 @@ describe('renderToResponse', () => {
     expect(response.headers.get('vary')).toBe('accept-encoding, accept-language');
   });
 
+  it('keeps Vary as "*" when cache vary values include wildcard', async () => {
+    const response = await renderToResponse('<p>x</p>', {}, {
+      cache: {
+        vary: ['*', 'accept-language'],
+      },
+      headers: {
+        vary: 'accept-encoding',
+      },
+    });
+
+    expect(response.headers.get('vary')).toBe('*');
+  });
+
   it('computes a weak ETag when requested', async () => {
     const response = await renderToResponse('<p>etag</p>', {}, { etag: true });
     const etag = response.headers.get('etag');
