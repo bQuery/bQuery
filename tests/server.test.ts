@@ -520,6 +520,27 @@ describe('server/createServer', () => {
     expect(await response.text()).toBe('null');
   });
 
+  it('returns the bound node listen address when using an ephemeral port', async () => {
+    const app = createServer();
+    app.get('/health', (ctx) => ctx.text('ok'));
+
+    const handle = await app.listen({
+      hostname: '127.0.0.1',
+      port: 0,
+      runtime: 'node',
+    });
+
+    try {
+      const url = new URL(handle.url);
+
+      expect(url.hostname).toBe('127.0.0.1');
+      expect(url.port).not.toBe('0');
+      expect(handle.addresses).toEqual([handle.url]);
+    } finally {
+      await handle.close();
+    }
+  });
+
   it('detects websocket upgrade requests', () => {
     const request = createWebSocketRequest('http://localhost/socket');
 

@@ -1134,7 +1134,7 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
       const context = createServerContext(request, baseUrl, limits);
 
       try {
-       const route = resolveMatchingRoute(routes, context.method, context.path, context);
+        const route = resolveMatchingRoute(routes, context.method, context.path, context);
 
         if (!route) {
           return await notFound(context);
@@ -1229,8 +1229,14 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
           server.listen(port, hostname, () => resolve());
         });
         listenOptions.signal?.addEventListener('abort', () => server.close(), { once: true });
+        const address = server.address();
+        const resolvedAddress =
+          address && typeof address !== 'string'
+            ? { hostname: address.address || hostname, port: address.port ?? port }
+            : { hostname, port };
+        const url = `http://${resolvedAddress.hostname}:${resolvedAddress.port}`;
         return {
-          addresses: [`http://${hostname}:${port}`],
+          addresses: [url],
           async close() {
             await new Promise<void>((resolve, reject) => {
               server.close((error) => (error ? reject(error) : resolve()));
@@ -1241,7 +1247,7 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
               server.close((error) => (error ? reject(error) : resolve()));
             });
           },
-          url: `http://${hostname}:${port}`,
+          url,
         };
       }
 
