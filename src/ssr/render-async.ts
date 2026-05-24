@@ -452,9 +452,9 @@ export const renderToResponse = async (
           url: ctx.url,
           vary: options.cache.vary,
         })
-      : '';
+      : undefined;
 
-  if (cacheStore && cacheKey) {
+  if (cacheStore && cacheKey !== undefined) {
     const cached = cacheStore.get(cacheKey);
     if (cached) {
       return new Response(cached.body, {
@@ -490,7 +490,7 @@ export const renderToResponse = async (
   }
 
   const response = new Response(result.html, { status, headers });
-  if (cacheStore && cacheKey && response.ok && !headers.has('set-cookie')) {
+  if (cacheStore && cacheKey !== undefined && response.ok && !headers.has('set-cookie')) {
     cacheStore.set(cacheKey, {
       body: result.html,
       createdAt: Date.now(),

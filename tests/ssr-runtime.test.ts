@@ -1126,6 +1126,22 @@ describe('renderToResponse', () => {
     expect(response.headers.get('vary')).toBe('accept-encoding, accept-language');
   });
 
+  it('uses empty-string cache keys returned by custom cache stores', async () => {
+    const cache = createSSRCache({
+      getKey: () => '',
+    });
+
+    const first = await renderToResponse('<p bq-text="msg"></p>', { msg: 'cached' }, {
+      cache: { store: cache },
+    });
+    const second = await renderToResponse('<p bq-text="msg"></p>', { msg: 'fresh' }, {
+      cache: { store: cache },
+    });
+
+    expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
+    expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
+  });
+
   it('keeps Vary as "*" when cache vary values include wildcard', async () => {
     const response = await renderToResponse('<p>x</p>', {}, {
       cache: {
