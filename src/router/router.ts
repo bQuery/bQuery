@@ -4,6 +4,7 @@
  */
 
 import { isPrototypePollutionKey } from '../core/utils/object';
+import { readonly, signal, type ReadonlySignal, type Signal } from '../reactive/index';
 import { createRoute } from './match';
 import {
   beginNavigation,
@@ -14,8 +15,17 @@ import {
   routeSignal,
   setActiveRouter,
 } from './state';
-import type { NavigationGuard, Route, Router, RouterOptions } from './types';
-import { flattenRoutes } from './utils';
+import type {
+  NavigationGuard,
+  NavigationResult,
+  ResolvedRouteInfo,
+  ResolveRouteInput,
+  Route,
+  RouteDefinition,
+  Router,
+  RouterOptions,
+} from './types';
+import { flattenRoutes, resolve as resolveByName } from './utils';
 
 // ============================================================================
 // Router Creation
@@ -74,10 +84,36 @@ export const createRouter = (options: RouterOptions): Router => {
 
   // Instance-specific guards and hooks (not shared globally)
   const beforeGuards: NavigationGuard[] = [];
+  const beforeResolveGuards: NavigationGuard[] = [];
   const afterHooks: Array<(to: Route, from: Route) => void> = [];
 
   // Flatten nested routes (base-relative, not including the base path)
-  const flatRoutes = flattenRoutes(routes);
+  let flatRoutes = flattenRoutes(routes);
+
+  // Track the underlying (mutable) route definitions for dynamic add/remove.
+  // We store a working copy so addRoute/removeRoute can mutate without
+  // affecting the caller's array.
+  const rootRoutes: RouteDefinition[] = routes.slice();
+
+  // Reactive signal for the most recent navigation result.
+  const lastNavigationSignal: Signal<NavigationResult | null> = signal<NavigationResult | null>(
+    null
+  );
+  const lastNavigation: ReadonlySignal<NavigationResult | null> = readonly(lastNavigationSignal);
+
+  // isReady support: resolved after the first syncRoute call settles.
+  let readyPromise: Promise<void>;
+  let resolveReady: () => void = () => {};
+  readyPromise = new Promise<void>((res) => {
+    resolveReady = res;
+  });
+  let isReadyResolved = false;
+  const markReady = (): void => {
+    if (!isReadyResolved) {
+      isReadyResolved = true;
+      resolveReady();
+    }
+  };
 
   // Scroll position storage keyed by history state id
   const scrollPositions = new Map<string, { x: number; y: number }>();
@@ -211,17 +247,18 @@ export const createRouter = (options: RouterOptions): Router => {
   };
 
   /**
-   * Performs navigation with guards.
+   * Performs navigation with guards. Returns a structured NavigationResult.
    */
   const performNavigation = async (
     path: string,
     method: 'pushState' | 'replaceState',
     visitedPaths: Set<string> = new Set()
-  ): Promise<void> => {
+  ): Promise<NavigationResult> => {
     beginNavigation();
+    let from: Route | undefined;
     try {
-      const { pathname, search, hash } = getCurrentPath();
-      const from = createRoute(pathname, search, hash, flatRoutes);
+      const current = getCurrentPath();
+      from = createRoute(current.pathname, current.search, current.hash, flatRoutes);
 
       // Parse the target path
       const url = new URL(path, window.location.origin);
@@ -235,15 +272,30 @@ export const createRouter = (options: RouterOptions): Router => {
       // Check for redirectTo on the matched route
       if (to.matched?.redirectTo) {
         // Navigate to the redirect target instead
-        await performNavigation(to.matched.redirectTo, method, visitedPaths);
-        return;
+        const inner = await performNavigation(to.matched.redirectTo, method, visitedPaths);
+        const redirected: NavigationResult = {
+          status: inner.status === 'completed' ? 'redirected' : inner.status,
+          requestedPath: path,
+          to: inner.to,
+          from: inner.from ?? from,
+          error: inner.error,
+        };
+        lastNavigationSignal.value = redirected;
+        return redirected;
       }
 
       // Run route-level beforeEnter guard
       if (to.matched?.beforeEnter) {
         const result = await to.matched.beforeEnter(to, from);
         if (result === false) {
-          return; // Cancel navigation
+          const canceled: NavigationResult = {
+            status: 'canceled',
+            requestedPath: path,
+            to,
+            from,
+          };
+          lastNavigationSignal.value = canceled;
+          return canceled;
         }
       }
 
@@ -251,7 +303,29 @@ export const createRouter = (options: RouterOptions): Router => {
       for (const guard of beforeGuards) {
         const result = await guard(to, from);
         if (result === false) {
-          return; // Cancel navigation
+          const canceled: NavigationResult = {
+            status: 'canceled',
+            requestedPath: path,
+            to,
+            from,
+          };
+          lastNavigationSignal.value = canceled;
+          return canceled;
+        }
+      }
+
+      // Run beforeResolve guards (after beforeEach/beforeEnter, before commit).
+      for (const guard of beforeResolveGuards) {
+        const result = await guard(to, from);
+        if (result === false) {
+          const canceled: NavigationResult = {
+            status: 'canceled',
+            requestedPath: path,
+            to,
+            from,
+          };
+          lastNavigationSignal.value = canceled;
+          return canceled;
         }
       }
 
@@ -283,6 +357,24 @@ export const createRouter = (options: RouterOptions): Router => {
       for (const hook of afterHooks) {
         hook(routeSignal.value, from);
       }
+
+      const completed: NavigationResult = {
+        status: 'completed',
+        requestedPath: path,
+        to: routeSignal.value,
+        from,
+      };
+      lastNavigationSignal.value = completed;
+      return completed;
+    } catch (error) {
+      const errored: NavigationResult = {
+        status: 'error',
+        requestedPath: path,
+        from,
+        error,
+      };
+      lastNavigationSignal.value = errored;
+      throw error;
     } finally {
       endNavigation();
     }
@@ -367,12 +459,149 @@ export const createRouter = (options: RouterOptions): Router => {
   // Attach popstate listener
   window.addEventListener('popstate', handlePopState);
 
+  // Helper to mutate flatRoutes in place when rootRoutes changes (used by
+  // addRoute/removeRoute so the router.routes reference stays stable).
+  const rebuildFlatRoutes = (): void => {
+    const next = flattenRoutes(rootRoutes);
+    flatRoutes.length = 0;
+    flatRoutes.push(...next);
+  };
+
+  // Build a path string with optional query and hash (used by resolveRoute).
+  const buildSearchString = (
+    query: Record<
+      string,
+      string | number | boolean | Array<string | number | boolean>
+    > | undefined
+  ): string => {
+    if (!query) return '';
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(query)) {
+      if (isPrototypePollutionKey(key)) continue;
+      if (Array.isArray(value)) {
+        for (const v of value) params.append(key, String(v));
+      } else if (value !== undefined && value !== null) {
+        params.append(key, String(value));
+      }
+    }
+    const str = params.toString();
+    return str ? `?${str}` : '';
+  };
+
+  const resolveRoute = (input: ResolveRouteInput): ResolvedRouteInfo => {
+    let pathOnly: string;
+    let query: ResolveRouteInput extends string
+      ? undefined
+      : Record<string, string | number | boolean | Array<string | number | boolean>> | undefined;
+    let hashPart = '';
+
+    if (typeof input === 'string') {
+      // Parse the raw string path.
+      // Use a synthetic base for relative-path parsing.
+      const url = new URL(input, 'http://__bq_resolve__/');
+      pathOnly = url.pathname;
+      const searchStr = url.search ?? '';
+      const hashStr = url.hash ?? '';
+      const href = useHash
+        ? `#${pathOnly}${searchStr}${hashStr}`
+        : `${base}${pathOnly}${searchStr}${hashStr}`;
+      const matchedRoute = createRoute(pathOnly, searchStr, hashStr.replace(/^#/, ''), flatRoutes);
+      return {
+        path: `${pathOnly}${searchStr}${hashStr}`,
+        href,
+        matched: matchedRoute.matched,
+      };
+    }
+
+    if (input.path !== undefined) {
+      pathOnly = input.path;
+    } else if (input.name !== undefined) {
+      pathOnly = resolveByName(input.name, input.params ?? {});
+    } else {
+      throw new Error('bQuery router: resolveRoute requires either `path` or `name`.');
+    }
+
+    query = input.query;
+    hashPart = input.hash
+      ? input.hash.startsWith('#')
+        ? input.hash
+        : `#${input.hash}`
+      : '';
+    const searchStr = buildSearchString(query);
+    const fullPath = `${pathOnly}${searchStr}${hashPart}`;
+    const matchedRoute = createRoute(pathOnly, searchStr, hashPart.replace(/^#/, ''), flatRoutes);
+    const href = useHash ? `#${fullPath}` : `${base}${fullPath}`;
+    return {
+      path: fullPath,
+      href,
+      matched: matchedRoute.matched,
+    };
+  };
+
+  const findRouteByName = (
+    list: RouteDefinition[],
+    name: string
+  ): { parent: RouteDefinition[] | null; index: number } => {
+    for (let i = 0; i < list.length; i++) {
+      const r = list[i];
+      if (r.name === name) {
+        return { parent: list, index: i };
+      }
+      if ('children' in r && Array.isArray(r.children)) {
+        const found = findRouteByName(r.children, name);
+        if (found.parent) return found;
+      }
+    }
+    return { parent: null, index: -1 };
+  };
+
+  const hasRoute = (name: string): boolean => findRouteByName(rootRoutes, name).parent !== null;
+
+  const addRoute = (parentName: string | undefined, route: RouteDefinition): void => {
+    // Replace any existing entry with the same name first.
+    if (route.name) removeRoute(route.name);
+    if (parentName === undefined) {
+      rootRoutes.push(route);
+    } else {
+      const found = findRouteByName(rootRoutes, parentName);
+      if (!found.parent) {
+        throw new Error(`bQuery router: parent route "${parentName}" not found.`);
+      }
+      const parent = found.parent[found.index] as RouteDefinition & {
+        children?: RouteDefinition[];
+      };
+      if (!parent.children) {
+        (parent as { children?: RouteDefinition[] }).children = [route];
+      } else {
+        parent.children.push(route);
+      }
+    }
+    rebuildFlatRoutes();
+  };
+
+  const removeRoute = (name: string): boolean => {
+    const found = findRouteByName(rootRoutes, name);
+    if (!found.parent) return false;
+    found.parent.splice(found.index, 1);
+    rebuildFlatRoutes();
+    return true;
+  };
+
   // Initialize route
   syncRoute();
+  // First sync done; mark the router ready on next microtask so that any
+  // queued microtasks scheduled during construction can settle first.
+  Promise.resolve().then(markReady);
 
   const router: Router = {
-    push: (path: string) => performNavigation(path, 'pushState'),
-    replace: (path: string) => performNavigation(path, 'replaceState'),
+    push: async (path: string) => {
+      await performNavigation(path, 'pushState');
+    },
+    replace: async (path: string) => {
+      await performNavigation(path, 'replaceState');
+    },
+    pushResult: (path: string) => performNavigation(path, 'pushState'),
+    replaceResult: (path: string) => performNavigation(path, 'replaceState'),
     back: () => history.back(),
     forward: () => history.forward(),
     go: (delta: number) => history.go(delta),
@@ -385,6 +614,14 @@ export const createRouter = (options: RouterOptions): Router => {
       };
     },
 
+    beforeResolve: (guard: NavigationGuard) => {
+      beforeResolveGuards.push(guard);
+      return () => {
+        const index = beforeResolveGuards.indexOf(guard);
+        if (index > -1) beforeResolveGuards.splice(index, 1);
+      };
+    },
+
     afterEach: (hook: (to: Route, from: Route) => void) => {
       afterHooks.push(hook);
       return () => {
@@ -392,6 +629,14 @@ export const createRouter = (options: RouterOptions): Router => {
         if (index > -1) afterHooks.splice(index, 1);
       };
     },
+
+    resolveRoute,
+    hasRoute,
+    addRoute,
+    removeRoute,
+
+    isReady: () => readyPromise,
+    lastNavigation,
 
     currentRoute,
     routes: flatRoutes,
@@ -401,6 +646,7 @@ export const createRouter = (options: RouterOptions): Router => {
     destroy: () => {
       window.removeEventListener('popstate', handlePopState);
       beforeGuards.length = 0;
+      beforeResolveGuards.length = 0;
       afterHooks.length = 0;
       scrollPositions.clear();
       // Restore the previous scroll restoration mode on destroy

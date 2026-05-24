@@ -590,14 +590,19 @@ export {
   navigate,
   registerBqLink,
   resolve,
+  useNavigation,
   useRoute,
 } from './router/index';
 export type {
   NavigationGuard,
+  NavigationResult,
+  ResolvedRouteInfo,
+  ResolveRouteInput,
   Route,
   RouteDefinition,
   Router,
   RouterOptions,
+  UseNavigationReturn,
   UseRouteReturn,
 } from './router/index';
 
