@@ -769,7 +769,16 @@ export type {
 // ============================================================================
 // DnD Module: Drag-and-drop, drop zones, sortable lists
 // ============================================================================
-export { draggable, droppable, sortable } from './dnd/index';
+export {
+  draggable,
+  draggablePosition,
+  droppable,
+  sortable,
+  sortableOrder,
+  useDraggable,
+  useDroppable,
+  useSortable,
+} from './dnd/index';
 export type {
   BoundsRect,
   DragAxis,
@@ -784,6 +793,9 @@ export type {
   SortableHandle,
   SortableOptions,
   SortEventData,
+  UseDraggableReturn,
+  UseDroppableReturn,
+  UseSortableReturn,
 } from './dnd/index';
 
 // ============================================================================

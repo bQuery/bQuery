@@ -133,16 +133,22 @@ const isAccepted = (dragged: HTMLElement, accept: DroppableOptions['accept']): b
 export const droppable = (el: HTMLElement, options: DroppableOptions = {}): DroppableHandle => {
   const {
     overClass = 'bq-drop-over',
-    accept,
     onDragEnter,
     onDragOver,
     onDragLeave,
     onDrop,
   } = options;
 
+  let currentAccept: DroppableOptions['accept'] = options.accept;
+
   if (!hasDroppableEnvironment()) {
     return {
       destroy: () => {},
+      setAccept: (accept) => {
+        currentAccept = accept;
+      },
+      isOver: () => false,
+      getActiveDragged: () => null,
     };
   }
 
@@ -182,7 +188,7 @@ export const droppable = (el: HTMLElement, options: DroppableOptions = {}): Drop
   const handlePointerMove = (e: PointerEvent): void => {
     const dragged = getActiveDrag()?.element ?? null;
     const isInside = isPointerInside(e);
-    const acceptsDragged = dragged !== null && dragged !== el && isAccepted(dragged, accept);
+    const acceptsDragged = dragged !== null && dragged !== el && isAccepted(dragged, currentAccept);
 
     if (!acceptsDragged || !isInside) {
       clearOverState(e, dragged ?? currentDragged);
@@ -202,7 +208,7 @@ export const droppable = (el: HTMLElement, options: DroppableOptions = {}): Drop
   const handlePointerUp = (e: PointerEvent): void => {
     const dragged = resolveDraggedElement();
     const isInside = isPointerInside(e);
-    const acceptsDragged = dragged !== null && dragged !== el && isAccepted(dragged, accept);
+    const acceptsDragged = dragged !== null && dragged !== el && isAccepted(dragged, currentAccept);
 
     if (isInside && acceptsDragged && dragged) {
       onDrop?.(createEventData(dragged, e));
@@ -223,6 +229,12 @@ export const droppable = (el: HTMLElement, options: DroppableOptions = {}): Drop
       unregisterDroppableListener(listener);
       el.classList.remove(overClass);
       currentDragged = null;
+      isOver = false;
     },
+    setAccept: (accept) => {
+      currentAccept = accept;
+    },
+    isOver: () => isOver,
+    getActiveDragged: () => currentDragged,
   };
 };

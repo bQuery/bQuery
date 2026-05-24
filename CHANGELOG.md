@@ -84,6 +84,12 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
+- `@bquery/bquery/storybook`: new ergonomic helpers `classMap()`, `styleMap()`, `ifDefined()`, `repeat()`, `storyText()`, and the opt-in sanitizer escape hatch `unsafeHtml()`, all callable inside `storyHtml` template literals. Added `storySvg()` for SVG-rooted stories (interpolated values are HTML-escaped; static template is treated as author-trusted because the HTML sanitizer hard-blocks `<svg>`).
+- `@bquery/bquery/dnd`: programmatic API on existing handles — `DraggableHandle.moveTo`/`reset`/`getPosition`/`setBounds`/`setAxis`, `SortableHandle.move`/`setOrder`/`getItems`, `DroppableHandle.setAccept`/`isOver`/`getActiveDragged`.
+- `@bquery/bquery/dnd`: new draggable options `grid` (snap-to-grid), `delay` (long-press threshold), `touchStartThreshold` (minimum pointer movement before drag activates), `keyboard` (opt-in keyboard accessibility with `Space`/`Enter` pickup, arrow-key movement, `Escape` cancel, and ARIA announcements via `@bquery/bquery/a11y`), and `keyboardStep` (keyboard movement step).
+- `@bquery/bquery/dnd`: `bounds` now accepts an `HTMLElement` reference directly and supports a `'viewport'` shorthand.
+- `@bquery/bquery/dnd`: reactive composables `useDraggable()`, `useDroppable()`, `useSortable()`, plus the `draggablePosition()` and `sortableOrder()` adapters for raw handles. Composables auto-dispose when the surrounding reactive scope stops.
+
 ### Fixed (Unreleased)
 
 ## [1.13.0] - 2026-05-21

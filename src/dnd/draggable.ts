@@ -7,8 +7,10 @@
  * @module bquery/dnd
  */
 
+import { announceToScreenReader } from '../a11y/announce';
 import type {
   BoundsRect,
+  DragAxis,
   DragBounds,
   DragEventData,
   DragPosition,
@@ -34,16 +36,38 @@ export const getActiveDrag = (): { element: HTMLElement; position: DragPosition 
  * @internal
  */
 const resolveBounds = (el: HTMLElement, bounds: DragBounds): BoundsRect | null => {
-  if (typeof bounds === 'object') {
-    return bounds;
+  if (typeof bounds === 'object' && bounds !== null && 'left' in bounds && 'top' in bounds) {
+    return bounds as BoundsRect;
   }
 
   let target: HTMLElement | null = null;
 
   if (bounds === 'parent') {
     target = el.parentElement;
-  } else {
+  } else if (bounds === 'viewport') {
+    const elRect = el.getBoundingClientRect();
+    const rawLeft = parseFloat(el.style.left || '0');
+    const rawTop = parseFloat(el.style.top || '0');
+    const leftOffset = Number.isNaN(rawLeft) ? 0 : rawLeft;
+    const topOffset = Number.isNaN(rawTop) ? 0 : rawTop;
+    const viewportWidth =
+      typeof window !== 'undefined' && typeof window.innerWidth === 'number'
+        ? window.innerWidth
+        : 0;
+    const viewportHeight =
+      typeof window !== 'undefined' && typeof window.innerHeight === 'number'
+        ? window.innerHeight
+        : 0;
+    return {
+      left: -elRect.left + leftOffset,
+      top: -elRect.top + topOffset,
+      right: viewportWidth - elRect.right + leftOffset,
+      bottom: viewportHeight - elRect.bottom + topOffset,
+    };
+  } else if (typeof bounds === 'string') {
     target = document.querySelector(bounds) as HTMLElement | null;
+  } else if (bounds instanceof HTMLElement) {
+    target = bounds;
   }
 
   if (!target) return null;
@@ -108,8 +132,6 @@ const clampPosition = (pos: DragPosition, bounds: BoundsRect | null): DragPositi
  */
 export const draggable = (el: HTMLElement, options: DraggableOptions = {}): DraggableHandle => {
   const {
-    axis = 'both',
-    bounds,
     handle,
     ghost = false,
     ghostClass = 'bq-drag-ghost',
@@ -117,7 +139,15 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
     onDragStart,
     onDrag,
     onDragEnd,
+    grid,
+    delay = 0,
+    touchStartThreshold = 0,
+    keyboard = false,
+    keyboardStep = 10,
   } = options;
+
+  let currentAxis: DragAxis = options.axis ?? 'both';
+  let currentBounds: DragBounds | undefined = options.bounds;
 
   let enabled = !options.disabled;
   let isDragging = false;
@@ -128,6 +158,59 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
   let ghostStartPosition: DragPosition | null = null;
   const previousTouchAction = el.style.touchAction;
   const previousUserSelect = el.style.userSelect;
+  const previousTabIndex = el.getAttribute('tabindex');
+  const previousAriaGrabbed = el.getAttribute('aria-grabbed');
+
+  // Pending pointer state — used to honor `delay` and `touchStartThreshold`
+  // before promoting a pointerdown to an active drag.
+  let pendingPointer:
+    | {
+        pointerId: number;
+        startX: number;
+        startY: number;
+        deadline: number;
+        timer: ReturnType<typeof setTimeout> | null;
+        originalEvent: PointerEvent;
+      }
+    | null = null;
+
+  // Keyboard pickup state
+  let keyboardActive = false;
+  let keyboardPickupPosition: DragPosition = { x: 0, y: 0 };
+
+  const snapToGrid = (pos: DragPosition): DragPosition => {
+    if (grid === undefined) return pos;
+    const [stepX, stepY] = Array.isArray(grid) ? grid : [grid, grid];
+    return {
+      x: stepX > 0 ? Math.round(pos.x / stepX) * stepX : pos.x,
+      y: stepY > 0 ? Math.round(pos.y / stepY) * stepY : pos.y,
+    };
+  };
+
+  const applyConstraints = (rawPos: DragPosition): DragPosition => {
+    let next = { ...rawPos };
+    if (currentAxis === 'x') next.y = currentPosition.y;
+    if (currentAxis === 'y') next.x = currentPosition.x;
+    next = snapToGrid(next);
+    if (currentBounds) {
+      const resolved = resolveBounds(el, currentBounds);
+      next = clampPosition(next, resolved);
+    }
+    return next;
+  };
+
+  const applyPositionToElement = (): void => {
+    if (ghost && ghostEl) {
+      const start = ghostStartPosition ?? {
+        x: el.getBoundingClientRect().left,
+        y: el.getBoundingClientRect().top,
+      };
+      ghostEl.style.left = `${start.x + currentPosition.x}px`;
+      ghostEl.style.top = `${start.y + currentPosition.y}px`;
+    } else {
+      el.style.transform = `translate(${currentPosition.x}px, ${currentPosition.y}px)`;
+    }
+  };
 
   const createEventData = (event: PointerEvent): DragEventData => ({
     element: el,
@@ -164,22 +247,23 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
     ghostStartPosition = null;
   };
 
-  const onPointerDown = (e: PointerEvent): void => {
-    if (!enabled) return;
+  const cancelPendingPointer = (): void => {
+    if (pendingPointer?.timer) clearTimeout(pendingPointer.timer);
+    pendingPointer = null;
+  };
 
-    // Check handle constraint
-    if (handle) {
-      const target = e.target as Element;
-      if (!target.closest(handle)) return;
-    }
-
-    e.preventDefault();
+  const beginDrag = (e: PointerEvent): void => {
     isDragging = true;
     startPointer = { x: e.clientX, y: e.clientY };
     previousPosition = { ...currentPosition };
 
     el.classList.add(draggingClass);
-    el.setPointerCapture(e.pointerId);
+    if (keyboard) el.setAttribute('aria-grabbed', 'true');
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {
+      // setPointerCapture may not be available in all test environments.
+    }
 
     if (ghost) {
       const rect = el.getBoundingClientRect();
@@ -187,61 +271,102 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
       ghostEl = createGhost();
     }
 
-    // Register in global active drags
     activeDrags.set(el, { element: el, position: currentPosition });
 
     onDragStart?.(createEventData(e));
   };
 
+  const onPointerDown = (e: PointerEvent): void => {
+    if (!enabled) return;
+    if (keyboardActive) return; // ignore while keyboard drag is in progress
+
+    if (handle) {
+      const target = e.target as Element;
+      if (!target.closest(handle)) return;
+    }
+
+    // Only honor primary pointer (mouse left, primary touch, etc.).
+    if (e.isPrimary === false) return;
+
+    e.preventDefault();
+
+    // If no delay/threshold, start immediately.
+    if (delay <= 0 && touchStartThreshold <= 0) {
+      beginDrag(e);
+      return;
+    }
+
+    // Otherwise defer until the deadline passes or the threshold is met.
+    pendingPointer = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      deadline: Date.now() + delay,
+      timer: null,
+      originalEvent: e,
+    };
+
+    if (delay > 0) {
+      pendingPointer.timer = setTimeout(() => {
+        if (!pendingPointer) return;
+        const original = pendingPointer.originalEvent;
+        pendingPointer.timer = null;
+        // Only promote if threshold is also satisfied (or none was set).
+        if (touchStartThreshold <= 0) {
+          pendingPointer = null;
+          beginDrag(original);
+        }
+      }, delay);
+    }
+  };
+
   const onPointerMove = (e: PointerEvent): void => {
+    if (pendingPointer && pendingPointer.pointerId === e.pointerId) {
+      const dx = e.clientX - pendingPointer.startX;
+      const dy = e.clientY - pendingPointer.startY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const deadlinePassed = Date.now() >= pendingPointer.deadline;
+      const thresholdMet = touchStartThreshold <= 0 || distance >= touchStartThreshold;
+      if (deadlinePassed && thresholdMet) {
+        const original = pendingPointer.originalEvent;
+        cancelPendingPointer();
+        beginDrag(original);
+        // Re-process this move under the active drag.
+      } else {
+        return;
+      }
+    }
+
     if (!isDragging) return;
 
     e.preventDefault();
     previousPosition = { ...currentPosition };
 
-    let newX = currentPosition.x + (e.clientX - startPointer.x);
-    let newY = currentPosition.y + (e.clientY - startPointer.y);
+    const rawX = currentPosition.x + (e.clientX - startPointer.x);
+    const rawY = currentPosition.y + (e.clientY - startPointer.y);
 
-    // Reset start pointer to current for delta calculation
+    // Advance the start pointer for the next delta tick.
     startPointer = { x: e.clientX, y: e.clientY };
 
-    // Apply axis constraint
-    if (axis === 'x') newY = currentPosition.y;
-    if (axis === 'y') newX = currentPosition.x;
+    currentPosition = applyConstraints({ x: rawX, y: rawY });
 
-    let newPos: DragPosition = { x: newX, y: newY };
-
-    // Apply bounds constraint
-    if (bounds) {
-      const resolvedBounds = resolveBounds(el, bounds);
-      newPos = clampPosition(newPos, resolvedBounds);
-    }
-
-    currentPosition = newPos;
-
-    // Update active drag position
     activeDrags.set(el, { element: el, position: currentPosition });
-
-    // Apply the position
-    if (ghost && ghostEl) {
-      const start = ghostStartPosition ?? {
-        x: el.getBoundingClientRect().left,
-        y: el.getBoundingClientRect().top,
-      };
-      ghostEl.style.left = `${start.x + currentPosition.x}px`;
-      ghostEl.style.top = `${start.y + currentPosition.y}px`;
-    } else {
-      el.style.transform = `translate(${currentPosition.x}px, ${currentPosition.y}px)`;
-    }
+    applyPositionToElement();
 
     onDrag?.(createEventData(e));
   };
 
   const onPointerUp = (e: PointerEvent): void => {
+    if (pendingPointer && pendingPointer.pointerId === e.pointerId) {
+      cancelPendingPointer();
+      return;
+    }
+
     if (!isDragging) return;
 
     isDragging = false;
     el.classList.remove(draggingClass);
+    if (keyboard) el.setAttribute('aria-grabbed', 'false');
     try {
       if (
         typeof el.releasePointerCapture === 'function' &&
@@ -253,11 +378,83 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
       // Pointer capture may already be released in some interrupted drag flows.
     } finally {
       removeGhost();
-
-      // Remove from active drags
       activeDrags.delete(el);
-
       onDragEnd?.(createEventData(e));
+    }
+  };
+
+  // ─── Keyboard support ────────────────────────────────────────────────────
+  const synthesizeKeyboardEventData = (key: KeyboardEvent): DragEventData => ({
+    element: el,
+    position: { ...currentPosition },
+    delta: {
+      x: currentPosition.x - previousPosition.x,
+      y: currentPosition.y - previousPosition.y,
+    },
+    // Cast: pointer-shaped callbacks accept the keyboard event as the
+    // underlying input device for keyboard-driven drags. Authors that care
+    // about the device should branch on `event.type`.
+    event: key as unknown as PointerEvent,
+  });
+
+  const onKeyDown = (e: KeyboardEvent): void => {
+    if (!enabled || !keyboard) return;
+
+    const isPickupKey = e.key === ' ' || e.key === 'Enter';
+    const isCancelKey = e.key === 'Escape';
+    const isArrowKey =
+      e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+
+    if (!keyboardActive) {
+      if (isPickupKey) {
+        e.preventDefault();
+        keyboardActive = true;
+        keyboardPickupPosition = { ...currentPosition };
+        previousPosition = { ...currentPosition };
+        el.classList.add(draggingClass);
+        el.setAttribute('aria-grabbed', 'true');
+        announceToScreenReader(
+          'Picked up draggable item. Use arrow keys to move. Press space or enter to drop, escape to cancel.'
+        );
+        onDragStart?.(synthesizeKeyboardEventData(e));
+      }
+      return;
+    }
+
+    // keyboardActive
+    if (isPickupKey) {
+      e.preventDefault();
+      keyboardActive = false;
+      el.classList.remove(draggingClass);
+      el.setAttribute('aria-grabbed', 'false');
+      announceToScreenReader('Dropped at new position.');
+      onDragEnd?.(synthesizeKeyboardEventData(e));
+      return;
+    }
+    if (isCancelKey) {
+      e.preventDefault();
+      keyboardActive = false;
+      previousPosition = { ...currentPosition };
+      currentPosition = { ...keyboardPickupPosition };
+      applyPositionToElement();
+      el.classList.remove(draggingClass);
+      el.setAttribute('aria-grabbed', 'false');
+      announceToScreenReader('Drag cancelled, returned to original position.');
+      onDragEnd?.(synthesizeKeyboardEventData(e));
+      return;
+    }
+    if (isArrowKey) {
+      e.preventDefault();
+      previousPosition = { ...currentPosition };
+      const next = { ...currentPosition };
+      if (e.key === 'ArrowUp') next.y -= keyboardStep;
+      if (e.key === 'ArrowDown') next.y += keyboardStep;
+      if (e.key === 'ArrowLeft') next.x -= keyboardStep;
+      if (e.key === 'ArrowRight') next.x += keyboardStep;
+      currentPosition = applyConstraints(next);
+      activeDrags.set(el, { element: el, position: currentPosition });
+      applyPositionToElement();
+      onDrag?.(synthesizeKeyboardEventData(e));
     }
   };
 
@@ -267,16 +464,30 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
   el.addEventListener('pointerup', onPointerUp);
   el.addEventListener('pointercancel', onPointerUp);
 
+  if (keyboard) {
+    el.addEventListener('keydown', onKeyDown);
+    if (previousTabIndex === null) el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-grabbed', 'false');
+  }
+
   // Prevent default drag behavior
   el.style.touchAction = 'none';
   el.style.userSelect = 'none';
 
-  return {
+  const dHandle: DraggableHandle = {
     destroy: () => {
+      cancelPendingPointer();
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);
+      if (keyboard) {
+        el.removeEventListener('keydown', onKeyDown);
+        if (previousTabIndex === null) el.removeAttribute('tabindex');
+        else el.setAttribute('tabindex', previousTabIndex);
+        if (previousAriaGrabbed === null) el.removeAttribute('aria-grabbed');
+        else el.setAttribute('aria-grabbed', previousAriaGrabbed);
+      }
       removeGhost();
       activeDrags.delete(el);
       el.style.touchAction = previousTouchAction;
@@ -292,5 +503,29 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
     get enabled() {
       return enabled;
     },
+    moveTo: (position: DragPosition) => {
+      previousPosition = { ...currentPosition };
+      currentPosition = applyConstraints(position);
+      activeDrags.set(el, { element: el, position: currentPosition });
+      applyPositionToElement();
+    },
+    reset: () => {
+      previousPosition = { ...currentPosition };
+      currentPosition = { x: 0, y: 0 };
+      if (!ghost) {
+        el.style.transform = '';
+      } else if (ghostEl) {
+        applyPositionToElement();
+      }
+    },
+    getPosition: () => ({ ...currentPosition }),
+    setBounds: (bounds: DragBounds | undefined) => {
+      currentBounds = bounds;
+    },
+    setAxis: (axisValue: DragAxis) => {
+      currentAxis = axisValue;
+    },
   };
+
+  return dHandle;
 };
