@@ -156,7 +156,41 @@ export * from './dnd/index';
 export * from './media/index';
 
 // Plugin module: global plugin registration system
-export * from './plugin/index';
+// Note: provide / inject / InjectionKey are not re-exported here because
+// they collide with the component module's component-scoped versions.
+// Use @bquery/bquery/plugin for the global DI helpers.
+export {
+  addAction,
+  addFilter,
+  applyFilters,
+  createInjectionKey,
+  doAction,
+  getCustomDirective,
+  getCustomDirectives,
+  getInstalledPlugins,
+  getPluginInfo,
+  hasProvided,
+  isInstalled,
+  listActions,
+  listFilters,
+  removeAction,
+  removeFilter,
+  resetDi,
+  resetHooks,
+  resetPlugins,
+  uninstall,
+  unuse,
+  use,
+} from './plugin/index';
+export type {
+  BQueryPlugin,
+  CustomDirective,
+  CustomDirectiveHandler,
+  CustomDirectiveLifecycle,
+  CustomDirectiveValue,
+  PluginInfo,
+  PluginInstallContext,
+} from './plugin/index';
 
 // DevTools module: runtime debugging utilities
 export * from './devtools/index';

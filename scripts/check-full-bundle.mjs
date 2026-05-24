@@ -45,9 +45,16 @@ const INTENTIONAL_RUNTIME_OMISSIONS = new Map([
   // forms.compose collides with core.compose in the flat bundle. Use
   // @bquery/bquery/forms for the validator combinator.
   ['forms:compose', 'collides with core.compose'],
+  // plugin.provide / plugin.inject collide with component.provide / component.inject
+  // in the flat bundle. Use @bquery/bquery/plugin for the global DI helpers.
+  ['plugin:provide', 'collides with component.provide'],
+  ['plugin:inject', 'collides with component.inject'],
 ]);
 
-const INTENTIONAL_TYPE_OMISSIONS = new Map();
+const INTENTIONAL_TYPE_OMISSIONS = new Map([
+  // plugin.InjectionKey collides with component.InjectionKey in the flat bundle.
+  ['plugin:InjectionKey', 'collides with component.InjectionKey'],
+]);
 
 function parseExportedIdentifier(rawSpecifier) {
   const specifier = rawSpecifier

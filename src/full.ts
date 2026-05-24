@@ -877,17 +877,35 @@ export type {
 // Plugin module
 // ---------------------------------------------------------------------------
 export {
+  addAction,
+  addFilter,
+  applyFilters,
+  createInjectionKey,
+  doAction,
   getCustomDirective,
   getCustomDirectives,
   getInstalledPlugins,
+  getPluginInfo,
+  hasProvided,
   isInstalled,
+  listActions,
+  listFilters,
+  removeAction,
+  removeFilter,
+  resetDi,
+  resetHooks,
   resetPlugins,
+  uninstall,
+  unuse,
   use,
 } from './plugin/index';
 export type {
   BQueryPlugin,
   CustomDirective,
   CustomDirectiveHandler,
+  CustomDirectiveLifecycle,
+  CustomDirectiveValue,
+  PluginInfo,
   PluginInstallContext,
 } from './plugin/index';
 
