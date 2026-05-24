@@ -129,9 +129,9 @@ describe('runtime detection', () => {
     expect(metrics.snapshot().totalRenderMs).toBeGreaterThanOrEqual(0);
   });
 
-  it('renders when a custom SSR context omits metrics', async () => {
+  it('renders when the default SSR context omits metrics', async () => {
     const context = createSSRContext();
-    delete (context as SSRContext & { metrics?: unknown }).metrics;
+    expect(context.metrics).toBeUndefined();
 
     const result = await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'no-metrics' }, {
       context,

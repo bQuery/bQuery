@@ -13,7 +13,7 @@
 import { generateNonce } from '../security/csp';
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { createAssetManager, createHeadManager, type AssetManager, type HeadManager } from './head';
-import { createSSRMetrics, type SSRMetrics } from './metrics';
+import type { SSRMetrics } from './metrics';
 
 /** Options for `createSSRContext()`. */
 export interface CreateSSRContextOptions {
@@ -245,11 +245,14 @@ export const createSSRContext = (options: CreateSSRContextOptions = {}): SSRCont
     assets: createAssetManager(),
     status: 200,
     responseHeaders: createHeadersLike(),
-    metrics: options.metrics ?? createSSRMetrics(),
     reportError(error) {
       options.onError?.(error);
     },
   };
+
+  if (options.metrics) {
+    ctx.metrics = options.metrics;
+  }
 
   return ctx;
 };
