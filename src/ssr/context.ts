@@ -13,6 +13,7 @@
 import { generateNonce } from '../security/csp';
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { createAssetManager, createHeadManager, type AssetManager, type HeadManager } from './head';
+import type { SSRMetrics } from './metrics';
 
 /** Options for `createSSRContext()`. */
 export interface CreateSSRContextOptions {
@@ -32,6 +33,8 @@ export interface CreateSSRContextOptions {
   mode?: 'string' | 'stream';
   /** Optional error sink invoked for non-fatal render errors. */
   onError?: (error: unknown) => void;
+  /** Optional metrics collector reused across related render operations. */
+  metrics?: SSRMetrics;
 }
 
 /** Public SSR context shape. */
@@ -62,6 +65,8 @@ export interface SSRContext {
   status: number;
   /** Outgoing response headers (used by `renderToResponse()`). */
   responseHeaders: Headers;
+  /** Optional render/hydration metrics collector. */
+  metrics?: SSRMetrics;
   /** Reports a non-fatal error. */
   reportError(error: unknown): void;
 }
@@ -244,6 +249,10 @@ export const createSSRContext = (options: CreateSSRContextOptions = {}): SSRCont
       options.onError?.(error);
     },
   };
+
+  if (options.metrics) {
+    ctx.metrics = options.metrics;
+  }
 
   return ctx;
 };

@@ -15,6 +15,7 @@ import {
   createReactiveRpcWorker,
   createReactiveTaskPool,
   createReactiveTaskWorker,
+  createSharedBuffer,
   createTaskWorker,
   createTaskPool,
   createRpcWorker,
@@ -31,6 +32,7 @@ import {
   reduce,
   runTask,
   some,
+  withTransferables,
 } from '@bquery/bquery/concurrency';
 ```
 
@@ -55,6 +57,11 @@ import {
 - Worker lifecycle cleanup and termination errors
 - FIFO queueing with configurable backpressure
 - Zero-build browser usage via inline `Blob` workers
+- Runtime metadata via `getConcurrencySupport().runtime`
+- Optional RPC `maxInFlight` control per reusable worker
+- Pool pause/resume, `onIdle()`, and rolling metrics
+- Transferable discovery helpers via `withTransferables()`
+- Shared-memory helper via `createSharedBuffer()`
 
 ### Reactive bindings
 
@@ -63,6 +70,7 @@ adding readonly signals for UI bindings and dashboards.
 
 - `createReactiveTaskWorker()` / `createReactiveRpcWorker()` add `state$` and `busy$`
 - `createReactiveTaskPool()` / `createReactiveRpcPool()` add `state$`, `busy$`, `concurrency$`, `pending$`, and `size$`
+- Reactive pools also expose `paused$` and `metrics$`
 
 They are intentionally opt-in so the base worker APIs stay lean when you do not
 need reactive state monitoring.
@@ -154,8 +162,21 @@ rpc.terminate();
 
 - Only explicitly provided method names can be called
 - Unknown methods reject with `code: 'METHOD_NOT_FOUND'`
-- The current Milestone 2 API still processes **one call at a time per worker**
+- By default, the worker processes **one call at a time per worker**
+- Set `maxInFlight` to allow multiple concurrent calls on the same reusable worker
 - Timeout and abort handling reset the worker so the next call starts cleanly
+
+```ts
+const rpc = createRpcWorker(
+  {
+    wait: async ({ delay, value }: { delay: number; value: number }) => {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return value;
+    },
+  },
+  { maxInFlight: 2 }
+);
+```
 
 ## `createTaskPool()`
 
@@ -190,6 +211,30 @@ pool.terminate();
 - `clear()` rejects queued tasks with `code: 'QUEUE_CLEARED'` without interrupting active tasks
 - Calls beyond `maxQueue` reject with `code: 'QUEUE_FULL'`
 - Abort signals can cancel queued tasks before they start or active tasks while they run
+- `pause()` stops dequeuing new work without interrupting active runs
+- `resume()` restarts dequeueing after a pause
+- `onIdle()` resolves when both the active and queued work are empty
+- `metrics` exposes rolling completion/error counters and runtime summaries
+
+## Transferables and shared memory
+
+Use `withTransferables()` to keep transfer lists explicit while avoiding manual discovery:
+
+```ts
+const payload = withTransferables({
+  buffer: new Uint8Array([1, 2, 3]).buffer,
+});
+
+await runTask((input: { buffer: ArrayBuffer }) => input.buffer.byteLength, payload.value, {
+  transfer: payload.transfer,
+});
+```
+
+For shared-memory workflows, `createSharedBuffer()` wraps `new SharedArrayBuffer(...)` with a runtime check:
+
+```ts
+const shared = createSharedBuffer(1024);
+```
 
 ## `createRpcPool()`
 

@@ -14,11 +14,14 @@
  */
 
 import type { BindingContext } from '../view/types';
+import { createSSRCache, type SSRCache } from './cache';
 import { resolveContext } from './async';
 import { createSSRContext, type SSRContext } from './context';
 import { renderToString } from './render';
 import { serializeStoreState } from './serialize';
 import type { RenderOptions, SSRResult } from './types';
+
+const FLUSH_BOUNDARY_MARKER = '<!--bq-flush-->';
 
 const escapeAttr = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -77,6 +80,15 @@ export interface AsyncSSRResult extends SSRResult {
   storeScriptTag: string;
 }
 
+/**
+ * Marks a manual stream flush boundary in an SSR template.
+ *
+ * Insert boundaries only between complete HTML fragments. Because
+ * `renderToStream()` splits the rendered template on this marker, placing it
+ * inside tags, attributes, or other partial markup can produce invalid chunks.
+ */
+export const flushBoundary = (): string => FLUSH_BOUNDARY_MARKER;
+
 const injectIntoHead = (html: string, fragment: string): string => {
   if (!fragment) return html;
   const idx = html.toLowerCase().indexOf('</head>');
@@ -91,6 +103,141 @@ const injectBeforeBodyEnd = (html: string, fragment: string): string => {
   return html.slice(0, idx) + fragment + html.slice(idx);
 };
 
+const injectStreamFragments = (
+  chunks: string[],
+  headFragment: string,
+  bodyFragment: string
+): string[] => {
+  if (!headFragment && !bodyFragment) {
+    return chunks;
+  }
+
+  const output = [...chunks];
+
+  if (headFragment) {
+    const headChunkIndex = output.findIndex((chunk) => chunk.toLowerCase().includes('</head>'));
+    if (headChunkIndex !== -1) {
+      output[headChunkIndex] = injectIntoHead(output[headChunkIndex], headFragment);
+    }
+  }
+
+  if (bodyFragment) {
+    for (let index = output.length - 1; index >= 0; index--) {
+      if (!output[index].toLowerCase().includes('</body>')) {
+        continue;
+      }
+      output[index] = injectBeforeBodyEnd(output[index], bodyFragment);
+      break;
+    }
+  }
+
+  return output;
+};
+
+const mergeHeaderValues = (existingValue: string | null, nextValues: readonly string[]): string | null => {
+  const hasWildcard = (values: readonly string[]): boolean =>
+    values.some((value) => value.trim() === '*');
+
+  if ((existingValue && hasWildcard(existingValue.split(','))) || hasWildcard(nextValues)) {
+    return '*';
+  }
+
+  const merged = new Map<string, string>();
+
+  const addValues = (values: readonly string[]): void => {
+    for (const value of values) {
+      const normalized = value.trim();
+      if (!normalized) {
+        continue;
+      }
+      const key = normalized.toLowerCase();
+      if (!merged.has(key)) {
+        merged.set(key, normalized);
+      }
+    }
+  };
+
+  if (existingValue) {
+    addValues(existingValue.split(','));
+  }
+  addValues(nextValues);
+
+  return merged.size > 0 ? [...merged.values()].join(', ') : null;
+};
+
+const createBaseRenderOptions = (options: AsyncRenderOptions): RenderOptions => ({
+  prefix: options.prefix,
+  stripDirectives: options.stripDirectives,
+  includeStoreState: false,
+  annotateHydration: options.annotateHydration,
+});
+
+const createRenderFragments = (
+  context: SSRContext,
+  options: AsyncRenderOptions
+): Pick<AsyncSSRResult, 'headHtml' | 'assetsHtml' | 'storeScriptTag'> & {
+  storeState?: string;
+} => {
+  const headHtml = context.head.render({ nonce: context.nonce });
+  const assetsHtml = context.assets.render({ nonce: context.nonce });
+  let storeState: string | undefined;
+  let storeScriptTag = '';
+
+  if (options.includeStoreState) {
+    const storeIds = Array.isArray(options.includeStoreState) ? options.includeStoreState : undefined;
+    const result = serializeStoreState({
+      storeIds,
+      scriptId: options.storeScriptId,
+      globalKey: options.storeGlobalKey,
+    });
+    storeState = result.stateJson;
+    storeScriptTag = result.scriptTag;
+    if (context.nonce) {
+      storeScriptTag = injectScriptNonce(storeScriptTag, context.nonce);
+    }
+  }
+
+  return {
+    headHtml,
+    assetsHtml,
+    storeState,
+    storeScriptTag,
+  };
+};
+
+const renderResolvedToStringResult = (
+  template: string,
+  resolvedData: BindingContext,
+  context: SSRContext,
+  options: AsyncRenderOptions,
+  startedAt = performance.now()
+): AsyncSSRResult => {
+  const baseOptions = createBaseRenderOptions(options);
+
+  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
+  const fragments = createRenderFragments(context, options);
+  const headHtml = fragments.headHtml;
+  const assetsHtml = fragments.assetsHtml;
+  const storeScriptTag = fragments.storeScriptTag;
+  storeState = fragments.storeState ?? storeState;
+
+  if (options.injectHead !== false) {
+    html = injectIntoHead(html, headHtml + assetsHtml);
+    html = injectBeforeBodyEnd(html, storeScriptTag);
+  }
+
+  context.metrics?.recordRender(performance.now() - startedAt);
+
+  return {
+    html,
+    storeState,
+    context,
+    headHtml,
+    assetsHtml,
+    storeScriptTag,
+  };
+};
+
 /**
  * Async-aware render. Resolves all `Promise`/`defer()` values in the context,
  * then delegates to `renderToString()` and applies head/asset/store-state
@@ -101,6 +248,7 @@ export const renderToStringAsync = async (
   data: BindingContext,
   options: AsyncRenderOptions = {}
 ): Promise<AsyncSSRResult> => {
+  const startedAt = performance.now();
   const context = options.context ?? createSSRContext({ mode: 'string' });
 
   if (context.signal.aborted) {
@@ -113,49 +261,7 @@ export const renderToStringAsync = async (
     throw new DOMException('SSR render aborted', 'AbortError');
   }
 
-  const baseOptions: RenderOptions = {
-    prefix: options.prefix,
-    stripDirectives: options.stripDirectives,
-    includeStoreState: false,
-    annotateHydration: options.annotateHydration,
-  };
-
-  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
-
-  const headHtml = context.head.render({ nonce: context.nonce });
-  const assetsHtml = context.assets.render({ nonce: context.nonce });
-
-  let storeScriptTag = '';
-  if (options.includeStoreState) {
-    const storeIds = Array.isArray(options.includeStoreState)
-      ? options.includeStoreState
-      : undefined;
-    const result = serializeStoreState({
-      storeIds,
-      scriptId: options.storeScriptId,
-      globalKey: options.storeGlobalKey,
-    });
-    storeState = result.stateJson;
-    storeScriptTag = result.scriptTag;
-    if (context.nonce) {
-      // Inject nonce into the script tag.
-      storeScriptTag = injectScriptNonce(storeScriptTag, context.nonce);
-    }
-  }
-
-  if (options.injectHead !== false) {
-    html = injectIntoHead(html, headHtml + assetsHtml);
-    html = injectBeforeBodyEnd(html, storeScriptTag);
-  }
-
-  return {
-    html,
-    storeState,
-    context,
-    headHtml,
-    assetsHtml,
-    storeScriptTag,
-  };
+  return renderResolvedToStringResult(template, resolvedData, context, options, startedAt);
 };
 
 const getEncoder = (): TextEncoder => {
@@ -202,8 +308,43 @@ export const renderToStream = (
       ctx.signal.addEventListener('abort', onAbort, { once: true });
 
       try {
-        const result = await renderToStringAsync(template, data, merged);
-        controller.enqueue(encoder.encode(result.html));
+        if (template.includes(FLUSH_BOUNDARY_MARKER)) {
+          const startedAt = performance.now();
+          const parts = template.split(FLUSH_BOUNDARY_MARKER);
+          const chunks: string[] = [];
+          const resolvedData = await resolveContext(data, ctx);
+          const baseOptions = createBaseRenderOptions(merged);
+          for (const part of parts) {
+            if (!part) {
+              continue;
+            }
+            if (ctx.signal.aborted) {
+              throw new DOMException('SSR stream aborted', 'AbortError');
+            }
+            const result = renderToString(part, resolvedData, baseOptions);
+            if (result.html) {
+              chunks.push(result.html);
+            }
+          }
+          const renderedChunks =
+            merged.injectHead === false
+              ? chunks
+              : (() => {
+                  const fragments = createRenderFragments(ctx, merged);
+                  return injectStreamFragments(
+                    chunks,
+                    fragments.headHtml + fragments.assetsHtml,
+                    fragments.storeScriptTag
+                  );
+                })();
+          ctx.metrics?.recordRender(performance.now() - startedAt);
+          for (const chunk of renderedChunks) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+        } else {
+          const result = await renderToStringAsync(template, data, merged);
+          controller.enqueue(encoder.encode(result.html));
+        }
         controller.close();
       } catch (error) {
         ctx.signal.removeEventListener('abort', onAbort);
@@ -234,6 +375,17 @@ const computeWeakEtag = async (text: string): Promise<string | null> => {
 };
 
 /** Options for `renderToResponse()`. */
+export interface RenderToResponseCacheOptions {
+  /** Cache-Control s-maxage in seconds. */
+  sMaxAge?: number;
+  /** Cache-Control stale-while-revalidate in seconds. */
+  staleWhileRevalidate?: number;
+  /** Cache-Control stale-if-error in seconds. */
+  staleIfError?: number;
+  /** Vary header names that participate in caching. */
+  vary?: string[];
+}
+
 export interface RenderToResponseOptions extends AsyncRenderOptions {
   /** Override the response status code. */
   status?: number;
@@ -245,7 +397,42 @@ export interface RenderToResponseOptions extends AsyncRenderOptions {
   etag?: boolean;
   /** Extra headers merged into the response. */
   headers?: HeadersInit;
+  /** Cache-Control shaping and optional in-memory cache integration. */
+  cache?:
+    | RenderToResponseCacheOptions
+    | (RenderToResponseCacheOptions & {
+        store: SSRCache;
+      });
 }
+
+const applyCacheHeaders = (headers: Headers, cacheOptions: RenderToResponseCacheOptions): void => {
+  const directives: string[] = [];
+  if (typeof cacheOptions.sMaxAge === 'number' && cacheOptions.sMaxAge >= 0) {
+    directives.push(`s-maxage=${Math.trunc(cacheOptions.sMaxAge)}`);
+  }
+  if (
+    typeof cacheOptions.staleWhileRevalidate === 'number' &&
+    cacheOptions.staleWhileRevalidate >= 0
+  ) {
+    directives.push(
+      `stale-while-revalidate=${Math.trunc(cacheOptions.staleWhileRevalidate)}`
+    );
+  }
+  if (typeof cacheOptions.staleIfError === 'number' && cacheOptions.staleIfError >= 0) {
+    directives.push(`stale-if-error=${Math.trunc(cacheOptions.staleIfError)}`);
+  }
+  if (directives.length > 0) {
+    if (!headers.has('cache-control')) {
+      headers.set('cache-control', directives.join(', '));
+    }
+  }
+  if (cacheOptions.vary && cacheOptions.vary.length > 0) {
+    const vary = mergeHeaderValues(headers.get('vary'), cacheOptions.vary);
+    if (vary) {
+      headers.set('vary', vary);
+    }
+  }
+};
 
 /**
  * Renders a template and returns a `Response` ready to be returned from a
@@ -260,6 +447,27 @@ export const renderToResponse = async (
   options: RenderToResponseOptions = {}
 ): Promise<Response> => {
   const ctx = options.context ?? createSSRContext({ ...options, mode: 'string' });
+  const cacheStore =
+    options.cache && 'store' in options.cache ? options.cache.store : undefined;
+  const cacheKey =
+    cacheStore && options.cache
+      ? cacheStore.getKey({
+          headers: ctx.headers,
+          url: ctx.url,
+          vary: options.cache.vary,
+        })
+      : undefined;
+
+  if (cacheStore && cacheKey !== undefined) {
+    const cached = cacheStore.get(cacheKey);
+    if (cached) {
+      return new Response(cached.body, {
+        headers: new Headers(cached.headers),
+        status: cached.status,
+      });
+    }
+  }
+
   const merged: AsyncRenderOptions = { ...options, context: ctx };
   const result = await renderToStringAsync(template, data, merged);
   const status = options.status ?? ctx.status ?? 200;
@@ -270,6 +478,9 @@ export const renderToResponse = async (
     headers.set('content-type', options.contentType ?? 'text/html; charset=utf-8');
   }
   if (options.cacheControl) headers.set('cache-control', options.cacheControl);
+  if (options.cache) {
+    applyCacheHeaders(headers, options.cache);
+  }
 
   if (options.etag) {
     const etag = await computeWeakEtag(result.html);
@@ -282,5 +493,16 @@ export const renderToResponse = async (
     }
   }
 
-  return new Response(result.html, { status, headers });
+  const response = new Response(result.html, { status, headers });
+  if (cacheStore && cacheKey !== undefined && response.ok && !headers.has('set-cookie')) {
+    cacheStore.set(cacheKey, {
+      body: result.html,
+      createdAt: Date.now(),
+      headers: [...headers.entries()],
+      status,
+    });
+  }
+  return response;
 };
+
+export { createSSRCache };

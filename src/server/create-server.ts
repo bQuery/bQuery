@@ -1,12 +1,24 @@
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { sanitizeHtml } from '../security/index';
-import { renderToString, serializeStoreState } from '../ssr/index';
+import { callWorkerMethod, runTask } from '../concurrency/index';
+import {
+  createNodeHandler,
+  detectRuntime,
+  renderToResponse,
+  renderToStream,
+  renderToString,
+  serializeStoreState,
+} from '../ssr/index';
+import { ServerHttpError } from './errors';
 import type {
   CreateServerOptions,
   ServerApp,
+  ServerCookieOptions,
   ServerContext,
   ServerHandler,
   ServerHtmlResponseInit,
+  ServerListenHandle,
+  ServerListenOptions,
   ServerMiddleware,
   ServerNext,
   ServerQuery,
@@ -15,6 +27,8 @@ import type {
   ServerRequestInit,
   ServerResponseInit,
   ServerRoute,
+  ServerSseEvent,
+  ServerSseOptions,
   ServerWebSocketConnection,
   ServerWebSocketHandlerSet,
   ServerWebSocketMiddleware,
@@ -55,6 +69,13 @@ const JSON_ESCAPE_LOOKUP: Record<string, string> = {
 const JSON_ESCAPE_PATTERN = /[<>&\u2028\u2029]/g;
 const METHOD_ALL = null;
 const WEBSOCKET_PASSTHROUGH_HEADER = 'x-bquery-websocket-passthrough';
+const COOKIE_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+const INVALID_COOKIE_ATTRIBUTE_VALUE_PATTERN = /[\u0000-\u001F\u007F;]/;
+const COOKIE_SAME_SITE_LOOKUP = {
+  lax: 'Lax',
+  none: 'None',
+  strict: 'Strict',
+} as const;
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
@@ -229,9 +250,291 @@ const withContentType = (headers: Headers, contentType: string): Headers => {
   return headers;
 };
 
+const parseCookies = (header: string | null): Record<string, string> => {
+  const cookies = createDictionary<string>();
+  if (!header) {
+    return cookies;
+  }
+
+  for (const pair of header.split(/;\s*/)) {
+    const index = pair.indexOf('=');
+    if (index === -1) {
+      continue;
+    }
+    const key = pair.slice(0, index).trim();
+    if (!key || isPrototypePollutionKey(key)) {
+      continue;
+    }
+    const rawValue = pair.slice(index + 1).trim();
+    try {
+      cookies[key] = decodeURIComponent(rawValue);
+    } catch {
+      cookies[key] = rawValue;
+    }
+  }
+
+  return cookies;
+};
+
+const assertCookieName = (name: string): void => {
+  if (!COOKIE_NAME_PATTERN.test(name)) {
+    throw new TypeError('Cookie name contains invalid characters.');
+  }
+};
+
+const assertCookieAttributeValue = (label: string, value: string): string => {
+  if (INVALID_COOKIE_ATTRIBUTE_VALUE_PATTERN.test(value)) {
+    throw new TypeError(`Cookie ${label} contains invalid characters.`);
+  }
+  return value;
+};
+
+const serializeCookie = (name: string, value: string, options: ServerCookieOptions = {}): string => {
+  assertCookieName(name);
+  const parts = [`${name}=${encodeURIComponent(value)}`];
+  if (options.path) parts.push(`Path=${assertCookieAttributeValue('path', options.path)}`);
+  if (options.domain) parts.push(`Domain=${assertCookieAttributeValue('domain', options.domain)}`);
+  if (typeof options.maxAge === 'number' && Number.isFinite(options.maxAge)) {
+    parts.push(`Max-Age=${Math.trunc(options.maxAge)}`);
+  }
+  if (options.sameSite) {
+    if (typeof options.sameSite !== 'string') {
+      throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
+    }
+    const sameSite = COOKIE_SAME_SITE_LOOKUP[options.sameSite.toLowerCase() as keyof typeof COOKIE_SAME_SITE_LOOKUP];
+    if (!sameSite) {
+      throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
+    }
+    parts.push(`SameSite=${sameSite}`);
+  }
+  if (options.httpOnly) parts.push('HttpOnly');
+  if (options.secure) parts.push('Secure');
+  return parts.join('; ');
+};
+
+interface AcceptEntry {
+  q: number;
+  range: string;
+}
+
+interface IndexedAcceptEntry extends AcceptEntry {
+  index: number;
+}
+
+const parseAcceptHeader = (header: string): AcceptEntry[] =>
+  header
+    .split(',')
+    .map<IndexedAcceptEntry>((entry, index) => {
+      const [rawRange, ...params] = entry.trim().split(';');
+      const qValue = params.find((param) => param.trim().startsWith('q='))?.split('=')[1];
+      const q = qValue === undefined ? 1 : Number.parseFloat(qValue);
+      return {
+        index,
+        q: Number.isFinite(q) ? q : 0,
+        range: rawRange.trim().toLowerCase(),
+      };
+    })
+    .filter((entry) => entry.range && entry.q > 0)
+    .sort((left, right) => right.q - left.q || left.index - right.index)
+    .map(({ q, range }) => ({ q, range }));
+
+const matchesAcceptedType = (type: string, range: string): boolean => {
+  if (range === '*/*') {
+    return true;
+  }
+
+  const [rangeMajor, rangeMinor] = range.split('/');
+  const [typeMajor, typeMinor] = type.split('/');
+  if (!rangeMajor || !rangeMinor || !typeMajor || !typeMinor) {
+    return false;
+  }
+
+  return (rangeMajor === '*' || rangeMajor === typeMajor) &&
+    (rangeMinor === '*' || rangeMinor === typeMinor);
+};
+
+const getMediaType = (contentType: string): string => {
+  const [mediaType = ''] = contentType.split(';', 1);
+  return mediaType.trim().toLowerCase();
+};
+
+const isJsonMediaType = (mediaType: string): boolean =>
+  mediaType === 'application/json' || mediaType.endsWith('+json');
+
+const accepts = (request: Request, types: string[]): string | null => {
+  const accept = request.headers.get('accept');
+  if (!accept || types.length === 0) {
+    return types[0] ?? null;
+  }
+
+  const acceptedTypes = parseAcceptHeader(accept);
+  for (const accepted of acceptedTypes) {
+    for (const type of types) {
+      if (matchesAcceptedType(type.toLowerCase(), accepted.range)) {
+        return type;
+      }
+    }
+  }
+
+  return null;
+};
+
+const decodeFormUrlEncoded = (textBody: string): Record<string, string | string[] | undefined> => {
+  const out = createDictionary<string | string[] | undefined>();
+  for (const [key, value] of new URLSearchParams(textBody).entries()) {
+    if (isPrototypePollutionKey(key)) {
+      continue;
+    }
+    const current = out[key];
+    if (typeof current === 'undefined') {
+      out[key] = value;
+    } else if (Array.isArray(current)) {
+      current.push(value);
+    } else {
+      out[key] = [current, value];
+    }
+  }
+  return out;
+};
+
+const formatSseChunk = (event: ServerSseEvent | string, defaultRetry?: number): string => {
+  if (typeof event === 'string') {
+    const data = event
+      .split('\n')
+      .map((line) => `data: ${line}\n`)
+      .join('');
+    return `${data}${typeof defaultRetry === 'number' ? `retry: ${defaultRetry}\n` : ''}\n`;
+  }
+
+  let chunk = '';
+  if (event.id) chunk += `id: ${event.id}\n`;
+  if (event.event) chunk += `event: ${event.event}\n`;
+  if (typeof event.retry === 'number') chunk += `retry: ${Math.trunc(event.retry)}\n`;
+  else if (typeof defaultRetry === 'number') chunk += `retry: ${Math.trunc(defaultRetry)}\n`;
+  for (const line of event.data.split('\n')) {
+    chunk += `data: ${line}\n`;
+  }
+  return `${chunk}\n`;
+};
+
+const readRequestBodyBuffer = async (
+  request: Request,
+  limit: number | undefined,
+  errorMessage: string
+): Promise<Uint8Array> => {
+  const contentLength = Number.parseInt(request.headers.get('content-length') ?? '', 10);
+  if (
+    typeof limit === 'number' &&
+    Number.isFinite(limit) &&
+    limit >= 0 &&
+    Number.isFinite(contentLength) &&
+    contentLength >= 0 &&
+    contentLength > limit
+  ) {
+    throw new ServerHttpError(413, errorMessage);
+  }
+
+  const clone = request.clone();
+  const body = clone.body;
+  if (!body) {
+    return new Uint8Array(0);
+  }
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      if (!value) {
+        continue;
+      }
+
+      total += value.byteLength;
+      if (typeof limit === 'number' && Number.isFinite(limit) && limit >= 0 && total > limit) {
+        throw new ServerHttpError(413, errorMessage);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+
+  const output = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    output.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return output;
+};
+
+const createSseResponse = (
+  source: AsyncIterable<ServerSseEvent | string> | Iterable<ServerSseEvent | string>,
+  init: ServerSseOptions = {}
+): Response => {
+  const headers = withContentType(createHeaders(init.headers), 'text/event-stream; charset=utf-8');
+  headers.set('cache-control', headers.get('cache-control') ?? 'no-cache');
+  headers.set('connection', headers.get('connection') ?? 'keep-alive');
+  const encoder = new TextEncoder();
+  const asyncSource =
+    Symbol.asyncIterator in Object(source)
+      ? (source as AsyncIterable<ServerSseEvent | string>)
+      : (async function* () {
+          yield* (source as Iterable<ServerSseEvent | string>);
+        })();
+  const iterator = asyncSource[Symbol.asyncIterator]();
+  let cancelled = false;
+  let iteratorClosed = false;
+  const closeIterator = async (): Promise<void> => {
+    if (iteratorClosed || typeof iterator.return !== 'function') {
+      return;
+    }
+
+    iteratorClosed = true;
+    await iterator.return();
+  };
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        while (!cancelled) {
+          const { done, value } = await iterator.next();
+          if (done || cancelled) {
+            break;
+          }
+
+          controller.enqueue(encoder.encode(formatSseChunk(value, init.retry)));
+        }
+
+        if (!cancelled) {
+          controller.close();
+        }
+      } catch (error) {
+        if (!cancelled) {
+          controller.error(error);
+        }
+      } finally {
+        await closeIterator().catch(() => undefined);
+      }
+    },
+    async cancel() {
+      cancelled = true;
+      await closeIterator().catch(() => undefined);
+    },
+  });
+  return response(stream, { ...init, headers });
+};
+
 const response = (body?: BodyInit | null, init: ServerResponseInit = {}): Response => {
   const { headers, ...rest } = init;
-  return new Response(body, { ...rest, headers: createHeaders(headers) });
+  return new Response(body, {
+    ...rest,
+    headers: headers instanceof Headers ? headers : createHeaders(headers),
+  });
 };
 
 const text = (body: string, init: ServerResponseInit = {}): Response => {
@@ -256,9 +559,8 @@ const json = (data: unknown, init: ServerResponseInit = {}): Response => {
   return response(escapeJsonString(serialized), { ...init, headers });
 };
 
-const redirect = (location: string | URL, status = 302): Response => {
-  const headers = createHeaders({ location: location.toString() });
-  return response(null, { headers, status });
+const stream = (body: ReadableStream<Uint8Array>, init: ServerResponseInit = {}): Response => {
+  return response(body, init);
 };
 
 const render = (
@@ -275,6 +577,18 @@ const render = (
     : '';
   const body = `${result.html}${storeState}`;
   return html(body, { headers, status, trusted: true });
+};
+
+const renderStreamResponse = (
+  template: string,
+  data: Parameters<typeof renderToString>[1],
+  options: ServerRenderResponseOptions = {}
+): Response => {
+  const { headers, status = 200, ...renderOptions } = options;
+  return response(renderToStream(template, data, renderOptions), {
+    headers: withContentType(createHeaders(headers), 'text/html; charset=utf-8'),
+    status,
+  });
 };
 
 /**
@@ -548,6 +862,225 @@ const compileRoute = (route: ServerRoute): CompiledRoute => {
   };
 };
 
+const createBodyReader = (
+  request: Request,
+  limits: CreateServerOptions['limits']
+): (() => Promise<unknown>) => {
+  let cached: Promise<unknown> | null = null;
+
+  return async (): Promise<unknown> => {
+    cached ??= (async () => {
+      const contentType = request.headers.get('content-type') ?? '';
+      const mediaType = getMediaType(contentType);
+
+      if (!mediaType) {
+        return null;
+      }
+
+      if (isJsonMediaType(mediaType)) {
+        const textBody = new TextDecoder().decode(
+          await readRequestBodyBuffer(
+            request,
+            limits?.json,
+            'Request JSON body exceeds the configured limit.'
+          )
+        );
+        try {
+          return textBody ? JSON.parse(textBody) : null;
+        } catch {
+          throw new ServerHttpError(400, 'Request body contains invalid JSON.');
+        }
+      }
+
+      if (mediaType === 'application/x-www-form-urlencoded') {
+        const textBody = new TextDecoder().decode(
+          await readRequestBodyBuffer(request, limits?.form, 'Form body exceeds the configured limit.')
+        );
+        return decodeFormUrlEncoded(textBody);
+      }
+
+      if (mediaType === 'multipart/form-data') {
+        if (typeof request.formData !== 'function') {
+          throw new ServerHttpError(415, 'multipart/form-data is not supported in this runtime.');
+        }
+        const bodyBuffer = await readRequestBodyBuffer(
+          request,
+          limits?.multipart,
+          'Multipart form body exceeds the configured limit.'
+        );
+        const requestBody =
+          bodyBuffer.byteLength > 0 ? bodyBuffer.slice().buffer : undefined;
+        const formData = await new Request(request.url, {
+          body: requestBody,
+          headers: request.headers,
+          method: request.method,
+        }).formData();
+        const out = new Map<string, FormDataEntryValue | FormDataEntryValue[]>();
+        for (const [key, value] of formData.entries()) {
+          if (isPrototypePollutionKey(key)) {
+            continue;
+          }
+          const current = out.get(key);
+          if (typeof current === 'undefined') {
+            out.set(key, value);
+          } else if (Array.isArray(current)) {
+            current.push(value);
+          } else {
+            out.set(key, [current, value]);
+          }
+        }
+        return out;
+      }
+
+      if (mediaType.startsWith('text/')) {
+        const textBody = new TextDecoder().decode(
+          await readRequestBodyBuffer(request, limits?.text, 'Text body exceeds the configured limit.')
+        );
+        return textBody;
+      }
+
+      return request.clone().arrayBuffer();
+    })();
+
+    return cached;
+  };
+};
+
+/**
+ * Formats a listen URL, bracketing IPv6 hosts so the returned string is a
+ * valid absolute URL.
+ *
+ * @internal
+ */
+const formatListenUrl = (hostname: string, port: number): string => {
+  const host =
+    hostname.includes(':') && !hostname.startsWith('[') && !hostname.endsWith(']')
+      ? `[${hostname}]`
+      : hostname;
+  return `http://${host}:${port}`;
+};
+
+/**
+ * Merge headers from `from` into `to`, keeping `Set-Cookie` values separate so
+ * that multiple cookies are not collapsed into a single comma-joined header by
+ * the Fetch/undici `Headers.forEach` behaviour.
+ *
+ * @internal
+ */
+const mergeResponseHeaders = (
+  from: Headers,
+  to: Headers,
+  trackedSetCookies: readonly string[] = []
+): void => {
+  const getSetCookie = (from as Headers & { getSetCookie?(): string[] }).getSetCookie;
+  const setCookies = typeof getSetCookie === 'function' ? getSetCookie.call(from) : [];
+  from.forEach((value, name) => {
+    if (name.toLowerCase() !== 'set-cookie') {
+      to.append(name, value);
+    }
+  });
+  if (trackedSetCookies.length > 0) {
+    for (const value of trackedSetCookies) {
+      to.append('set-cookie', value);
+    }
+    return;
+  }
+
+  const fallbackSetCookie = setCookies.length === 0 ? from.get('set-cookie') : null;
+  for (const v of setCookies) {
+    to.append('set-cookie', v);
+  }
+  if (fallbackSetCookie !== null) {
+    to.append('set-cookie', fallbackSetCookie);
+  }
+};
+
+const createServerContext = (
+  request: Request,
+  baseUrl: string,
+  limits: CreateServerOptions['limits']
+): ServerContext => {
+  const url = new URL(request.url, baseUrl);
+  const method = request.method.toUpperCase();
+  const path = normalizePath(url.pathname || '/');
+  const query = parseQuery(url);
+  const cookies = parseCookies(request.headers.get('cookie'));
+  const readBody = createBodyReader(request, limits);
+  const responseHeaders = createHeaders();
+  const responseSetCookies: string[] = [];
+
+  return {
+    request,
+    url,
+    method,
+    path,
+    params: createDictionary<string>(),
+    query,
+    cookies,
+    state: {},
+    body: readBody,
+    response: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return response(body, { ...init, headers });
+    },
+    text: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return text(body, { ...init, headers });
+    },
+    html: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return html(body, { ...init, headers });
+    },
+    json: (data, init = {}) => {
+      const headers = createHeaders(init.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return json(data, { ...init, headers });
+    },
+    stream: (body, init = {}) => {
+      const headers = createHeaders(init.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return stream(body, { ...init, headers });
+    },
+    sse: (source, init = {}) => {
+      const headers = createHeaders(init.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return createSseResponse(source, { ...init, headers });
+    },
+    accepts: (types) => accepts(request, types),
+    setCookie(name, value, options = {}) {
+      const serializedCookie = serializeCookie(name, value, options);
+      responseSetCookies.push(serializedCookie);
+      responseHeaders.append('set-cookie', serializedCookie);
+    },
+    redirect: (location, status = 302) => {
+      const headers = createHeaders({ location: location.toString() });
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return response(null, { headers, status });
+    },
+    render: (template, data, options = {}) => {
+      const headers = createHeaders(options.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return render(template, data, { ...options, headers });
+    },
+    renderStream: (template, data, options = {}) => {
+      const headers = createHeaders(options.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return renderStreamResponse(template, data, { ...options, headers });
+    },
+    async renderResponse(template, data, options = {}) {
+      const headers = createHeaders(options.headers);
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return await renderToResponse(template, data, { ...options, headers });
+    },
+    runTask,
+    callWorker: callWorkerMethod,
+    isWebSocketRequest: isWebSocketRequest(request),
+  };
+};
+
 /**
  * Create a lightweight, Express-inspired request pipeline for SSR-aware
  * backends without introducing runtime dependencies.
@@ -564,6 +1097,7 @@ const compileRoute = (route: ServerRoute): CompiledRoute => {
  */
 export const createServer = (options: CreateServerOptions = {}): ServerApp => {
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+  const limits = options.limits;
   const middlewares = [...(options.middlewares ?? [])];
   const routes: CompiledRoute[] = [];
   const webSocketRoutes: CompiledWebSocketRoute[] = [];
@@ -579,6 +1113,11 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
     ((error: unknown, context: ServerContext) => {
       if (error instanceof Response) {
         return error;
+      }
+      if (error instanceof ServerHttpError) {
+        return context.text(error.expose ? error.message : 'Internal Server Error', {
+          status: error.status,
+        });
       }
       return context.text('Internal Server Error', { status: 500 });
     });
@@ -662,30 +1201,10 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
 
     async handle(input) {
       const request = normalizeRequest(input, baseUrl);
-      const url = new URL(request.url);
-      const method = request.method.toUpperCase();
-      const path = normalizePath(url.pathname || '/');
-      const query = parseQuery(url);
-
-      const context: ServerContext = {
-        request,
-        url,
-        method,
-        path,
-        params: createDictionary<string>(),
-        query,
-        state: {},
-        response,
-        text,
-        html,
-        json,
-        redirect,
-        render,
-        isWebSocketRequest: isWebSocketRequest(request),
-      };
+      const context = createServerContext(request, baseUrl, limits);
 
       try {
-        const route = resolveMatchingRoute(routes, method, path, context);
+        const route = resolveMatchingRoute(routes, context.method, context.path, context);
 
         if (!route) {
           return await notFound(context);
@@ -708,34 +1227,14 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
 
     async handleWebSocket(input) {
       const request = normalizeRequest(input, baseUrl);
-      const url = new URL(request.url);
-      const method = request.method.toUpperCase();
-      const path = normalizePath(url.pathname || '/');
-      const query = parseQuery(url);
-
-      const context: ServerContext = {
-        request,
-        url,
-        method,
-        path,
-        params: createDictionary<string>(),
-        query,
-        state: {},
-        response,
-        text,
-        html,
-        json,
-        redirect,
-        render,
-        isWebSocketRequest: isWebSocketRequest(request),
-      };
+      const context = createServerContext(request, baseUrl, limits);
 
       if (!context.isWebSocketRequest) {
         return null;
       }
 
       try {
-        const route = resolveMatchingRoute(webSocketRoutes, method, path, context);
+        const route = resolveMatchingRoute(webSocketRoutes, context.method, context.path, context);
         if (!route) {
           return null;
         }
@@ -752,6 +1251,86 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
       } catch (error) {
         return await onError(error, context);
       }
+    },
+
+    async listen(listenOptions: ServerListenOptions = {}): Promise<ServerListenHandle> {
+      const runtime = listenOptions.runtime ?? 'auto';
+      const resolvedRuntime = runtime === 'auto' ? detectRuntime() : runtime;
+      const port = listenOptions.port ?? 3000;
+      const hostname = listenOptions.hostname ?? '127.0.0.1';
+
+      if (resolvedRuntime === 'bun') {
+        const bunGlobal = globalThis as typeof globalThis & {
+          Bun?: {
+            serve(options: {
+              fetch: (request: Request) => Promise<Response>;
+              hostname?: string;
+              port?: number;
+            }): { hostname?: string; port?: number; stop(): void };
+          };
+        };
+        if (!bunGlobal.Bun?.serve) {
+          throw new Error('Bun runtime APIs are unavailable.');
+        }
+        const server = bunGlobal.Bun.serve({
+          fetch: (request) => app.handle(request),
+          hostname,
+          port,
+        });
+        listenOptions.signal?.addEventListener('abort', () => server.stop(), { once: true });
+        const listenUrl = formatListenUrl(server.hostname ?? hostname, server.port ?? port);
+        return {
+          addresses: [listenUrl],
+          async close() {
+            server.stop();
+          },
+          async stop() {
+            server.stop();
+          },
+          url: listenUrl,
+        };
+      }
+
+      if (resolvedRuntime === 'node') {
+        const nodeHttp = (await import('node:http')) as typeof import('node:http');
+        const handler = createNodeHandler((request) => app.handle(request));
+        const server = nodeHttp.createServer(handler);
+        await new Promise<void>((resolve, reject) => {
+          const onError = (err: Error) => reject(err);
+          server.once('error', onError);
+          server.listen(port, hostname, () => {
+            server.removeListener('error', onError);
+            resolve();
+          });
+        });
+        listenOptions.signal?.addEventListener('abort', () => server.close(), { once: true });
+        const address = server.address();
+        const resolvedAddress =
+          address && typeof address !== 'string'
+            ? { hostname: address.address || hostname, port: address.port ?? port }
+            : { hostname, port };
+        const url = formatListenUrl(resolvedAddress.hostname, resolvedAddress.port);
+        return {
+          addresses: [url],
+          async close() {
+            await new Promise<void>((resolve, reject) => {
+              server.close((error) => (error ? reject(error) : resolve()));
+            });
+          },
+          async stop() {
+            await new Promise<void>((resolve, reject) => {
+              server.close((error) => (error ? reject(error) : resolve()));
+            });
+          },
+          url,
+        };
+      }
+
+      if (resolvedRuntime === 'deno') {
+        throw new Error('createServer().listen() is not yet implemented for Deno in this runtime.');
+      }
+
+      throw new Error(`createServer().listen() is not supported in runtime "${resolvedRuntime}".`);
     },
   };
 
