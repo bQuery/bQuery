@@ -193,7 +193,7 @@ const renderResolvedToStringResult = (
     html = injectBeforeBodyEnd(html, storeScriptTag);
   }
 
-  context.metrics.recordRender(performance.now() - startedAt);
+  context.metrics?.recordRender(performance.now() - startedAt);
 
   return {
     html,

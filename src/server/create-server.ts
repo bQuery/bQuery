@@ -298,6 +298,9 @@ const serializeCookie = (name: string, value: string, options: ServerCookieOptio
     parts.push(`Max-Age=${Math.trunc(options.maxAge)}`);
   }
   if (options.sameSite) {
+    if (typeof options.sameSite !== 'string') {
+      throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
+    }
     const sameSite = COOKIE_SAME_SITE_LOOKUP[options.sameSite.toLowerCase() as keyof typeof COOKIE_SAME_SITE_LOOKUP];
     if (!sameSite) {
       throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
@@ -314,10 +317,14 @@ interface AcceptEntry {
   range: string;
 }
 
+interface IndexedAcceptEntry extends AcceptEntry {
+  index: number;
+}
+
 const parseAcceptHeader = (header: string): AcceptEntry[] =>
   header
     .split(',')
-    .map((entry, index) => {
+    .map<IndexedAcceptEntry>((entry, index) => {
       const [rawRange, ...params] = entry.trim().split(';');
       const qValue = params.find((param) => param.trim().startsWith('q='))?.split('=')[1];
       const q = qValue === undefined ? 1 : Number.parseFloat(qValue);

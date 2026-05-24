@@ -232,6 +232,25 @@ describe('server/createServer', () => {
     expect(await invalidPath.text()).toBe('Cookie path contains invalid characters.');
   });
 
+  it('rejects non-string sameSite cookie values with a validation error', async () => {
+    const app = createServer({
+      onError(error, ctx) {
+        return ctx.text(error instanceof Error ? error.message : 'error', { status: 400 });
+      },
+    });
+    app.get('/cookie-same-site', (ctx) => {
+      ctx.setCookie('session', 'abc123', {
+        sameSite: 1 as unknown as 'lax',
+      });
+      return ctx.text('ok');
+    });
+
+    const response = await app.handle('/cookie-same-site');
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe('Cookie sameSite must be one of "lax", "none", or "strict".');
+  });
+
   it('enforces multipart body limits', async () => {
     const app = createServer({
       limits: {

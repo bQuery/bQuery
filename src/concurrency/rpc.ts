@@ -137,7 +137,9 @@ self.onmessage = async (event) => {
  *
  * By default the worker processes one request at a time. Set `maxInFlight` to
  * allow multiple concurrent calls on the same worker when the handler logic is
- * safe to overlap; timeout, abort, and cleanup still apply per in-flight call.
+ * safe to overlap. Timeout, abort, and cleanup still apply to each individual
+ * call, but an interrupted run resets the worker instance and rejects every
+ * currently in-flight call before future calls recreate the worker.
  *
  * @example
  * ```ts

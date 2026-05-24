@@ -65,8 +65,8 @@ export interface SSRContext {
   status: number;
   /** Outgoing response headers (used by `renderToResponse()`). */
   responseHeaders: Headers;
-  /** Render/hydration metrics collector. */
-  metrics: SSRMetrics;
+  /** Optional render/hydration metrics collector. */
+  metrics?: SSRMetrics;
   /** Reports a non-fatal error. */
   reportError(error: unknown): void;
 }

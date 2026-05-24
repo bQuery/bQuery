@@ -41,6 +41,7 @@ import {
   renderToString,
   renderToStringAsync,
   type NodeIncomingMessage,
+  type SSRContext,
 } from '../src/ssr/index';
 
 type LegacyMediaQueryList = MediaQueryList & {
@@ -126,6 +127,17 @@ describe('runtime detection', () => {
 
     expect(metrics.snapshot().renderCount).toBe(1);
     expect(metrics.snapshot().totalRenderMs).toBeGreaterThanOrEqual(0);
+  });
+
+  it('renders when a custom SSR context omits metrics', async () => {
+    const context = createSSRContext();
+    delete (context as SSRContext & { metrics?: unknown }).metrics;
+
+    const result = await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'no-metrics' }, {
+      context,
+    });
+
+    expect(result.html).toContain('no-metrics');
   });
 
   it('serves cached SSR responses when a cache store is provided', async () => {
