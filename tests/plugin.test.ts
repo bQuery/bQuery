@@ -20,15 +20,20 @@ import {
   handleClass,
   handleError,
   handleHtml,
+  handleHtmlSafe,
   handleIf,
+  handleInit,
+  handleMemo,
   handleModel,
   handleOn,
+  handleOnWithModifiers,
+  handleOnce,
   handleRef,
   handleShow,
   handleStyle,
   handleText,
 } from '../src/view/directives/index';
-import { processChildren, processElement } from '../src/view/process';
+import { processChildren, processElement, type DirectiveHandlers } from '../src/view/process';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,17 +58,21 @@ let uniqueElementIdCounter = 0;
 const generateUniqueCustomElementTag = (suffix: string): string =>
   `bq-${suffix}-${++uniqueElementIdCounter}`;
 
-const createDirectiveHandlers = () => ({
+const createDirectiveHandlers = (): DirectiveHandlers => ({
   text: handleText,
   error: handleError,
   aria: handleAria,
   html: handleHtml(true),
+  htmlSafe: handleHtmlSafe,
   if: handleIf,
   show: handleShow,
   class: handleClass,
   style: handleStyle,
   model: handleModel,
   ref: handleRef,
+  once: handleOnce,
+  init: handleInit,
+  memo: handleMemo,
   for: createForHandler({
     prefix: 'bq',
     processElement: (el, context, prefix, cleanups) =>
@@ -72,7 +81,10 @@ const createDirectiveHandlers = () => ({
       processChildren(el, context, prefix, cleanups, createDirectiveHandlers()),
   }),
   bind: (attrName: string) => handleBind(attrName),
-  on: (eventName: string) => handleOn(eventName),
+  on: (eventName: string, modifiers?: Set<string>) =>
+    modifiers && modifiers.size > 0
+      ? handleOnWithModifiers(eventName, modifiers)
+      : handleOn(eventName),
 });
 
 // ============================================================================
