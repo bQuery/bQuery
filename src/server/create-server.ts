@@ -947,13 +947,18 @@ const createBodyReader = (
  * @internal
  */
 const mergeResponseHeaders = (from: Headers, to: Headers): void => {
-  const setCookies: string[] =
-    (from as Headers & { getSetCookie?(): string[] }).getSetCookie?.() ?? [];
+  const getSetCookie = (from as Headers & { getSetCookie?(): string[] }).getSetCookie;
+  const setCookies = typeof getSetCookie === 'function' ? getSetCookie.call(from) : [];
   from.forEach((value, name) => {
     if (name.toLowerCase() !== 'set-cookie') {
       to.append(name, value);
     }
   });
+  const fallbackSetCookie = setCookies.length === 0 ? from.get('set-cookie') : null;
+  if (fallbackSetCookie !== null) {
+    to.append('set-cookie', fallbackSetCookie);
+    return;
+  }
   for (const v of setCookies) {
     to.append('set-cookie', v);
   }

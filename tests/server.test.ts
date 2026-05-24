@@ -208,6 +208,39 @@ describe('server/createServer', () => {
     expect(response.headers.get('set-cookie')).toContain('session=abc123');
   });
 
+  it('preserves response cookies when Headers.getSetCookie is unavailable', async () => {
+    const app = createServer();
+    app.get('/cookies', (ctx) => {
+      ctx.setCookie('session', 'abc123', { httpOnly: true, path: '/' });
+      ctx.setCookie('theme', 'dark', { path: '/' });
+      return ctx.text('ok');
+    });
+
+    const descriptor = Object.getOwnPropertyDescriptor(Headers.prototype, 'getSetCookie');
+
+    try {
+      if (descriptor) {
+        Object.defineProperty(Headers.prototype, 'getSetCookie', {
+          configurable: true,
+          value: undefined,
+          writable: true,
+        });
+      }
+
+      const response = await app.handle('/cookies');
+      const setCookie = response.headers.get('set-cookie');
+
+      expect(setCookie).toContain('session=abc123');
+      expect(setCookie).toContain('theme=dark');
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(Headers.prototype, 'getSetCookie', descriptor);
+      } else {
+        delete (Headers.prototype as Headers & { getSetCookie?: unknown }).getSetCookie;
+      }
+    }
+  });
+
   it('rejects cookie names and attributes with invalid header characters', async () => {
     const app = createServer({
       onError(error, ctx) {
