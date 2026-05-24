@@ -476,7 +476,7 @@ const response = await renderToResponse('<main bq-text="title"></main>', { title
 
 ### `renderToStream()` + `flushBoundary()`
 
-Use `flushBoundary()` to split a template into multiple streamed chunks without changing the rendered HTML:
+Use `flushBoundary()` to insert a temporary streaming marker that `renderToStream()` removes while splitting the rendered template into multiple chunks:
 
 ```ts
 const stream = renderToStream(

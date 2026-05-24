@@ -248,6 +248,7 @@ describe('server/createServer', () => {
     });
 
     const descriptor = Object.getOwnPropertyDescriptor(Headers.prototype, 'getSetCookie');
+    let overrideApplied = false;
 
     try {
       if (descriptor?.configurable === true) {
@@ -256,6 +257,7 @@ describe('server/createServer', () => {
           value: undefined,
           writable: true,
         });
+        overrideApplied = true;
       } else if (descriptor) {
         return;
       }
@@ -268,12 +270,26 @@ describe('server/createServer', () => {
       expect(setCookie).toContain('theme=dark');
       expect(setCookieEntries).toHaveLength(2);
     } finally {
-      if (descriptor?.configurable === true) {
+      if (overrideApplied) {
         Object.defineProperty(Headers.prototype, 'getSetCookie', descriptor);
-      } else {
+      } else if (!descriptor) {
         delete (Headers.prototype as { getSetCookie?: unknown }).getSetCookie;
       }
     }
+  });
+
+  it('preserves response cookies when redirecting after ctx.setCookie', async () => {
+    const app = createServer();
+    app.get('/redirect', (ctx) => {
+      ctx.setCookie('session', 'abc123', { httpOnly: true, path: '/' });
+      return ctx.redirect('/login');
+    });
+
+    const response = await app.handle('/redirect');
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/login');
+    expect(response.headers.get('set-cookie')).toContain('session=abc123');
   });
 
   it('preserves multiple set-cookie values passed through ctx.response headers', async () => {

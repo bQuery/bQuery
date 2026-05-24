@@ -559,11 +559,6 @@ const json = (data: unknown, init: ServerResponseInit = {}): Response => {
   return response(escapeJsonString(serialized), { ...init, headers });
 };
 
-const redirect = (location: string | URL, status = 302): Response => {
-  const headers = createHeaders({ location: location.toString() });
-  return response(null, { headers, status });
-};
-
 const stream = (body: ReadableStream<Uint8Array>, init: ServerResponseInit = {}): Response => {
   return response(body, init);
 };
@@ -1060,7 +1055,11 @@ const createServerContext = (
       responseSetCookies.push(serializedCookie);
       responseHeaders.append('set-cookie', serializedCookie);
     },
-    redirect,
+    redirect: (location, status = 302) => {
+      const headers = createHeaders({ location: location.toString() });
+      mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
+      return response(null, { headers, status });
+    },
     render: (template, data, options = {}) => {
       const headers = createHeaders(options.headers);
       mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
