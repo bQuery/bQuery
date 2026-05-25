@@ -575,8 +575,6 @@ const shortcuts: FireEventShortcuts = {
   keyUp: (el, detail) => fireEvent(el, 'keyup', { detail }),
 };
 
-Object.assign(fireEvent, shortcuts);
-
 // Augment the exported function type so TypeScript callers see the shortcuts.
 // eslint-disable-next-line @typescript-eslint/no-namespace
 export namespace fireEvent {
