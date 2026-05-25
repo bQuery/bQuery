@@ -114,15 +114,17 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
     newIndex: newIdx,
   });
 
-  const getReorderIndex = (anchor: HTMLElement, dragged: HTMLElement | null): number => {
-    const sortableItems = new Set(getItems(container, itemSelector));
+  const getReorderIndex = (
+    anchor: HTMLElement,
+    dragged: HTMLElement | null,
+    sortableItems: readonly HTMLElement[]
+  ): number => {
     let index = 0;
 
     for (const child of Array.from(container.children)) {
-      if (!(child instanceof HTMLElement)) continue;
       if (child === anchor) return index;
       if (child === dragged) continue;
-      if (sortableItems.has(child)) index += 1;
+      if (sortableItems.includes(child as HTMLElement)) index += 1;
     }
 
     return index;
@@ -215,7 +217,7 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
       container.appendChild(placeholder);
     }
 
-    const currentIndex = getReorderIndex(placeholder, dragItem);
+    const currentIndex = getReorderIndex(placeholder, dragItem, items);
     onSortMove?.(createEventData(dragItem, startIndex, currentIndex));
   };
 
@@ -226,7 +228,8 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
     const draggedItem = dragItem;
 
     // Get final index
-    const newIndex = getReorderIndex(placeholder, draggedItem);
+    const items = getItems(container, itemSelector);
+    const newIndex = getReorderIndex(placeholder, draggedItem, items);
 
     // Animate the item back to the placeholder position
     const placeholderRect = placeholder.getBoundingClientRect();

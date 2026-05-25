@@ -999,6 +999,54 @@ describe('dnd/sortable', () => {
     handle.destroy();
   });
 
+  it('keeps pointer-driven reordering safe when HTMLElement is unavailable', () => {
+    const list = createSortableList();
+    const spacer = document.createElement('div');
+    spacer.textContent = 'Spacer';
+    list.prepend(spacer);
+    container.appendChild(list);
+
+    const [firstItem, secondItem, thirdItem] = Array.from(list.querySelectorAll('li'));
+    setZoneRect(firstItem, { left: 0, top: 0, right: 100, bottom: 20 });
+    setZoneRect(secondItem, { left: 0, top: 20, right: 100, bottom: 40 });
+    setZoneRect(thirdItem, { left: 0, top: 40, right: 100, bottom: 60 });
+
+    let endData: { oldIndex: number; newIndex: number } | null = null;
+    const handle = sortable(list, {
+      items: 'li',
+      animationDuration: 0,
+      onSortEnd: (data) => {
+        endData = { oldIndex: data.oldIndex, newIndex: data.newIndex };
+      },
+    });
+
+    const originalHTMLElement = globalThis.HTMLElement;
+
+    Object.defineProperty(globalThis, 'HTMLElement', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      firePointerEvent(firstItem, 'pointerdown', {
+        clientX: 10,
+        clientY: 10,
+      });
+      firePointerEvent(list, 'pointermove', { clientX: 10, clientY: 100 });
+      firePointerEvent(list, 'pointerup', { clientX: 10, clientY: 100 });
+    } finally {
+      Object.defineProperty(globalThis, 'HTMLElement', {
+        value: originalHTMLElement,
+        configurable: true,
+        writable: true,
+      });
+      handle.destroy();
+    }
+
+    expect(endData).toEqual({ oldIndex: 0, newIndex: 2 });
+  });
+
   it('should respect handle option', () => {
     const list = createSortableList();
     container.appendChild(list);
@@ -1097,6 +1145,29 @@ describe('dnd/draggable programmatic API', () => {
     expect(Number.isFinite(pos.x)).toBe(true);
     expect(Number.isFinite(pos.y)).toBe(true);
     handle.destroy();
+  });
+
+  it('selector bounds no-op cleanly when document is unavailable', () => {
+    const handle = draggable(box, { bounds: '.bounds' });
+    const originalDocument = globalThis.document;
+
+    Object.defineProperty(globalThis, 'document', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      expect(() => handle.moveTo({ x: 25, y: 40 })).not.toThrow();
+      expect(handle.getPosition()).toEqual({ x: 25, y: 40 });
+    } finally {
+      Object.defineProperty(globalThis, 'document', {
+        value: originalDocument,
+        configurable: true,
+        writable: true,
+      });
+      handle.destroy();
+    }
   });
 
   it('reset() returns to {0,0}', () => {

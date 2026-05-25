@@ -65,6 +65,9 @@ const resolveBounds = (el: HTMLElement, bounds: DragBounds): BoundsRect | null =
       bottom: viewportHeight - elRect.bottom + topOffset,
     };
   } else if (typeof bounds === 'string') {
+    if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
+      return null;
+    }
     target = document.querySelector(bounds) as HTMLElement | null;
   } else if (typeof HTMLElement !== 'undefined' && bounds instanceof HTMLElement) {
     target = bounds;

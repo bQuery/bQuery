@@ -2,6 +2,7 @@
  * Tests for keyboard accessibility on draggable elements (M1).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { clearAnnouncements } from '../src/a11y/announce';
 import { draggable, getActiveDrag } from '../src/dnd/draggable';
 
 const fireKey = (el: HTMLElement, key: string): KeyboardEvent => {
@@ -36,6 +37,7 @@ describe('dnd/draggable keyboard support', () => {
   });
 
   afterEach(() => {
+    clearAnnouncements();
     box.remove();
   });
 
