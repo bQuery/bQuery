@@ -194,7 +194,8 @@ export const useSortable = (
  * @remarks
  * Prefer {@link useDraggable} for new code — this adapter exists for cases
  * where the draggable handle is created externally and you only need a
- * reactive position view.
+ * reactive position view. When called outside a reactive scope, the adapter's
+ * listeners are still removed when `handle.destroy()` is called.
  */
 export const draggablePosition = (
   el: HTMLElement,
@@ -214,10 +215,13 @@ export const draggablePosition = (
   el.addEventListener('pointermove', sync, { passive: true });
   el.addEventListener('pointerup', sync, { passive: true });
 
-  registerScopeCleanup(() => {
+  const cleanup = (): void => {
     el.removeEventListener('pointermove', sync);
     el.removeEventListener('pointerup', sync);
-  });
+  };
+
+  wrapHandleDestroy(handle, cleanup);
+  registerScopeCleanup(cleanup);
 
   return readonly(position);
 };
@@ -230,7 +234,8 @@ export const draggablePosition = (
  * @remarks
  * Prefer {@link useSortable} for new code — this adapter exists for cases
  * where the sortable handle is created externally and you only need a
- * reactive order view.
+ * reactive order view. When called outside a reactive scope, the adapter's
+ * listener is still removed when `handle.destroy()` is called.
  */
 export const sortableOrder = (
   container: HTMLElement,
@@ -244,9 +249,12 @@ export const sortableOrder = (
 
   container.addEventListener('pointerup', sync, { passive: true });
 
-  registerScopeCleanup(() => {
+  const cleanup = (): void => {
     container.removeEventListener('pointerup', sync);
-  });
+  };
+
+  wrapHandleDestroy(handle, cleanup);
+  registerScopeCleanup(cleanup);
 
   return readonly(order);
 };
@@ -261,4 +269,24 @@ export const sortableOrder = (
 const registerScopeCleanup = (fn: () => void): void => {
   if (getCurrentScope() === undefined) return;
   onScopeDispose(fn);
+};
+
+/**
+ * Chains adapter-specific cleanup into an imperative handle's `destroy()`
+ * lifecycle so listener removal still happens outside reactive scopes.
+ *
+ * @internal
+ */
+const wrapHandleDestroy = <T extends { destroy: () => void }>(handle: T, cleanup: () => void): void => {
+  let cleaned = false;
+  const runCleanup = (): void => {
+    if (cleaned) return;
+    cleaned = true;
+    cleanup();
+  };
+  const originalDestroy = handle.destroy.bind(handle);
+  handle.destroy = () => {
+    runCleanup();
+    originalDestroy();
+  };
 };

@@ -342,6 +342,11 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
       for (const i of indices) {
         container.appendChild(list[i]);
       }
+      const newIndex = indices.findIndex((oldIndex, index) => oldIndex !== index);
+      if (newIndex !== -1) {
+        const oldIndex = indices[newIndex];
+        onSortEnd?.(createEventData(list[oldIndex], oldIndex, newIndex));
+      }
     },
   };
 };

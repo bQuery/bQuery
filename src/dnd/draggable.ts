@@ -427,6 +427,7 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
       keyboardActive = false;
       el.classList.remove(draggingClass);
       el.setAttribute('aria-grabbed', 'false');
+      activeDrags.delete(el);
       announceToScreenReader('Dropped at new position.');
       onDragEnd?.(synthesizeKeyboardEventData(e));
       return;
@@ -439,6 +440,7 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
       applyPositionToElement();
       el.classList.remove(draggingClass);
       el.setAttribute('aria-grabbed', 'false');
+      activeDrags.delete(el);
       announceToScreenReader('Drag cancelled, returned to original position.');
       onDragEnd?.(synthesizeKeyboardEventData(e));
       return;
@@ -506,15 +508,23 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
     moveTo: (position: DragPosition) => {
       previousPosition = { ...currentPosition };
       currentPosition = applyConstraints(position);
-      activeDrags.set(el, { element: el, position: currentPosition });
+      if (isDragging || keyboardActive) {
+        activeDrags.set(el, { element: el, position: currentPosition });
+      } else {
+        activeDrags.delete(el);
+      }
       applyPositionToElement();
     },
     reset: () => {
       previousPosition = { ...currentPosition };
       currentPosition = { x: 0, y: 0 };
-      if (!ghost) {
-        el.style.transform = '';
-      } else if (ghostEl) {
+      if (isDragging || keyboardActive) {
+        activeDrags.set(el, { element: el, position: currentPosition });
+      } else {
+        activeDrags.delete(el);
+      }
+      el.style.transform = '';
+      if (ghost && ghostEl) {
         applyPositionToElement();
       }
     },

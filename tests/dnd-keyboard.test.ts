@@ -2,7 +2,7 @@
  * Tests for keyboard accessibility on draggable elements (M1).
  */
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { draggable } from '../src/dnd/index';
+import { draggable, getActiveDrag } from '../src/dnd/draggable';
 
 const fireKey = (el: HTMLElement, key: string): KeyboardEvent => {
   const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
@@ -81,9 +81,11 @@ describe('dnd/draggable keyboard support', () => {
     });
     fireKey(box, ' ');
     fireKey(box, 'ArrowRight');
+    expect(getActiveDrag()?.element).toBe(box);
     fireKey(box, ' ');
     expect(endCount).toBe(1);
     expect(box.getAttribute('aria-grabbed')).toBe('false');
+    expect(getActiveDrag()).toBeUndefined();
     handle.destroy();
   });
 
@@ -93,9 +95,11 @@ describe('dnd/draggable keyboard support', () => {
     fireKey(box, 'ArrowRight');
     fireKey(box, 'ArrowDown');
     expect(handle.getPosition()).toEqual({ x: 10, y: 10 });
+    expect(getActiveDrag()?.element).toBe(box);
     fireKey(box, 'Escape');
     expect(handle.getPosition()).toEqual({ x: 0, y: 0 });
     expect(box.getAttribute('aria-grabbed')).toBe('false');
+    expect(getActiveDrag()).toBeUndefined();
     handle.destroy();
   });
 

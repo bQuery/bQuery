@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { draggable } from '../src/dnd/draggable';
+import { draggable, getActiveDrag } from '../src/dnd/draggable';
 import { droppable } from '../src/dnd/droppable';
 import { sortable } from '../src/dnd/sortable';
 
@@ -1048,6 +1048,7 @@ describe('dnd/draggable programmatic API', () => {
     handle.moveTo({ x: 25, y: 40 });
     expect(handle.getPosition()).toEqual({ x: 25, y: 40 });
     expect(box.style.transform).toBe('translate(25px, 40px)');
+    expect(getActiveDrag()).toBeUndefined();
     handle.destroy();
   });
 
@@ -1069,6 +1070,17 @@ describe('dnd/draggable programmatic API', () => {
   it('reset() returns to {0,0}', () => {
     const handle = draggable(box);
     handle.moveTo({ x: 50, y: 50 });
+    handle.reset();
+    expect(handle.getPosition()).toEqual({ x: 0, y: 0 });
+    expect(box.style.transform).toBe('');
+    expect(getActiveDrag()).toBeUndefined();
+    handle.destroy();
+  });
+
+  it('reset() clears transforms consistently in ghost mode', () => {
+    const handle = draggable(box, { ghost: true });
+    handle.moveTo({ x: 50, y: 50 });
+    expect(box.style.transform).toBe('translate(50px, 50px)');
     handle.reset();
     expect(handle.getPosition()).toEqual({ x: 0, y: 0 });
     expect(box.style.transform).toBe('');
@@ -1288,6 +1300,18 @@ describe('dnd/sortable programmatic API', () => {
     handle.setOrder([3, 2, 1, 0]);
     const ids = handle.getItems().map((el) => el.dataset.id);
     expect(ids).toEqual(['3', '2', '1', '0']);
+    handle.destroy();
+  });
+
+  it('setOrder() notifies onSortEnd when it changes the DOM order', () => {
+    const events: Array<{ item: string | undefined; oldIndex: number; newIndex: number }> = [];
+    const handle = sortable(container, {
+      onSortEnd: ({ item, oldIndex, newIndex }) => {
+        events.push({ item: item.dataset.id, oldIndex, newIndex });
+      },
+    });
+    handle.setOrder([3, 2, 1, 0]);
+    expect(events).toEqual([{ item: '3', oldIndex: 3, newIndex: 0 }]);
     handle.destroy();
   });
 

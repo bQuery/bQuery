@@ -222,7 +222,7 @@ describe('storybook/ifDefined', () => {
 describe('storybook/repeat', () => {
   it('renders each item through the render function', () => {
     const items = ['One', 'Two', 'Three'];
-    const result = storyHtml`<ul>${repeat(items, (item) => storyHtml`<li>${item}</li>`)}</ul>`;
+    const result = storyHtml`<ul>${repeat(items, (item) => unsafeHtml(storyHtml`<li>${item}</li>`))}</ul>`;
     expect(result).toBe('<ul><li>One</li><li>Two</li><li>Three</li></ul>');
   });
 
@@ -233,7 +233,7 @@ describe('storybook/repeat', () => {
     ];
     const result = storyHtml`<ul>${repeat(
       items,
-      (item) => storyHtml`<li>${item.label}</li>`,
+      (item) => unsafeHtml(storyHtml`<li>${item.label}</li>`),
       (item) => item.id
     )}</ul>`;
     expect(result).toContain('<li data-bq-key="a">Apple</li>');
@@ -249,12 +249,24 @@ describe('storybook/repeat', () => {
     const items = ['x'];
     const result = storyHtml`<ul>${repeat(
       items,
-      (item) => storyHtml`<li>${item}</li>`,
+      (item) => unsafeHtml(storyHtml`<li>${item}</li>`),
       () => '" onclick="alert(1)'
     )}</ul>`;
     // The dangerous double-quote → attribute-break must be HTML-escaped.
     expect(result).not.toMatch(/data-bq-key="[^"]*" onclick=/);
     expect(result).toContain('&quot;');
+  });
+
+  it('escapes plain string results from render()', () => {
+    const items = ['<img src=x onerror=alert(1)>'];
+    const result = storyHtml`<ul>${repeat(items, (item) => item)}</ul>`;
+    expect(result).toBe('<ul>&lt;img src=x onerror=alert(1)&gt;</ul>');
+  });
+
+  it('does not trust marker-like objects that were not created by unsafeHtml()', () => {
+    const spoofed = { value: '<img src=x onerror=alert(1)>' };
+    const result = storyHtml`<ul>${repeat(['x'], () => spoofed as unknown as string)}</ul>`;
+    expect(result).toBe('<ul>[object Object]</ul>');
   });
 });
 

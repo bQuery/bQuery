@@ -252,7 +252,8 @@ names to hyphen-case automatically.
 ### `ifDefined`
 
 Returns the value as a string when defined, otherwise returns an empty
-string. Useful for optional Storybook args:
+string. When used inside `attr="${...}"`, that renders as `attr=""`.
+Useful for optional Storybook args:
 
 ```ts
 storyHtml`<ui-input placeholder="${ifDefined(args.placeholder)}"></ui-input>`;
@@ -261,16 +262,17 @@ storyHtml`<ui-input placeholder="${ifDefined(args.placeholder)}"></ui-input>`;
 ### `repeat`
 
 Keyed list helper that maps `items` to `storyHtml` fragments and emits
-stable `data-bq-key` markers for Storybook's actions panel:
+stable `data-bq-key` markers for Storybook's actions panel. Plain string
+results are escaped as text; wrap trusted fragments with `unsafeHtml(...)`:
 
 ```ts
-import { repeat, storyHtml } from '@bquery/bquery/storybook';
+import { repeat, storyHtml, unsafeHtml } from '@bquery/bquery/storybook';
 
 const items = [{ id: 'a', label: 'Apple' }, { id: 'b', label: 'Banana' }];
 
 storyHtml`
   <ul>
-    ${repeat(items, (item) => storyHtml`<li>${item.label}</li>`, (item) => item.id)}
+    ${repeat(items, (item) => unsafeHtml(storyHtml`<li>${item.label}</li>`), (item) => item.id)}
   </ul>
 `;
 ```

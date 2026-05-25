@@ -7,17 +7,16 @@
 
 import { escapeHtml } from '../security/sanitize';
 import type { StoryValue } from './story-html';
-import { unsafeHtml } from './unsafe-html';
+import { isUnsafeHtmlMarker, unsafeHtml } from './unsafe-html';
 import type { UnsafeHtmlMarker } from './unsafe-html';
 
 /**
  * Sentinel value emitted by {@link ifDefined} when a story attribute should
- * be omitted from the rendered output.
+ * resolve to an empty string.
  *
  * @remarks
- * The empty string is the conventional "no attribute" output for string-based
- * Storybook renderers. Templates concatenate the result directly into the
- * attribute slot, so an empty string suppresses the attribute cleanly.
+ * The empty string keeps string-based Storybook templates simple: when used as
+ * `attr="${ifDefined(...)}"`, the rendered output becomes `attr=""`.
  */
 const IF_DEFINED_OMITTED = '';
 
@@ -73,8 +72,8 @@ export const styleMap = (styles: Record<string, string | number | null | undefin
 
 /**
  * Conditionally includes an attribute value. When `value` is `null` or
- * `undefined`, returns an empty string so the attribute is omitted from the
- * rendered output. Otherwise the value is stringified.
+ * `undefined`, returns an empty string so the surrounding template emits an
+ * empty attribute value (`attr=""`). Otherwise the value is stringified.
  *
  * @example
  * ```ts
@@ -92,13 +91,15 @@ export const ifDefined = (value: string | number | null | undefined): string => 
  *
  * @remarks
  * Because Storybook's string renderer has no DOM diffing, `repeat` simply
- * concatenates fragments. The key is rendered as a `data-bq-key` attribute on
- * the first opening tag of each fragment if present, otherwise the fragment is
- * inserted unchanged. The optional `key` function is invoked once per item.
+ * concatenates fragments. Plain-string results are escaped as text; to insert
+ * trusted markup, wrap the fragment with {@link unsafeHtml}. The key is
+ * rendered as a `data-bq-key` attribute on the first opening tag of each
+ * fragment if present, otherwise the fragment is inserted unchanged. The
+ * optional `key` function is invoked once per item.
  *
  * @example
  * ```ts
- * storyHtml`<ul>${repeat(items, (item) => storyHtml`<li>${item.label}</li>`, (item) => item.id)}</ul>`;
+ * storyHtml`<ul>${repeat(items, (item) => unsafeHtml(storyHtml`<li>${item.label}</li>`), (item) => item.id)}</ul>`;
  * ```
  */
 export const repeat = <T>(
@@ -118,9 +119,9 @@ export const repeat = <T>(
     const keyValue = String(key(item, index));
     rendered.push(injectKeyAttribute(fragment, keyValue));
   }
-  // The rendered fragments come from `storyHtml` (already sanitized) or from
-  // primitive resolution. Wrap them as unsafe so the surrounding `storyHtml`
-  // does not double-sanitize and strip authored custom-element markup.
+  // Fragments are escaped by default; callers must opt into trusted markup via
+  // `unsafeHtml(...)`. Wrap the final concatenation so surrounding `storyHtml`
+  // preserves the authored fragment structure.
   return unsafeHtml(rendered.join(''));
 };
 
@@ -139,11 +140,10 @@ const resolvePlain = (value: StoryValue): string => {
   if (value === null || value === undefined) return '';
   if (Array.isArray(value)) return value.map(resolvePlain).join('');
   if (typeof value === 'function') return resolvePlain(value());
-  if (typeof value === 'object' && 'value' in value) {
-    // UnsafeHtmlMarker
-    return (value as UnsafeHtmlMarker).value;
+  if (isUnsafeHtmlMarker(value)) {
+    return value.value;
   }
-  return String(value);
+  return escapeHtml(String(value));
 };
 
 /**

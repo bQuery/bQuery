@@ -145,6 +145,13 @@ describe('useSortable', () => {
     handle.destroy();
   });
 
+  it('updates the order signal when setOrder() is called programmatically', () => {
+    const { order, handle } = useSortable(container);
+    handle.setOrder([2, 0, 1]);
+    expect(order.value.map((el) => el.dataset.id)).toEqual(['2', '0', '1']);
+    handle.destroy();
+  });
+
   it('auto-disposes when the surrounding scope stops', () => {
     const scope = effectScope();
     let handleRef: ReturnType<typeof useSortable>['handle'] | null = null;
@@ -181,6 +188,15 @@ describe('draggablePosition adapter', () => {
     expect(position.value).toEqual({ x: 12, y: 34 });
     handle.destroy();
   });
+
+  it('removes adapter listeners when the handle is destroyed outside a scope', () => {
+    const handle = draggable(box);
+    const position = draggablePosition(box, handle);
+    handle.destroy();
+    handle.moveTo({ x: 12, y: 34 });
+    firePointer(box, 'pointermove', { clientX: 0, clientY: 0 });
+    expect(position.value).toEqual({ x: 0, y: 0 });
+  });
 });
 
 describe('sortableOrder adapter', () => {
@@ -209,6 +225,15 @@ describe('sortableOrder adapter', () => {
     firePointer(container, 'pointerup', {});
     expect(order.value.map((el) => el.dataset.id)).toEqual(['1', '2', '0']);
     handle.destroy();
+  });
+
+  it('removes adapter listeners when the handle is destroyed outside a scope', () => {
+    const handle = sortable(container);
+    const order = sortableOrder(container, handle);
+    handle.destroy();
+    handle.move(0, 2);
+    firePointer(container, 'pointerup', {});
+    expect(order.value.map((el) => el.dataset.id)).toEqual(['0', '1', '2']);
   });
 });
 

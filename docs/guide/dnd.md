@@ -490,7 +490,8 @@ scope.stop(); // releases everything
 ```
 
 For raw handles created elsewhere, use the `draggablePosition()` and
-`sortableOrder()` adapters:
+`sortableOrder()` adapters. Their listeners are removed automatically inside a
+reactive scope, and also when you call `handle.destroy()` manually:
 
 ```ts
 import { draggable, draggablePosition } from '@bquery/bquery/dnd';
