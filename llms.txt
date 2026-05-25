@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.13.0
+- Version: 1.14.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,15 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
+
+## Version 1.14.0 Highlights
+
+- Media: `@bquery/bquery/media` becomes batteries-included with 25+ new reactive composables — preferences (`usePreferredColorScheme`, `usePreferredContrast`, `usePreferredReducedTransparency`, `usePreferredLanguage`, `usePreferredLanguages`); page state (`useOnlineStatus`, `usePageVisibility`, `useDocumentFocus`, `useWindowFocus`, `useIdle`); element observers (`useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`, `useFocus`, `useFocusWithin`, `useActiveElement`); pointer/scroll (`usePointer`, `useScroll`); platform (`usePermission`, `useWakeLock`, `useShare`, `useShareSupported`, `useBroadcastChannel`, `useEventListener`, `useMediaDevices`, `useStorage`); plus clipboard upgrades (`isSupported`, `isImageSupported`, `readImage`, `writeImage`, `clipboardText`). All accept optional `{ signal: AbortSignal }` for auto-teardown.
+- Plugin: `@bquery/bquery/plugin` gains a hook bus and DI — `addFilter`/`applyFilters`/`removeFilter`/`listFilters`, `addAction`/`doAction`/`removeAction`/`listActions`, `createInjectionKey`/`provide`/`inject`/`hasProvided`/`resetDi`, and `ctx.onCleanup` for plugin-scoped teardown. New `unuse(name)`/`uninstall(name)` detach plugin-owned directives, hooks, and DI bindings; `install()` may now return `void | Promise<void>` (concurrent installs of the same plugin are serialised). Plugin metadata (`version`, `description`, `dependencies`, `dependencyMode: 'error' | 'warn'`), `getPluginInfo(name)`, `getInstalledPlugins({ withMetadata: true })`, directive lifecycle objects (`{ mounted, unmounted }`), and namespaced directive names (`tooltip:arrow`).
+- Devtools: `@bquery/bquery/devtools` gains ring-buffered timelines (`maxTimelineEntries`, default 1000), an expanded `TimelineEntry` with optional `payload`/`source`/`duration`, new event types (`signal:create`/`signal:dispose`/`effect:dispose`/`component:mount`/`component:unmount`/`component:render`/`route:guard`/`error:caught`/`measure`/`mark`), `filterTimeline({ types, since, until, search })`, `subscribeTimeline(listener)`, privacy-aware `inspectSignals({ includeValues: false })`, structural `diffSignals`/`diffStores`, `traceSignal`/`untraceSignal`, `inspectEffects`, snapshot import/export, `installBrowserBridge()`, and performance helpers (`time`, `measureRender`, `getPerformanceSummary`).
+- Testing: `@bquery/bquery/testing` becomes batteries-included — auto cleanup (`cleanup`, `autoCleanup`), `fireEvent.click`/`.input`/`.change`/`.submit`/`.focus`/`.blur`/`.dblClick`/`.keyDown`/`.keyUp` shortcuts, a `userEvent` namespace (`click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`), shadow-DOM-aware screen queries via `screen`/`within(el)` with `getByRole`/`getByText`/`getByLabelText`/`getByPlaceholderText`/`getByTestId` + their `query*` and `find*` variants, reactive harnesses (`mockComputed`, `mockEffect`, `tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), and snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).
+- All earlier 1.13.0 / 1.12.0 / 1.11.0 / 1.10.0 / 1.9.0 public surface remains stable.
+- Repo AI guidance stays aligned through `bun run check:ai-guidance`.
 
 ## Version 1.13.0 Highlights
 
@@ -46,66 +55,87 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 bQuery is a batteries-included framework with modular entry points — import only what you need, or use the full bundle:
 
 ### Core (`@bquery/bquery/core`)
+
 DOM selection, manipulation, events, utilities. `$()` selects one element (throws if missing), `$$()` selects multiple (never throws). Both return chainable wrapper objects (`BQueryElement` / `BQueryCollection`) with jQuery-style methods: `addClass`, `removeClass`, `css`, `attr`, `text`, `html`, `on`, `off`, `trigger`, `find`, `closest`, `append`, `prepend`, `wrap`, `unwrap`, `delegate`, `serialize`, `scrollTo`. Also exports a deep utility surface under `utils/`: array (`chunk`, `groupBy`, `keyBy`, `partition`, `zip`, `range`, `take`, `drop`, `sample`, `shuffle`, `uniqueBy`, `sortBy`, `intersection`, `difference`, `flattenDeep`, `move`, `chunkBy`, …); function (`debounce`, `throttle` with `{ leading, trailing, maxWait }` + `.flush()`, `once`, `memoize`, `compose`, `pipe`, `curry`, `partial`, `retry`); object (`merge`, `clone`, `pick`, `omit`, deep `get`/`set`/`has`, `mapValues`, `mapKeys`, `invert`, `deepEqual`/`isEqual`, deep `freeze`, `defaults`, `entriesTyped`, `keysTyped`); string (`slugify`, `toCamelCase`, `toKebabCase`, `toSnakeCase`, `toPascalCase`, `toTitleCase`, `pad`/`padStart`/`padEnd`, `wordCount`, safe `template`, `stripHtml`, `randomString`, `lines`); number (`clamp`, `round`, `roundTo`, `lerp`, `inverseLerp`, `mapRange`, `formatBytes`, `randomFloat`, `sum`, `average`, `median`, `degToRad`, `radToDeg`); misc (`uid`, `uuid`, `sleep`, `tryCatch`, `times`, `pollUntil`, `nextFrame`, `nextTick`); and an extensive type-guard set (`isArray`, `isString`, `isElement`, `isError`, `isMap`, `isSet`, `isRegExp`, `isSymbol`, `isBigInt`, `isAsyncFunction`, `isIterable`, `isAsyncIterable`, `isNullish`, `isDefined`, …).
 
 ### Reactive (`@bquery/bquery/reactive`)
+
 Fine-grained reactivity system plus a transport-ready data layer. `signal(value)` creates a reactive value. `computed(fn)` derives values with auto-tracking. `effect(fn)` runs side effects. `batch(fn)` groups updates. `watch(signal, callback)` observes changes, while `watchDebounce(signal, callback, ms)` and `watchThrottle(signal, callback, ms)` tame bursty updates. `linkedSignal(get, set)` creates writable computed values. `persistedSignal(key, init)` syncs to localStorage. `useAsyncData(handler)` wraps arbitrary async work in signal-driven `data` / `error` / `status` state. `useFetch(input, options)` adds query/header/body helpers and response parsing. `createUseFetch(defaults)` creates preconfigured fetch composables. `createHttp()` / `http` expose interceptable imperative HTTP clients. `usePolling()`, `usePaginatedFetch()`, and `useInfiniteFetch()` cover interval, page, and cursor workflows. `useWebSocket()`, `useWebSocketChannel()`, and `useEventSource()` handle realtime streams; `WebSocketSendData` is the public raw-frame payload union for custom serializers and `sendRaw()`. `useResource()`, `useResourceList()`, `useSubmit()`, `createRestClient()`, `createRequestQueue()`, and `deduplicateRequest()` cover CRUD and request coordination. `readonly(signal)` creates a read-only wrapper. Access via `.value` (tracks), `.peek()` (no tracking).
 
 ### Concurrency (`@bquery/bquery/concurrency`)
+
 Zero-build browser worker helpers. `runTask(handler, input, options)` executes one isolated task in a fresh worker. `createTaskWorker(handler, options)` creates a reusable worker handle with explicit `run()` / `terminate()` lifecycle. `createTaskPool(handler, options)` adds bounded parallelism plus FIFO queueing for repeated task execution. `createRpcWorker(handlers, options)` adds explicit named request/response dispatch for RPC-style worker calls, `callWorkerMethod()` provides the one-off variant, and `createRpcPool()` extends that explicit model to multiple workers with queueing/backpressure. Optional reactive wrappers `createReactiveTaskWorker()`, `createReactiveRpcWorker()`, `createReactiveTaskPool()`, and `createReactiveRpcPool()` mirror worker and pool getters into readonly signals such as `state$`, `busy$`, `pending$`, `size$`, and `concurrency$` for dashboards and UI bindings. High-level helpers include `parallel(tasks, options)`, `batchTasks(tasks, batchSize?, options)`, `map(values, mapper, options)`, `filter(values, predicate, options)`, `some(values, predicate, options)`, `every(values, predicate, options)`, `find(values, predicate, options)`, `reduce(values, reducer, initialValue, options)`, and `pipeline(values, options)` as thin, explicit layers over the same worker primitives. `pipeline()` is just an optional immutable fluent wrapper around the existing collection helpers; it does not add proxies, decorators, or hidden worker runtimes. `getConcurrencySupport()` and `isConcurrencySupported()` expose browser capability checks. Timeout, abort, serialization, unsupported-environment, lifecycle, missing-method, queue-full, and queue-cleared failures are surfaced through structured worker errors.
 
 ### Component (`@bquery/bquery/component`)
+
 Lightweight Web Components helper. `component(tag, definition)` creates and auto-registers a custom element with typed props, typed optional state, declared `signals`, configurable `shadow` mode (`true`, `false`, `'open'`, `'closed'`), lifecycle hooks (`beforeMount`, `connected`, `disconnected`, `onAdopted`, `onAttributeChanged`, `beforeUpdate`, `updated`, `onError`), and automatic HTML sanitization of rendered output. `defineComponent()` returns the class without registering. `registerDefaultComponents()` registers a dependency-free default component library (`button`, `card`, `input`, `textarea`, `checkbox`). `html`, `safeHtml`, and `bool()` help author safe templates and boolean attributes. `useSignal()`, `useComputed()`, and `useEffect()` create component-scoped reactive resources that auto-dispose on disconnect.
 
 ### Motion (`@bquery/bquery/motion`)
+
 Animation utilities. `animate()` wraps the Web Animations API and now accepts an `AbortSignal` and `playbackRate`; `animateTo()` builds keyframes from CSS property records or `[from, to]` tuples. `transition()` uses View Transitions API with fallback and supports classes, transition types, reduced-motion skipping, and ready/finish callbacks. `flip()` / `flipElements()` for FLIP animations. `morphElement()` animates between two elements. `parallax()` adds scroll-linked motion. `typewriter()` animates text content character by character. `tween()` interpolates numbers, number arrays, or `Record<string, number>` with `pause`/`resume`/`reverse`/`seek`/`stop`/`progress`/`finished` controls and `AbortSignal` support; `animateValue()` is the Promise-based convenience helper. `spring()` provides spring physics with `.velocity()` / `.set()`, plus `springVector()` for multi-dimensional motion and `springPresets` (`gentle`, `wobbly`, `slow`, `molasses`, …). `timeline()` and `sequence()` choreograph animations with labels, `reverse()`, `playbackRate()`, `repeat()`, `yoyo()`, `onUpdate()`, and `progress()`. `stagger()` handles staggered timing with `grid` 2D origins, `axis`, and deterministic `random` / `randomSeed`. `scrollAnimate()`, `scrollProgress()`, and `inView()` cover scroll-driven motion. Micro-interaction primitives `magnetic()`, `tilt()`, `shake()`, `pulse()`, and `countUp()` round out the toolkit. The full Penner easing family is exported (`easeIn`/`easeOut`/`easeInOut` of `Quad`, `Cubic`, `Quart`, `Quint`, `Sine`, `Expo`, `Circ`, `Back`, `Elastic`, `Bounce`) plus `cubicBezier()`, `steps()`, `mix()`, and `chain()` composers, and `keyframePresets` / `easingPresets`. Reduced-motion is respected throughout and observable via `prefersReducedMotion()`, `setReducedMotion()`, `onReducedMotionChange()`, and `reducedMotionSignal()`.
 
 ### Security (`@bquery/bquery/security`)
+
 HTML sanitization enabled by default across the library. `sanitizeHtml(html)` strips dangerous elements (script, iframe, svg, etc.), blocks DOM clobbering (reserved IDs), protects against Unicode URL bypasses, adds `rel="noopener noreferrer"` to external links. Also: `escapeHtml()`, `stripTags()`, `trusted()` for safe fragment composition, `generateNonce()`, Trusted Types support, CSP helpers.
 
 ### Storybook (`@bquery/bquery/storybook`)
+
 String-template helpers for component stories. `storyHtml` sanitizes interpolated story markup, preserves authored custom elements/attributes, and supports Storybook-style boolean attribute shorthand such as `?disabled=${true}`. `when()` conditionally renders fragments or callbacks.
 
 ### Platform (`@bquery/bquery/platform`)
+
 Browser API wrappers and shared runtime configuration. `storage` provides unified localStorage/sessionStorage/IndexedDB access. `cache` for TTL-based caching. `notifications` wraps the Notifications API. `buckets` for rate limiting. `defineBqueryConfig()` / `getBqueryConfig()` manage shared defaults for fetch, cookies, transitions, announcers, page metadata, and default component prefixes. `useCookie()` provides reactive cookie state. `definePageMeta()` manages document title/meta/link tags and temporary `html` / `body` attributes. `useAnnouncer()` manages accessible ARIA live-region announcements.
 
 ### Router (`@bquery/bquery/router`)
+
 SPA routing. `createRouter(options)` sets up routes with path matching, wildcard support, repeated query params, regex-constrained params (`/user/:id(\d+)`), `redirectTo`, per-route `beforeEnter`, optional `scrollRestoration`, hash mode, and base path. `navigate(path)` is for programmatic navigation. `currentRoute` exposes the active route as a reactive signal. `useRoute()` returns focused readonly signals (`path`, `params`, `query`, `hash`, `matched`). `interceptLinks()` auto-handles `<a>` clicks, and `registerBqLink()` / `BqLinkElement` provide declarative SPA navigation via `<bq-link>`.
 
 ### Store (`@bquery/bquery/store`)
+
 Signal-based state management. `createStore(definition)` creates a store with state, getters, and actions. Stores expose `$reset`, `$patch`, `$patchDeep`, `$subscribe`, `$state`, and `$onAction()` for action lifecycle observation. `defineStore()` provides factory-style (Pinia-like) stores. `createPersistedStore()` supports legacy string keys and richer options (`key`, `storage`, `serializer`, `version`, `migrate`). Helpers: `mapActions`, `mapGetters`, `mapState`, `watchStore`. Store plugins can be registered with `registerPlugin()`, removed one at a time with `unregisterPlugin()`, or fully reset with `clearPlugins()` for test teardown and plugin reloads.
 
 ### View (`@bquery/bquery/view`)
+
 Declarative DOM bindings. `mount(selector, context)` binds reactive state to DOM using directives: `bq-text`, `bq-html`, `bq-if`, `bq-for`, `bq-model` (two-way), `bq-class`, `bq-style`, `bq-show`, `bq-bind`, `bq-error`, `bq-aria`, `bq-on:event`. `bq-error` is intended for reactive inline error output, while `bq-aria` maps object expressions or evaluated state into ARIA attributes. Uses `new Function()` internally (requires CSP `unsafe-eval`).
 
 ### Forms (`@bquery/bquery/forms`)
+
 Reactive form handling. `createForm()` manages field values, errors, touched/dirty state, validation, submission, and `isSubmitting`. Built-in validators: `required`, `minLength`, `maxLength`, `pattern`, `email`, `url`, `min`, `max`, `custom`, and `customAsync`. Supports cross-field validation.
 
 ### i18n (`@bquery/bquery/i18n`)
+
 Internationalization helpers. `createI18n()` manages reactive locale state, translations, interpolation, pluralization, lazy locale loading, and Intl-based formatting. `formatDate()` and `formatNumber()` are available standalone.
 
 ### A11y (`@bquery/bquery/a11y`)
+
 Accessibility helpers. Includes `trapFocus()`, `releaseFocus()`, `getFocusableElements()`, `announceToScreenReader()`, `clearAnnouncements()`, `rovingTabIndex()`, `skipLink()`, `auditA11y()`, and reactive media-preference signals such as `prefersColorScheme()` and `prefersContrast()`.
 
 ### DnD (`@bquery/bquery/dnd`)
+
 Drag-and-drop utilities. `draggable()` adds pointer-based dragging with bounds and handles. `droppable()` manages drop zones with accept filters and callbacks. `sortable()` adds list reordering with placeholders and sort events.
 
 ### Media (`@bquery/bquery/media`)
+
 Reactive browser and device APIs. Includes `mediaQuery()`, `breakpoints()` (with collection cleanup via `destroyAll()`), `useViewport()`, `useNetworkStatus()`, `useBattery()`, `useGeolocation()`, `useDeviceMotion()`, `useDeviceOrientation()`, `useIntersectionObserver()`, `useResizeObserver()`, `useMutationObserver()`, and async clipboard helpers via `clipboard.read()` / `clipboard.write()`. The observer composables expose cleanup-friendly signal wrappers around DOM observer APIs.
 
 ### Plugin (`@bquery/bquery/plugin`)
+
 Global extension system. `use(plugin)` installs a plugin once by name. Plugins receive a `PluginInstallContext` that can register custom view directives and Web Components. Introspection helpers include `isInstalled()`, `getInstalledPlugins()`, `getCustomDirective()`, `getCustomDirectives()`, and `resetPlugins()`.
 
 ### Devtools (`@bquery/bquery/devtools`)
+
 Runtime inspection utilities. `enableDevtools()` toggles collection. `inspectSignals()`, `inspectStores()`, and `inspectComponents()` snapshot runtime state. `recordEvent()`, `getTimeline()`, and `clearTimeline()` manage an event timeline. Console-oriented helpers such as `logSignals()` and `logTimeline()` are included.
 
 ### Testing (`@bquery/bquery/testing`)
+
 Testing helpers. `renderComponent()` mounts custom elements, `flushEffects()` flushes pending reactive work, `mockSignal()` creates controllable signals, `mockRouter()` creates a lightweight reactive router, `fireEvent()` dispatches synthetic events, and `waitFor()` polls async conditions.
 
 ### SSR (`@bquery/bquery/ssr`)
+
 Runtime-agnostic SSR pipeline that works on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 with zero external dependencies. `renderToString()` renders directive-aware templates synchronously; the new `renderToStringAsync()` resolves Promise / `defer()` values in the binding context. `renderToStream()` returns a Web `ReadableStream<Uint8Array>` and `renderToResponse()` produces a ready-to-return `Response` with `Content-Type`, optional weak ETag, head/asset/store-state injection. A DOM-free renderer (own HTML tokenizer + Pratt-parser expression evaluator, no `eval`/`new Function()`) takes over automatically when no `DOMParser` is available, making SSR work natively on every server runtime; configure explicitly via `configureSSR({ backend, documentImpl })`. `createSSRContext()` builds the request/response context (URL, headers, cookies, locale, nonce, AbortSignal, head + asset managers). `createHeadManager()`/`createAssetManager()` collect `<title>`/`<meta>`/`<link>`/`<script>` entries with CSP-nonce propagation. Progressive hydration: `hydrateMount()`, `hydrateOnVisible()`, `hydrateOnIdle()`, `hydrateOnInteraction()`, `hydrateOnMedia()`, `hydrateIsland()`. Hydration mismatch dev-warnings via `RenderOptions.annotateHydration` + `verifyHydration()`. Suspense streaming with `renderToStreamSuspense()` (out-of-order patches per resolved promise, CSP-nonce aware). Router/SSR bridge with `resolveSSRRoute()` / `runRouteLoaders()` / `createSSRRouterContext()` (recognises `meta.loader`). Versioned store snapshots with `serializeStoreSnapshot()` / `hydrateStoreSnapshot()` / `readStoreSnapshot()`. Resumability hooks via `createResumableState()` / `resumeState()`. Runtime adapters `createWebHandler()` / `createBunHandler()` / `createDenoHandler()` / `createNodeHandler()` (with auto-detect `createSSRHandler()`) wrap a single fetch-style handler for any host. `serializeStoreState()`, `deserializeStoreState()`, `hydrateStore()` and `hydrateStores()` bridge store state between server and client. `detectRuntime()` / `getSSRRuntimeFeatures()` expose runtime introspection. Cross-runtime CI matrix runs on Node 24 + Bun 1.3 + Deno 2; runnable examples live in `examples/ssr-{node,bun,deno}/`.
 
 ### Server (`@bquery/bquery/server`)
+
 Express-inspired backend helpers. `createServer()` creates a dependency-free request pipeline with `use()`, `get()` / `post()` / `put()` / `patch()` / `delete()` / `all()`, `ws()`, route params, repeated-query parsing, safe `text()` / `html()` / `json()` helpers, redirects, SSR-aware `render()` responses, and runtime-agnostic WebSocket handling through `handleWebSocket()`, `isWebSocketRequest()`, and `isServerWebSocketSession()`.
 
 ## Installation
@@ -115,6 +145,7 @@ bun add @bquery/bquery    # or npm/pnpm
 ```
 
 CDN (zero-build):
+
 ```html
 <script type="module">
   import { $, signal } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';

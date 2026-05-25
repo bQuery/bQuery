@@ -381,6 +381,17 @@ describe('Plugin System', () => {
       }).toThrow('must be provided without the "bq-" prefix');
     });
 
+    it('should reject directive names that contain uppercase characters', () => {
+      expect(() => {
+        use({
+          name: 'uppercase-dir',
+          install(ctx) {
+            ctx.directive('ToolTip', () => {});
+          },
+        });
+      }).toThrow('not a valid directive identifier');
+    });
+
     it('should clear directives on reset', () => {
       use({
         name: 'reset-dir',

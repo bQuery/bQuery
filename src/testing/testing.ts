@@ -22,6 +22,15 @@ import type {
   WaitForOptions,
 } from './types';
 
+let renderComponentTracker: ((result: RenderResult) => void) | undefined;
+
+/** @internal */
+export const __setRenderComponentTracker = (
+  tracker?: (result: RenderResult) => void
+): void => {
+  renderComponentTracker = tracker;
+};
+
 // ============================================================================
 // renderComponent
 // ============================================================================
@@ -157,7 +166,9 @@ export function renderComponent(
     }
   };
 
-  return { el, unmount };
+  const result = { el, unmount };
+  renderComponentTracker?.(result);
+  return result;
 }
 
 // ============================================================================
@@ -514,10 +525,18 @@ export function mockRouter(options: MockRouterOptions = {}): MockRouter {
  * expect(clicked).toBe(true);
  * ```
  */
-export function fireEvent(el: Element, eventName: string, options: FireEventOptions = {}): boolean {
+const assertFireEventElement = (el: Element): void => {
   if (!el) {
     throw new Error('bQuery testing: fireEvent requires a valid element');
   }
+};
+
+const baseFireEvent = (
+  el: Element,
+  eventName: string,
+  options: FireEventOptions = {}
+): boolean => {
+  assertFireEventElement(el);
   if (!eventName) {
     throw new Error('bQuery testing: fireEvent requires an event name');
   }
@@ -537,7 +556,88 @@ export function fireEvent(el: Element, eventName: string, options: FireEventOpti
   flushEffects();
 
   return result;
+};
+
+const dispatchShortcutEvent = (el: Element, event: Event): boolean => {
+  assertFireEventElement(el);
+  const result = el.dispatchEvent(event);
+  flushEffects();
+  return result;
+};
+
+const createKeyboardShortcutEvent = (
+  eventName: 'keydown' | 'keyup',
+  init?: KeyboardEventInit
+): Event => {
+  const eventInit: KeyboardEventInit = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    ...init,
+  };
+  return typeof KeyboardEvent === 'function'
+    ? new KeyboardEvent(eventName, eventInit)
+    : new Event(eventName, eventInit);
+};
+
+// Attach shortcut methods (1.14+) so callers can use `fireEvent.click(el)`,
+// `fireEvent.input(el, 'value')`, etc.
+/** @internal */
+export const __getTextInputElement = (
+  el: Element
+): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement => {
+  const tagName = el.tagName.toLowerCase();
+  if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+    return el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+  }
+
+  throw new Error(
+    'bQuery testing: fireEvent.input/change requires an input, textarea, or select element'
+  );
+};
+
+const setInputValue = (el: Element, value: string): void => {
+  __getTextInputElement(el).value = value;
+};
+
+interface FireEventShortcuts {
+  click: (el: Element) => boolean;
+  dblClick: (el: Element) => boolean;
+  input: (el: Element, value: string) => boolean;
+  change: (el: Element, value: string) => boolean;
+  submit: (el: Element) => boolean;
+  focus: (el: Element) => boolean;
+  blur: (el: Element) => boolean;
+  keyDown: (el: Element, init?: KeyboardEventInit) => boolean;
+  keyUp: (el: Element, init?: KeyboardEventInit) => boolean;
 }
+
+const shortcuts: FireEventShortcuts = {
+  click: (el) => baseFireEvent(el, 'click'),
+  dblClick: (el) => baseFireEvent(el, 'dblclick'),
+  input: (el, value) => {
+    setInputValue(el, value);
+    return baseFireEvent(el, 'input');
+  },
+  change: (el, value) => {
+    setInputValue(el, value);
+    return baseFireEvent(el, 'change');
+  },
+  submit: (el) => baseFireEvent(el, 'submit'),
+  focus: (el) => baseFireEvent(el, 'focus'),
+  blur: (el) => baseFireEvent(el, 'blur'),
+  keyDown: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keydown', init)),
+  keyUp: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keyup', init)),
+};
+
+type FireEventFn = ((
+  el: Element,
+  eventName: string,
+  options?: FireEventOptions
+) => boolean) &
+  FireEventShortcuts;
+
+export const fireEvent: FireEventFn = Object.assign(baseFireEvent, shortcuts);
 
 // ============================================================================
 // waitFor

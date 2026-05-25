@@ -55,13 +55,26 @@ export interface ComponentSnapshot {
 /** The type of event recorded in the timeline. */
 export type TimelineEventType =
   | 'signal:update'
+  | 'signal:create'
+  | 'signal:dispose'
   | 'effect:run'
+  | 'effect:dispose'
   | 'store:patch'
   | 'store:action'
-  | 'route:change';
+  | 'route:change'
+  | 'route:guard'
+  | 'component:mount'
+  | 'component:unmount'
+  | 'component:render'
+  | 'error:caught'
+  | 'measure'
+  | 'mark';
 
 /**
  * A single timeline entry.
+ *
+ * 1.14+ adds `payload` and `source` for richer inspection without breaking
+ * existing string `detail` consumers.
  */
 export interface TimelineEntry {
   /** Timestamp (ms since epoch). */
@@ -70,6 +83,12 @@ export interface TimelineEntry {
   readonly type: TimelineEventType;
   /** Human-readable description. */
   readonly detail: string;
+  /** Optional structured payload describing the event. (1.14+) */
+  readonly payload?: unknown;
+  /** Optional emitter source identifier (e.g. signal label, store id). (1.14+) */
+  readonly source?: string;
+  /** Optional duration in milliseconds, used for measurements. (1.14+) */
+  readonly duration?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -85,6 +104,13 @@ export interface DevtoolsOptions {
    * @default false
    */
   logToConsole?: boolean;
+
+  /**
+   * Maximum number of timeline entries retained before older ones are
+   * evicted (ring buffer). Pass `Infinity` to disable. (1.14+)
+   * @default 1000
+   */
+  maxTimelineEntries?: number;
 }
 
 // ---------------------------------------------------------------------------

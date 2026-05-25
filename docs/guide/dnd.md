@@ -359,10 +359,10 @@ interface DragEventData {
   element: HTMLElement;
   /** Current position (accumulated translation). */
   position: DragPosition;
-  /** Movement delta since the last pointer event. */
+  /** Movement delta since the last drag event. */
   delta: DragPosition;
-  /** The raw pointer event. */
-  event: PointerEvent;
+  /** The raw pointer or keyboard event. */
+  event: PointerEvent | KeyboardEvent;
 }
 ```
 
@@ -403,3 +403,100 @@ interface SortEventData {
 - Ghost offsets and placeholder behavior are covered by the test suite for common edge cases.
 - All handles return `destroy()` for lifecycle cleanup — call it when the component unmounts.
 - CSS classes (e.g., `bq-dragging`, `bq-drop-over`, `bq-sort-placeholder`) can be customized per instance.
+
+## Additions in 1.14.0
+
+### Programmatic API
+
+`draggable()`, `droppable()`, and `sortable()` now return richer handles
+that you can drive imperatively without rebinding listeners.
+
+```ts
+import { draggable, droppable, sortable } from '@bquery/bquery/dnd';
+
+const drag = draggable(el);
+drag.moveTo({ x: 100, y: 50 });       // move programmatically
+drag.setBounds('viewport');           // change constraints on the fly
+drag.setAxis('x');                    // lock to a single axis
+drag.reset();                         // return to origin
+const pos = drag.getPosition();
+
+const sort = sortable(list);
+sort.move(0, 3);                      // move item 0 to index 3
+sort.setOrder([2, 0, 1]);             // apply an arbitrary permutation
+const items = sort.getItems();        // current DOM order
+
+const drop = droppable(zone);
+drop.setAccept((el) => el.matches('.draggable')); // mutate the predicate
+const over = drop.isOver();
+const active = drop.getActiveDragged();
+```
+
+### Snap-to-grid, delay, and threshold
+
+```ts
+draggable(el, {
+  grid: 16,                  // square grid
+  // grid: [16, 24],         // separate horizontal/vertical steps
+  delay: 200,                // long-press before activating drag
+  touchStartThreshold: 8,    // pixels of pointer movement required first
+});
+```
+
+### Bounds shorthands
+
+`bounds` now accepts `'viewport'` and any `HTMLElement` reference in
+addition to `'parent'`, a CSS selector, and a `BoundsRect`.
+
+```ts
+draggable(el, { bounds: 'viewport' });
+draggable(el, { bounds: containerEl });
+```
+
+### Keyboard accessibility
+
+Pass `keyboard: true` to make a draggable focusable and operable by
+keyboard. Pickup announces itself via `@bquery/bquery/a11y`, and
+`aria-grabbed` is toggled on the element.
+
+```ts
+draggable(el, {
+  keyboard: true,
+  keyboardStep: 10, // pixels per arrow key (default 10)
+});
+```
+
+- `Space` / `Enter` — pick up, drop
+- Arrow keys — move
+- `Escape` — cancel and return to pickup position
+
+### Reactive composables
+
+`useDraggable`, `useDroppable`, and `useSortable` wrap their imperative
+counterparts and expose signals. When called inside an active reactive
+scope, the handle is destroyed automatically when the scope stops.
+
+```ts
+import { effectScope } from '@bquery/bquery/reactive';
+import { useDraggable, useDroppable, useSortable } from '@bquery/bquery/dnd';
+
+const scope = effectScope();
+scope.run(() => {
+  const { position, isDragging } = useDraggable(boxEl, { bounds: 'parent' });
+  const { isOver, activeDragged } = useDroppable(zoneEl, { accept: '.task' });
+  const { order } = useSortable(listEl, { items: 'li' });
+});
+scope.stop(); // releases everything
+```
+
+For raw handles created elsewhere, use the `draggablePosition()` and
+`sortableOrder()` adapters. Their listeners are removed automatically inside a
+reactive scope, and also when you call `handle.destroy()` manually:
+
+```ts
+import { draggable, draggablePosition } from '@bquery/bquery/dnd';
+
+const handle = draggable(box);
+const position = draggablePosition(box, handle);
+// position is a ReadonlySignal<DragPosition>
+```

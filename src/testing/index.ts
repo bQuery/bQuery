@@ -29,6 +29,29 @@ export {
   waitFor,
 } from './testing';
 
+// 1.14+ — Extension helpers
+export {
+  autoCleanup,
+  cleanup,
+  expectAccessible,
+  flushPromises,
+  getReactiveSummary,
+  mockComputed,
+  mockEffect,
+  mockFetch,
+  mockForm,
+  mockI18n,
+  mockStore,
+  mockWebSocket,
+  nextTick,
+  prettyDOM,
+  runScheduled,
+  screen,
+  tick,
+  userEvent,
+  within,
+} from './extensions';
+
 // Types
 export type {
   FireEventOptions,
@@ -40,3 +63,13 @@ export type {
   TestRoute,
   WaitForOptions,
 } from './types';
+
+export type {
+  AccessibilityResult,
+  MockFetchRoute,
+  MockForm,
+  MockI18n,
+  MockStore,
+  MockWebSocket,
+  Queries,
+} from './extensions';
