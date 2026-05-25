@@ -126,13 +126,11 @@ export type NavigationResult = {
    * The high-level outcome of the navigation attempt:
    * - `'completed'` — navigation finished and the URL was updated.
    * - `'canceled'` — a guard returned `false`.
-   * - `'aborted'` — the navigation was aborted (e.g. superseded by another).
-   * - `'duplicated'` — the requested path equals the current path.
    * - `'redirected'` — the navigation triggered a `redirectTo` chain;
    *   `to` reflects the final route.
    * - `'error'` — a guard, loader, or commit threw.
    */
-  status: 'completed' | 'canceled' | 'aborted' | 'duplicated' | 'redirected' | 'error';
+  status: 'completed' | 'canceled' | 'redirected' | 'error';
   /** The originally requested path. */
   requestedPath: string;
   /** Route the navigation resolved to, when applicable. */

@@ -159,5 +159,23 @@ describe('i18n 1.14.0 expansion', () => {
       // 'hello', ' ', 'world' — at least 2 non-empty pieces.
       expect(out.filter((s) => s.trim().length > 0).length).toBeGreaterThanOrEqual(2);
     });
+
+    it('falls back to Safari-safe sentence splitting without Intl.Segmenter', () => {
+      const descriptor = Object.getOwnPropertyDescriptor(Intl, 'Segmenter');
+      Object.defineProperty(Intl, 'Segmenter', {
+        value: undefined,
+        configurable: true,
+      });
+      try {
+        const out = segment('Hello world! How are you? Great.', 'en', {
+          granularity: 'sentence',
+        });
+        expect(out).toEqual(['Hello world!', 'How are you?', 'Great.']);
+      } finally {
+        if (descriptor) {
+          Object.defineProperty(Intl, 'Segmenter', descriptor);
+        }
+      }
+    });
   });
 });

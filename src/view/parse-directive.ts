@@ -5,7 +5,6 @@
  * or `bq-bind:href.eager`.
  *
  * @module bquery/view
- * @internal
  */
 
 /**

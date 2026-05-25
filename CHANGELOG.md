@@ -89,9 +89,9 @@ and this project adheres to Semantic Versioning.
 - Expanded `@bquery/bquery/server` with structured `ServerHttpError` helpers, `ctx.body()`, `ctx.cookies`, `ctx.setCookie()`, `ctx.accepts()`, `ctx.stream()`, `ctx.sse()`, `ctx.renderStream()`, `ctx.renderResponse()`, and `app.listen()` for supported runtimes.
 - **`@bquery/bquery/router`** — additive 1.14.0 expansion:
   - `NavigationResult` type with `pushResult()` and `replaceResult()`
-    methods that return rich `{ ok, aborted, redirectedTo, error }` results
-    instead of bare promises (existing `push`/`replace` continue to return
-    `Promise<void>`).
+    methods that return structured results with `status`, `requestedPath`,
+    `to`, `from`, and `error` fields instead of bare promises (existing
+    `push`/`replace` continue to return `Promise<void>`).
   - `beforeResolve(guard)` global hook fired after route matching and
     component resolution but before navigation commits.
   - `resolveRoute(input)` method for synchronous route lookup without

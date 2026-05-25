@@ -6,7 +6,7 @@
  */
 
 import { computed, type ReadonlySignal } from '../reactive/index';
-import { getActiveRouter, isNavigating } from './state';
+import { activeRouterState, isNavigating } from './state';
 import type { NavigationResult, Route } from './types';
 
 /**
@@ -51,9 +51,10 @@ export type UseNavigationReturn = {
  * Reactive composable that exposes router navigation state — useful for
  * implementing progress bars, error toasts, and navigation-blocking UI.
  *
- * All returned signals are recomputed when the active router's
- * `lastNavigation` signal updates, so they remain consistent even after the
- * active router is replaced.
+ * All returned signals are recomputed when the active router changes or when
+ * that router's `lastNavigation` signal updates, so they remain consistent
+ * even if `useNavigation()` runs before `createRouter()` or the active router
+ * is later replaced.
  *
  * @returns Reactive navigation handles.
  *
@@ -79,7 +80,7 @@ export type UseNavigationReturn = {
  */
 export const useNavigation = (): UseNavigationReturn => {
   const lastNavigation = computed<NavigationResult | null>(() => {
-    const router = getActiveRouter();
+    const router = activeRouterState.value;
     return router ? router.lastNavigation.value : null;
   });
   const to = computed<Route | null>(() => lastNavigation.value?.to ?? null);

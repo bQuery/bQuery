@@ -11,7 +11,10 @@ import type { Route, Router } from './types';
 // ============================================================================
 
 /** @internal */
-let activeRouter: Router | null = null;
+const activeRouterSignal: Signal<Router | null> = signal<Router | null>(null);
+
+/** @internal */
+export const activeRouterState: ReadonlySignal<Router | null> = readonly(activeRouterSignal);
 
 /** @internal */
 export const routeSignal: Signal<Route> = signal<Route>({
@@ -81,14 +84,15 @@ export const endNavigation = (): void => {
 
 /** @internal */
 export const resetNavigationState = (): void => {
+  activeRouterSignal.value = null;
   navigationCountSignal.value = 0;
   isNavigatingSignal.value = false;
 };
 
 /** @internal */
-export const getActiveRouter = (): Router | null => activeRouter;
+export const getActiveRouter = (): Router | null => activeRouterSignal.value;
 
 /** @internal */
 export const setActiveRouter = (router: Router | null): void => {
-  activeRouter = router;
+  activeRouterSignal.value = router;
 };

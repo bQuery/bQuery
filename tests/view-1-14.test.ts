@@ -175,6 +175,21 @@ describe('View 1.14.0 expansion', () => {
       root.remove();
     });
 
+    it('forces passive listeners off when .prevent is present', () => {
+      const root = document.createElement('div');
+      root.innerHTML =
+        '<a href="#nope" bq-on:click.prevent.passive="onClick">link</a>';
+      document.body.appendChild(root);
+      const view = mount(root, {
+        onClick: () => {},
+      });
+      const event = new MouseEvent('click', { bubbles: true, cancelable: true });
+      root.querySelector('a')!.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(true);
+      view.destroy();
+      root.remove();
+    });
+
     it('supports .once', () => {
       const root = document.createElement('div');
       root.innerHTML = '<button bq-on:click.once="onClick">x</button>';

@@ -146,8 +146,8 @@ export const _resetScrollLockForTests = (): void => {
  * frame (or `setTimeout(0)` when rAF is unavailable). Optionally selects the
  * text content of `<input>`/`<textarea>` elements.
  *
- * Honors `prefers-reduced-motion` by skipping any smooth-scroll behavior the
- * underlying element might trigger on focus.
+ * Passes `preventScroll` through to `HTMLElement.focus()` when the runtime
+ * supports focus options.
  *
  * @since 1.14.0
  *

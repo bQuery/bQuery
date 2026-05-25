@@ -181,7 +181,22 @@ export const segment = (
     return text.split(/(\s+)/).filter((s) => s !== '');
   }
   if (granularity === 'sentence') {
-    return text.split(/(?<=[.!?])\s+/);
+    const out: string[] = [];
+    let start = 0;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (char !== '.' && char !== '!' && char !== '?') continue;
+      let end = i + 1;
+      while (end < text.length && /\s/.test(text[end])) {
+        end += 1;
+      }
+      const sentence = text.slice(start, end).trim();
+      if (sentence) out.push(sentence);
+      start = end;
+    }
+    const trailing = text.slice(start).trim();
+    if (trailing) out.push(trailing);
+    return out;
   }
   return Array.from(text);
 };

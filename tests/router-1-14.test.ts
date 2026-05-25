@@ -304,6 +304,20 @@ describe('Router 1.14.0 expansion', () => {
       expect(nav.to.value?.path).toBe('/a');
     });
 
+    it('tracks the active router when created after useNavigation()', async () => {
+      const nav = useNavigation();
+      expect(nav.status.value).toBeNull();
+
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/a', component: () => 'a' },
+      ]);
+
+      await router!.push('/a');
+      expect(nav.status.value).toBe('completed');
+      expect(nav.to.value?.path).toBe('/a');
+    });
+
     it('reports error status when a navigation throws', async () => {
       setup([
         { path: '/', component: () => 'home' },

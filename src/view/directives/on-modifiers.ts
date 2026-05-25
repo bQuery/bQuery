@@ -54,7 +54,7 @@ export const handleOnWithModifiers = (
   const prevent = modifiers.has('prevent');
   const self = modifiers.has('self');
   const capture = modifiers.has('capture');
-  const passive = modifiers.has('passive');
+  const passive = modifiers.has('passive') && !prevent;
   const once = modifiers.has('once');
 
   // Collect key/button filters (everything that isn't a reserved modifier
