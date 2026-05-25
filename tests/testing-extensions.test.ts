@@ -157,6 +157,21 @@ describe('screen / within queries', () => {
     expect(within(a).queryByText('inside-b')).toBeNull();
   });
 
+  it('within() finds elements inside nested shadow roots', () => {
+    const outerHost = document.createElement('div');
+    const outerShadow = outerHost.attachShadow({ mode: 'open' });
+    const innerHost = document.createElement('section');
+    const innerShadow = innerHost.attachShadow({ mode: 'open' });
+    const label = document.createElement('span');
+    label.textContent = 'nested-shadow-text';
+
+    innerShadow.appendChild(label);
+    outerShadow.appendChild(innerHost);
+    document.body.appendChild(outerHost);
+
+    expect(within(outerHost).getByText('nested-shadow-text')).toBe(label);
+  });
+
   it('findByText resolves once content appears', async () => {
     setTimeout(() => {
       document.body.innerHTML = '<p>delayed</p>';

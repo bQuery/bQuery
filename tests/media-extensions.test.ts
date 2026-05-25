@@ -351,6 +351,29 @@ describe('media/useScroll', () => {
     handle.destroy();
     target.remove();
   });
+
+  it('computes initial arrived flags from the current scroll position', () => {
+    const target = document.createElement('div');
+    Object.defineProperties(target, {
+      scrollLeft: { configurable: true, value: 20 },
+      scrollTop: { configurable: true, value: 30 },
+      scrollWidth: { configurable: true, value: 200 },
+      scrollHeight: { configurable: true, value: 300 },
+      clientWidth: { configurable: true, value: 50 },
+      clientHeight: { configurable: true, value: 75 },
+    });
+
+    const handle = useScroll(target);
+
+    expect(handle.value.arrived).toEqual({
+      top: false,
+      bottom: false,
+      left: false,
+      right: false,
+    });
+
+    handle.destroy();
+  });
 });
 
 describe('media/useElementSize / useElementBounding / useElementVisibility', () => {

@@ -103,7 +103,7 @@ getPluginInfo('tooltip');
 
 ### Directive lifecycle objects
 
-Directives can now declare `{ mounted, updated, unmounted }` hooks and use
+Directives can now declare `{ mounted, unmounted }` hooks and use
 plugin-namespaced names like `tooltip:arrow`.
 
 ---

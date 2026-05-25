@@ -169,14 +169,31 @@ export const userEvent = {
 // ---------------------------------------------------------------------------
 
 const collectShadowRoots = (root: ParentNode): ParentNode[] => {
-  const result: ParentNode[] = [root];
-  const walker = (root as Document | Element).querySelectorAll?.('*');
-  if (!walker) return result;
-  for (const el of walker) {
-    if ((el as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot) {
-      result.push((el as Element & { shadowRoot: ShadowRoot }).shadowRoot);
+  const result: ParentNode[] = [];
+  const queue: ParentNode[] = [root];
+  const seen = new Set<ParentNode>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current || seen.has(current)) continue;
+    seen.add(current);
+    result.push(current);
+
+    const currentShadowRoot = (current as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+    if (currentShadowRoot) {
+      queue.push(currentShadowRoot);
+    }
+
+    const descendants = (current as Document | Element).querySelectorAll?.('*');
+    if (!descendants) continue;
+    for (const el of descendants) {
+      const shadowRoot = (el as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot;
+      if (shadowRoot) {
+        queue.push(shadowRoot);
+      }
     }
   }
+
   return result;
 };
 

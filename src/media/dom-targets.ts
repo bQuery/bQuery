@@ -37,6 +37,21 @@ const getScrollSize = (target: ScrollTarget): { sw: number; sh: number; cw: numb
   return { sw: el.scrollWidth, sh: el.scrollHeight, cw: el.clientWidth, ch: el.clientHeight };
 };
 
+const getArrivedState = (
+  target: ScrollTarget,
+  x: number,
+  y: number,
+  tolerance: number
+): ScrollState['arrived'] => {
+  const { sw, sh, cw, ch } = getScrollSize(target);
+  return {
+    top: y <= tolerance,
+    bottom: y + ch >= sh - tolerance,
+    left: x <= tolerance,
+    right: x + cw >= sw - tolerance,
+  };
+};
+
 /**
  * State exposed by {@link useScroll}.
  */
@@ -83,7 +98,7 @@ export const useScroll = (
     directionX: 0,
     directionY: 0,
     isScrolling: false,
-    arrived: { top: true, bottom: false, left: true, right: false },
+    arrived: getArrivedState(target, getScrollX(target), getScrollY(target), tolerance),
   };
 
   return createMediaSignal<ScrollState>(
@@ -97,7 +112,6 @@ export const useScroll = (
       const update = (): void => {
         const x = getScrollX(target);
         const y = getScrollY(target);
-        const { sw, sh, cw, ch } = getScrollSize(target);
 
         const dx = x === lastX ? 0 : x > lastX ? 1 : -1;
         const dy = y === lastY ? 0 : y > lastY ? 1 : -1;
@@ -108,12 +122,7 @@ export const useScroll = (
           directionX: dx,
           directionY: dy,
           isScrolling: true,
-          arrived: {
-            top: y <= tolerance,
-            bottom: y + ch >= sh - tolerance,
-            left: x <= tolerance,
-            right: x + cw >= sw - tolerance,
-          },
+          arrived: getArrivedState(target, x, y, tolerance),
         });
 
         lastX = x;
@@ -127,12 +136,7 @@ export const useScroll = (
             directionX: 0,
             directionY: 0,
             isScrolling: false,
-            arrived: {
-              top: y <= tolerance,
-              bottom: y + ch >= sh - tolerance,
-              left: x <= tolerance,
-              right: x + cw >= sw - tolerance,
-            },
+            arrived: getArrivedState(target, x, y, tolerance),
           });
         }, idleTimeoutMs);
       };
