@@ -18,7 +18,7 @@
  */
 
 import { computed, effect, signal, type Signal } from '../reactive/index';
-import { fireEvent, flushEffects } from './testing';
+import { __setRenderComponentTracker, fireEvent, flushEffects } from './testing';
 
 // ---------------------------------------------------------------------------
 // Auto cleanup
@@ -32,6 +32,8 @@ const pendingMounts: Cleanable[] = [];
 export const __trackMount = (result: Cleanable): void => {
   pendingMounts.push(result);
 };
+
+__setRenderComponentTracker(__trackMount);
 
 /**
  * Unmount every render result tracked since the last {@link cleanup} call.

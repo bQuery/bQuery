@@ -22,6 +22,15 @@ import type {
   WaitForOptions,
 } from './types';
 
+let renderComponentTracker: ((result: RenderResult) => void) | undefined;
+
+/** @internal */
+export const __setRenderComponentTracker = (
+  tracker?: (result: RenderResult) => void
+): void => {
+  renderComponentTracker = tracker;
+};
+
 // ============================================================================
 // renderComponent
 // ============================================================================
@@ -157,7 +166,9 @@ export function renderComponent(
     }
   };
 
-  return { el, unmount };
+  const result = { el, unmount };
+  renderComponentTracker?.(result);
+  return result;
 }
 
 // ============================================================================
@@ -514,7 +525,11 @@ export function mockRouter(options: MockRouterOptions = {}): MockRouter {
  * expect(clicked).toBe(true);
  * ```
  */
-export function fireEvent(el: Element, eventName: string, options: FireEventOptions = {}): boolean {
+const baseFireEvent = (
+  el: Element,
+  eventName: string,
+  options: FireEventOptions = {}
+): boolean => {
   if (!el) {
     throw new Error('bQuery testing: fireEvent requires a valid element');
   }
@@ -537,7 +552,7 @@ export function fireEvent(el: Element, eventName: string, options: FireEventOpti
   flushEffects();
 
   return result;
-}
+};
 
 const dispatchShortcutEvent = (el: Element, event: Event): boolean => {
   const result = el.dispatchEvent(event);
@@ -579,36 +594,31 @@ interface FireEventShortcuts {
 }
 
 const shortcuts: FireEventShortcuts = {
-  click: (el) => fireEvent(el, 'click'),
-  dblClick: (el) => fireEvent(el, 'dblclick'),
+  click: (el) => baseFireEvent(el, 'click'),
+  dblClick: (el) => baseFireEvent(el, 'dblclick'),
   input: (el, value) => {
     setInputValue(el, value);
-    return fireEvent(el, 'input');
+    return baseFireEvent(el, 'input');
   },
   change: (el, value) => {
     setInputValue(el, value);
-    return fireEvent(el, 'change');
+    return baseFireEvent(el, 'change');
   },
-  submit: (el) => fireEvent(el, 'submit'),
-  focus: (el) => fireEvent(el, 'focus'),
-  blur: (el) => fireEvent(el, 'blur'),
+  submit: (el) => baseFireEvent(el, 'submit'),
+  focus: (el) => baseFireEvent(el, 'focus'),
+  blur: (el) => baseFireEvent(el, 'blur'),
   keyDown: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keydown', init)),
   keyUp: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keyup', init)),
 };
 
-// Augment the exported function type so TypeScript callers see the shortcuts.
-// eslint-disable-next-line @typescript-eslint/no-namespace
-export namespace fireEvent {
-  export const click: (el: Element) => boolean = shortcuts.click;
-  export const dblClick: (el: Element) => boolean = shortcuts.dblClick;
-  export const input: (el: Element, value: string) => boolean = shortcuts.input;
-  export const change: (el: Element, value: string) => boolean = shortcuts.change;
-  export const submit: (el: Element) => boolean = shortcuts.submit;
-  export const focus: (el: Element) => boolean = shortcuts.focus;
-  export const blur: (el: Element) => boolean = shortcuts.blur;
-  export const keyDown: (el: Element, init?: KeyboardEventInit) => boolean = shortcuts.keyDown;
-  export const keyUp: (el: Element, init?: KeyboardEventInit) => boolean = shortcuts.keyUp;
-}
+type FireEventFn = ((
+  el: Element,
+  eventName: string,
+  options?: FireEventOptions
+) => boolean) &
+  FireEventShortcuts;
+
+export const fireEvent: FireEventFn = Object.assign(baseFireEvent, shortcuts);
 
 // ============================================================================
 // waitFor

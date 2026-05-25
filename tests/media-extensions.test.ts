@@ -229,6 +229,31 @@ describe('media/useWakeLock', () => {
     }
     handle.destroy();
   });
+
+  it('removes the abort listener when destroyed manually', () => {
+    const ctrl = new AbortController();
+    const originalRemove = AbortSignal.prototype.removeEventListener;
+    let removed = 0;
+
+    AbortSignal.prototype.removeEventListener = function (
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: EventListenerOptions | boolean
+    ): void {
+      if (this === ctrl.signal && type === 'abort') {
+        removed++;
+      }
+      return originalRemove.call(this, type, listener, options);
+    };
+
+    try {
+      const handle = useWakeLock({ signal: ctrl.signal });
+      handle.destroy();
+      expect(removed).toBe(1);
+    } finally {
+      AbortSignal.prototype.removeEventListener = originalRemove;
+    }
+  });
 });
 
 describe('media/useShare', () => {
@@ -283,6 +308,31 @@ describe('media/useEventListener', () => {
     ctrl.abort();
     window.dispatchEvent(new Event('resize'));
     expect(count).toBe(1);
+  });
+
+  it('removes the abort listener when stopped manually', () => {
+    const ctrl = new AbortController();
+    const originalRemove = AbortSignal.prototype.removeEventListener;
+    let removed = 0;
+
+    AbortSignal.prototype.removeEventListener = function (
+      type: string,
+      listener: EventListenerOrEventListenerObject | null,
+      options?: EventListenerOptions | boolean
+    ): void {
+      if (this === ctrl.signal && type === 'abort') {
+        removed++;
+      }
+      return originalRemove.call(this, type, listener, options);
+    };
+
+    try {
+      const stop = useEventListener(window, 'resize', () => undefined, { signal: ctrl.signal });
+      stop();
+      expect(removed).toBe(1);
+    } finally {
+      AbortSignal.prototype.removeEventListener = originalRemove;
+    }
   });
 });
 

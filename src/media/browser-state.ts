@@ -313,9 +313,19 @@ export const useWakeLock = (options?: AbortableOptions): WakeLockHandle => {
 
   let sentinel: WakeLockSentinelLike | undefined;
   let onRelease: (() => void) | undefined;
+  let abortSignal: AbortSignal | undefined;
+  let onAbort: (() => void) | undefined;
   let destroyed = false;
 
   const active = createWritableMediaSignal<boolean>(false);
+
+  const clearAbortListener = (): void => {
+    if (abortSignal && onAbort) {
+      abortSignal.removeEventListener('abort', onAbort);
+    }
+    abortSignal = undefined;
+    onAbort = undefined;
+  };
 
   const request = async (type: 'screen' = 'screen'): Promise<void> => {
     if (destroyed) return;
@@ -344,13 +354,20 @@ export const useWakeLock = (options?: AbortableOptions): WakeLockHandle => {
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
+    clearAbortListener();
     void release();
     active.destroy();
   };
 
   if (options?.signal) {
-    if (options.signal.aborted) destroy();
-    else options.signal.addEventListener('abort', destroy, { once: true });
+    abortSignal = options.signal;
+    if (abortSignal.aborted) destroy();
+    else {
+      onAbort = (): void => {
+        destroy();
+      };
+      abortSignal.addEventListener('abort', onAbort, { once: true });
+    }
   }
 
   return {
@@ -521,17 +538,27 @@ export function useEventListener(
   }
   const { signal: abort, ...listenerOptions } = options ?? {};
   let removed = false;
+  let onAbort: (() => void) | undefined;
 
   target.addEventListener(event, handler, listenerOptions);
   const remove = (): void => {
     if (removed) return;
     removed = true;
     target.removeEventListener(event, handler, listenerOptions);
+    if (abort && onAbort) {
+      abort.removeEventListener('abort', onAbort);
+    }
+    onAbort = undefined;
   };
 
   if (abort) {
     if (abort.aborted) remove();
-    else abort.addEventListener('abort', remove, { once: true });
+    else {
+      onAbort = (): void => {
+        remove();
+      };
+      abort.addEventListener('abort', onAbort, { once: true });
+    }
   }
   return remove;
 }

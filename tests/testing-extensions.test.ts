@@ -229,6 +229,26 @@ describe('cleanup()', () => {
   it('is idempotent when nothing is pending', () => {
     expect(() => cleanup()).not.toThrow();
   });
+
+  it('unmounts tracked renderComponent results', () => {
+    if (!customElements.get('test-extx-cleanup')) {
+      customElements.define(
+        'test-extx-cleanup',
+        class extends HTMLElement {
+          connectedCallback(): void {
+            this.textContent = 'cleanup-target';
+          }
+        }
+      );
+    }
+
+    const result = renderComponent('test-extx-cleanup');
+    expect(document.body.contains(result.el)).toBe(true);
+
+    cleanup();
+
+    expect(document.body.contains(result.el)).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
