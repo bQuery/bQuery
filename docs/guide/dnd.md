@@ -415,7 +415,7 @@ that you can drive imperatively without rebinding listeners.
 import { draggable, droppable, sortable } from '@bquery/bquery/dnd';
 
 const drag = draggable(el);
-drag.moveTo({ x: 100, y: 50 });       // animate programmatically
+drag.moveTo({ x: 100, y: 50 });       // move programmatically
 drag.setBounds('viewport');           // change constraints on the fly
 drag.setAxis('x');                    // lock to a single axis
 drag.reset();                         // return to origin

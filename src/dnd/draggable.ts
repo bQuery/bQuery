@@ -66,7 +66,7 @@ const resolveBounds = (el: HTMLElement, bounds: DragBounds): BoundsRect | null =
     };
   } else if (typeof bounds === 'string') {
     target = document.querySelector(bounds) as HTMLElement | null;
-  } else if (bounds instanceof HTMLElement) {
+  } else if (typeof HTMLElement !== 'undefined' && bounds instanceof HTMLElement) {
     target = bounds;
   }
 
@@ -399,6 +399,7 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
 
   const onKeyDown = (e: KeyboardEvent): void => {
     if (!enabled || !keyboard) return;
+    if (isDragging || pendingPointer) return;
 
     const isPickupKey = e.key === ' ' || e.key === 'Enter';
     const isCancelKey = e.key === 'Escape';

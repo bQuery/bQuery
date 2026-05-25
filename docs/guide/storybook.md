@@ -229,25 +229,28 @@ community examples translate one-to-one.
 
 ### `classMap` and `styleMap`
 
-Build `class` and `style` attribute values from plain objects:
+Build `class` attribute values from plain objects. `styleMap` still returns a
+CSS declaration string, but `storyHtml` sanitizes inline `style=""`
+attributes, so prefer classes or CSS custom properties in story markup:
 
 ```ts
-import { classMap, storyHtml, styleMap } from '@bquery/bquery/storybook';
+import { classMap, storyHtml } from '@bquery/bquery/storybook';
 
 export const Card = {
-  args: { primary: true, disabled: false, color: 'red' },
-  render: ({ primary, disabled, color }) => storyHtml`
+  args: { primary: true, disabled: false, tone: 'danger' },
+  render: ({ primary, disabled, tone }) => storyHtml`
     <ui-card
       class="${classMap({ primary, disabled })}"
-      style="${styleMap({ backgroundColor: color, padding: '1rem' })}"
+      data-tone="${tone}"
     ></ui-card>
   `,
 };
 ```
 
-`classMap` joins truthy keys with a single space. `styleMap` produces a
-semicolon-separated declaration list and converts camelCase property
-names to hyphen-case automatically.
+`classMap` joins truthy keys with a single space. `styleMap` is still useful
+when another API expects a CSS text string, but interpolating it into
+`storyHtml` `style=""` attributes will be sanitized away unless you opt into a
+trusted `unsafeHtml(...)` escape hatch yourself.
 
 ### `ifDefined`
 

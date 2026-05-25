@@ -1197,6 +1197,27 @@ describe('dnd/draggable bounds variants', () => {
     bounder.remove();
   });
 
+  it('does not throw for element bounds when HTMLElement is unavailable', () => {
+    const originalHTMLElementDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'HTMLElement');
+
+    try {
+      Object.defineProperty(globalThis, 'HTMLElement', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+
+      const handle = draggable(box, { bounds: box });
+      expect(() => handle.moveTo({ x: 10, y: 15 })).not.toThrow();
+      expect(handle.getPosition()).toEqual({ x: 10, y: 15 });
+      handle.destroy();
+    } finally {
+      if (originalHTMLElementDescriptor) {
+        Object.defineProperty(globalThis, 'HTMLElement', originalHTMLElementDescriptor);
+      }
+    }
+  });
+
   it("accepts 'viewport' as a bounds shorthand", () => {
     setZoneRect(box, { left: 50, top: 50, right: 150, bottom: 150 });
     const handle = draggable(box, { bounds: 'viewport' });

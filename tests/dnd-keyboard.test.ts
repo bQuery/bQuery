@@ -10,6 +10,23 @@ const fireKey = (el: HTMLElement, key: string): KeyboardEvent => {
   return event;
 };
 
+const firePointerEvent = (
+  target: EventTarget,
+  type: string,
+  options: Partial<PointerEventInit> = {}
+): PointerEvent => {
+  const event = new PointerEvent(type, {
+    bubbles: true,
+    cancelable: true,
+    pointerId: 1,
+    clientX: 0,
+    clientY: 0,
+    ...options,
+  });
+  target.dispatchEvent(event);
+  return event;
+};
+
 describe('dnd/draggable keyboard support', () => {
   let box: HTMLElement;
 
@@ -122,6 +139,33 @@ describe('dnd/draggable keyboard support', () => {
     fireKey(box, 'ArrowRight');
     // 7 snaps to nearest multiple of 5 → 5.
     expect(handle.getPosition().x).toBe(5);
+    handle.destroy();
+  });
+
+  it('ignores keyboard pickup while a pointer drag is active or pending', () => {
+    let startCount = 0;
+    const handle = draggable(box, {
+      keyboard: true,
+      touchStartThreshold: 10,
+      onDragStart: () => {
+        startCount += 1;
+      },
+    });
+
+    firePointerEvent(box, 'pointerdown', { clientX: 0, clientY: 0 });
+    fireKey(box, ' ');
+    fireKey(box, 'ArrowRight');
+    expect(startCount).toBe(0);
+    expect(handle.getPosition()).toEqual({ x: 0, y: 0 });
+
+    firePointerEvent(box, 'pointermove', { clientX: 20, clientY: 0 });
+    expect(startCount).toBe(1);
+    fireKey(box, ' ');
+    fireKey(box, 'ArrowRight');
+    expect(startCount).toBe(1);
+    expect(handle.getPosition()).toEqual({ x: 20, y: 0 });
+
+    firePointerEvent(box, 'pointerup', { clientX: 20, clientY: 0 });
     handle.destroy();
   });
 });
