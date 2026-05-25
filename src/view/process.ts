@@ -35,18 +35,18 @@ export const processElement = (
   cleanups: CleanupFn[],
   handlers: DirectiveHandlers
 ): boolean => {
+  // bq-cloak: remove the marker once mount reaches the element. Authors use
+  // `[bq-cloak] { display: none }` to hide pre-hydration markup.
+  if (el.hasAttribute(`${prefix}-cloak`)) {
+    el.removeAttribute(`${prefix}-cloak`);
+  }
+
   // bq-pre: skip directive processing entirely for this element and its
   // descendants. Honor it before reading any other attributes so the marker
   // remains an escape hatch with predictable semantics.
   if (el.hasAttribute(`${prefix}-pre`)) {
     el.removeAttribute(`${prefix}-pre`);
     return false;
-  }
-
-  // bq-cloak: remove the marker once mount reaches the element. Authors use
-  // `[bq-cloak] { display: none }` to hide pre-hydration markup.
-  if (el.hasAttribute(`${prefix}-cloak`)) {
-    el.removeAttribute(`${prefix}-cloak`);
   }
 
   const attributes = Array.from(el.attributes);

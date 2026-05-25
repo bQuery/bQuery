@@ -111,6 +111,12 @@ describe('i18n 1.14.0 expansion', () => {
 
       try {
         expect(isRTL('uz-Arab')).toBe(true);
+        expect(isRTL('ks-Arab')).toBe(true);
+        expect(isRTL('ku-Arab')).toBe(true);
+        expect(isRTL('ha-Arab')).toBe(true);
+        expect(isRTL('ks')).toBe(false);
+        expect(isRTL('ku')).toBe(false);
+        expect(isRTL('ha')).toBe(false);
         expect(isRTL('en-Latn')).toBe(false);
       } finally {
         if (descriptor) {

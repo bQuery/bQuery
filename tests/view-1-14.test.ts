@@ -103,6 +103,24 @@ describe('View 1.14.0 expansion', () => {
       view.destroy();
       root.remove();
     });
+
+    it('removes bq-cloak before skipping a bq-pre root subtree', () => {
+      const root = document.createElement('div');
+      root.setAttribute('bq-pre', '');
+      root.setAttribute('bq-cloak', '');
+      root.innerHTML = '<span bq-text="inner">literal</span>';
+      document.body.appendChild(root);
+      const view = mount(root, {
+        inner: signal('INNER'),
+      });
+      const innerSpan = root.querySelector('span')!;
+      expect(root.hasAttribute('bq-pre')).toBe(false);
+      expect(root.hasAttribute('bq-cloak')).toBe(false);
+      expect(innerSpan.textContent).toBe('literal');
+      expect(innerSpan.hasAttribute('bq-text')).toBe(true);
+      view.destroy();
+      root.remove();
+    });
   });
 
   describe('bq-once', () => {
