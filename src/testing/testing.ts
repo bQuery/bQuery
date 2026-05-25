@@ -525,14 +525,18 @@ export function mockRouter(options: MockRouterOptions = {}): MockRouter {
  * expect(clicked).toBe(true);
  * ```
  */
+const assertFireEventElement = (el: Element): void => {
+  if (!el) {
+    throw new Error('bQuery testing: fireEvent requires a valid element');
+  }
+};
+
 const baseFireEvent = (
   el: Element,
   eventName: string,
   options: FireEventOptions = {}
 ): boolean => {
-  if (!el) {
-    throw new Error('bQuery testing: fireEvent requires a valid element');
-  }
+  assertFireEventElement(el);
   if (!eventName) {
     throw new Error('bQuery testing: fireEvent requires an event name');
   }
@@ -555,6 +559,7 @@ const baseFireEvent = (
 };
 
 const dispatchShortcutEvent = (el: Element, event: Event): boolean => {
+  assertFireEventElement(el);
   const result = el.dispatchEvent(event);
   flushEffects();
   return result;
@@ -577,6 +582,7 @@ const createKeyboardShortcutEvent = (
 
 // Attach shortcut methods (1.14+) so callers can use `fireEvent.click(el)`,
 // `fireEvent.input(el, 'value')`, etc.
+/** @internal */
 export const __getTextInputElement = (
   el: Element
 ): HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement => {

@@ -16,6 +16,7 @@ import type {
   TimelineEntry,
   TimelineEventType,
 } from './types';
+import { __setEffectInspectionEnabled } from '../reactive/effect';
 import { listStores as _listStores, getStore as _getStore } from '../store/registry';
 
 // ---------------------------------------------------------------------------
@@ -54,6 +55,7 @@ let _signalCounter = 0;
 export const enableDevtools = (enabled: boolean, options?: DevtoolsOptions): void => {
   _enabled = enabled;
   _options = options ?? {};
+  __setEffectInspectionEnabled(enabled);
 
   if (!enabled) {
     _timeline.length = 0;

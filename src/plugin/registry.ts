@@ -78,7 +78,7 @@ const restoreDirectiveSnapshot = (
 // Directive name validation
 // ---------------------------------------------------------------------------
 
-const DIRECTIVE_NAME_RE = /^[A-Za-z_][\w-]*(?::[A-Za-z_][\w-]*)?$/;
+const DIRECTIVE_NAME_RE = /^[a-z_][a-z0-9_-]*(?::[a-z_][a-z0-9_-]*)?$/;
 
 const normaliseDirectiveValue = (
   name: string,

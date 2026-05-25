@@ -355,7 +355,7 @@ export const useWakeLock = (options?: AbortableOptions): WakeLockHandle => {
     if (destroyed) return;
     destroyed = true;
     clearAbortListener();
-    void release();
+    void release().catch(() => undefined);
     active.destroy();
   };
 

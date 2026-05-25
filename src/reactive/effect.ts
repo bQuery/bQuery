@@ -12,10 +12,17 @@ export interface EffectInspectionSnapshot {
 }
 
 const trackedEffects = new Map<symbol, EffectInspectionSnapshot>();
+let effectInspectionEnabled = false;
 
 /** @internal */
 export const __inspectTrackedEffects = (): EffectInspectionSnapshot[] => {
   return [...trackedEffects.values()];
+};
+
+/** @internal */
+export const __setEffectInspectionEnabled = (enabled: boolean): void => {
+  effectInspectionEnabled = enabled;
+  if (!enabled) trackedEffects.clear();
 };
 
 /**
@@ -36,7 +43,9 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
   const scope = getActiveScope();
   const effectId = Symbol('bquery.effect');
 
-  trackedEffects.set(effectId, { runs: 0, disposed: false });
+  if (effectInspectionEnabled) {
+    trackedEffects.set(effectId, { runs: 0, disposed: false });
+  }
 
   const runCleanup = (): void => {
     if (cleanupFn) {
@@ -72,9 +81,12 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
   const observer: Observer = () => {
     if (isDisposed) return;
 
-    const snapshot = trackedEffects.get(effectId);
-    if (snapshot) {
-      trackedEffects.set(effectId, { ...snapshot, runs: snapshot.runs + 1 });
+    if (effectInspectionEnabled) {
+      const snapshot = trackedEffects.get(effectId);
+      trackedEffects.set(
+        effectId,
+        snapshot ? { ...snapshot, runs: snapshot.runs + 1, disposed: false } : { runs: 1, disposed: false }
+      );
     }
 
     runCleanup();

@@ -254,6 +254,47 @@ describe('media/useWakeLock', () => {
       AbortSignal.prototype.removeEventListener = originalRemove;
     }
   });
+
+  it('swallows release errors during destroy()', async () => {
+    const originalNavigator = globalThis.navigator;
+    const hadNavigator = Object.prototype.hasOwnProperty.call(globalThis, 'navigator');
+    let releaseCalls = 0;
+
+    try {
+      Object.defineProperty(globalThis, 'navigator', {
+        configurable: true,
+        value: {
+          wakeLock: {
+            request: async () => ({
+              released: false,
+              release: async () => {
+                releaseCalls++;
+                throw new Error('release failed');
+              },
+              addEventListener: () => undefined,
+              removeEventListener: () => undefined,
+            }),
+          },
+        },
+      });
+
+      const handle = useWakeLock();
+      await handle.request();
+
+      expect(() => handle.destroy()).not.toThrow();
+      await Promise.resolve();
+      expect(releaseCalls).toBe(1);
+    } finally {
+      if (hadNavigator) {
+        Object.defineProperty(globalThis, 'navigator', {
+          configurable: true,
+          value: originalNavigator,
+        });
+      } else {
+        Reflect.deleteProperty(globalThis, 'navigator');
+      }
+    }
+  });
 });
 
 describe('media/useShare', () => {

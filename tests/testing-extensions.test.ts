@@ -83,6 +83,11 @@ describe('fireEvent shortcuts', () => {
     expect((receivedEvent as KeyboardEvent | null)?.code).toBe('Enter');
   });
 
+  it('fireEvent keyboard shortcuts validate the target element', () => {
+    expect(() => fireEvent.keyDown(null as unknown as Element)).toThrow('requires a valid element');
+    expect(() => fireEvent.keyUp(null as unknown as Element)).toThrow('requires a valid element');
+  });
+
   it('fireEvent.submit dispatches a submit event', () => {
     const form = document.createElement('form');
     let submitted = false;

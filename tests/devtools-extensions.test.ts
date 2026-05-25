@@ -202,6 +202,25 @@ describe('devtools/inspectEffects', () => {
 
     count.dispose();
   });
+
+  it('only tracks effects while devtools are enabled', () => {
+    enableDevtools(false);
+
+    const count = signal(0);
+    const dispose = effect(() => {
+      void count.value;
+    });
+
+    expect(inspectEffects()).toEqual([]);
+
+    enableDevtools(true);
+    count.value = 1;
+
+    expect(inspectEffects()).toMatchObject([{ runs: 1, disposed: false }]);
+
+    dispose();
+    count.dispose();
+  });
 });
 
 // ---------------------------------------------------------------------------
