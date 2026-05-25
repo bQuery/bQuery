@@ -95,7 +95,11 @@ export const scrollLock = (): DisposableHandle => {
     savedBodyOverflow = document.body.style.overflow || null;
     savedBodyPaddingRight = document.body.style.paddingRight || null;
     // Compensate for the disappearing scrollbar so the layout doesn't shift.
-    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
+    const viewportWidth =
+      typeof window === 'undefined' || typeof window.innerWidth !== 'number'
+        ? document.documentElement.clientWidth
+        : window.innerWidth;
+    const scrollbar = viewportWidth - document.documentElement.clientWidth;
     if (scrollbar > 0) {
       document.body.style.paddingRight = `${scrollbar}px`;
     }

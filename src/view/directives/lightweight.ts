@@ -58,8 +58,8 @@ export const handleHtmlSafe: DirectiveHandler = (el, expression, context, cleanu
  * @since 1.14.0
  */
 export const handleMemo: DirectiveHandler = (_el, expression, context) => {
-  // Evaluate once so authors get an immediate failure for malformed
-  // expressions, but do not subscribe — the directive's reactive contract
+  // Evaluate once so malformed expressions surface a logged runtime error
+  // during mount, but do not subscribe — the directive's reactive contract
   // is handled by the surrounding directive (e.g. bq-for keying).
   evaluate(expression, context);
 };

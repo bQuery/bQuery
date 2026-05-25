@@ -170,6 +170,28 @@ describe('A11y 1.14.0 expansion', () => {
       h.release(); // should not throw or leak ref count
       expect(document.body.style.overflow).not.toBe('hidden');
     });
+
+    it('gracefully handles missing window while document is available', () => {
+      const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+      try {
+        Object.defineProperty(globalThis, 'window', {
+          configurable: true,
+          writable: true,
+          value: undefined,
+        });
+
+        const handle = scrollLock();
+        expect(document.documentElement.style.overflow).toBe('hidden');
+        expect(document.body.style.overflow).toBe('hidden');
+        handle.release();
+        expect(document.documentElement.style.overflow).not.toBe('hidden');
+      } finally {
+        if (originalWindowDescriptor) {
+          Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+        }
+      }
+    });
   });
 
   describe('autoFocus', () => {
