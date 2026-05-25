@@ -5,7 +5,9 @@
 
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { readonly, signal, type ReadonlySignal, type Signal } from '../reactive/index';
+import { getRouteConstraintRegex } from './constraints';
 import { createRoute } from './match';
+import { isParamChar, isParamStart, readConstraint } from './path-pattern';
 import {
   beginNavigation,
   currentRoute,
@@ -25,7 +27,7 @@ import type {
   Router,
   RouterOptions,
 } from './types';
-import { flattenRoutes, resolve as resolveByName } from './utils';
+import { flattenRoutes } from './utils';
 
 // ============================================================================
 // Router Creation
@@ -55,6 +57,60 @@ const sanitizeHistoryState = (state: Record<string, unknown>): Record<string, un
   }
 
   return sanitized;
+};
+
+const resolveNamedRoutePath = (
+  routes: RouteDefinition[],
+  name: string,
+  params: Record<string, string> = {}
+): string => {
+  const route = routes.find((candidate) => candidate.name === name);
+  if (!route) {
+    throw new Error(`bQuery router: Route "${name}" not found.`);
+  }
+
+  let path = '';
+  for (let i = 0; i < route.path.length; ) {
+    if (route.path[i] === ':' && isParamStart(route.path[i + 1])) {
+      let nameEnd = i + 2;
+      while (nameEnd < route.path.length && isParamChar(route.path[nameEnd])) {
+        nameEnd++;
+      }
+
+      let nextIndex = nameEnd;
+      let constraint: string | null = null;
+      if (route.path[nameEnd] === '(') {
+        const parsedConstraint = readConstraint(route.path, nameEnd);
+        if (!parsedConstraint) {
+          throw new Error(
+            `bQuery router: Invalid constraint syntax in path "${route.path}" for route "${name}".`
+          );
+        }
+        constraint = parsedConstraint.constraint;
+        nextIndex = parsedConstraint.endIndex;
+      }
+
+      const key = route.path.slice(i + 1, nameEnd);
+      const value = params[key];
+      if (value === undefined) {
+        throw new Error(`bQuery router: Missing required param "${key}" for route "${name}".`);
+      }
+      if (constraint && !getRouteConstraintRegex(constraint).test(value)) {
+        throw new Error(
+          `bQuery router: Param "${key}" with value "${value}" does not satisfy the route constraint "${constraint}" for route "${name}".`
+        );
+      }
+
+      path += encodeURIComponent(value);
+      i = nextIndex;
+      continue;
+    }
+
+    path += route.path[i];
+    i++;
+  }
+
+  return path;
 };
 
 /**
@@ -535,7 +591,7 @@ export const createRouter = (options: RouterOptions): Router => {
       searchStr = input.query === undefined ? (url.search ?? '') : buildSearchString(input.query);
       hashPart = input.hash === undefined ? (url.hash ?? '') : normalizeHash(input.hash);
     } else if (input.name !== undefined) {
-      pathOnly = resolveByName(input.name, input.params ?? {});
+      pathOnly = resolveNamedRoutePath(flatRoutes, input.name, input.params ?? {});
       searchStr = buildSearchString(input.query);
       hashPart = normalizeHash(input.hash);
     } else {
@@ -572,10 +628,11 @@ export const createRouter = (options: RouterOptions): Router => {
   const hasRoute = (name: string): boolean => findRouteByName(rootRoutes, name).parent !== null;
 
   const addRoute = (parentName: string | undefined, route: RouteDefinition): void => {
+    const nextRoute = cloneRouteDefinition(route);
     // Replace any existing entry with the same name first.
-    if (route.name) removeRoute(route.name);
+    if (nextRoute.name) removeRoute(nextRoute.name);
     if (parentName === undefined) {
-      rootRoutes.push(route);
+      rootRoutes.push(nextRoute);
     } else {
       const found = findRouteByName(rootRoutes, parentName);
       if (!found.parent) {
@@ -585,9 +642,9 @@ export const createRouter = (options: RouterOptions): Router => {
         children?: RouteDefinition[];
       };
       if (!parent.children) {
-        (parent as { children?: RouteDefinition[] }).children = [route];
+        (parent as { children?: RouteDefinition[] }).children = [nextRoute];
       } else {
-        parent.children.push(route);
+        parent.children.push(nextRoute);
       }
     }
     rebuildFlatRoutes();

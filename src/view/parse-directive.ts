@@ -7,6 +7,8 @@
  * @module bquery/view
  */
 
+import { isPrototypePollutionKey } from '../core/utils/object';
+
 /**
  * Parsed form of a directive attribute name.
  *
@@ -66,15 +68,17 @@ export const parseDirective = (name: string): ParsedDirective => {
   }
 
   const modifiers = new Set<string>();
-  const modParams: Record<string, string> = {};
+  const modParams = Object.create(null) as Record<string, string>;
   for (const mod of modifierParts) {
     const dashIdx = mod.indexOf('-');
     if (dashIdx === -1) {
-      modifiers.add(mod);
+      if (!isPrototypePollutionKey(mod)) {
+        modifiers.add(mod);
+      }
     } else {
       const key = mod.slice(0, dashIdx);
       const value = mod.slice(dashIdx + 1);
-      if (key) {
+      if (key && !isPrototypePollutionKey(key)) {
         modifiers.add(key);
         modParams[key] = value;
       }

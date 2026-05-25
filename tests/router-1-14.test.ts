@@ -239,6 +239,32 @@ describe('Router 1.14.0 expansion', () => {
       expect(info.matched?.name).toBe('user');
     });
 
+    it('resolves named routes against the router instance rather than the active router', () => {
+      const firstHistory = setupMockHistory('/');
+      const firstRouter = createRouter({
+        routes: [
+          { path: '/', component: () => 'home' },
+          { path: '/users/:id', name: 'user', component: () => 'user' },
+        ],
+      });
+      const secondHistory = setupMockHistory('/');
+      const secondRouter = createRouter({
+        routes: [
+          { path: '/', component: () => 'home' },
+          { path: '/projects/:slug', name: 'project', component: () => 'project' },
+        ],
+      });
+
+      const info = firstRouter.resolveRoute({ name: 'user', params: { id: '42' } });
+
+      expect(info.path).toBe('/users/42');
+      expect(info.matched?.name).toBe('user');
+
+      secondRouter.destroy();
+      secondHistory.restore();
+      firstHistory.restore();
+    });
+
     it('throws when given neither name nor path', () => {
       setup([{ path: '/', component: () => 'home' }]);
       expect(() => router!.resolveRoute({})).toThrow();
@@ -300,6 +326,25 @@ describe('Router 1.14.0 expansion', () => {
       });
 
       expect(routes[0]?.children?.map((route) => route.name)).toEqual(['existing']);
+    });
+
+    it('clones routes passed to addRoute before mutating them later', () => {
+      setup([{ path: '/', component: () => 'home' }]);
+      const parentRoute: RouteDefinition = {
+        path: '/parent',
+        name: 'parent',
+        component: () => 'parent',
+        children: [{ path: '/existing', name: 'existing', component: () => 'existing' }],
+      };
+
+      router!.addRoute(undefined, parentRoute);
+      router!.addRoute('parent', {
+        path: '/child',
+        name: 'child',
+        component: () => 'child',
+      });
+
+      expect(parentRoute.children?.map((route) => route.name)).toEqual(['existing']);
     });
 
     it('addRoute throws for an unknown parent', () => {

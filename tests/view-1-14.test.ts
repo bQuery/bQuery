@@ -44,6 +44,17 @@ describe('View 1.14.0 expansion', () => {
       expect(parsed.arg).toBe('href');
       expect(parsed.modifiers.has('eager')).toBe(true);
     });
+
+    it('uses a null-prototype modifier params map and skips pollution keys', () => {
+      const parsed = parseDirective('on:click.safe-1.__proto__-x.constructor-y');
+      expect(Object.getPrototypeOf(parsed.modParams)).toBeNull();
+      expect(parsed.modParams.safe).toBe('1');
+      expect(parsed.modifiers.has('safe')).toBe(true);
+      expect(parsed.modifiers.has('__proto__')).toBe(false);
+      expect(parsed.modifiers.has('constructor')).toBe(false);
+      expect('__proto__' in parsed.modParams).toBe(false);
+      expect('constructor' in parsed.modParams).toBe(false);
+    });
   });
 
   describe('bq-cloak', () => {
