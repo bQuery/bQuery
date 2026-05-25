@@ -10,7 +10,124 @@ import {
   mockSignal,
   renderComponent,
   waitFor,
+  // 1.14+ extensions
+  autoCleanup,
+  cleanup,
+  expectAccessible,
+  flushPromises,
+  getReactiveSummary,
+  mockComputed,
+  mockEffect,
+  mockFetch,
+  mockForm,
+  mockI18n,
+  mockStore,
+  mockWebSocket,
+  nextTick,
+  prettyDOM,
+  runScheduled,
+  screen,
+  tick,
+  userEvent,
+  within,
 } from '@bquery/bquery/testing';
+```
+
+## What's new in 1.14
+
+Testing graduates into a batteries-included tier — no external testing-library
+dependency required. Every helper is SSR-safe at import time.
+
+### Mounting & cleanup
+
+```ts
+import { autoCleanup, cleanup, renderComponent } from '@bquery/bquery/testing';
+import { beforeEach, afterEach } from 'bun:test';
+
+autoCleanup(beforeEach, afterEach); // runs cleanup() automatically
+```
+
+### Screen queries
+
+Shadow-DOM-aware queries via `screen` and a scoped `within(el)`:
+
+```ts
+import { screen, within } from '@bquery/bquery/testing';
+
+screen.getByText('Save');
+screen.getByRole('button');
+screen.getByLabelText('Email');
+screen.getByTestId('greeting');
+
+const card = screen.getByTestId('card');
+within(card).getByText('Title');
+
+await screen.findByText('Loaded'); // async
+```
+
+Each query has `getBy*` (throws), `queryBy*` (returns `null`), and `findBy*`
+(async, retries up to a timeout) variants.
+
+### User interactions
+
+```ts
+import { userEvent } from '@bquery/bquery/testing';
+
+await userEvent.click(button);
+await userEvent.type(input, 'hello');
+await userEvent.clear(input);
+await userEvent.selectOptions(select, ['a', 'b']);
+await userEvent.hover(menu);
+```
+
+### `fireEvent` shortcuts
+
+```ts
+fireEvent.click(button);
+fireEvent.input(textbox, 'value');
+fireEvent.submit(form);
+```
+
+### Reactive helpers
+
+```ts
+import { mockComputed, mockEffect, tick, flushPromises } from '@bquery/bquery/testing';
+
+const c = mockComputed(() => count.value + 1);
+c.recomputeCount; // 1
+
+const e = mockEffect(() => log(count.value));
+e.runs; // 1
+e.dispose();
+
+await tick(); // microtask + flushEffects
+await flushPromises(); // microtask + macrotask + flushEffects
+```
+
+### Module mocks
+
+```ts
+import { mockStore, mockI18n, mockForm, mockFetch, mockWebSocket } from '@bquery/bquery/testing';
+
+const store = mockStore({ count: 0 });
+const i18n = mockI18n({ locale: 'en', messages: { en: { hi: 'Hello {name}' } } });
+const form = mockForm({ name: '' });
+const m = mockFetch({ '/api/x': { body: { ok: true } } });
+const ws = mockWebSocket();
+ws.open();
+ws.emit('{"type":"pong"}');
+m.restore();
+```
+
+### Snapshots & accessibility
+
+```ts
+import { prettyDOM, expectAccessible } from '@bquery/bquery/testing';
+
+console.log(prettyDOM(card, { maxLength: 4000, includeShadow: true }));
+
+const result = expectAccessible(form);
+expect(result.passed).toBe(true);
 ```
 
 ---

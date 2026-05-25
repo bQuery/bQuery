@@ -19,6 +19,98 @@ import {
 } from '@bquery/bquery/media';
 ```
 
+## What's new in 1.14
+
+Media graduates into a batteries-included tier. Every new composable accepts
+an optional `{ signal: AbortSignal }` for auto-teardown.
+
+### Preference signals
+
+```ts
+import {
+  usePreferredColorScheme,
+  usePreferredContrast,
+  usePreferredReducedTransparency,
+  usePreferredLanguage,
+  usePreferredLanguages,
+} from '@bquery/bquery/media';
+
+const theme = usePreferredColorScheme(); // 'light' | 'dark' | 'no-preference'
+const lang = usePreferredLanguage();
+```
+
+### Page-state signals
+
+```ts
+import {
+  useOnlineStatus,
+  usePageVisibility,
+  useDocumentFocus,
+  useWindowFocus,
+  useIdle,
+} from '@bquery/bquery/media';
+
+const online = useOnlineStatus(); // Signal<boolean>
+const visibility = usePageVisibility(); // 'visible' | 'hidden'
+const idle = useIdle(60_000); // true after 60s without input
+```
+
+### Element observers
+
+`useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`,
+`useFocus`, `useFocusWithin`, `useActiveElement`. Targets accept plain
+`Element | null | undefined` values.
+
+```ts
+import { useElementSize, useElementVisibility } from '@bquery/bquery/media';
+
+const size = useElementSize(myEl); // Signal<{ width, height }>
+const visible = useElementVisibility(myEl);
+```
+
+### Pointer / scroll
+
+```ts
+import { usePointer, useScroll } from '@bquery/bquery/media';
+
+const pointer = usePointer();
+const scroll = useScroll(window); // { x, y, directionX, directionY, isScrolling, arrived }
+```
+
+### Platform integrations
+
+```ts
+import {
+  usePermission,
+  useWakeLock,
+  useShare,
+  useBroadcastChannel,
+  useEventListener,
+  useMediaDevices,
+  useStorage,
+} from '@bquery/bquery/media';
+
+const perm = usePermission('clipboard-read');
+const wake = useWakeLock();
+await wake.request();
+
+const channel = useBroadcastChannel<{ ping: number }>('app');
+channel.post({ ping: 1 });
+
+const prefs = useStorage('prefs', { theme: 'dark' });
+```
+
+### Clipboard upgrades
+
+```ts
+import { clipboard, clipboardText } from '@bquery/bquery/media';
+
+if (clipboard.isImageSupported) {
+  const img = await clipboard.readImage();
+}
+const text = clipboardText({ onFocus: true });
+```
+
 ---
 
 ## Media Queries
