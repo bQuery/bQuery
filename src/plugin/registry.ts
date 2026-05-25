@@ -89,6 +89,12 @@ const normaliseDirectiveValue = (
   }
   if (handler && typeof handler === 'object') {
     const lifecycle = handler as CustomDirectiveLifecycle;
+    const updated = (handler as { updated?: unknown }).updated;
+    if (updated !== undefined) {
+      throw new Error(
+        `bQuery plugin directive: lifecycle object for "${name}" does not support an "updated" hook`
+      );
+    }
     const mounted = lifecycle.mounted;
     if (typeof mounted !== 'function') {
       throw new Error(

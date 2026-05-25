@@ -8,6 +8,7 @@ import {
   addAction,
   addFilter,
   applyFilters,
+  type CustomDirectiveValue,
   createInjectionKey,
   doAction,
   getInstalledPlugins,
@@ -185,6 +186,22 @@ describe('plugin/use + unuse', () => {
     };
     use(plugin);
     expect(mounted).toBe(0);
+  });
+
+  it('rejects unsupported lifecycle updated hooks', () => {
+    const plugin: BQueryPlugin = {
+      name: 'with-updated',
+      install(ctx) {
+        ctx.directive(
+          'life',
+          {
+            mounted: () => undefined,
+            updated: () => undefined,
+          } as unknown as CustomDirectiveValue
+        );
+      },
+    };
+    expect(() => use(plugin)).toThrow(/does not support an "updated" hook/);
   });
 
   it('accepts namespaced directive names like "tooltip:arrow"', () => {

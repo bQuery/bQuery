@@ -84,6 +84,24 @@ describe('media/preferences', () => {
     handle.destroy();
     expect(listeners.size).toBe(0);
   });
+
+  it('manual destroy removes the reduced-transparency abort listener', () => {
+    const listeners = new Set<EventListenerOrEventListenerObject>();
+    const signal = {
+      aborted: false,
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
+        if (type === 'abort' && listener) listeners.add(listener);
+      },
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject | null) {
+        if (type === 'abort' && listener) listeners.delete(listener);
+      },
+    } as unknown as AbortSignal;
+
+    const handle = usePreferredReducedTransparency({ signal });
+    expect(listeners.size).toBe(1);
+    handle.destroy();
+    expect(listeners.size).toBe(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

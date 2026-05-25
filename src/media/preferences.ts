@@ -8,7 +8,6 @@
  * @module bquery/media
  */
 
-import { mediaQuery } from './media-query';
 import { createMediaSignal, type AbortableOptions } from './internal';
 import type { MediaSignalHandle } from './types';
 
@@ -104,10 +103,20 @@ export const usePreferredContrast = (
 export const usePreferredReducedTransparency = (
   options?: AbortableOptions
 ): MediaSignalHandle<boolean> => {
-  const handle = mediaQuery('(prefers-reduced-transparency: reduce)');
-  if (options?.signal) {
-    if (options.signal.aborted) handle.destroy();
-    else options.signal.addEventListener('abort', () => handle.destroy(), { once: true });
-  }
-  return handle;
+  return createMediaSignal<boolean>(
+    matches('(prefers-reduced-transparency: reduce)'),
+    (set) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+      const query = window.matchMedia('(prefers-reduced-transparency: reduce)');
+      set(query.matches);
+      const handler = (event: MediaQueryListEvent): void => {
+        set(event.matches);
+      };
+      query.addEventListener?.('change', handler);
+      return () => {
+        query.removeEventListener?.('change', handler);
+      };
+    },
+    options
+  );
 };

@@ -152,7 +152,11 @@ const _traceMap = new Map<string, () => void>();
  * Useful for narrowing down which code path mutates a single signal.
  */
 export const traceSignal = (label: string): void => {
-  if (_traceMap.has(label)) return;
+  const existing = _traceMap.get(label);
+  if (existing) {
+    existing();
+    _traceMap.delete(label);
+  }
   const listener = (entry: TimelineEntry): void => {
     if (entry.source !== label) return;
     if (entry.type !== 'signal:update' && entry.type !== 'signal:create') return;

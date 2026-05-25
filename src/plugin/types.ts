@@ -44,16 +44,13 @@ export type CustomDirectiveHandler = (
 /**
  * Lifecycle-aware directive definition (1.14+).
  *
- * Directives can opt into individual `mounted` / `updated` / `unmounted`
- * callbacks instead of a single handler. The `mounted` hook runs once when
- * the directive is encountered during a `mount()` pass and acts as the
- * traditional entry point; `unmounted` is registered as a cleanup. The
- * `updated` hook is currently invoked when the directive expression changes
- * during subsequent re-binding.
+ * Directives can opt into explicit `mounted` / `unmounted` callbacks instead
+ * of a single handler. The `mounted` hook runs once when the directive is
+ * encountered during a `mount()` pass and acts as the traditional entry point;
+ * `unmounted` is registered as a cleanup.
  */
 export interface CustomDirectiveLifecycle {
-  mounted?: CustomDirectiveHandler;
-  updated?: CustomDirectiveHandler;
+  mounted: CustomDirectiveHandler;
   unmounted?: (el: Element) => void;
 }
 
@@ -90,7 +87,7 @@ export interface PluginInstallContext {
    * @param name - Directive name **without** the `bq-` prefix (e.g. `'tooltip'`).
    *   Plugins may also use a `namespace:variant` form (e.g. `'tooltip:arrow'`).
    * @param handler - Either a {@link CustomDirectiveHandler} or a
-   *   {@link CustomDirectiveLifecycle} object with `mounted`/`updated`/`unmounted`.
+   *   {@link CustomDirectiveLifecycle} object with `mounted`/`unmounted`.
    */
   directive(name: string, handler: CustomDirectiveValue): void;
 

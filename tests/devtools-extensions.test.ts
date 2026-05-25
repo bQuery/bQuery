@@ -135,6 +135,28 @@ describe('devtools/traceSignal', () => {
     untraceSignal('counter');
     expect(true).toBe(true);
   });
+
+  it('can re-subscribe after devtools are disabled and re-enabled', () => {
+    const originalLog = console.log;
+    const seen: string[] = [];
+    console.log = (message?: unknown): void => {
+      seen.push(String(message));
+    };
+
+    try {
+      traceSignal('counter');
+      enableDevtools(false);
+      enableDevtools(true);
+      traceSignal('counter');
+      recordEvent('signal:update', 'changed', { source: 'counter' });
+      expect(seen.some((message) => message.includes('[bq:trace] counter signal:update changed'))).toBe(
+        true
+      );
+    } finally {
+      console.log = originalLog;
+      untraceSignal('counter');
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

@@ -59,6 +59,21 @@ describe('fireEvent shortcuts', () => {
     expect(fired).toBe('hello');
   });
 
+  it('fireEvent.keyDown dispatches a KeyboardEvent', () => {
+    const input = document.createElement('input');
+    let receivedEvent: Event | null = null;
+    input.addEventListener('keydown', (event) => {
+      receivedEvent = event;
+    });
+    document.body.appendChild(input);
+
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    expect(receivedEvent instanceof KeyboardEvent).toBe(true);
+    expect((receivedEvent as KeyboardEvent | null)?.key).toBe('Enter');
+    expect((receivedEvent as KeyboardEvent | null)?.code).toBe('Enter');
+  });
+
   it('fireEvent.submit dispatches a submit event', () => {
     const form = document.createElement('form');
     let submitted = false;

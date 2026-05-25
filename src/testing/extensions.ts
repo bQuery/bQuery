@@ -128,9 +128,9 @@ export const userEvent = {
     const input = el as HTMLInputElement;
     for (const ch of text) {
       input.value = (input.value ?? '') + ch;
-      fireEvent(el, 'keydown', { detail: { key: ch } });
+      fireEvent.keyDown(el, { key: ch });
       fireEvent(el, 'input');
-      fireEvent(el, 'keyup', { detail: { key: ch } });
+      fireEvent.keyUp(el, { key: ch });
       if (opts?.delay) await sleep(opts.delay);
     }
     await tick();
@@ -152,7 +152,7 @@ export const userEvent = {
     await tick();
   },
   async tab(): Promise<void> {
-    fireEvent(document.body, 'keydown', { detail: { key: 'Tab' } });
+    fireEvent.keyDown(document.body, { key: 'Tab' });
     await tick();
   },
   async paste(el: Element, text: string): Promise<void> {

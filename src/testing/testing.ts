@@ -539,6 +539,27 @@ export function fireEvent(el: Element, eventName: string, options: FireEventOpti
   return result;
 }
 
+const dispatchShortcutEvent = (el: Element, event: Event): boolean => {
+  const result = el.dispatchEvent(event);
+  flushEffects();
+  return result;
+};
+
+const createKeyboardShortcutEvent = (
+  eventName: 'keydown' | 'keyup',
+  init?: KeyboardEventInit
+): Event => {
+  const eventInit: KeyboardEventInit = {
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+    ...init,
+  };
+  return typeof KeyboardEvent === 'function'
+    ? new KeyboardEvent(eventName, eventInit)
+    : new Event(eventName, eventInit);
+};
+
 // Attach shortcut methods (1.14+) so callers can use `fireEvent.click(el)`,
 // `fireEvent.input(el, 'value')`, etc.
 const setInputValue = (el: Element, value: string): void => {
@@ -553,8 +574,8 @@ interface FireEventShortcuts {
   submit: (el: Element) => boolean;
   focus: (el: Element) => boolean;
   blur: (el: Element) => boolean;
-  keyDown: (el: Element, detail?: unknown) => boolean;
-  keyUp: (el: Element, detail?: unknown) => boolean;
+  keyDown: (el: Element, init?: KeyboardEventInit) => boolean;
+  keyUp: (el: Element, init?: KeyboardEventInit) => boolean;
 }
 
 const shortcuts: FireEventShortcuts = {
@@ -571,8 +592,8 @@ const shortcuts: FireEventShortcuts = {
   submit: (el) => fireEvent(el, 'submit'),
   focus: (el) => fireEvent(el, 'focus'),
   blur: (el) => fireEvent(el, 'blur'),
-  keyDown: (el, detail) => fireEvent(el, 'keydown', { detail }),
-  keyUp: (el, detail) => fireEvent(el, 'keyup', { detail }),
+  keyDown: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keydown', init)),
+  keyUp: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keyup', init)),
 };
 
 // Augment the exported function type so TypeScript callers see the shortcuts.
@@ -585,8 +606,8 @@ export namespace fireEvent {
   export const submit: (el: Element) => boolean = shortcuts.submit;
   export const focus: (el: Element) => boolean = shortcuts.focus;
   export const blur: (el: Element) => boolean = shortcuts.blur;
-  export const keyDown: (el: Element, detail?: unknown) => boolean = shortcuts.keyDown;
-  export const keyUp: (el: Element, detail?: unknown) => boolean = shortcuts.keyUp;
+  export const keyDown: (el: Element, init?: KeyboardEventInit) => boolean = shortcuts.keyDown;
+  export const keyUp: (el: Element, init?: KeyboardEventInit) => boolean = shortcuts.keyUp;
 }
 
 // ============================================================================
