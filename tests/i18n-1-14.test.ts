@@ -100,6 +100,26 @@ describe('i18n 1.14.0 expansion', () => {
       expect(isRTL('he-IL')).toBe(true);
       expect(isRTL('fa')).toBe(true);
     });
+
+    it('falls back to normalized locale subtags when Intl.Locale is unavailable', () => {
+      const descriptor = Object.getOwnPropertyDescriptor(Intl, 'Locale');
+
+      Object.defineProperty(Intl, 'Locale', {
+        value: undefined,
+        configurable: true,
+      });
+
+      try {
+        expect(isRTL('uz-Arab')).toBe(true);
+        expect(isRTL('en-Latn')).toBe(false);
+      } finally {
+        if (descriptor) {
+          Object.defineProperty(Intl, 'Locale', descriptor);
+        } else {
+          delete (Intl as { Locale?: unknown }).Locale;
+        }
+      }
+    });
   });
 
   describe('formatRelativeTime', () => {

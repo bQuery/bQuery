@@ -48,13 +48,13 @@ const setupMockHistory = (initial = '/') => {
     configurable: true,
   });
 
-  const pushSpy = spyOn(history, 'pushState').mockImplementation(
+  const pushSpy = spyOn(window.history, 'pushState').mockImplementation(
     (_s: unknown, _t: string, target: string | URL | null | undefined) => {
       url = String(target);
       mockLocation = createLoc(url);
     }
   );
-  const replaceSpy = spyOn(history, 'replaceState').mockImplementation(
+  const replaceSpy = spyOn(window.history, 'replaceState').mockImplementation(
     (_s: unknown, _t: string, target: string | URL | null | undefined) => {
       url = String(target);
       mockLocation = createLoc(url);
@@ -74,17 +74,17 @@ const setupMockHistory = (initial = '/') => {
 
 describe('Router 1.14.0 expansion', () => {
   let router: Router | null = null;
-  let history: ReturnType<typeof setupMockHistory>;
+  let mockHistory: ReturnType<typeof setupMockHistory>;
 
   const setup = (routes: RouteDefinition[]) => {
-    history = setupMockHistory('/');
+    mockHistory = setupMockHistory('/');
     router = createRouter({ routes });
   };
 
   afterEach(() => {
     router?.destroy();
     router = null;
-    history?.restore();
+    mockHistory?.restore();
   });
 
   describe('pushResult / replaceResult', () => {
@@ -252,6 +252,26 @@ describe('Router 1.14.0 expansion', () => {
       expect(router!.hasRoute('details')).toBe(true);
       const info = router!.resolveRoute('/section/details');
       expect(info.matched?.name).toBe('details');
+    });
+
+    it('does not mutate the caller-provided nested route definitions', () => {
+      const routes: RouteDefinition[] = [
+        {
+          path: '/section',
+          name: 'section',
+          component: () => 'section',
+          children: [{ path: '/existing', name: 'existing', component: () => 'existing' }],
+        },
+      ];
+
+      setup(routes);
+      router!.addRoute('section', {
+        path: '/details',
+        name: 'details',
+        component: () => 'details',
+      });
+
+      expect(routes[0]?.children?.map((route) => route.name)).toEqual(['existing']);
     });
 
     it('addRoute throws for an unknown parent', () => {

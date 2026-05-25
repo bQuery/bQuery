@@ -98,7 +98,8 @@ and this project adheres to Semantic Versioning.
     navigating.
   - Dynamic route management via `addRoute(parentName?, route)`,
     `removeRoute(name)`, and `hasRoute(name)`.
-  - `isReady()` returning a promise that settles after the first navigation,
+  - `isReady()` returning a promise that settles after the initial route
+    synchronization during router construction,
     plus `lastNavigation` signal exposing the most recent result.
   - `useNavigation()` composable returning reactive navigation state
     (`isNavigating`, `error`, etc.).

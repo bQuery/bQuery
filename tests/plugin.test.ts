@@ -594,6 +594,26 @@ describe('Plugin System', () => {
       expect(calls[0].expr).toBe('yellow');
     });
 
+    it('should resolve custom directives by directive head when modifiers are present', () => {
+      const calls: string[] = [];
+
+      use({
+        name: 'tooltip-head-plugin',
+        install(ctx) {
+          ctx.directive('tooltip:click', (_el, expression) => {
+            calls.push(expression);
+          });
+        },
+      });
+
+      const el = document.createElement('button');
+      el.setAttribute('bq-tooltip:click.once', 'open');
+
+      processElement(el, {}, 'bq', [], createDirectiveHandlers());
+
+      expect(calls).toEqual(['open']);
+    });
+
     it('should warn for unknown directives when no plugin registers them', () => {
       const el = document.createElement('div');
       el.setAttribute('bq-unknown', 'test');

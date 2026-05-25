@@ -245,6 +245,7 @@ const RTL_LANGUAGES = new Set([
  */
 export const isRTL = (locale: string): boolean => {
   if (!locale) return false;
+  const normalizedLocale = normalize(locale);
   // Prefer the Intl.Locale text-info API where available.
   try {
     const Loc = (Intl as unknown as { Locale?: new (tag: string) => unknown }).Locale;
@@ -259,6 +260,11 @@ export const isRTL = (locale: string): boolean => {
   } catch {
     // ignore — fall through to manual lookup
   }
-  const language = parseLocale(locale).language;
-  return RTL_LANGUAGES.has(language);
+  const parts = normalizedLocale.split('-').filter(Boolean);
+  for (let length = parts.length; length > 0; length--) {
+    if (RTL_LANGUAGES.has(parts.slice(0, length).join('-'))) {
+      return true;
+    }
+  }
+  return false;
 };

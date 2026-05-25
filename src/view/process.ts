@@ -100,9 +100,14 @@ export const processElement = (
       handlers.on(arg, modifiers)(el, value, context, cleanups);
     } else {
       // Check for custom directives registered via plugins. Custom directive
-      // names are matched against the directive head (without modifiers), to
-      // keep the API back-compatible.
-      const customHandler = getCustomDirective(rawDirective) || getCustomDirective(directive);
+      // names are matched against the directive head without modifiers,
+      // including any parsed argument (e.g. "tooltip:click"), to keep the API
+      // back-compatible when modifiers are appended at call sites.
+      const directiveHead = arg ? `${directive}:${arg}` : directive;
+      const customHandler =
+        getCustomDirective(directiveHead) ||
+        (directiveHead !== rawDirective ? getCustomDirective(rawDirective) : undefined) ||
+        (directiveHead !== directive ? getCustomDirective(directive) : undefined);
       if (customHandler) {
         customHandler(el, value, context, cleanups);
       } else if (

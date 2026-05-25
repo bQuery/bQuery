@@ -33,6 +33,19 @@ import { flattenRoutes, resolve as resolveByName } from './utils';
 
 const MAX_SCROLL_POSITION_ENTRIES = 100;
 
+const cloneRouteDefinition = (route: RouteDefinition): RouteDefinition => {
+  if ('redirectTo' in route) {
+    return { ...route };
+  }
+
+  const clonedRoute = { ...route } as RouteDefinition & { children?: RouteDefinition[] };
+  if (Array.isArray(route.children)) {
+    clonedRoute.children = route.children.map(cloneRouteDefinition);
+  }
+
+  return clonedRoute;
+};
+
 const sanitizeHistoryState = (state: Record<string, unknown>): Record<string, unknown> => {
   const sanitized: Record<string, unknown> = {};
 
@@ -87,13 +100,13 @@ export const createRouter = (options: RouterOptions): Router => {
   const beforeResolveGuards: NavigationGuard[] = [];
   const afterHooks: Array<(to: Route, from: Route) => void> = [];
 
-  // Flatten nested routes (base-relative, not including the base path)
-  let flatRoutes = flattenRoutes(routes);
-
   // Track the underlying (mutable) route definitions for dynamic add/remove.
-  // We store a working copy so addRoute/removeRoute can mutate without
-  // affecting the caller's array.
-  const rootRoutes: RouteDefinition[] = routes.slice();
+  // We store a recursive working copy so addRoute/removeRoute can mutate
+  // without affecting the caller's route objects or child arrays.
+  const rootRoutes: RouteDefinition[] = routes.map(cloneRouteDefinition);
+
+  // Flatten nested routes (base-relative, not including the base path).
+  let flatRoutes = flattenRoutes(rootRoutes);
 
   // Reactive signal for the most recent navigation result.
   const lastNavigationSignal: Signal<NavigationResult | null> = signal<NavigationResult | null>(
