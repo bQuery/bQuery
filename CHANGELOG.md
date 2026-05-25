@@ -92,8 +92,8 @@ and this project adheres to Semantic Versioning.
     methods that return structured results with `status`, `requestedPath`,
     `to`, `from`, and `error` fields instead of bare promises (existing
     `push`/`replace` continue to return `Promise<void>`).
-  - `beforeResolve(guard)` global hook fired after route matching and
-    component resolution but before navigation commits.
+  - `beforeResolve(guard)` global hook fired after `beforeEach` and
+    route-level `beforeEnter` guards but before navigation commits.
   - `resolveRoute(input)` method for synchronous route lookup without
     navigating.
   - Dynamic route management via `addRoute(parentName?, route)`,

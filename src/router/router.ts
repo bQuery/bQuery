@@ -5,9 +5,7 @@
 
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { readonly, signal, type ReadonlySignal, type Signal } from '../reactive/index';
-import { getRouteConstraintRegex } from './constraints';
 import { createRoute } from './match';
-import { isParamChar, isParamStart, readConstraint } from './path-pattern';
 import {
   beginNavigation,
   currentRoute,
@@ -27,7 +25,7 @@ import type {
   Router,
   RouterOptions,
 } from './types';
-import { flattenRoutes } from './utils';
+import { flattenRoutes, resolveRouteDefinitionPath } from './utils';
 
 // ============================================================================
 // Router Creation
@@ -69,48 +67,7 @@ const resolveNamedRoutePath = (
     throw new Error(`bQuery router: Route "${name}" not found.`);
   }
 
-  let path = '';
-  for (let i = 0; i < route.path.length; ) {
-    if (route.path[i] === ':' && isParamStart(route.path[i + 1])) {
-      let nameEnd = i + 2;
-      while (nameEnd < route.path.length && isParamChar(route.path[nameEnd])) {
-        nameEnd++;
-      }
-
-      let nextIndex = nameEnd;
-      let constraint: string | null = null;
-      if (route.path[nameEnd] === '(') {
-        const parsedConstraint = readConstraint(route.path, nameEnd);
-        if (!parsedConstraint) {
-          throw new Error(
-            `bQuery router: Invalid constraint syntax in path "${route.path}" for route "${name}".`
-          );
-        }
-        constraint = parsedConstraint.constraint;
-        nextIndex = parsedConstraint.endIndex;
-      }
-
-      const key = route.path.slice(i + 1, nameEnd);
-      const value = params[key];
-      if (value === undefined) {
-        throw new Error(`bQuery router: Missing required param "${key}" for route "${name}".`);
-      }
-      if (constraint && !getRouteConstraintRegex(constraint).test(value)) {
-        throw new Error(
-          `bQuery router: Param "${key}" with value "${value}" does not satisfy the route constraint "${constraint}" for route "${name}".`
-        );
-      }
-
-      path += encodeURIComponent(value);
-      i = nextIndex;
-      continue;
-    }
-
-    path += route.path[i];
-    i++;
-  }
-
-  return path;
+  return resolveRouteDefinitionPath(route, params);
 };
 
 /**

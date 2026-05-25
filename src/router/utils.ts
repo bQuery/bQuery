@@ -14,6 +14,61 @@ import type { RouteDefinition } from './types';
 // ============================================================================
 
 /**
+ * Resolves a route definition path with named params.
+ * @internal
+ */
+export const resolveRouteDefinitionPath = (
+  route: RouteDefinition,
+  params: Record<string, string> = {}
+): string => {
+  const routeLabel = route.name ?? route.path;
+  let path = '';
+  for (let i = 0; i < route.path.length; ) {
+    if (route.path[i] === ':' && isParamStart(route.path[i + 1])) {
+      let nameEnd = i + 2;
+      while (nameEnd < route.path.length && isParamChar(route.path[nameEnd])) {
+        nameEnd++;
+      }
+
+      let nextIndex = nameEnd;
+      let constraint: string | null = null;
+      if (route.path[nameEnd] === '(') {
+        const parsedConstraint = readConstraint(route.path, nameEnd);
+        if (!parsedConstraint) {
+          throw new Error(
+            `bQuery router: Invalid constraint syntax in path "${route.path}" for route "${routeLabel}".`
+          );
+        }
+        constraint = parsedConstraint.constraint;
+        nextIndex = parsedConstraint.endIndex;
+      }
+
+      const key = route.path.slice(i + 1, nameEnd);
+      const value = params[key];
+      if (value === undefined) {
+        throw new Error(
+          `bQuery router: Missing required param "${key}" for route "${routeLabel}".`
+        );
+      }
+      if (constraint && !getRouteConstraintRegex(constraint).test(value)) {
+        throw new Error(
+          `bQuery router: Param "${key}" with value "${value}" does not satisfy the route constraint "${constraint}" for route "${routeLabel}".`
+        );
+      }
+
+      path += encodeURIComponent(value);
+      i = nextIndex;
+      continue;
+    }
+
+    path += route.path[i];
+    i++;
+  }
+
+  return path;
+};
+
+/**
  * Flattens nested routes into a single array with full paths.
  * Does NOT include the router base - base is only for browser history.
  * @internal
@@ -66,48 +121,7 @@ export const resolve = (name: string, params: Record<string, string> = {}): stri
     throw new Error(`bQuery router: Route "${name}" not found.`);
   }
 
-  let path = '';
-  for (let i = 0; i < route.path.length; ) {
-    if (route.path[i] === ':' && isParamStart(route.path[i + 1])) {
-      let nameEnd = i + 2;
-      while (nameEnd < route.path.length && isParamChar(route.path[nameEnd])) {
-        nameEnd++;
-      }
-
-      let nextIndex = nameEnd;
-      let constraint: string | null = null;
-      if (route.path[nameEnd] === '(') {
-        const parsedConstraint = readConstraint(route.path, nameEnd);
-        if (!parsedConstraint) {
-          throw new Error(
-            `bQuery router: Invalid constraint syntax in path "${route.path}" for route "${name}".`
-          );
-        }
-        constraint = parsedConstraint.constraint;
-        nextIndex = parsedConstraint.endIndex;
-      }
-
-      const key = route.path.slice(i + 1, nameEnd);
-      const value = params[key];
-      if (value === undefined) {
-        throw new Error(`bQuery router: Missing required param "${key}" for route "${name}".`);
-      }
-      if (constraint && !getRouteConstraintRegex(constraint).test(value)) {
-        throw new Error(
-          `bQuery router: Param "${key}" with value "${value}" does not satisfy the route constraint "${constraint}" for route "${name}".`
-        );
-      }
-
-      path += encodeURIComponent(value);
-      i = nextIndex;
-      continue;
-    }
-
-    path += route.path[i];
-    i++;
-  }
-
-  return path;
+  return resolveRouteDefinitionPath(route, params);
 };
 
 /**
