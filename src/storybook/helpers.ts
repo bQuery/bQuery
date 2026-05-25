@@ -7,7 +7,7 @@
 
 import { escapeHtml } from '../security/sanitize';
 import type { StoryValue } from './story-html';
-import { isUnsafeHtmlMarker, unsafeHtml } from './unsafe-html';
+import { createUnsafeHtmlMarker, isUnsafeHtmlMarker } from './unsafe-html';
 import type { UnsafeHtmlMarker } from './unsafe-html';
 
 /**
@@ -120,9 +120,10 @@ export const repeat = <T>(
     rendered.push(injectKeyAttribute(fragment, keyValue));
   }
   // Fragments are escaped by default; callers must opt into trusted markup via
-  // `unsafeHtml(...)`. Wrap the final concatenation so surrounding `storyHtml`
-  // preserves the authored fragment structure.
-  return unsafeHtml(rendered.join(''));
+  // `unsafeHtml(...)`. Wrap the final concatenation in an internal marker so
+  // surrounding `storyHtml` preserves the authored fragment structure without
+  // emitting the opt-in warning for safe-by-default plain strings.
+  return createUnsafeHtmlMarker(rendered.join(''));
 };
 
 /**

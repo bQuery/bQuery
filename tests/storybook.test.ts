@@ -138,6 +138,24 @@ describe('storybook/storyHtml', () => {
   });
 });
 
+describe('storybook/repeat warning behavior', () => {
+  it('does not emit the unsafeHtml warning for escaped plain-string fragments', () => {
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.map((arg) => String(arg)).join(' '));
+    };
+
+    try {
+      const result = storyHtml`<ul>${repeat(['<img src=x onerror=alert(1)>'], (item) => item)}</ul>`;
+      expect(result).toBe('<ul>&lt;img src=x onerror=alert(1)&gt;</ul>');
+      expect(warnings).toEqual([]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+});
+
 describe('storybook/unsafeHtml', () => {
   it('bypasses sanitization for the wrapped value when interpolated into storyHtml', () => {
     const trusted = '<bq-icon name="check"></bq-icon>';

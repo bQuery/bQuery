@@ -74,6 +74,7 @@ describe('dnd/draggable keyboard support', () => {
     });
     fireKey(box, ' ');
     expect(box.getAttribute('aria-grabbed')).toBe('true');
+    expect(getActiveDrag()).toEqual({ element: box, position: { x: 0, y: 0 } });
     expect(startCount).toBe(1);
     handle.destroy();
   });

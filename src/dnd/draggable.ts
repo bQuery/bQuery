@@ -412,6 +412,7 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
         keyboardActive = true;
         keyboardPickupPosition = { ...currentPosition };
         previousPosition = { ...currentPosition };
+        activeDrags.set(el, { element: el, position: currentPosition });
         el.classList.add(draggingClass);
         el.setAttribute('aria-grabbed', 'true');
         announceToScreenReader(

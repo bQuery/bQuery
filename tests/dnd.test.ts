@@ -967,6 +967,38 @@ describe('dnd/sortable', () => {
     handle.destroy();
   });
 
+  it('reports pointer-driven indices using the sortable items list', () => {
+    const list = createSortableList();
+    const spacer = document.createElement('div');
+    spacer.textContent = 'Spacer';
+    list.prepend(spacer);
+    container.appendChild(list);
+
+    const [firstItem, secondItem, thirdItem] = Array.from(list.querySelectorAll('li'));
+    setZoneRect(firstItem, { left: 0, top: 0, right: 100, bottom: 20 });
+    setZoneRect(secondItem, { left: 0, top: 20, right: 100, bottom: 40 });
+    setZoneRect(thirdItem, { left: 0, top: 40, right: 100, bottom: 60 });
+
+    let endData: { oldIndex: number; newIndex: number } | null = null;
+    const handle = sortable(list, {
+      items: 'li',
+      animationDuration: 0,
+      onSortEnd: (data) => {
+        endData = { oldIndex: data.oldIndex, newIndex: data.newIndex };
+      },
+    });
+
+    firePointerEvent(firstItem, 'pointerdown', {
+      clientX: 10,
+      clientY: 10,
+    });
+    firePointerEvent(list, 'pointermove', { clientX: 10, clientY: 100 });
+    firePointerEvent(list, 'pointerup', { clientX: 10, clientY: 100 });
+
+    expect(endData).toEqual({ oldIndex: 0, newIndex: 2 });
+    handle.destroy();
+  });
+
   it('should respect handle option', () => {
     const list = createSortableList();
     container.appendChild(list);

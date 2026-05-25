@@ -25,6 +25,12 @@ export interface UnsafeHtmlMarker {
 
 let warnedOnce = false;
 
+/** @internal */
+export const createUnsafeHtmlMarker = (value: string): UnsafeHtmlMarker => ({
+  [UNSAFE_HTML_BRAND]: true,
+  value,
+});
+
 const emitDevWarning = (): void => {
   if (warnedOnce) return;
   warnedOnce = true;
@@ -56,10 +62,7 @@ const emitDevWarning = (): void => {
  */
 export const unsafeHtml = (value: string): UnsafeHtmlMarker => {
   emitDevWarning();
-  return {
-    [UNSAFE_HTML_BRAND]: true,
-    value,
-  };
+  return createUnsafeHtmlMarker(value);
 };
 
 /**
