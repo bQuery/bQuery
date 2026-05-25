@@ -40,11 +40,14 @@ export interface BoundsRect {
 
 /**
  * Bounds constraint for draggable elements.
+ *
  * - `'parent'` — constrain to parent element's bounds
+ * - `'viewport'` — constrain to the current visible viewport
  * - A CSS selector string — constrain to the matched element's bounds
+ * - An `HTMLElement` — constrain to the given element's bounds
  * - A `BoundsRect` — constrain to explicit coordinates
  */
-export type DragBounds = 'parent' | string | BoundsRect;
+export type DragBounds = 'parent' | 'viewport' | string | HTMLElement | BoundsRect;
 
 /**
  * Data passed to all drag event callbacks.
@@ -56,8 +59,8 @@ export interface DragEventData {
   position: DragPosition;
   /** Movement delta since the last event. */
   delta: DragPosition;
-  /** The original pointer event. */
-  event: PointerEvent;
+  /** The original pointer or keyboard event. */
+  event: PointerEvent | KeyboardEvent;
 }
 
 // ─── Draggable ───────────────────────────────────────────────────────────────
@@ -124,6 +127,60 @@ export interface DraggableOptions {
    * Called when a drag operation ends.
    */
   onDragEnd?: (data: DragEventData) => void;
+
+  /**
+   * Snap movement deltas to a grid. Accepts either a uniform grid size or a
+   * `[stepX, stepY]` tuple. Values are interpreted in pixels.
+   *
+   * @example
+   * ```ts
+   * draggable(el, { grid: 16 });          // 16-px square grid
+   * draggable(el, { grid: [16, 24] });    // separate horizontal/vertical steps
+   * ```
+   */
+  grid?: number | [number, number];
+
+  /**
+   * Minimum time in milliseconds the pointer must remain pressed before a
+   * drag starts. Useful for distinguishing taps from drags on touch devices.
+   *
+   * @default 0
+   */
+  delay?: number;
+
+  /**
+   * Minimum pointer movement in pixels before a drag is activated. Below
+   * this threshold, the pending press stays inactive instead of promoting to
+   * an active drag. This helps avoid accidental pickups, but the draggable
+   * still disables native touch panning while pressed.
+   *
+   * @default 0
+   */
+  touchStartThreshold?: number;
+
+  /**
+   * Enable keyboard accessibility. When `true`, the draggable element
+   * becomes focusable and supports the following keys:
+   *
+   * - `Space` / `Enter` — pick up / drop
+   * - Arrow keys — move (step size is `keyboardStep`)
+   * - `Escape` — cancel and return to the pickup position
+   *
+   * ARIA announcements are emitted via `@bquery/bquery/a11y`.
+   *
+   * Defaults to `false` for backward compatibility. Strongly recommended
+   * for any UI surfaced to end users.
+   *
+   * @default false
+   */
+  keyboard?: boolean;
+
+  /**
+   * Step size in pixels for keyboard-driven movement.
+   *
+   * @default 10
+   */
+  keyboardStep?: number;
 }
 
 /**
@@ -138,6 +195,20 @@ export interface DraggableHandle {
   enable: () => void;
   /** Whether dragging is currently enabled. */
   readonly enabled: boolean;
+  /**
+   * Move the draggable element programmatically. The position is applied
+   * via the same transform/ghost mechanism used during pointer dragging,
+   * and is clamped to the current bounds (if any).
+   */
+  moveTo: (position: DragPosition) => void;
+  /** Reset the element to its initial position. */
+  reset: () => void;
+  /** Get the current position relative to the initial position. */
+  getPosition: () => DragPosition;
+  /** Update the bounds constraint without rebinding the handle. */
+  setBounds: (bounds: DragBounds | undefined) => void;
+  /** Update the axis constraint without rebinding the handle. */
+  setAxis: (axis: DragAxis) => void;
 }
 
 // ─── Droppable ───────────────────────────────────────────────────────────────
@@ -198,6 +269,15 @@ export interface DroppableOptions {
 export interface DroppableHandle {
   /** Remove all event listeners and clean up. */
   destroy: () => void;
+  /**
+   * Update the accept predicate without rebinding the handle. Pass
+   * `undefined` to accept any dragged element.
+   */
+  setAccept: (accept: DroppableOptions['accept']) => void;
+  /** Whether a draggable element is currently hovering the zone. */
+  isOver: () => boolean;
+  /** The dragged element currently over the zone, or `null`. */
+  getActiveDragged: () => HTMLElement | null;
 }
 
 // ─── Sortable ────────────────────────────────────────────────────────────────
@@ -290,4 +370,54 @@ export interface SortableHandle {
   enable: () => void;
   /** Whether sorting is currently enabled. */
   readonly enabled: boolean;
+  /**
+   * Move an item from one index to another. Indices are zero-based and clamped
+   * to the current item count.
+   */
+  move: (fromIndex: number, toIndex: number) => void;
+  /**
+   * Reorder items to match the provided permutation of indices. The array
+   * must be a permutation of `[0, …, length - 1]`.
+   */
+  setOrder: (indices: readonly number[]) => void;
+  /** Return the current sortable items in DOM order. */
+  getItems: () => HTMLElement[];
+}
+
+// ─── Reactive composables ────────────────────────────────────────────────────
+
+/**
+ * Return shape of {@link useDraggable}.
+ */
+export interface UseDraggableReturn {
+  /** Reactive current position of the draggable element. */
+  readonly position: import('../reactive/index').ReadonlySignal<DragPosition>;
+  /** Reactive flag indicating whether a drag is currently active. */
+  readonly isDragging: import('../reactive/index').ReadonlySignal<boolean>;
+  /** Underlying imperative handle. Disposed automatically with the scope. */
+  readonly handle: DraggableHandle;
+}
+
+/**
+ * Return shape of {@link useDroppable}.
+ */
+export interface UseDroppableReturn {
+  /** Reactive flag indicating whether a draggable is hovering the zone. */
+  readonly isOver: import('../reactive/index').ReadonlySignal<boolean>;
+  /** Reactive reference to the dragged element currently over the zone. */
+  readonly activeDragged: import('../reactive/index').ReadonlySignal<HTMLElement | null>;
+  /** Underlying imperative handle. Disposed automatically with the scope. */
+  readonly handle: DroppableHandle;
+}
+
+/**
+ * Return shape of {@link useSortable}.
+ */
+export interface UseSortableReturn {
+  /** Reactive ordered list of items in the sortable container. */
+  readonly order: import('../reactive/index').ReadonlySignal<HTMLElement[]>;
+  /** Reactive flag indicating whether a sort drag is currently active. */
+  readonly isDragging: import('../reactive/index').ReadonlySignal<boolean>;
+  /** Underlying imperative handle. Disposed automatically with the scope. */
+  readonly handle: SortableHandle;
 }

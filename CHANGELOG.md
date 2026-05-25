@@ -84,6 +84,11 @@ and this project adheres to Semantic Versioning.
 
 ### Added (Unreleased)
 
+- `@bquery/bquery/storybook`: new ergonomic helpers `classMap()`, `styleMap()`, `ifDefined()`, `repeat()`, `storyText()`, and the opt-in sanitizer escape hatch `unsafeHtml()`, all callable inside `storyHtml` template literals. Added `storySvg()` for SVG-rooted stories (interpolated values are HTML-escaped; static template is treated as author-trusted because the HTML sanitizer hard-blocks `<svg>`).
+- `@bquery/bquery/dnd`: programmatic API on existing handles — `DraggableHandle.moveTo`/`reset`/`getPosition`/`setBounds`/`setAxis`, `SortableHandle.move`/`setOrder`/`getItems`, `DroppableHandle.setAccept`/`isOver`/`getActiveDragged`.
+- `@bquery/bquery/dnd`: new draggable options `grid` (snap-to-grid), `delay` (long-press threshold), `touchStartThreshold` (minimum pointer movement before drag activates), `keyboard` (opt-in keyboard accessibility with `Space`/`Enter` pickup, arrow-key movement, `Escape` cancel, and ARIA announcements via `@bquery/bquery/a11y`), and `keyboardStep` (keyboard movement step).
+- `@bquery/bquery/dnd`: `bounds` now accepts an `HTMLElement` reference directly and supports a `'viewport'` shorthand.
+- `@bquery/bquery/dnd`: reactive composables `useDraggable()`, `useDroppable()`, `useSortable()`, plus the `draggablePosition()` and `sortableOrder()` adapters for raw handles. Composables auto-dispose when the surrounding reactive scope stops.
 - Expanded `@bquery/bquery/concurrency` with richer support metadata, `withTransferables()`, `createSharedBuffer()`, RPC `maxInFlight`, pool priority handling, `pause()` / `resume()`, `onIdle()`, and rolling pool metrics with reactive mirrors.
 - Expanded `@bquery/bquery/ssr` with `flushBoundary()`, `createSSRCache()`, `createSSRMetrics()`, `createEdgeHandler()`, cache-aware `renderToResponse()`, and explicit multi-chunk `renderToStream()` boundaries.
 - Expanded `@bquery/bquery/server` with structured `ServerHttpError` helpers, `ctx.body()`, `ctx.cookies`, `ctx.setCookie()`, `ctx.accepts()`, `ctx.stream()`, `ctx.sse()`, `ctx.renderStream()`, `ctx.renderResponse()`, and `app.listen()` for supported runtimes.

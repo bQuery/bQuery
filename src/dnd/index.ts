@@ -45,6 +45,14 @@ export { draggable } from './draggable';
 export { droppable } from './droppable';
 export { sortable } from './sortable';
 
+export {
+  draggablePosition,
+  sortableOrder,
+  useDraggable,
+  useDroppable,
+  useSortable,
+} from './reactive';
+
 export type {
   BoundsRect,
   DragAxis,
@@ -59,4 +67,7 @@ export type {
   SortEventData,
   SortableHandle,
   SortableOptions,
+  UseDraggableReturn,
+  UseDroppableReturn,
+  UseSortableReturn,
 } from './types';
