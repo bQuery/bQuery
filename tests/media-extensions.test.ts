@@ -243,7 +243,12 @@ describe('media/useWakeLock', () => {
       if (this === ctrl.signal && type === 'abort') {
         removed++;
       }
-      return originalRemove.call(this, type, listener, options);
+      return originalRemove.call(
+        this,
+        type,
+        listener as EventListenerOrEventListenerObject,
+        options
+      );
     };
 
     try {
@@ -364,7 +369,12 @@ describe('media/useEventListener', () => {
       if (this === ctrl.signal && type === 'abort') {
         removed++;
       }
-      return originalRemove.call(this, type, listener, options);
+      return originalRemove.call(
+        this,
+        type,
+        listener as EventListenerOrEventListenerObject,
+        options
+      );
     };
 
     try {

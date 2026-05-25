@@ -60,7 +60,7 @@ describe('plugin/hooks/addFilter', () => {
   it('listFilters reports current filter names', () => {
     addFilter('a', (v) => v);
     addFilter('b', (v) => v);
-    expect(listFilters().sort()).toEqual(['a', 'b']);
+    expect([...listFilters()].sort()).toEqual(['a', 'b']);
   });
 
   it('catches filter callback errors without breaking the chain', () => {
