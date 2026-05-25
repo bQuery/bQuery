@@ -10,7 +10,7 @@ export const UNSAFE_HTML_PLACEHOLDER_PREFIX = '\u0001BQ_UNSAFE_HTML_';
 export const UNSAFE_HTML_PLACEHOLDER_SUFFIX = '_END\u0001';
 
 /** @internal */
-const UNSAFE_HTML_BRAND = Symbol.for('bquery.storybook.unsafeHtml');
+const UNSAFE_HTML_BRAND: unique symbol = Symbol('bquery.storybook.unsafeHtml');
 
 /**
  * Marker returned by {@link unsafeHtml}. Identifies an interpolated story

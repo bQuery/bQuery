@@ -159,6 +159,16 @@ describe('storybook/unsafeHtml', () => {
     const result = storyHtml`<bq-card>${a}/${b}</bq-card>`;
     expect(result).toBe('<bq-card><i class="a"></i>/<i class="b"></i></bq-card>');
   });
+
+  it('does not trust objects spoofing the previous global-symbol brand', () => {
+    const spoofed = {
+      [Symbol.for('bquery.storybook.unsafeHtml')]: true,
+      value: '<img src=x onerror=alert(1)>',
+    };
+    const result = storyHtml`<bq-card>${spoofed as unknown as string}</bq-card>`;
+    expect(result).toBe('<bq-card>[object Object]</bq-card>');
+    expect(result).not.toContain('<img');
+  });
 });
 
 describe('storybook/classMap', () => {

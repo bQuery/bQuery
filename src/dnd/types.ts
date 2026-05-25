@@ -370,9 +370,8 @@ export interface SortableHandle {
   /** Whether sorting is currently enabled. */
   readonly enabled: boolean;
   /**
-   * Move an item from one index to another, animating with the configured
-   * `animationDuration`. Indices are zero-based and clamped to the current
-   * item count.
+   * Move an item from one index to another. Indices are zero-based and clamped
+   * to the current item count.
    */
   move: (fromIndex: number, toIndex: number) => void;
   /**
