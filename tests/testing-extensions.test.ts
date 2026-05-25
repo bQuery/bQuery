@@ -59,6 +59,15 @@ describe('fireEvent shortcuts', () => {
     expect(fired).toBe('hello');
   });
 
+  it('fireEvent.input throws for non-form elements', () => {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+
+    expect(() => fireEvent.input(div, 'hello')).toThrow(
+      /requires an input, textarea, or select element/
+    );
+  });
+
   it('fireEvent.keyDown dispatches a KeyboardEvent', () => {
     const input = document.createElement('input');
     let receivedEvent: Event | null = null;

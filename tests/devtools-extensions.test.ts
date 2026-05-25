@@ -25,6 +25,7 @@ import {
   traceSignal,
   untraceSignal,
 } from '../src/devtools/index';
+import { effect, signal } from '../src/reactive/index';
 
 beforeEach(() => {
   enableDevtools(true);
@@ -178,8 +179,29 @@ describe('devtools/inspectSignals', () => {
 // ---------------------------------------------------------------------------
 
 describe('devtools/inspectEffects', () => {
-  it('returns an array (possibly empty)', () => {
-    expect(Array.isArray(inspectEffects())).toBe(true);
+  it('tracks effect() runs and disposal state', () => {
+    const count = signal(0);
+    const before = inspectEffects().length;
+
+    const dispose = effect(() => {
+      void count.value;
+    });
+
+    const created = inspectEffects();
+    expect(created.length).toBe(before + 1);
+    expect(created.at(-1)).toMatchObject({ runs: 1, disposed: false });
+
+    count.value = 1;
+
+    const updated = inspectEffects();
+    expect(updated.at(-1)).toMatchObject({ runs: 2, disposed: false });
+
+    dispose();
+
+    const disposed = inspectEffects();
+    expect(disposed.at(-1)).toMatchObject({ runs: 2, disposed: true });
+
+    count.dispose();
   });
 });
 

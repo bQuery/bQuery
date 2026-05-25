@@ -578,7 +578,15 @@ const createKeyboardShortcutEvent = (
 // Attach shortcut methods (1.14+) so callers can use `fireEvent.click(el)`,
 // `fireEvent.input(el, 'value')`, etc.
 const setInputValue = (el: Element, value: string): void => {
-  (el as HTMLInputElement).value = value;
+  const tagName = el.tagName.toLowerCase();
+  if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') {
+    (el as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement).value = value;
+    return;
+  }
+
+  throw new Error(
+    'bQuery testing: fireEvent.input/change requires an input, textarea, or select element'
+  );
 };
 
 interface FireEventShortcuts {

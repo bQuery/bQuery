@@ -21,6 +21,7 @@ import {
   subscribeTimeline,
   trackSignal,
 } from './devtools';
+import { __inspectTrackedEffects } from '../reactive/effect';
 import type {
   ComponentSnapshot,
   DevtoolsState,
@@ -182,33 +183,16 @@ export const untraceSignal = (label: string): void => {
 // Effect inspector
 // ---------------------------------------------------------------------------
 
-/** Snapshot of a reactive effect / scope, returned by {@link inspectEffects}. */
+/** Snapshot of a reactive effect, returned by {@link inspectEffects}. */
 export interface EffectSnapshot {
   readonly label?: string;
   readonly runs: number;
   readonly disposed: boolean;
 }
 
-const _trackedEffects = new Map<symbol, EffectSnapshot>();
-
-/** @internal */
-export const __registerEffect = (
-  id: symbol,
-  initial: Omit<EffectSnapshot, 'disposed'>
-): void => {
-  _trackedEffects.set(id, { ...initial, disposed: false });
-};
-
-/** @internal */
-export const __updateEffect = (id: symbol, change: Partial<EffectSnapshot>): void => {
-  const existing = _trackedEffects.get(id);
-  if (!existing) return;
-  _trackedEffects.set(id, { ...existing, ...change });
-};
-
-/** List currently tracked effects / reactive scopes (1.14+). */
+/** List currently tracked reactive effects created via {@link effect} (1.14+). */
 export const inspectEffects = (): EffectSnapshot[] => {
-  return [..._trackedEffects.values()];
+  return __inspectTrackedEffects().map((snapshot) => ({ ...snapshot }));
 };
 
 // ---------------------------------------------------------------------------

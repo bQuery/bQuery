@@ -66,7 +66,7 @@ types: `signal:create`, `signal:dispose`, `effect:dispose`, `component:mount`,
 inspectSignals({ includeValues: false }); // privacy-friendly snapshot
 diffSignals(prev, next); // structural diff
 traceSignal('cart.total');
-inspectEffects(); // active reactive scopes
+inspectEffects(); // reactive effects created with effect()
 ```
 
 ### Snapshot export / import
