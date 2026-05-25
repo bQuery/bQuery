@@ -139,7 +139,7 @@ const resolvePlain = (value: StoryValue): string => {
   if (value === null || value === undefined) return '';
   if (Array.isArray(value)) return value.map(resolvePlain).join('');
   if (typeof value === 'function') return resolvePlain(value());
-  if (typeof value === 'object' && value !== null && 'value' in value) {
+  if (typeof value === 'object' && 'value' in value) {
     // UnsafeHtmlMarker
     return (value as UnsafeHtmlMarker).value;
   }
