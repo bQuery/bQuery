@@ -154,6 +154,41 @@ describe('screen / within queries', () => {
     document.body.innerHTML = '<label for="i">Name</label><input id="i" />';
     expect(screen.getByLabelText('Name').tagName).toBe('INPUT');
   });
+
+  it('getByLabelText resolves multiple aria-labelledby ids in shadow DOM', () => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = `
+      <span id="first">Primary</span>
+      <span id="second">Name</span>
+      <input aria-labelledby="first second" />
+    `;
+    document.body.appendChild(host);
+
+    const input = shadow.querySelector('input');
+    expect(input).toBeTruthy();
+    if (!input) throw new Error('expected shadow-root input');
+    expect(screen.getByLabelText('Primary Name')).toBe(input);
+  });
+
+  it('screen throws a clear error without document', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'document');
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      writable: true,
+      value: undefined,
+    });
+
+    try {
+      expect(() => screen.getByText('Hello')).toThrow(/require a document-like environment/);
+    } finally {
+      if (descriptor) {
+        Object.defineProperty(globalThis, 'document', descriptor);
+      } else {
+        delete (globalThis as { document?: Document }).document;
+      }
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

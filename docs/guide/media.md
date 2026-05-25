@@ -58,8 +58,8 @@ const idle = useIdle(60_000); // true after 60s without input
 ### Element observers
 
 `useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`,
-`useFocus`, `useFocusWithin`, `useActiveElement`. Targets accept a
-`Signal<Element | null>` so the observer rebinds reactively.
+`useFocus`, `useFocusWithin`, `useActiveElement`. Targets accept plain
+`Element | null | undefined` values.
 
 ```ts
 import { useElementSize, useElementVisibility } from '@bquery/bquery/media';
@@ -103,12 +103,12 @@ const prefs = useStorage('prefs', { theme: 'dark' });
 ### Clipboard upgrades
 
 ```ts
-import { clipboard } from '@bquery/bquery/media';
+import { clipboard, clipboardText } from '@bquery/bquery/media';
 
 if (clipboard.isImageSupported) {
   const img = await clipboard.readImage();
 }
-const text = clipboard.clipboardText({ refreshOnFocus: true });
+const text = clipboardText({ onFocus: true });
 ```
 
 ---

@@ -64,12 +64,15 @@ use({
   version: '1.0.0',
   description: 'Lightweight tooltip directive',
   dependencies: ['popper'],
-  dependencyMode: 'throw',
+  dependencyMode: 'error',
   install(ctx) {
-    ctx.registerDirective({
-      name: 'tooltip',
-      mounted(el, value) { /* ... */ },
-      unmounted(el) { /* ... */ },
+    ctx.directive('tooltip', {
+      mounted(el, value) {
+        /* ... */
+      },
+      unmounted(el) {
+        /* ... */
+      },
     });
     ctx.onCleanup(() => {
       // detach global listeners, caches, etc.
@@ -311,12 +314,12 @@ type CustomDirectiveHandler = (
 ) => void;
 ```
 
-| Parameter    | Type             | Description                                                  |
-| ------------ | ---------------- | ------------------------------------------------------------ |
-| `el`         | `Element`        | The DOM element with the directive attribute                 |
+| Parameter    | Type             | Description                                                                                                                   |
+| ------------ | ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `el`         | `Element`        | The DOM element with the directive attribute                                                                                  |
 | `expression` | `string`         | The raw attribute value (expression text) from the template; if you need it evaluated, evaluate it against `context` yourself |
-| `context`    | `BindingContext` | The reactive data context from `mount()`                     |
-| `cleanups`   | `CleanupFn[]`    | Push cleanup functions here; they run when the view unmounts |
+| `context`    | `BindingContext` | The reactive data context from `mount()`                                                                                      |
+| `cleanups`   | `CleanupFn[]`    | Push cleanup functions here; they run when the view unmounts                                                                  |
 
 ### `CustomDirective`
 

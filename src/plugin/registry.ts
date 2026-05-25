@@ -21,12 +21,7 @@ import {
   removeActionsByOwner,
   removeFiltersByOwner,
 } from './hooks';
-import {
-  hasProvided,
-  inject as freeInject,
-  registerProvide,
-  removeProvidedByOwner,
-} from './di';
+import { hasProvided, inject as freeInject, registerProvide, removeProvidedByOwner } from './di';
 import type {
   BQueryPlugin,
   CustomDirective,
@@ -47,7 +42,6 @@ interface InstalledPluginRecord {
   plugin: BQueryPlugin<unknown>;
   directives: string[];
   cleanups: (() => void)[];
-  unmounts: ((el: Element) => void)[];
 }
 
 /** Set of installed plugin names — prevents double-install. */
@@ -58,12 +52,6 @@ const inFlightInstalls = new Map<string, Promise<void>>();
 
 /** Custom directive handlers contributed by plugins. */
 const customDirectives = new Map<string, CustomDirectiveHandler>();
-
-/**
- * Per-directive unmount callbacks (for {@link CustomDirectiveLifecycle.unmounted}).
- * @internal
- */
-const directiveUnmountHooks = new Map<string, (el: Element) => void>();
 
 type PendingComponentRegistration = {
   tagName: string;
@@ -95,7 +83,7 @@ const DIRECTIVE_NAME_RE = /^[A-Za-z_][\w-]*(?::[A-Za-z_][\w-]*)?$/;
 const normaliseDirectiveValue = (
   name: string,
   handler: CustomDirectiveValue
-): { handler: CustomDirectiveHandler; unmounted?: (el: Element) => void } => {
+): { handler: CustomDirectiveHandler } => {
   if (typeof handler === 'function') {
     return { handler };
   }
@@ -115,7 +103,6 @@ const normaliseDirectiveValue = (
           cleanups.push(() => fn(el));
         }
       },
-      unmounted: lifecycle.unmounted,
     };
   }
   throw new Error(
@@ -150,9 +137,8 @@ const createInstallContext = (
     if (customDirectives.has(name)) {
       throw new Error(`bQuery plugin directive: a directive named "${name}" is already registered`);
     }
-    const { handler: normalisedHandler, unmounted } = normaliseDirectiveValue(name, handler);
+    const { handler: normalisedHandler } = normaliseDirectiveValue(name, handler);
     customDirectives.set(name, normalisedHandler);
-    if (unmounted) directiveUnmountHooks.set(name, unmounted);
     record.directives.push(name);
   },
 
@@ -193,7 +179,14 @@ const createInstallContext = (
     fn: (value: T, ...args: unknown[]) => T,
     priority = 10
   ): void {
-    record.cleanups.push(registerFilter(name, fn as (value: unknown, ...args: unknown[]) => unknown, priority, record.name));
+    record.cleanups.push(
+      registerFilter(
+        name,
+        fn as (value: unknown, ...args: unknown[]) => unknown,
+        priority,
+        record.name
+      )
+    );
   },
 
   applyFilters<T>(name: string, value: T, ...args: unknown[]): T {
@@ -289,7 +282,6 @@ const runInstall = <TOptions>(
     plugin: plugin as BQueryPlugin<unknown>,
     directives: [],
     cleanups: [],
-    unmounts: [],
   };
 
   const pendingComponents: PendingComponentRegistration[] = [];
@@ -298,7 +290,6 @@ const runInstall = <TOptions>(
 
   const rollback = (): void => {
     restoreDirectiveSnapshot(directivesSnapshot);
-    for (const name of record.directives) directiveUnmountHooks.delete(name);
     for (const cleanup of record.cleanups) {
       try {
         cleanup();
@@ -380,7 +371,6 @@ export const unuse = (name: string): boolean => {
 
   for (const directiveName of record.directives) {
     customDirectives.delete(directiveName);
-    directiveUnmountHooks.delete(directiveName);
   }
 
   installedPlugins.delete(name);
@@ -404,9 +394,9 @@ export const isInstalled = (name: string): boolean => installedPlugins.has(name)
  */
 export function getInstalledPlugins(): readonly string[];
 export function getInstalledPlugins(options: { withMetadata: true }): readonly PluginInfo[];
-export function getInstalledPlugins(
-  options?: { withMetadata?: boolean }
-): readonly string[] | readonly PluginInfo[] {
+export function getInstalledPlugins(options?: {
+  withMetadata?: boolean;
+}): readonly string[] | readonly PluginInfo[] {
   if (options && options.withMetadata) {
     return [...installedPlugins.values()].map((record) => ({
       name: record.plugin.name,
@@ -446,7 +436,6 @@ export const resetPlugins = (): void => {
   for (const name of [...installedPlugins.keys()]) unuse(name);
   installedPlugins.clear();
   customDirectives.clear();
-  directiveUnmountHooks.clear();
   attachCustomDirectiveResolver();
 };
 

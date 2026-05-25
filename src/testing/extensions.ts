@@ -183,10 +183,35 @@ const collectShadowRoots = (root: ParentNode): ParentNode[] => {
 const allElements = (root: ParentNode): Element[] => {
   const acc: Element[] = [];
   for (const r of collectShadowRoots(root)) {
+    if (typeof r.querySelectorAll !== 'function') continue;
     for (const el of r.querySelectorAll('*')) acc.push(el);
   }
   return acc;
 };
+
+const getQueryableRoot = (
+  el: Element
+): (ParentNode & { querySelector(selector: string): Element | null }) | null => {
+  const root = el.getRootNode?.();
+  if (
+    root &&
+    typeof (root as ParentNode & { querySelector?: unknown }).querySelector === 'function'
+  ) {
+    return root as ParentNode & { querySelector(selector: string): Element | null };
+  }
+  if (typeof document !== 'undefined' && typeof document.querySelector === 'function') {
+    return document;
+  }
+  return null;
+};
+
+const escapeAttributeValue = (value: string): string =>
+  value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+
+const findById = (
+  root: ParentNode & { querySelector(selector: string): Element | null },
+  id: string
+): Element | null => root.querySelector(`[id="${escapeAttributeValue(id)}"]`);
 
 const matchesText = (el: Element, target: string | RegExp): boolean => {
   // Only consider text that appears directly within `el`'s own text children,
@@ -213,7 +238,10 @@ const matchesRole = (el: Element, role: string): boolean => {
       return tag === 'a' && el.hasAttribute('href');
     case 'textbox':
       return (
-        (tag === 'input' && /^(text|search|email|password|tel|url)?$/i.test(((el as HTMLInputElement).type ?? 'text'))) ||
+        (tag === 'input' &&
+          /^(text|search|email|password|tel|url)?$/i.test(
+            (el as HTMLInputElement).type ?? 'text'
+          )) ||
         tag === 'textarea'
       );
     case 'checkbox':
@@ -246,12 +274,27 @@ const matchesLabel = (el: Element, label: string | RegExp): boolean => {
   if (aria && matchesString(aria, label)) return true;
   const labelledBy = el.getAttribute('aria-labelledby');
   if (labelledBy) {
-    const ref = (el.getRootNode() as Document).getElementById?.(labelledBy);
-    if (ref && matchesText(ref, label)) return true;
+    const root = getQueryableRoot(el);
+    const refs =
+      root === null
+        ? []
+        : labelledBy
+            .trim()
+            .split(/\s+/)
+            .map((id) => findById(root, id))
+            .filter((ref): ref is Element => ref !== null);
+    if (refs.some((ref) => matchesText(ref, label))) return true;
+    const combined = refs
+      .map((ref) => ref.textContent?.trim() ?? '')
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+    if (combined && matchesString(combined, label)) return true;
   }
   const id = el.getAttribute('id');
   if (id) {
-    const labelEl = (el.getRootNode() as Document).querySelector?.(`label[for="${id}"]`);
+    const root = getQueryableRoot(el);
+    const labelEl = root?.querySelector(`label[for="${escapeAttributeValue(id)}"]`);
     if (labelEl && matchesText(labelEl, label)) return true;
   }
   // Implicit label wrap
@@ -275,11 +318,7 @@ const single = <T>(items: T[], desc: string): T => {
 
 const optional = <T>(items: T[]): T | null => (items.length === 0 ? null : items[0]);
 
-const findAsync = async <T>(
-  fn: () => T[],
-  desc: string,
-  timeoutMs = 1000
-): Promise<T> => {
+const findAsync = async <T>(fn: () => T[], desc: string, timeoutMs = 1000): Promise<T> => {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     const result = fn();
@@ -340,7 +379,8 @@ export const within = (root: ParentNode): Queries => {
 
     getByText: (text) => single(byText(text), `text ${String(text)}`),
     queryByText: (text) => optional(byText(text)),
-    findByText: (text, timeoutMs) => findAsync(() => byText(text), `text ${String(text)}`, timeoutMs),
+    findByText: (text, timeoutMs) =>
+      findAsync(() => byText(text), `text ${String(text)}`, timeoutMs),
 
     getByLabelText: (label) => single(byLabel(label), `label ${String(label)}`),
     queryByLabelText: (label) => optional(byLabel(label)),
@@ -354,7 +394,8 @@ export const within = (root: ParentNode): Queries => {
 
     getByTestId: (id) => single(byTestId(id), `data-testid="${id}"`),
     queryByTestId: (id) => optional(byTestId(id)),
-    findByTestId: (id, timeoutMs) => findAsync(() => byTestId(id), `data-testid="${id}"`, timeoutMs),
+    findByTestId: (id, timeoutMs) =>
+      findAsync(() => byTestId(id), `data-testid="${id}"`, timeoutMs),
   };
 };
 
@@ -364,7 +405,12 @@ export const within = (root: ParentNode): Queries => {
  */
 export const screen: Queries = new Proxy({} as Queries, {
   get(_t, prop: keyof Queries) {
-    const queries = within(typeof document === 'undefined' ? ({} as ParentNode) : document);
+    if (typeof document === 'undefined') {
+      return (): never => {
+        throw new Error('bQuery testing: screen queries require a document-like environment');
+      };
+    }
+    const queries = within(document);
     return queries[prop];
   },
 });
@@ -399,9 +445,7 @@ export const mockComputed = <T>(
 };
 
 /** Wrap {@link effect} with a `runs` counter and `dispose` handle. */
-export const mockEffect = (
-  fn: () => void
-): { runs: number; dispose: () => void } => {
+export const mockEffect = (fn: () => void): { runs: number; dispose: () => void } => {
   const state = { runs: 0, dispose: (): void => undefined };
   const dispose = effect(() => {
     state.runs++;
@@ -518,7 +562,10 @@ export interface MockFetchRoute {
 }
 
 export const mockFetch = (
-  routes: Record<string, MockFetchRoute | ((req: Request) => MockFetchRoute | Promise<MockFetchRoute>)>
+  routes: Record<
+    string,
+    MockFetchRoute | ((req: Request) => MockFetchRoute | Promise<MockFetchRoute>)
+  >
 ): { restore: () => void; calls: Request[] } => {
   const calls: Request[] = [];
   const original = (globalThis as { fetch?: typeof fetch }).fetch;
@@ -632,10 +679,7 @@ export const prettyDOM = (
       .map((a) => ` ${a.name}="${a.value}"`)
       .join('');
     let body = '';
-    if (
-      includeShadow &&
-      (node as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot
-    ) {
+    if (includeShadow && (node as Element & { shadowRoot?: ShadowRoot | null }).shadowRoot) {
       const shadow = (node as Element & { shadowRoot: ShadowRoot }).shadowRoot;
       const shadowHtml = Array.from(shadow.children)
         .map((c) => print(c, depth + 2))

@@ -47,6 +47,8 @@ export const createMediaSignal = <T>(
   const s = signal<T>(initial);
   let cleanup: (() => void) | undefined;
   let destroyed = false;
+  let abortSignal: AbortSignal | undefined;
+  let onAbort: (() => void) | undefined;
 
   const set = (value: T): void => {
     if (destroyed) return;
@@ -65,12 +67,21 @@ export const createMediaSignal = <T>(
 
   const ro = readonly(s) as MediaSignalHandle<T>;
 
+  const clearAbortListener = (): void => {
+    if (abortSignal && onAbort) {
+      abortSignal.removeEventListener('abort', onAbort);
+    }
+    abortSignal = undefined;
+    onAbort = undefined;
+  };
+
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
     try {
       cleanup?.();
     } finally {
+      clearAbortListener();
       s.dispose();
     }
   };
@@ -82,13 +93,14 @@ export const createMediaSignal = <T>(
   });
 
   if (options?.signal) {
-    if (options.signal.aborted) {
+    abortSignal = options.signal;
+    if (abortSignal.aborted) {
       destroy();
     } else {
-      const onAbort = (): void => {
+      onAbort = (): void => {
         destroy();
       };
-      options.signal.addEventListener('abort', onAbort, { once: true });
+      abortSignal.addEventListener('abort', onAbort, { once: true });
     }
   }
 
@@ -99,7 +111,8 @@ export const createMediaSignal = <T>(
  * Returns `true` when running inside a DOM-capable environment.
  * @internal
  */
-export const hasDom = (): boolean => typeof window !== 'undefined' && typeof document !== 'undefined';
+export const hasDom = (): boolean =>
+  typeof window !== 'undefined' && typeof document !== 'undefined';
 
 /**
  * Writable counterpart of {@link createMediaSignal}.
@@ -118,6 +131,8 @@ export const createWritableMediaSignal = <T>(
   const s = signal<T>(initial);
   let cleanup: (() => void) | undefined;
   let destroyed = false;
+  let abortSignal: AbortSignal | undefined;
+  let onAbort: (() => void) | undefined;
 
   const set = (value: T): void => {
     if (destroyed) return;
@@ -135,12 +150,21 @@ export const createWritableMediaSignal = <T>(
 
   const ro = readonly(s) as MediaSignalHandle<T>;
 
+  const clearAbortListener = (): void => {
+    if (abortSignal && onAbort) {
+      abortSignal.removeEventListener('abort', onAbort);
+    }
+    abortSignal = undefined;
+    onAbort = undefined;
+  };
+
   const destroy = (): void => {
     if (destroyed) return;
     destroyed = true;
     try {
       cleanup?.();
     } finally {
+      clearAbortListener();
       s.dispose();
     }
   };
@@ -152,8 +176,14 @@ export const createWritableMediaSignal = <T>(
   });
 
   if (options?.signal) {
-    if (options.signal.aborted) destroy();
-    else options.signal.addEventListener('abort', destroy, { once: true });
+    abortSignal = options.signal;
+    if (abortSignal.aborted) destroy();
+    else {
+      onAbort = (): void => {
+        destroy();
+      };
+      abortSignal.addEventListener('abort', onAbort, { once: true });
+    }
   }
 
   return { handle: ro, set, destroy };
