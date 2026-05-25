@@ -45,24 +45,23 @@ const resolveBounds = (el: HTMLElement, bounds: DragBounds): BoundsRect | null =
   if (bounds === 'parent') {
     target = el.parentElement;
   } else if (bounds === 'viewport') {
+    if (
+      typeof window === 'undefined' ||
+      typeof window.innerWidth !== 'number' ||
+      typeof window.innerHeight !== 'number'
+    ) {
+      return null;
+    }
     const elRect = el.getBoundingClientRect();
     const rawLeft = parseFloat(el.style.left || '0');
     const rawTop = parseFloat(el.style.top || '0');
     const leftOffset = Number.isNaN(rawLeft) ? 0 : rawLeft;
     const topOffset = Number.isNaN(rawTop) ? 0 : rawTop;
-    const viewportWidth =
-      typeof window !== 'undefined' && typeof window.innerWidth === 'number'
-        ? window.innerWidth
-        : 0;
-    const viewportHeight =
-      typeof window !== 'undefined' && typeof window.innerHeight === 'number'
-        ? window.innerHeight
-        : 0;
     return {
       left: -elRect.left + leftOffset,
       top: -elRect.top + topOffset,
-      right: viewportWidth - elRect.right + leftOffset,
-      bottom: viewportHeight - elRect.bottom + topOffset,
+      right: window.innerWidth - elRect.right + leftOffset,
+      bottom: window.innerHeight - elRect.bottom + topOffset,
     };
   } else if (typeof bounds === 'string') {
     if (typeof document === 'undefined' || typeof document.querySelector !== 'function') {
@@ -394,10 +393,7 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
       x: currentPosition.x - previousPosition.x,
       y: currentPosition.y - previousPosition.y,
     },
-    // Cast: pointer-shaped callbacks accept the keyboard event as the
-    // underlying input device for keyboard-driven drags. Authors that care
-    // about the device should branch on `event.type`.
-    event: key as unknown as PointerEvent,
+    event: key,
   });
 
   const onKeyDown = (e: KeyboardEvent): void => {

@@ -1331,6 +1331,29 @@ describe('dnd/draggable bounds variants', () => {
     expect(Number.isFinite(pos.y)).toBe(true);
     handle.destroy();
   });
+
+  it("treats 'viewport' bounds as unconstrained when window is unavailable", () => {
+    setZoneRect(box, { left: 50, top: 50, right: 150, bottom: 150 });
+    const handle = draggable(box, { bounds: 'viewport' });
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+    try {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+
+      handle.moveTo({ x: 10_000, y: 20_000 });
+      expect(handle.getPosition()).toEqual({ x: 10_000, y: 20_000 });
+    } finally {
+      if (originalWindowDescriptor) {
+        Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+      }
+    }
+
+    handle.destroy();
+  });
 });
 
 describe('dnd/droppable programmatic API', () => {

@@ -120,11 +120,12 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
     sortableItems: readonly HTMLElement[]
   ): number => {
     let index = 0;
+    const sortableItemSet = new Set(sortableItems);
 
     for (const child of Array.from(container.children)) {
       if (child === anchor) return index;
       if (child === dragged) continue;
-      if (sortableItems.includes(child as HTMLElement)) index += 1;
+      if (sortableItemSet.has(child as HTMLElement)) index += 1;
     }
 
     return index;

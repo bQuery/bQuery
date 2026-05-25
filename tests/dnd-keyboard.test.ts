@@ -91,6 +91,24 @@ describe('dnd/draggable keyboard support', () => {
     handle.destroy();
   });
 
+  it('passes KeyboardEvent instances through keyboard drag callbacks', () => {
+    const receivedEvents: Array<PointerEvent | KeyboardEvent> = [];
+    const handle = draggable(box, {
+      keyboard: true,
+      onDragStart: ({ event }) => receivedEvents.push(event),
+      onDrag: ({ event }) => receivedEvents.push(event),
+      onDragEnd: ({ event }) => receivedEvents.push(event),
+    });
+
+    fireKey(box, ' ');
+    fireKey(box, 'ArrowRight');
+    fireKey(box, ' ');
+
+    expect(receivedEvents).toHaveLength(3);
+    expect(receivedEvents.every((event) => event instanceof KeyboardEvent)).toBe(true);
+    handle.destroy();
+  });
+
   it('drops on Space after pickup', () => {
     let endCount = 0;
     const handle = draggable(box, {

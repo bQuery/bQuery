@@ -359,10 +359,10 @@ interface DragEventData {
   element: HTMLElement;
   /** Current position (accumulated translation). */
   position: DragPosition;
-  /** Movement delta since the last pointer event. */
+  /** Movement delta since the last drag event. */
   delta: DragPosition;
-  /** The raw pointer event. */
-  event: PointerEvent;
+  /** The raw pointer or keyboard event. */
+  event: PointerEvent | KeyboardEvent;
 }
 ```
 

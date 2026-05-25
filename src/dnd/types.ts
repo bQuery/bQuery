@@ -59,8 +59,8 @@ export interface DragEventData {
   position: DragPosition;
   /** Movement delta since the last event. */
   delta: DragPosition;
-  /** The original pointer event. */
-  event: PointerEvent;
+  /** The original pointer or keyboard event. */
+  event: PointerEvent | KeyboardEvent;
 }
 
 // ─── Draggable ───────────────────────────────────────────────────────────────
