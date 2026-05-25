@@ -61,10 +61,7 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     }
 
     isDisposed = true;
-    const snapshot = trackedEffects.get(effectId);
-    if (snapshot) {
-      trackedEffects.set(effectId, { ...snapshot, disposed: true });
-    }
+    trackedEffects.delete(effectId);
     clearEffectState();
   };
 

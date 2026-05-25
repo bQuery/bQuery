@@ -78,7 +78,7 @@ describe('fireEvent shortcuts', () => {
 
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
 
-    expect(receivedEvent instanceof KeyboardEvent).toBe(true);
+    expect(receivedEvent).toBeInstanceOf(KeyboardEvent);
     expect((receivedEvent as KeyboardEvent | null)?.key).toBe('Enter');
     expect((receivedEvent as KeyboardEvent | null)?.code).toBe('Enter');
   });
@@ -117,6 +117,24 @@ describe('userEvent', () => {
     document.body.appendChild(input);
     await userEvent.clear(input);
     expect(input.value).toBe('');
+  });
+
+  it('type() throws for non-form elements with the fireEvent validation error', async () => {
+    const div = document.createElement('div');
+    document.body.appendChild(div);
+
+    await expect(userEvent.type(div, 'hi')).rejects.toThrow(
+      /requires an input, textarea, or select element/
+    );
+  });
+
+  it('selectOptions() throws for non-select elements', async () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+
+    await expect(userEvent.selectOptions(input, 'x')).rejects.toThrow(
+      /requires a select element/
+    );
   });
 
   it('click() dispatches mousedown/up/click in order', async () => {

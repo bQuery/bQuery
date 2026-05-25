@@ -179,7 +179,7 @@ describe('devtools/inspectSignals', () => {
 // ---------------------------------------------------------------------------
 
 describe('devtools/inspectEffects', () => {
-  it('tracks effect() runs and disposal state', () => {
+  it('tracks active effect() runs and removes disposed effects', () => {
     const count = signal(0);
     const before = inspectEffects().length;
 
@@ -189,17 +189,16 @@ describe('devtools/inspectEffects', () => {
 
     const created = inspectEffects();
     expect(created.length).toBe(before + 1);
-    expect(created.at(-1)).toMatchObject({ runs: 1, disposed: false });
+    expect(created[created.length - 1]).toMatchObject({ runs: 1, disposed: false });
 
     count.value = 1;
 
     const updated = inspectEffects();
-    expect(updated.at(-1)).toMatchObject({ runs: 2, disposed: false });
+    expect(updated[updated.length - 1]).toMatchObject({ runs: 2, disposed: false });
 
     dispose();
 
-    const disposed = inspectEffects();
-    expect(disposed.at(-1)).toMatchObject({ runs: 2, disposed: true });
+    expect(inspectEffects()).toHaveLength(before);
 
     count.dispose();
   });

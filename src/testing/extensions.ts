@@ -18,7 +18,12 @@
  */
 
 import { computed, effect, signal, type Signal } from '../reactive/index';
-import { __setRenderComponentTracker, fireEvent, flushEffects } from './testing';
+import {
+  __getTextInputElement,
+  __setRenderComponentTracker,
+  fireEvent,
+  flushEffects,
+} from './testing';
 
 // ---------------------------------------------------------------------------
 // Auto cleanup
@@ -99,6 +104,14 @@ export const runScheduled = (): void => {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+const getSelectElement = (el: Element): HTMLSelectElement => {
+  if (el.tagName.toLowerCase() === 'select') {
+    return el as HTMLSelectElement;
+  }
+
+  throw new Error('bQuery testing: userEvent.selectOptions requires a select element');
+};
+
 /**
  * Higher-level interactions composed from {@link fireEvent}. Every action
  * flushes effects + microtasks before returning so consumers can `await` it.
@@ -127,30 +140,28 @@ export const userEvent = {
     await tick();
   },
   async type(el: Element, text: string, opts?: { delay?: number }): Promise<void> {
-    const input = el as HTMLInputElement;
+    const input = __getTextInputElement(el);
     for (const ch of text) {
-      input.value = (input.value ?? '') + ch;
       fireEvent.keyDown(el, { key: ch });
-      fireEvent(el, 'input');
+      fireEvent.input(el, `${input.value ?? ''}${ch}`);
       fireEvent.keyUp(el, { key: ch });
       if (opts?.delay) await sleep(opts.delay);
     }
     await tick();
   },
   async clear(el: Element): Promise<void> {
-    (el as HTMLInputElement).value = '';
-    fireEvent(el, 'input');
-    fireEvent(el, 'change');
+    fireEvent.input(el, '');
+    fireEvent.change(el, '');
     await tick();
   },
   async selectOptions(el: Element, values: string | string[]): Promise<void> {
-    const select = el as HTMLSelectElement;
+    const select = getSelectElement(el);
     const list = Array.isArray(values) ? values : [values];
     for (const opt of Array.from(select.options)) {
       opt.selected = list.includes(opt.value);
     }
-    fireEvent(el, 'input');
-    fireEvent(el, 'change');
+    fireEvent(select, 'input');
+    fireEvent(select, 'change');
     await tick();
   },
   async tab(): Promise<void> {
@@ -158,9 +169,8 @@ export const userEvent = {
     await tick();
   },
   async paste(el: Element, text: string): Promise<void> {
-    const input = el as HTMLInputElement;
-    input.value = (input.value ?? '') + text;
-    fireEvent(el, 'input');
+    const input = __getTextInputElement(el);
+    fireEvent.input(el, `${input.value ?? ''}${text}`);
     fireEvent(el, 'paste');
     await tick();
   },
