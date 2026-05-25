@@ -150,8 +150,9 @@ export interface DraggableOptions {
 
   /**
    * Minimum pointer movement in pixels before a drag is activated. Below
-   * this threshold, pointer movement is allowed to scroll the page instead
-   * of starting a drag.
+   * this threshold, the pending press stays inactive instead of promoting to
+   * an active drag. This helps avoid accidental pickups, but the draggable
+   * still disables native touch panning while pressed.
    *
    * @default 0
    */

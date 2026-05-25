@@ -21,7 +21,7 @@ import type { UnsafeHtmlMarker } from './unsafe-html';
 const IF_DEFINED_OMITTED = '';
 
 /**
- * Builds a `class="..."` attribute string from a record of class → boolean.
+ * Builds a space-joined class value from a record of class → boolean.
  * Truthy values include the class, falsy values skip it.
  *
  * @remarks
@@ -29,7 +29,7 @@ const IF_DEFINED_OMITTED = '';
  * existing community examples.
  *
  * @param classes - Record of class names → truthiness predicate
- * @returns A `class="..."` attribute string, or empty when no classes apply
+ * @returns A space-joined class value, or empty when no classes apply
  *
  * @example
  * ```ts

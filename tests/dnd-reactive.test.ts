@@ -44,9 +44,13 @@ describe('useDraggable', () => {
     expect(isDragging.value).toBe(false);
 
     handle.moveTo({ x: 30, y: 40 });
-    // moveTo does not go through onDrag — but the test verifies signal wiring
-    // works by reading the position from the handle directly when needed.
+    expect(position.value).toEqual({ x: 30, y: 40 });
+    expect(isDragging.value).toBe(false);
     expect(handle.getPosition()).toEqual({ x: 30, y: 40 });
+
+    handle.reset();
+    expect(position.value).toEqual({ x: 0, y: 0 });
+    expect(isDragging.value).toBe(false);
 
     firePointer(box, 'pointerdown', { clientX: 0, clientY: 0 });
     expect(isDragging.value).toBe(true);

@@ -79,6 +79,22 @@ export const useDraggable = (el: HTMLElement, options: DraggableOptions = {}): U
     },
   });
 
+  const syncPosition = (): void => {
+    position.value = handle.getPosition();
+  };
+
+  const originalMoveTo = handle.moveTo;
+  handle.moveTo = (nextPosition) => {
+    originalMoveTo(nextPosition);
+    syncPosition();
+  };
+
+  const originalReset = handle.reset;
+  handle.reset = () => {
+    originalReset();
+    syncPosition();
+  };
+
   registerScopeCleanup(() => handle.destroy());
 
   return {
