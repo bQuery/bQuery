@@ -501,11 +501,14 @@ export const createRouter = (options: RouterOptions): Router => {
     return str ? `?${str}` : '';
   };
 
+  const normalizeHash = (hash: string | undefined): string => {
+    if (!hash) return '';
+    return hash.startsWith('#') ? hash : `#${hash}`;
+  };
+
   const resolveRoute = (input: ResolveRouteInput): ResolvedRouteInfo => {
     let pathOnly: string;
-    let query: ResolveRouteInput extends string
-      ? undefined
-      : Record<string, string | number | boolean | Array<string | number | boolean>> | undefined;
+    let searchStr = '';
     let hashPart = '';
 
     if (typeof input === 'string') {
@@ -527,20 +530,18 @@ export const createRouter = (options: RouterOptions): Router => {
     }
 
     if (input.path !== undefined) {
-      pathOnly = input.path;
+      const url = new URL(input.path, 'http://__bq_resolve__/');
+      pathOnly = url.pathname;
+      searchStr = input.query === undefined ? (url.search ?? '') : buildSearchString(input.query);
+      hashPart = input.hash === undefined ? (url.hash ?? '') : normalizeHash(input.hash);
     } else if (input.name !== undefined) {
       pathOnly = resolveByName(input.name, input.params ?? {});
+      searchStr = buildSearchString(input.query);
+      hashPart = normalizeHash(input.hash);
     } else {
       throw new Error('bQuery router: resolveRoute requires either `path` or `name`.');
     }
 
-    query = input.query;
-    hashPart = input.hash
-      ? input.hash.startsWith('#')
-        ? input.hash
-        : `#${input.hash}`
-      : '';
-    const searchStr = buildSearchString(query);
     const fullPath = `${pathOnly}${searchStr}${hashPart}`;
     const matchedRoute = createRoute(pathOnly, searchStr, hashPart.replace(/^#/, ''), flatRoutes);
     const href = useHash ? `#${fullPath}` : `${base}${fullPath}`;

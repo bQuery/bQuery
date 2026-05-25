@@ -115,7 +115,21 @@ export const handleOnWithModifiers = (
     cleanups: { push: (fn: () => void) => void }
   ): void => {
     let invoked = false;
-    const handler = (event: Event) => {
+    let removed = false;
+    let handler: (event: Event) => void;
+    const listenerOptions: AddEventListenerOptions = {
+      capture,
+      passive,
+      // We manage `once` manually so that the predicate filters (key/button)
+      // can short-circuit without consuming the listener slot.
+    };
+    const removeListener = () => {
+      if (removed) return;
+      removed = true;
+      el.removeEventListener(eventName, handler, listenerOptions);
+    };
+
+    handler = (event: Event) => {
       if (self && event.target !== el) return;
 
       // Key/mouse-button filtering applies when the event is the right type.
@@ -138,6 +152,7 @@ export const handleOnWithModifiers = (
       if (once) {
         if (invoked) return;
         invoked = true;
+        removeListener();
       }
 
       const eventContext = { ...context, $event: event, $el: el };
@@ -152,15 +167,7 @@ export const handleOnWithModifiers = (
       evaluateRaw(expression, eventContext);
     };
 
-    const listenerOptions: AddEventListenerOptions = {
-      capture,
-      passive,
-      // We manage `once` manually so that the predicate filters (key/button)
-      // can short-circuit without consuming the listener slot.
-    };
     el.addEventListener(eventName, handler, listenerOptions);
-    cleanups.push(() =>
-      el.removeEventListener(eventName, handler, listenerOptions)
-    );
+    cleanups.push(removeListener);
   };
 };

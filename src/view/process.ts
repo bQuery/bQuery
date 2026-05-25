@@ -34,13 +34,13 @@ export const processElement = (
   prefix: string,
   cleanups: CleanupFn[],
   handlers: DirectiveHandlers
-): void => {
+): boolean => {
   // bq-pre: skip directive processing entirely for this element and its
   // descendants. Honor it before reading any other attributes so the marker
   // remains an escape hatch with predictable semantics.
   if (el.hasAttribute(`${prefix}-pre`)) {
     el.removeAttribute(`${prefix}-pre`);
-    return;
+    return false;
   }
 
   // bq-cloak: remove the marker once mount reaches the element. Authors use
@@ -62,7 +62,7 @@ export const processElement = (
     // Handle bq-for specially (creates new scope)
     if (directive === 'for') {
       handlers.for(el, value, context, cleanups);
-      return; // Don't process children, bq-for handles it
+      return false; // Don't process children, bq-for handles it
     }
 
     // Handle other directives
@@ -121,6 +121,8 @@ export const processElement = (
       }
     }
   }
+
+  return true;
 };
 
 /**
@@ -136,18 +138,15 @@ export const processChildren = (
 ): void => {
   const children = Array.from(el.children);
   for (const child of children) {
-    // Skip descendants of bq-pre subtrees entirely. processElement also
-    // removes the marker and returns without touching this child's attrs.
-    if (child.hasAttribute(`${prefix}-pre`)) {
-      processElement(child, context, prefix, cleanups, handlers);
-      continue;
-    }
-    // Skip if element has bq-for (handled separately)
-    if (!child.hasAttribute(`${prefix}-for`)) {
-      processElement(child, context, prefix, cleanups, handlers);
+    const shouldProcessChildren = processElement(
+      child,
+      context,
+      prefix,
+      cleanups,
+      handlers
+    );
+    if (shouldProcessChildren) {
       processChildren(child, context, prefix, cleanups, handlers);
-    } else {
-      processElement(child, context, prefix, cleanups, handlers);
     }
   }
 };

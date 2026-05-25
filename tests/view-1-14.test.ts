@@ -2,7 +2,7 @@
  * View 1.14.0 expansion tests — strictly additive surface.
  */
 
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import { computed, signal } from '../src/reactive/index';
 import { mount, parseDirective } from '../src/view/index';
 
@@ -83,6 +83,22 @@ describe('View 1.14.0 expansion', () => {
       // The bq-pre marker itself is removed.
       expect(root.querySelector('div')?.hasAttribute('bq-pre')).toBe(false);
       // The inner bq-text attribute is preserved (not stripped).
+      expect(innerSpan.hasAttribute('bq-text')).toBe(true);
+      view.destroy();
+      root.remove();
+    });
+
+    it('skips processing the root subtree when the mount root has bq-pre', () => {
+      const root = document.createElement('div');
+      root.setAttribute('bq-pre', '');
+      root.innerHTML = '<span bq-text="inner">literal</span>';
+      document.body.appendChild(root);
+      const view = mount(root, {
+        inner: signal('INNER'),
+      });
+      const innerSpan = root.querySelector('span')!;
+      expect(innerSpan.textContent).toBe('literal');
+      expect(root.hasAttribute('bq-pre')).toBe(false);
       expect(innerSpan.hasAttribute('bq-text')).toBe(true);
       view.destroy();
       root.remove();
@@ -197,9 +213,33 @@ describe('View 1.14.0 expansion', () => {
       let calls = 0;
       const view = mount(root, { onClick: () => calls++ });
       const btn = root.querySelector('button')!;
+      const removeSpy = spyOn(btn, 'removeEventListener');
+      btn.click();
+      expect(removeSpy).toHaveBeenCalledTimes(1);
       btn.click();
       btn.click();
-      btn.click();
+      expect(calls).toBe(1);
+      removeSpy.mockRestore();
+      view.destroy();
+      root.remove();
+    });
+
+    it('keeps .once listeners armed until modifier filters match', () => {
+      const root = document.createElement('div');
+      root.innerHTML = '<input bq-on:keydown.enter.once="onEnter" type="text" />';
+      document.body.appendChild(root);
+      let calls = 0;
+      const view = mount(root, { onEnter: () => calls++ });
+      const input = root.querySelector('input')!;
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'a', bubbles: true })
+      );
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+      );
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+      );
       expect(calls).toBe(1);
       view.destroy();
       root.remove();

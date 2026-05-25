@@ -211,6 +211,34 @@ describe('Router 1.14.0 expansion', () => {
       expect(info.matched?.name).toBe('user');
     });
 
+    it('parses query and hash from object path input', () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/users/:id', name: 'user', component: () => 'user' },
+      ]);
+      const info = router!.resolveRoute({
+        path: '/users/42?tab=info#bio',
+      });
+      expect(info.path).toBe('/users/42?tab=info#bio');
+      expect(info.href).toBe('/users/42?tab=info#bio');
+      expect(info.matched?.name).toBe('user');
+    });
+
+    it('normalizes object path input before applying explicit query and hash overrides', () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/users/:id', name: 'user', component: () => 'user' },
+      ]);
+      const info = router!.resolveRoute({
+        path: '/users/42?tab=info#bio',
+        query: { page: 2 },
+        hash: 'details',
+      });
+      expect(info.path).toBe('/users/42?page=2#details');
+      expect(info.href).toBe('/users/42?page=2#details');
+      expect(info.matched?.name).toBe('user');
+    });
+
     it('throws when given neither name nor path', () => {
       setup([{ path: '/', component: () => 'home' }]);
       expect(() => router!.resolveRoute({})).toThrow();
