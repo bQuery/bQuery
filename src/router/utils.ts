@@ -69,6 +69,23 @@ export const resolveRouteDefinitionPath = (
 };
 
 /**
+ * Resolves a named route from an explicit route list.
+ * @internal
+ */
+export const resolveNamedRoutePath = (
+  routes: RouteDefinition[],
+  name: string,
+  params: Record<string, string> = {}
+): string => {
+  const route = routes.find((candidate) => candidate.name === name);
+  if (!route) {
+    throw new Error(`bQuery router: Route "${name}" not found.`);
+  }
+
+  return resolveRouteDefinitionPath(route, params);
+};
+
+/**
  * Flattens nested routes into a single array with full paths.
  * Does NOT include the router base - base is only for browser history.
  * @internal
@@ -116,12 +133,7 @@ export const resolve = (name: string, params: Record<string, string> = {}): stri
     throw new Error('bQuery router: No router initialized.');
   }
 
-  const route = activeRouter.routes.find((r) => r.name === name);
-  if (!route) {
-    throw new Error(`bQuery router: Route "${name}" not found.`);
-  }
-
-  return resolveRouteDefinitionPath(route, params);
+  return resolveNamedRoutePath(activeRouter.routes, name, params);
 };
 
 /**

@@ -25,7 +25,7 @@ import type {
   Router,
   RouterOptions,
 } from './types';
-import { flattenRoutes, resolveRouteDefinitionPath } from './utils';
+import { flattenRoutes, resolveNamedRoutePath } from './utils';
 
 // ============================================================================
 // Router Creation
@@ -55,19 +55,6 @@ const sanitizeHistoryState = (state: Record<string, unknown>): Record<string, un
   }
 
   return sanitized;
-};
-
-const resolveNamedRoutePath = (
-  routes: RouteDefinition[],
-  name: string,
-  params: Record<string, string> = {}
-): string => {
-  const route = routes.find((candidate) => candidate.name === name);
-  if (!route) {
-    throw new Error(`bQuery router: Route "${name}" not found.`);
-  }
-
-  return resolveRouteDefinitionPath(route, params);
 };
 
 /**

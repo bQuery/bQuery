@@ -39,6 +39,7 @@ const setupMockHistory = (initial = '/') => {
     };
   };
   const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'location');
+  const originalLocation = window.location;
   let mockLocation = createLoc(url);
   Object.defineProperty(window, 'location', {
     get: () => mockLocation,
@@ -67,6 +68,11 @@ const setupMockHistory = (initial = '/') => {
       replaceSpy.mockRestore();
       if (originalDescriptor) {
         Object.defineProperty(window, 'location', originalDescriptor);
+      } else {
+        Object.defineProperty(window, 'location', {
+          value: originalLocation,
+          configurable: true,
+        });
       }
     },
   };
