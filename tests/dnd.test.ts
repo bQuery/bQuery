@@ -995,7 +995,8 @@ describe('dnd/sortable', () => {
     firePointerEvent(list, 'pointermove', { clientX: 10, clientY: 100 });
     firePointerEvent(list, 'pointerup', { clientX: 10, clientY: 100 });
 
-    expect(endData).toEqual({ oldIndex: 0, newIndex: 2 });
+    expect(endData).not.toBeNull();
+    expect(endData!).toEqual({ oldIndex: 0, newIndex: 2 });
     handle.destroy();
   });
 
@@ -1044,7 +1045,8 @@ describe('dnd/sortable', () => {
       handle.destroy();
     }
 
-    expect(endData).toEqual({ oldIndex: 0, newIndex: 2 });
+    expect(endData).not.toBeNull();
+    expect(endData!).toEqual({ oldIndex: 0, newIndex: 2 });
   });
 
   it('should respect handle option', () => {
