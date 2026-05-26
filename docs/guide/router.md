@@ -2,6 +2,10 @@
 title: Router
 ---
 
+::: tip What's new in 1.14.0
+Router gained `NavigationResult`, `pushResult` / `replaceResult`, `beforeResolve`, `resolveRoute`, dynamic `addRoute` / `removeRoute` / `hasRoute`, `isReady`, `lastNavigation`, and `useNavigation()` in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The router module provides SPA-style client-side routing built on the History API. It integrates seamlessly with bQuery's reactive system.
 
 Internally, the router is now split into focused submodules (matching, navigation, state, links, utilities), and the public API now also includes the `isNavigating` reactive signal.

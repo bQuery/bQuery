@@ -1,5 +1,9 @@
 # Devtools
 
+::: tip What's new in 1.14.0
+Devtools graduated to a batteries-included tier in 1.14.0 with a ring-buffered timeline (`maxTimelineEntries`, default 1000), expanded `TimelineEntry` payloads, new event types (`signal:create` / `signal:dispose`, `effect:dispose`, `component:mount` / `unmount` / `render`, `route:guard`, `error:caught`, `measure`, `mark`), filterable + subscribable timelines (`filterTimeline`, `subscribeTimeline`), structural `diffSignals` / `diffStores`, signal traces (`traceSignal` / `untraceSignal`), `inspectEffects`, snapshot import/export (`exportDevtoolsSnapshot` / `importDevtoolsSnapshot`), an `installBrowserBridge()` for extension panels, and performance helpers (`time`, `measureRender`, `getPerformanceSummary`). See the [1.14.0 release notes](/release-notes/1.14#devtools-batteries-included).
+:::
+
 The devtools module provides lightweight runtime inspection utilities for debugging signals, stores, custom elements, and event timelines during development. It is designed for diagnostics and development feedback — not production analytics.
 
 ```ts

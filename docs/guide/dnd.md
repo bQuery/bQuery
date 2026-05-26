@@ -1,5 +1,9 @@
 # Drag & Drop
 
+::: tip What's new in 1.14.0
+DnD gained programmatic handle APIs, `grid` / `delay` / `touchStartThreshold` / `keyboard` / `keyboardStep` options, `'viewport'` bounds, and the reactive `useDraggable` / `useDroppable` / `useSortable` composables in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The drag-and-drop module adds pointer-based dragging, droppable zones, and sortable lists with touch support and configurable constraints.
 
 ```ts

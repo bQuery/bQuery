@@ -1,5 +1,9 @@
 # Server
 
+::: tip What's new in 1.14.0
+The server module gained `ServerHttpError`, expanded `ctx` helpers (`ctx.body`, `ctx.cookies`, `ctx.setCookie`, `ctx.accepts`, `ctx.stream`, `ctx.sse`, `ctx.renderStream`, `ctx.renderResponse`), and `app.listen()` in 1.14.0. Cookies now validate header-safe characters and body parsing enforces size limits by streamed byte count *before* decoding JSON / form / multipart / text bodies. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The server module adds a lightweight, Express-inspired backend layer to bQuery without introducing runtime dependencies. It focuses on the smallest useful primitives for request pipelines: middleware, route params, query parsing, safe response helpers, direct SSR rendering, and runtime-agnostic WebSocket session routing.
 
 ```ts

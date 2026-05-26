@@ -2,6 +2,10 @@
 title: View
 ---
 
+::: tip What's new in 1.14.0
+View gained `parseDirective` / `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The view module provides declarative DOM bindings similar to Vue/Svelte templates, but without requiring a compiler. Bindings are evaluated at runtime using bQuery's reactive system. Internally, the view module is now split into focused submodules while the public API remains unchanged.
 
 ```ts

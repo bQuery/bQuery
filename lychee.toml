@@ -1,0 +1,38 @@
+# lychee — broken link checker configuration for docs/**.
+# https://lychee.cli.rs/usage/config/
+
+# Cache results to keep CI fast.
+cache = true
+max_cache_age = "7d"
+
+# Don't follow redirects forever.
+max_redirects = 5
+
+# Sane timeouts so transient failures don't dominate the run.
+timeout = 20
+retry_wait_time = 2
+max_retries = 2
+
+# Treat .md files as the canonical source.
+include_verbatim = false
+
+# Skip known noisy hosts that frequently rate-limit or hide behind anti-bot
+# checks. The CI run is informational by default, so this just reduces noise.
+exclude = [
+  "^https?://(?:www\\.)?linkedin\\.com",
+  "^https?://(?:www\\.)?twitter\\.com",
+  "^https?://(?:www\\.)?x\\.com",
+  "^https?://(?:www\\.)?facebook\\.com",
+  # localhost and example.com appear in code samples on purpose.
+  "^https?://localhost",
+  "^https?://127\\.0\\.0\\.1",
+  "^https?://(?:www\\.)?example\\.com",
+  # Mailto links are not link-checkable.
+  "^mailto:",
+]
+
+# Treat HTTP 429 (rate-limited) and 403 (commonly anti-bot) as soft failures.
+accept = ["200..=299", "403", "429"]
+
+# Be a polite crawler.
+user_agent = "lychee/bquery-docs-ci"

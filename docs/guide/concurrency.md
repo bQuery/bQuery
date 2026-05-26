@@ -1,5 +1,9 @@
 # Concurrency
 
+::: tip What's new in 1.14.0
+Concurrency gained `withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause` / `resume` / `onIdle`, and rolling reactive metrics in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The concurrency module adds a small, explicit browser-side worker layer for bQuery's zero-build model.
 
 > **New in 1.10.0:** The module now includes explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.

@@ -1,5 +1,9 @@
 # Media
 
+::: tip What's new in 1.14.0
+Media graduated to a batteries-included tier in 1.14.0 with 25+ new reactive composables: preference signals (`usePreferredColorScheme`, `usePreferredContrast`, `usePreferredReducedTransparency`, `usePreferredLanguage`, `usePreferredLanguages`), page state (`useOnlineStatus`, `usePageVisibility`, `useDocumentFocus`, `useWindowFocus`, `useIdle`), element observers (`useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`, `useFocus`, `useFocusWithin`, `useActiveElement`), pointer/scroll (`usePointer`, `useScroll`), platform integrations (`usePermission`, `useWakeLock`, `useShare`, `useShareSupported`, `useBroadcastChannel`, `useEventListener`, `useMediaDevices`, `useStorage`), and clipboard upgrades (`isSupported`, `isImageSupported`, `readImage`, `writeImage`, `clipboardText`). Every composable accepts an optional `{ signal: AbortSignal }` for auto-teardown. See the [1.14.0 release notes](/release-notes/1.14#media-batteries-included).
+:::
+
 The media module exposes reactive wrappers and helpers around browser and device APIs. Many composables return reactive signals that update automatically when the underlying browser state changes, typically as a `MediaSignalHandle` with a `destroy()` method for cleanup. Some utilities return helper objects with their own APIs instead.
 
 ```ts

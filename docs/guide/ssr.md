@@ -1,5 +1,9 @@
 # SSR
 
+::: tip What's new in 1.14.0
+SSR gained `flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, and multi-chunk `renderToStream` in 1.14.0. `Vary` merging now preserves wildcard semantics (`Vary: *` survives merge). See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The SSR module renders bQuery templates to HTML strings, streams, or full `Response` objects on the server, serializes store state for transfer, and hydrates the client-side DOM back into a live reactive application.
 
 ```ts

@@ -85,6 +85,15 @@ export default defineConfig({
   description: DESCRIPTION,
   base: process.env.VITEPRESS_BASE ?? '/',
   cleanUrls: true,
+  // TypeDoc emits its HTML reference into docs/api/ via `bun run docs:api`.
+  // VitePress should not crawl those files; the API reference is linked as
+  // an external sub-site instead.
+  srcExclude: ['api/**', '**/node_modules/**'],
+  ignoreDeadLinks: [
+    // TypeDoc-emitted markdown sometimes ends up inside docs/api/; if any
+    // straggler escapes srcExclude, never block the docs build on it.
+    /^\/?api\//,
+  ],
   head: [
     ['link', { rel: 'icon', href: '/assets/bquerry-logo.svg' }],
     ['meta', { name: 'google-site-verification', content: 'injOs87iZEPOqUJhHQiKuXhzvuD7XL4dyXxyDpx4Sx8' }],

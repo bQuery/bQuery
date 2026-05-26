@@ -1,5 +1,9 @@
 # Testing
 
+::: tip What's new in 1.14.0
+Testing graduated to a batteries-included tier in 1.14.0 with auto cleanup (`cleanup`, `autoCleanup`), `fireEvent.*` shortcut methods (`click` / `input` / `change` / `submit` / `focus` / `blur` / `dblClick` / `keyDown` / `keyUp`), a `userEvent` namespace (`click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`), shadow-DOM-aware queries via `screen` and `within(el)` (`getByRole` / `getByText` / `getByLabelText` / `getByPlaceholderText` / `getByTestId` plus `query*` and `find*` variants), reactive harnesses (`mockComputed`, `mockEffect`), async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), and snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`). See the [1.14.0 release notes](/release-notes/1.14#testing-batteries-included).
+:::
+
 The testing module provides focused helpers for mounting components, mocking reactive state, dispatching events, and waiting for async conditions. All utilities work with `bun:test` and `happy-dom`.
 
 ```ts

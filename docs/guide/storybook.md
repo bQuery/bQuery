@@ -1,5 +1,9 @@
 # Storybook
 
+::: tip What's new in 1.14.0
+Storybook helpers gained `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, and `storySvg` in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 Use `@bquery/bquery/storybook` when you want string-based Storybook renderers that stay sanitized and ergonomic for Web Components.
 
 ```ts

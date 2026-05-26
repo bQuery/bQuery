@@ -1,5 +1,9 @@
 # Plugin System
 
+::: tip What's new in 1.14.0
+The plugin module graduated to a batteries-included tier in 1.14.0 with a hook bus (`addFilter` / `applyFilters`, `addAction` / `doAction`), DI container helpers (`createInjectionKey` / `provide` / `inject`), plugin-scoped `ctx.onCleanup`, async `install()`, plugin metadata (`version`, `description`, `dependencies`, `dependencyMode`), `unuse()` / `uninstall()`, directive lifecycle objects, and namespaced directives like `tooltip:arrow`. See the [1.14.0 release notes](/release-notes/1.14#plugin-batteries-included).
+:::
+
 The plugin module lets you register reusable integrations that add custom directives and Web Components globally. Plugins are installed at most once (by name) and integrate directly with the view module.
 
 ```ts
