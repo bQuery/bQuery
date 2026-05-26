@@ -120,6 +120,18 @@ export const createRouter = (options: RouterOptions): Router => {
   readyPromise = new Promise<void>((res) => {
     resolveReady = res;
   });
+
+  const createRedirectedNavigationResult = (
+    requestedPath: string,
+    from: Route | undefined,
+    inner: NavigationResult
+  ): NavigationResult => ({
+    status: inner.status === 'completed' ? 'redirected' : inner.status,
+    requestedPath,
+    to: inner.to,
+    from,
+    error: inner.error,
+  });
   let isReadyResolved = false;
   const markReady = (): void => {
     if (!isReadyResolved) {
@@ -282,13 +294,18 @@ export const createRouter = (options: RouterOptions): Router => {
     path: string,
     method: 'pushState' | 'replaceState',
     visitedPaths: Set<string> = new Set(),
-    throwOnError = false
+    throwOnError = false,
+    fromOverride?: Route
   ): Promise<NavigationResult> => {
     beginNavigation();
     let from: Route | undefined;
     try {
-      const current = getCurrentPath();
-      from = createRoute(current.pathname, current.search, current.hash, flatRoutes);
+      if (fromOverride) {
+        from = fromOverride;
+      } else {
+        const current = getCurrentPath();
+        from = createRoute(current.pathname, current.search, current.hash, flatRoutes);
+      }
 
       // Parse the target path
       const url = new URL(path, window.location.origin);
@@ -302,14 +319,14 @@ export const createRouter = (options: RouterOptions): Router => {
       // Check for redirectTo on the matched route
       if (to.matched?.redirectTo) {
         // Navigate to the redirect target instead
-        const inner = await performNavigation(to.matched.redirectTo, method, visitedPaths, throwOnError);
-        const redirected: NavigationResult = {
-          status: inner.status === 'completed' ? 'redirected' : inner.status,
-          requestedPath: path,
-          to: inner.to,
-          from: inner.from ?? from,
-          error: inner.error,
-        };
+        const inner = await performNavigation(
+          to.matched.redirectTo,
+          method,
+          visitedPaths,
+          throwOnError,
+          from
+        );
+        const redirected = createRedirectedNavigationResult(path, inner.from ?? from, inner);
         lastNavigationSignal.value = redirected;
         return redirected;
       }
@@ -428,7 +445,14 @@ export const createRouter = (options: RouterOptions): Router => {
 
       // Check for redirectTo on the matched route
       if (to.matched?.redirectTo) {
-        await performNavigation(to.matched.redirectTo, 'replaceState');
+        const inner = await performNavigation(
+          to.matched.redirectTo,
+          'replaceState',
+          new Set([requestedPath]),
+          false,
+          from
+        );
+        lastNavigationSignal.value = createRedirectedNavigationResult(requestedPath, from, inner);
         return;
       }
 

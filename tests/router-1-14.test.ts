@@ -565,5 +565,35 @@ describe('Router 1.14.0 expansion', () => {
         from: { path: '/second' },
       });
     });
+
+    it('reports redirected popstate navigation against the originally requested path', async () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/legacy', redirectTo: '/first' },
+        { path: '/first', component: () => 'first' },
+        { path: '/second', component: () => 'second' },
+      ]);
+
+      await router!.push('/second');
+
+      const guardCalls: string[] = [];
+      router!.beforeResolve((to, from) => {
+        guardCalls.push(`${from.path}->${to.path}`);
+      });
+
+      mockHistory!.setUrl('/legacy');
+      window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(guardCalls).toEqual(['/second->/first']);
+      expect(window.location.pathname).toBe('/first');
+      expect(router!.currentRoute.value.path).toBe('/first');
+      expect(router!.lastNavigation.value).toMatchObject({
+        status: 'redirected',
+        requestedPath: '/legacy',
+        to: { path: '/first' },
+        from: { path: '/second' },
+      });
+    });
   });
 });
