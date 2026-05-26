@@ -11,7 +11,7 @@ import {
   currentRoute,
   endNavigation,
   getActiveRouter,
-  resetNavigationState,
+  resetRouterState,
   routeSignal,
   setActiveRouter,
 } from './state';
@@ -482,6 +482,11 @@ export const createRouter = (options: RouterOptions): Router => {
     const next = flattenRoutes(rootRoutes);
     flatRoutes.length = 0;
     flatRoutes.push(...next);
+
+    // Re-match the current location against the updated route table so
+    // reactive consumers see the latest RouteDefinition immediately after
+    // addRoute/removeRoute, without waiting for a navigation/popstate event.
+    syncRoute();
   };
 
   // Build a path string with optional query and hash (used by resolveRoute).
@@ -676,8 +681,7 @@ export const createRouter = (options: RouterOptions): Router => {
       ) {
         history.scrollRestoration = previousScrollRestoration;
       }
-      resetNavigationState();
-      setActiveRouter(null);
+      resetRouterState();
     },
   };
 

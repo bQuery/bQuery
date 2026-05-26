@@ -1,8 +1,8 @@
 /**
- * Directive name parsing — splits `prefix-name[:arg][.mod1[-param]][.mod2[-param]]`
- * into its structural pieces. Used by the view pipeline to resolve attribute
- * names like `bq-on:click.stop.prevent`, `bq-model.lazy.trim`,
- * or `bq-bind:href.eager`.
+ * Directive name parsing — splits `name[:arg][.mod1[-param]][.mod2[-param]]`
+ * into its structural pieces. Used by the view pipeline after stripping the
+ * `bq-` prefix from attribute names like `bq-on:click.stop.prevent`,
+ * `bq-model.lazy.trim`, or `bq-bind:href.eager`.
  *
  * @module bquery/view
  */
@@ -36,7 +36,7 @@ export type ParsedDirective = {
 };
 
 /**
- * Parses a directive attribute name (without the leading `prefix-`).
+ * Parses a directive name after removing the leading `bq-` attribute prefix.
  *
  * Examples:
  * - `'text'` → `{ directive: 'text', arg: null, modifiers: ∅, modParams: {} }`

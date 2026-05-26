@@ -10,12 +10,12 @@ import {
   type RouteDefinition,
   type Router,
 } from '../src/router/index';
-import { resetNavigationState } from '../src/router/state';
+import { getActiveRouter, resetNavigationState, resetRouterState } from '../src/router/state';
 
 const TEST_ORIGIN = 'http://localhost';
 
 afterEach(() => {
-  resetNavigationState();
+  resetRouterState();
 });
 
 // ---------------------------------------------------------------------------
@@ -82,8 +82,8 @@ describe('Router 1.14.0 expansion', () => {
   let router: Router | null = null;
   let mockHistory: ReturnType<typeof setupMockHistory> | null = null;
 
-  const setup = (routes: RouteDefinition[]) => {
-    mockHistory = setupMockHistory('/');
+  const setup = (routes: RouteDefinition[], initial = '/') => {
+    mockHistory = setupMockHistory(initial);
     router = createRouter({ routes });
   };
 
@@ -303,6 +303,19 @@ describe('Router 1.14.0 expansion', () => {
       expect(router!.hasRoute('settings')).toBe(true);
     });
 
+    it('re-matches the current location after addRoute', () => {
+      setup([{ path: '/', component: () => 'home' }], '/settings');
+      expect(router!.currentRoute.value.matched).toBeNull();
+
+      router!.addRoute(undefined, {
+        path: '/settings',
+        name: 'settings',
+        component: () => 'settings',
+      });
+
+      expect(router!.currentRoute.value.matched?.name).toBe('settings');
+    });
+
     it('removeRoute removes the named route and returns true', () => {
       setup([
         { path: '/', component: () => 'home' },
@@ -311,6 +324,21 @@ describe('Router 1.14.0 expansion', () => {
       expect(router!.removeRoute('x')).toBe(true);
       expect(router!.hasRoute('x')).toBe(false);
       expect(router!.removeRoute('nope')).toBe(false);
+    });
+
+    it('re-matches the current location after removeRoute', () => {
+      setup(
+        [
+          { path: '/', component: () => 'home' },
+          { path: '/x', name: 'x', component: () => 'x' },
+        ],
+        '/x'
+      );
+      expect(router!.currentRoute.value.matched?.name).toBe('x');
+
+      expect(router!.removeRoute('x')).toBe(true);
+
+      expect(router!.currentRoute.value.matched).toBeNull();
     });
 
     it('addRoute with parentName nests under the parent', () => {
@@ -405,6 +433,14 @@ describe('Router 1.14.0 expansion', () => {
   });
 
   describe('useNavigation', () => {
+    it('resetNavigationState preserves the active router', () => {
+      setup([{ path: '/', component: () => 'home' }]);
+
+      resetNavigationState();
+
+      expect(getActiveRouter()).toBe(router);
+    });
+
     it('exposes reactive last-navigation signals', async () => {
       setup([
         { path: '/', component: () => 'home' },

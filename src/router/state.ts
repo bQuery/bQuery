@@ -84,9 +84,14 @@ export const endNavigation = (): void => {
 
 /** @internal */
 export const resetNavigationState = (): void => {
-  activeRouterSignal.value = null;
   navigationCountSignal.value = 0;
   isNavigatingSignal.value = false;
+};
+
+/** @internal */
+export const resetRouterState = (): void => {
+  activeRouterSignal.value = null;
+  resetNavigationState();
 };
 
 /** @internal */
