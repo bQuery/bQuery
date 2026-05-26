@@ -110,6 +110,20 @@ describe('Router 1.14.0 expansion', () => {
       expect(result.to?.path).toBe('/about');
     });
 
+    it('normalizes relative paths before committing them to history', async () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/about', component: () => 'about' },
+      ]);
+
+      const result = await router!.pushResult('about');
+
+      expect(result.requestedPath).toBe('about');
+      expect(result.to?.path).toBe('/about');
+      expect(window.location.pathname).toBe('/about');
+      expect(router!.currentRoute.value.path).toBe('/about');
+    });
+
     it('returns status="canceled" when a beforeEach guard returns false', async () => {
       setup([
         { path: '/', component: () => 'home' },
@@ -490,6 +504,15 @@ describe('Router 1.14.0 expansion', () => {
       await router!.push('/a');
       expect(nav.status.value).toBe('completed');
       expect(nav.to.value?.path).toBe('/a');
+    });
+
+    it('returns shared computed handles across calls', () => {
+      const first = useNavigation();
+      const second = useNavigation();
+
+      expect(first).toBe(second);
+      expect(first.lastNavigation).toBe(second.lastNavigation);
+      expect(first.status).toBe(second.status);
     });
 
     it('reports error status when a navigation throws', async () => {

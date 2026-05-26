@@ -78,24 +78,24 @@ export type UseNavigationReturn = {
  * });
  * ```
  */
-export const useNavigation = (): UseNavigationReturn => {
-  const lastNavigation = computed<NavigationResult | null>(() => {
-    const router = activeRouterState.value;
-    return router ? router.lastNavigation.value : null;
-  });
-  const to = computed<Route | null>(() => lastNavigation.value?.to ?? null);
-  const from = computed<Route | null>(() => lastNavigation.value?.from ?? null);
-  const error = computed<unknown | null>(() => lastNavigation.value?.error ?? null);
-  const status = computed<NavigationResult['status'] | null>(
-    () => lastNavigation.value?.status ?? null
-  );
+const lastNavigation = computed<NavigationResult | null>(() => {
+  const router = activeRouterState.value;
+  return router ? router.lastNavigation.value : null;
+});
+const to = computed<Route | null>(() => lastNavigation.value?.to ?? null);
+const from = computed<Route | null>(() => lastNavigation.value?.from ?? null);
+const error = computed<unknown | null>(() => lastNavigation.value?.error ?? null);
+const status = computed<NavigationResult['status'] | null>(() => lastNavigation.value?.status ?? null);
 
-  return {
-    isNavigating,
-    lastNavigation,
-    to,
-    from,
-    error,
-    status,
-  };
+const navigationHandle: UseNavigationReturn = {
+  isNavigating,
+  lastNavigation,
+  to,
+  from,
+  error,
+  status,
+};
+
+export const useNavigation = (): UseNavigationReturn => {
+  return navigationHandle;
 };

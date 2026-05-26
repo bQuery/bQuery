@@ -11,78 +11,9 @@
  * @since 1.14.0
  */
 
-import { readonly, signal, type ReadonlySignal } from '../reactive/index';
+import { readonly, signal } from '../reactive/index';
 import type { MediaPreferenceSignal } from './types';
-
-type LegacyMediaQueryList = MediaQueryList & {
-  addListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
-  removeListener?: (listener: (event: MediaQueryListEvent | MediaQueryList) => void) => void;
-};
-
-const bindMediaQueryListener = (
-  mql: MediaQueryList,
-  handler: (event: MediaQueryListEvent | MediaQueryList) => void
-): (() => void) | undefined => {
-  if (typeof mql.addEventListener === 'function') {
-    mql.addEventListener('change', handler);
-    return () => mql.removeEventListener('change', handler);
-  }
-  const legacy = mql as LegacyMediaQueryList;
-  if (typeof legacy.addListener === 'function') {
-    legacy.addListener(handler);
-    return () => legacy.removeListener?.(handler);
-  }
-  return undefined;
-};
-
-const withDestroy = <T>(
-  handle: ReadonlySignal<T>,
-  cleanup: () => void
-): MediaPreferenceSignal<T> => {
-  let destroyImpl = cleanup;
-  const out = handle as MediaPreferenceSignal<T>;
-  Object.defineProperty(out, 'destroy', {
-    configurable: true,
-    enumerable: false,
-    value: () => {
-      const current = destroyImpl;
-      destroyImpl = () => {};
-      current();
-    },
-  });
-  return out;
-};
-
-const createMediaSignal = (
-  query: string,
-  initialValue: boolean
-): MediaPreferenceSignal<boolean> => {
-  const s = signal(initialValue);
-  let destroy = (): void => {
-    s.dispose();
-  };
-
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    try {
-      const mql = window.matchMedia(query);
-      s.value = mql.matches;
-      const handler = (e: MediaQueryListEvent | MediaQueryList): void => {
-        s.value = e.matches;
-      };
-      const cleanupMql = bindMediaQueryListener(mql, handler);
-      if (cleanupMql) {
-        destroy = () => {
-          cleanupMql();
-          s.dispose();
-        };
-      }
-    } catch {
-      // matchMedia may not be available
-    }
-  }
-
-  return withDestroy(readonly(s), destroy);
-};
+import { bindMediaQueryListener, createMediaSignal, withDestroy } from './media-preference-shared';
 
 /**
  * Reactive signal tracking `(prefers-reduced-transparency: reduce)`.

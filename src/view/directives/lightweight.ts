@@ -49,7 +49,7 @@ export const handleHtmlSafe: DirectiveHandler = (el, expression, context, cleanu
  * mount without creating reactive subscriptions.
  *
  * Currently implemented as a lightweight marker so authors can colocate
- * intent without changing runtime behavior. For now it simply evaluates the
+ * intent without creating reactive subscriptions. It still evaluates the
  * expression once on mount to surface any logged runtime errors without
  * subscribing to future updates.
  *

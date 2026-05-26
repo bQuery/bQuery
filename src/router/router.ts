@@ -383,7 +383,7 @@ export const createRouter = (options: RouterOptions): Router => {
       const existingScrollKey = scrollRestoration ? getScrollKey() : undefined;
       const scrollKey =
         method === 'replaceState' && existingScrollKey ? existingScrollKey : createScrollKey();
-      const fullPath = useHash ? `#${path}` : `${base}${path}`;
+      const fullPath = useHash ? `#${resolvedPath}` : `${base}${resolvedPath}`;
       const baseState =
         scrollRestoration && history.state && typeof history.state === 'object'
           ? sanitizeHistoryState(history.state as Record<string, unknown>)

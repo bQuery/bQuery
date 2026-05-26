@@ -46,8 +46,8 @@ const init = (): void => {
   const onFocusIn = (event: FocusEvent): void => {
     const target = event.target as Element | null;
     if (!target) return;
-    // Inputs/textareas/contenteditable always show focus visible regardless
-    // of input modality — match the browser's :focus-visible heuristic.
+    // When keyboard modality is active, text-entry targets should retain the
+    // visible focus ring just like any other focused element.
     const tag = target.tagName;
     if (
       tag === 'INPUT' ||
