@@ -1,6 +1,7 @@
 import type { CleanupFn } from '../reactive/index';
 import { detectDevEnvironment } from '../core/env';
 import { getCustomDirective } from './custom-directives';
+import { parseDirective } from './parse-directive';
 import type { BindingContext, DirectiveHandler } from './types';
 
 export type DirectiveHandlers = {
@@ -8,6 +9,7 @@ export type DirectiveHandlers = {
   error: DirectiveHandler;
   aria: DirectiveHandler;
   html: DirectiveHandler;
+  htmlSafe: DirectiveHandler;
   if: DirectiveHandler;
   show: DirectiveHandler;
   class: DirectiveHandler;
@@ -15,8 +17,11 @@ export type DirectiveHandlers = {
   model: DirectiveHandler;
   ref: DirectiveHandler;
   for: DirectiveHandler;
+  once: DirectiveHandler;
+  init: DirectiveHandler;
+  memo: DirectiveHandler;
   bind: (attrName: string) => DirectiveHandler;
-  on: (eventName: string) => DirectiveHandler;
+  on: (eventName: string, modifiers?: Set<string>) => DirectiveHandler;
 };
 
 /**
@@ -29,7 +34,21 @@ export const processElement = (
   prefix: string,
   cleanups: CleanupFn[],
   handlers: DirectiveHandlers
-): void => {
+): boolean => {
+  // bq-cloak: remove the marker once mount reaches the element. Authors use
+  // `[bq-cloak] { display: none }` to hide pre-hydration markup.
+  if (el.hasAttribute(`${prefix}-cloak`)) {
+    el.removeAttribute(`${prefix}-cloak`);
+  }
+
+  // bq-pre: skip directive processing entirely for this element and its
+  // descendants. Honor it before reading any other attributes so the marker
+  // remains an escape hatch with predictable semantics.
+  if (el.hasAttribute(`${prefix}-pre`)) {
+    el.removeAttribute(`${prefix}-pre`);
+    return false;
+  }
+
   const attributes = Array.from(el.attributes);
 
   for (const attr of attributes) {
@@ -37,12 +56,13 @@ export const processElement = (
 
     if (!attributeName.startsWith(`${prefix}-`)) continue;
 
-    const directive = attributeName.slice(prefix.length + 1); // Remove prefix and dash
+    const rawDirective = attributeName.slice(prefix.length + 1); // Remove prefix and dash
+    const { directive, arg, modifiers } = parseDirective(rawDirective);
 
     // Handle bq-for specially (creates new scope)
     if (directive === 'for') {
       handlers.for(el, value, context, cleanups);
-      return; // Don't process children, bq-for handles it
+      return false; // Don't process children, bq-for handles it
     }
 
     // Handle other directives
@@ -54,6 +74,8 @@ export const processElement = (
       handlers.aria(el, value, context, cleanups);
     } else if (directive === 'html') {
       handlers.html(el, value, context, cleanups);
+    } else if (directive === 'html-safe') {
+      handlers.htmlSafe(el, value, context, cleanups);
     } else if (directive === 'if') {
       handlers.if(el, value, context, cleanups);
     } else if (directive === 'show') {
@@ -66,15 +88,26 @@ export const processElement = (
       handlers.model(el, value, context, cleanups);
     } else if (directive === 'ref') {
       handlers.ref(el, value, context, cleanups);
-    } else if (directive.startsWith('bind:')) {
-      const attrName = directive.slice(5);
-      handlers.bind(attrName)(el, value, context, cleanups);
-    } else if (directive.startsWith('on:')) {
-      const eventName = directive.slice(3);
-      handlers.on(eventName)(el, value, context, cleanups);
+    } else if (directive === 'once') {
+      handlers.once(el, value, context, cleanups);
+    } else if (directive === 'init') {
+      handlers.init(el, value, context, cleanups);
+    } else if (directive === 'memo') {
+      handlers.memo(el, value, context, cleanups);
+    } else if (directive === 'bind' && arg) {
+      handlers.bind(arg)(el, value, context, cleanups);
+    } else if (directive === 'on' && arg) {
+      handlers.on(arg, modifiers)(el, value, context, cleanups);
     } else {
-      // Check for custom directives registered via plugins
-      const customHandler = getCustomDirective(directive);
+      // Check for custom directives registered via plugins. Custom directive
+      // names are matched against the directive head without modifiers,
+      // including any parsed argument (e.g. "tooltip:click"), to keep the API
+      // back-compatible when modifiers are appended at call sites.
+      const directiveHead = arg ? `${directive}:${arg}` : directive;
+      const customHandler =
+        getCustomDirective(directiveHead) ||
+        (directiveHead !== rawDirective ? getCustomDirective(rawDirective) : undefined) ||
+        (directiveHead !== directive ? getCustomDirective(directive) : undefined);
       if (customHandler) {
         customHandler(el, value, context, cleanups);
       } else if (
@@ -88,6 +121,8 @@ export const processElement = (
       }
     }
   }
+
+  return true;
 };
 
 /**
@@ -103,12 +138,15 @@ export const processChildren = (
 ): void => {
   const children = Array.from(el.children);
   for (const child of children) {
-    // Skip if element has bq-for (handled separately)
-    if (!child.hasAttribute(`${prefix}-for`)) {
-      processElement(child, context, prefix, cleanups, handlers);
+    const shouldProcessChildren = processElement(
+      child,
+      context,
+      prefix,
+      cleanups,
+      handlers
+    );
+    if (shouldProcessChildren) {
       processChildren(child, context, prefix, cleanups, handlers);
-    } else {
-      processElement(child, context, prefix, cleanups, handlers);
     }
   }
 };

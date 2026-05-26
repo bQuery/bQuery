@@ -6,9 +6,14 @@ import {
   handleClass,
   handleError,
   handleHtml,
+  handleHtmlSafe,
   handleIf,
+  handleInit,
+  handleMemo,
   handleModel,
   handleOn,
+  handleOnce,
+  handleOnWithModifiers,
   handleRef,
   handleShow,
   handleStyle,
@@ -85,12 +90,16 @@ export const mount = (
     error: handleError,
     aria: handleAria,
     html: handleHtml(sanitize),
+    htmlSafe: handleHtmlSafe,
     if: handleIf,
     show: handleShow,
     class: handleClass,
     style: handleStyle,
     model: handleModel,
     ref: handleRef,
+    once: handleOnce,
+    init: handleInit,
+    memo: handleMemo,
     for: createForHandler({
       prefix,
       processElement: (node, nodeContext, nodePrefix, nodeCleanups) =>
@@ -99,7 +108,10 @@ export const mount = (
         processChildren(node, nodeContext, nodePrefix, nodeCleanups, handlers),
     }),
     bind: handleBind,
-    on: handleOn,
+    on: (eventName: string, modifiers?: Set<string>) =>
+      modifiers && modifiers.size > 0
+        ? handleOnWithModifiers(eventName, modifiers)
+        : handleOn(eventName),
   };
 
   const processWithHandlers = (
@@ -107,14 +119,15 @@ export const mount = (
     nodeContext: BindingContext,
     nodeCleanups: CleanupFn[]
   ) => {
-    // Check if element has bq-for before processing
-    // bq-for replaces the element and handles its children internally
-    const hasFor = node.hasAttribute(`${prefix}-for`);
+    const shouldProcessChildren = processElement(
+      node,
+      nodeContext,
+      prefix,
+      nodeCleanups,
+      handlers
+    );
 
-    processElement(node, nodeContext, prefix, nodeCleanups, handlers);
-
-    // Skip processChildren if bq-for was on this element - it handles children itself
-    if (!hasFor) {
+    if (shouldProcessChildren) {
       processChildren(node, nodeContext, prefix, nodeCleanups, handlers);
     }
   };

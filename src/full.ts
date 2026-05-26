@@ -594,14 +594,19 @@ export {
   navigate,
   registerBqLink,
   resolve,
+  useNavigation,
   useRoute,
 } from './router/index';
 export type {
   NavigationGuard,
+  NavigationResult,
+  ResolvedRouteInfo,
+  ResolveRouteInput,
   Route,
   RouteDefinition,
   Router,
   RouterOptions,
+  UseNavigationReturn,
   UseRouteReturn,
 } from './router/index';
 
@@ -642,8 +647,8 @@ export type {
 // ============================================================================
 // View Module: Declarative DOM bindings without compiler
 // ============================================================================
-export { clearExpressionCache, createTemplate, mount } from './view/index';
-export type { BindingContext, MountOptions, View } from './view/index';
+export { clearExpressionCache, createTemplate, mount, parseDirective } from './view/index';
+export type { BindingContext, MountOptions, ParsedDirective, View } from './view/index';
 
 // ============================================================================
 // Forms Module: Reactive form handling and validation
@@ -724,15 +729,30 @@ export type {
 // ============================================================================
 // i18n Module: Internationalization, translations, formatting
 // ============================================================================
-export { createI18n, formatDate, formatNumber } from './i18n/index';
+export {
+  createI18n,
+  detectLocale,
+  formatDate,
+  formatDisplayName,
+  formatList,
+  formatNumber,
+  formatRelativeTime,
+  isRTL,
+  negotiateLocale,
+  segment,
+} from './i18n/index';
 export type {
   DateFormatOptions,
+  DetectLocaleOptions,
   I18nConfig,
   I18nInstance,
+  ListFormatOptions,
   LocaleLoader,
   LocaleMessages,
   Messages,
+  NegotiateLocaleOptions,
   NumberFormatOptions,
+  RelativeTimeFormatOptions,
   TranslateParams,
 } from './i18n/index';
 
@@ -745,12 +765,21 @@ export type {
 export {
   announceToScreenReader,
   auditA11y,
+  autoFocus,
   clearAnnouncements,
+  createLiveRegion,
+  focusVisible,
+  forcedColors,
   getFocusableElements,
+  inert,
+  keyboardUserSignal,
   prefersColorScheme,
   prefersContrast,
+  prefersReducedData,
+  prefersReducedTransparency,
   releaseFocus,
   rovingTabIndex,
+  scrollLock,
   skipLink,
   trapFocus,
 } from './a11y/index';
@@ -761,7 +790,11 @@ export type {
   AuditSeverity,
   ColorScheme,
   ContrastPreference,
+  CreateLiveRegionOptions,
+  DisposableHandle,
   FocusTrapHandle,
+  ForcedColorsMode,
+  LiveRegionHandle,
   MediaPreferenceSignal,
   RovingTabIndexHandle,
   RovingTabIndexOptions,

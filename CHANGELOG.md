@@ -95,6 +95,49 @@ and this project adheres to Semantic Versioning.
 - Expanded `@bquery/bquery/concurrency` with richer support metadata, `withTransferables()`, `createSharedBuffer()`, RPC `maxInFlight`, pool priority handling, `pause()` / `resume()`, `onIdle()`, and rolling pool metrics with reactive mirrors.
 - Expanded `@bquery/bquery/ssr` with `flushBoundary()`, `createSSRCache()`, `createSSRMetrics()`, `createEdgeHandler()`, cache-aware `renderToResponse()`, and explicit multi-chunk `renderToStream()` boundaries.
 - Expanded `@bquery/bquery/server` with structured `ServerHttpError` helpers, `ctx.body()`, `ctx.cookies`, `ctx.setCookie()`, `ctx.accepts()`, `ctx.stream()`, `ctx.sse()`, `ctx.renderStream()`, `ctx.renderResponse()`, and `app.listen()` for supported runtimes.
+- **`@bquery/bquery/router`** — additive 1.14.0 expansion:
+  - `NavigationResult` type with `pushResult()` and `replaceResult()`
+    methods that return structured results with `status`, `requestedPath`,
+    `to`, `from`, and `error` fields instead of bare promises (existing
+    `push`/`replace` continue to return `Promise<void>`).
+  - `beforeResolve(guard)` global hook fired after `beforeEach` and
+    route-level `beforeEnter` guards but before navigation commits.
+  - `resolveRoute(input)` method for synchronous route lookup without
+    navigating.
+  - Dynamic route management via `addRoute(parentName?, route)`,
+    `removeRoute(name)`, and `hasRoute(name)`.
+  - `isReady()` returning a promise that settles after the initial route
+    synchronization during router construction,
+    plus `lastNavigation` signal exposing the most recent result.
+  - `useNavigation()` composable returning reactive navigation state
+    (`isNavigating`, `error`, etc.).
+- **`@bquery/bquery/view`** — additive 1.14.0 expansion:
+  - Public `parseDirective(name)` helper and `ParsedDirective` type for
+    parsing `bq-on:event.modifier-param.modifier` syntax.
+  - New directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`,
+    `bq-html-safe`, and `bq-memo`.
+  - Full `bq-on` modifier system: `.stop`, `.prevent`, `.self`, `.capture`,
+    `.passive`, `.once`, mouse-button filters (`.left`/`.middle`/`.right`),
+    system-modifier filters (`.ctrl`/`.alt`/`.shift`/`.meta`), and
+    KeyboardEvent.key filters including aliases (`.enter`, `.esc`, arrow
+    keys, etc.).
+- **`@bquery/bquery/a11y`** — additive 1.14.0 expansion:
+  - `createLiveRegion(options)` for imperative, per-instance ARIA live
+    regions independent of the singleton `announceToScreenReader`.
+  - Reactive `keyboardUserSignal()` and `focusVisible()` signals.
+  - New media-preference signals `prefersReducedTransparency()`,
+    `prefersReducedData()`, and `forcedColors()`.
+  - DOM helpers `inert(target)`, `scrollLock()`, and `autoFocus(target, opts)`.
+- **`@bquery/bquery/i18n`** — additive 1.14.0 expansion:
+  - `negotiateLocale(requested, available, opts)` for pure locale
+    negotiation against a list of available tags.
+  - `detectLocale(opts)` reading from cookies, `localStorage`,
+    `<html lang>`, and `navigator.languages`.
+  - `isRTL(locale)` using `Intl.Locale` text-info when available with a
+    well-known-language fallback.
+  - New Intl helpers `formatRelativeTime`, `formatList`,
+    `formatDisplayName`, and `segment` (graceful fallbacks when the
+    underlying Intl API is unavailable).
 
 ### Fixed (Unreleased)
 

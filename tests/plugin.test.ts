@@ -20,15 +20,20 @@ import {
   handleClass,
   handleError,
   handleHtml,
+  handleHtmlSafe,
   handleIf,
+  handleInit,
+  handleMemo,
   handleModel,
   handleOn,
+  handleOnWithModifiers,
+  handleOnce,
   handleRef,
   handleShow,
   handleStyle,
   handleText,
 } from '../src/view/directives/index';
-import { processChildren, processElement } from '../src/view/process';
+import { processChildren, processElement, type DirectiveHandlers } from '../src/view/process';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -53,17 +58,21 @@ let uniqueElementIdCounter = 0;
 const generateUniqueCustomElementTag = (suffix: string): string =>
   `bq-${suffix}-${++uniqueElementIdCounter}`;
 
-const createDirectiveHandlers = () => ({
+const createDirectiveHandlers = (): DirectiveHandlers => ({
   text: handleText,
   error: handleError,
   aria: handleAria,
   html: handleHtml(true),
+  htmlSafe: handleHtmlSafe,
   if: handleIf,
   show: handleShow,
   class: handleClass,
   style: handleStyle,
   model: handleModel,
   ref: handleRef,
+  once: handleOnce,
+  init: handleInit,
+  memo: handleMemo,
   for: createForHandler({
     prefix: 'bq',
     processElement: (el, context, prefix, cleanups) =>
@@ -72,7 +81,10 @@ const createDirectiveHandlers = () => ({
       processChildren(el, context, prefix, cleanups, createDirectiveHandlers()),
   }),
   bind: (attrName: string) => handleBind(attrName),
-  on: (eventName: string) => handleOn(eventName),
+  on: (eventName: string, modifiers?: Set<string>) =>
+    modifiers && modifiers.size > 0
+      ? handleOnWithModifiers(eventName, modifiers)
+      : handleOn(eventName),
 });
 
 // ============================================================================
@@ -591,6 +603,26 @@ describe('Plugin System', () => {
       expect(calls.length).toBe(1);
       expect(calls[0].el).toBe(el);
       expect(calls[0].expr).toBe('yellow');
+    });
+
+    it('should resolve custom directives by directive head when modifiers are present', () => {
+      const calls: string[] = [];
+
+      use({
+        name: 'tooltip-head-plugin',
+        install(ctx) {
+          ctx.directive('tooltip:click', (_el, expression) => {
+            calls.push(expression);
+          });
+        },
+      });
+
+      const el = document.createElement('button');
+      el.setAttribute('bq-tooltip:click.once', 'open');
+
+      processElement(el, {}, 'bq', [], createDirectiveHandlers());
+
+      expect(calls).toEqual(['open']);
     });
 
     it('should warn for unknown directives when no plugin registers them', () => {
