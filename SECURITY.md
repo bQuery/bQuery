@@ -11,8 +11,8 @@ recommend that all users stay on the most recent published version.
 
 | Version  | Supported          |
 | -------- | ------------------ |
-| 1.13.x   | :white_check_mark: |
-| < 1.13.0 | :x:                |
+| 1.14.x   | :white_check_mark: |
+| < 1.14.0 | :x:                |
 
 Older versions may receive fixes at the maintainers' discretion if the issue is
 severe and the backport is low risk. Please upgrade to the latest release
