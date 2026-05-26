@@ -99,18 +99,23 @@ describe('A11y 1.14.0 expansion', () => {
       expect(sig.value).toBe(false);
     });
 
-    it('focusVisible tracks focus when keyboard active', () => {
+    it('focusVisible always shows for text inputs and follows keyboard modality for other controls', () => {
       const sig = focusVisible();
       const input = document.createElement('input');
+      const button = document.createElement('button');
       document.body.appendChild(input);
+      document.body.appendChild(button);
       // Pointer interaction first -> focus should not be visible.
       window.dispatchEvent(new MouseEvent('mousedown'));
       input.focus();
+      expect(sig.value).toBe(true);
+      input.blur();
+      button.focus();
       expect(sig.value).toBe(false);
       // Now keyboard interaction.
-      input.blur();
+      button.blur();
       window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
-      input.focus();
+      button.focus();
       expect(sig.value).toBe(true);
     });
   });

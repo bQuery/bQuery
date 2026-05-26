@@ -44,10 +44,6 @@ const init = (): void => {
   };
 
   const onFocusIn = (event: FocusEvent): void => {
-    if (!keyboardUserSig.peek()) {
-      focusVisibleSig.value = false;
-      return;
-    }
     const target = event.target as Element | null;
     if (!target) return;
     // Inputs/textareas/contenteditable always show focus visible regardless
@@ -59,6 +55,10 @@ const init = (): void => {
       (target as HTMLElement).isContentEditable
     ) {
       focusVisibleSig.value = true;
+      return;
+    }
+    if (!keyboardUserSig.peek()) {
+      focusVisibleSig.value = false;
       return;
     }
     focusVisibleSig.value = true;
