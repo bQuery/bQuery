@@ -63,6 +63,10 @@ const setupMockHistory = (initial = '/') => {
   );
 
   return {
+    setUrl: (target: string) => {
+      url = target;
+      mockLocation = createLoc(url);
+    },
     restore: () => {
       pushSpy.mockRestore();
       replaceSpy.mockRestore();
@@ -395,6 +399,27 @@ describe('Router 1.14.0 expansion', () => {
       expect(parentRoute.children?.map((route) => route.name)).toEqual(['existing']);
     });
 
+    it('deep-clones component routes even when redirectTo is present as undefined', () => {
+      const routes = [
+        {
+          path: '/parent',
+          name: 'parent',
+          component: () => 'parent',
+          redirectTo: undefined,
+          children: [{ path: '/existing', name: 'existing', component: () => 'existing' }],
+        },
+      ] as unknown as RouteDefinition[];
+
+      setup(routes);
+      router!.addRoute('parent', {
+        path: '/child',
+        name: 'child',
+        component: () => 'child',
+      });
+
+      expect(routes[0]?.children?.map((route) => route.name)).toEqual(['existing']);
+    });
+
     it('addRoute throws for an unknown parent', () => {
       setup([{ path: '/', component: () => 'home' }]);
       expect(() =>
@@ -484,6 +509,61 @@ describe('Router 1.14.0 expansion', () => {
       const result = router!.lastNavigation.value as NavigationResult | null;
       expect(result?.status).toBe('error');
       expect(result?.error).toBeDefined();
+    });
+
+    it('runs beforeResolve and updates lastNavigation for popstate navigation', async () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/first', component: () => 'first' },
+        { path: '/second', component: () => 'second' },
+      ]);
+
+      await router!.push('/first');
+      await router!.push('/second');
+
+      const guardCalls: string[] = [];
+      router!.beforeResolve((to, from) => {
+        guardCalls.push(`${from.path}->${to.path}`);
+      });
+
+      mockHistory!.setUrl('/first');
+      window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(guardCalls).toEqual(['/second->/first']);
+      expect(router!.currentRoute.value.path).toBe('/first');
+      expect(router!.lastNavigation.value).toMatchObject({
+        status: 'completed',
+        requestedPath: '/first',
+        to: { path: '/first' },
+        from: { path: '/second' },
+      });
+    });
+
+    it('can cancel popstate navigation from beforeResolve', async () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/first', component: () => 'first' },
+        { path: '/second', component: () => 'second' },
+      ]);
+
+      await router!.push('/first');
+      await router!.push('/second');
+
+      router!.beforeResolve(() => false);
+
+      mockHistory!.setUrl('/first');
+      window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(router!.currentRoute.value.path).toBe('/second');
+      expect(window.location.pathname).toBe('/second');
+      expect(router!.lastNavigation.value).toMatchObject({
+        status: 'canceled',
+        requestedPath: '/first',
+        to: { path: '/first' },
+        from: { path: '/second' },
+      });
     });
   });
 });

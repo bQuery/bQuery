@@ -10,12 +10,52 @@
  * @since 1.14.0
  */
 
+type RelativeTimeFormatUnit =
+  | 'year'
+  | 'quarter'
+  | 'month'
+  | 'week'
+  | 'day'
+  | 'hour'
+  | 'minute'
+  | 'second';
+
+type RelativeTimeFormat = {
+  format: (value: number, unit: RelativeTimeFormatUnit) => string;
+};
+
+type RelativeTimeFormatConstructor = new (
+  locale: string,
+  options?: RelativeTimeFormatOptions
+) => RelativeTimeFormat;
+
+type DisplayNamesOptions = {
+  localeMatcher?: 'best fit' | 'lookup';
+  style?: 'long' | 'short' | 'narrow';
+  type: 'language' | 'region' | 'script' | 'currency' | 'calendar' | 'dateTimeField';
+  fallback?: 'code' | 'none';
+  languageDisplay?: 'dialect' | 'standard';
+};
+
+type DisplayNames = {
+  of: (code: string) => string | undefined;
+};
+
+type DisplayNamesConstructor = new (
+  locale: string | string[],
+  options: DisplayNamesOptions
+) => DisplayNames;
+
 /**
  * Options accepted by {@link formatRelativeTime}.
  *
  * @since 1.14.0
  */
-export type RelativeTimeFormatOptions = Intl.RelativeTimeFormatOptions;
+export type RelativeTimeFormatOptions = {
+  localeMatcher?: 'best fit' | 'lookup';
+  numeric?: 'always' | 'auto';
+  style?: 'long' | 'short' | 'narrow';
+};
 
 /**
  * Format a duration as a localized relative time string
@@ -31,17 +71,13 @@ export type RelativeTimeFormatOptions = Intl.RelativeTimeFormatOptions;
  */
 export const formatRelativeTime = (
   value: number,
-  unit: Intl.RelativeTimeFormatUnit,
+  unit: 'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second',
   locale: string,
   options?: RelativeTimeFormatOptions
 ): string => {
   try {
-    const Ctor = (Intl as unknown as {
-      RelativeTimeFormat?: new (
-        locale: string,
-        options?: Intl.RelativeTimeFormatOptions
-      ) => Intl.RelativeTimeFormat;
-    }).RelativeTimeFormat;
+    const Ctor = (Intl as { RelativeTimeFormat?: RelativeTimeFormatConstructor })
+      .RelativeTimeFormat;
     if (typeof Ctor === 'function') {
       return new Ctor(locale, options).format(value, unit);
     }
@@ -120,15 +156,16 @@ export const formatList = (
 export const formatDisplayName = (
   code: string,
   locale: string,
-  options: Intl.DisplayNamesOptions
+  options: {
+    localeMatcher?: 'best fit' | 'lookup';
+    style?: 'long' | 'short' | 'narrow';
+    type: 'language' | 'region' | 'script' | 'currency' | 'calendar' | 'dateTimeField';
+    fallback?: 'code' | 'none';
+    languageDisplay?: 'dialect' | 'standard';
+  }
 ): string => {
   try {
-    const Ctor = (Intl as unknown as {
-      DisplayNames?: new (
-        locale: string | string[],
-        options: Intl.DisplayNamesOptions
-      ) => { of: (code: string) => string | undefined };
-    }).DisplayNames;
+    const Ctor = (Intl as { DisplayNames?: DisplayNamesConstructor }).DisplayNames;
     if (typeof Ctor === 'function') {
       const result = new Ctor(locale, options).of(code);
       return result ?? code;

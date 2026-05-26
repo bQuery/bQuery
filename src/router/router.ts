@@ -34,7 +34,7 @@ import { flattenRoutes, resolveNamedRoutePath } from './utils';
 const MAX_SCROLL_POSITION_ENTRIES = 100;
 
 const cloneRouteDefinition = (route: RouteDefinition): RouteDefinition => {
-  if ('redirectTo' in route) {
+  if (typeof (route as { redirectTo?: unknown }).redirectTo === 'string') {
     return { ...route };
   }
 
@@ -220,6 +220,22 @@ export const createRouter = (options: RouterOptions): Router => {
     return state;
   };
 
+  const stringifyRoutePath = (route: Route): string => {
+    const queryString = new URLSearchParams(
+      Object.entries(route.query).flatMap(([key, value]) =>
+        Array.isArray(value) ? value.map((entry) => [key, entry]) : [[key, value]]
+      )
+    ).toString();
+    const search = queryString ? `?${queryString}` : '';
+    const hash = route.hash ? `#${route.hash}` : '';
+    return `${route.path}${search}${hash}`;
+  };
+
+  const toHistoryPath = (route: Route): string => {
+    const routePath = stringifyRoutePath(route);
+    return useHash ? `#${routePath}` : `${base}${routePath}`;
+  };
+
   /**
    * Gets the current path from the URL.
    */
@@ -402,10 +418,13 @@ export const createRouter = (options: RouterOptions): Router => {
    */
   const handlePopState = async (event: PopStateEvent): Promise<void> => {
     beginNavigation();
+    const from = routeSignal.value;
+    let to: Route | undefined;
+    let requestedPath = '';
     try {
       const { pathname, search, hash } = getCurrentPath();
-      const from = routeSignal.value;
-      const to = createRoute(pathname, search, hash, flatRoutes);
+      requestedPath = `${pathname}${search}${hash}`;
+      to = createRoute(pathname, search, hash, flatRoutes);
 
       // Check for redirectTo on the matched route
       if (to.matched?.redirectTo) {
@@ -417,18 +436,13 @@ export const createRouter = (options: RouterOptions): Router => {
       if (to.matched?.beforeEnter) {
         const result = await to.matched.beforeEnter(to, from);
         if (result === false) {
-          // Restore previous state with full URL (including query/hash)
-          const queryString = new URLSearchParams(
-            Object.entries(from.query).flatMap(([key, value]) =>
-              Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
-            )
-          ).toString();
-          const searchStr = queryString ? `?${queryString}` : '';
-          const hashStr = from.hash ? `#${from.hash}` : '';
-          const restorePath = useHash
-            ? `#${from.path}${searchStr}${hashStr}`
-            : `${base}${from.path}${searchStr}${hashStr}`;
-          history.replaceState(getRestoreHistoryState(), '', restorePath);
+          lastNavigationSignal.value = {
+            status: 'canceled',
+            requestedPath,
+            to,
+            from,
+          };
+          history.replaceState(getRestoreHistoryState(), '', toHistoryPath(from));
           return;
         }
       }
@@ -437,18 +451,29 @@ export const createRouter = (options: RouterOptions): Router => {
       for (const guard of beforeGuards) {
         const result = await guard(to, from);
         if (result === false) {
-          // Restore previous state with full URL (including query/hash)
-          const queryString = new URLSearchParams(
-            Object.entries(from.query).flatMap(([key, value]) =>
-              Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
-            )
-          ).toString();
-          const search = queryString ? `?${queryString}` : '';
-          const hash = from.hash ? `#${from.hash}` : '';
-          const restorePath = useHash
-            ? `#${from.path}${search}${hash}`
-            : `${base}${from.path}${search}${hash}`;
-          history.replaceState(getRestoreHistoryState(), '', restorePath);
+          lastNavigationSignal.value = {
+            status: 'canceled',
+            requestedPath,
+            to,
+            from,
+          };
+          history.replaceState(getRestoreHistoryState(), '', toHistoryPath(from));
+          return;
+        }
+      }
+
+      // Run beforeResolve guards for history navigation too, so back/forward
+      // follows the same guard pipeline as push/replace.
+      for (const guard of beforeResolveGuards) {
+        const result = await guard(to, from);
+        if (result === false) {
+          lastNavigationSignal.value = {
+            status: 'canceled',
+            requestedPath,
+            to,
+            from,
+          };
+          history.replaceState(getRestoreHistoryState(), '', toHistoryPath(from));
           return;
         }
       }
@@ -468,6 +493,21 @@ export const createRouter = (options: RouterOptions): Router => {
       for (const hook of afterHooks) {
         hook(routeSignal.value, from);
       }
+      lastNavigationSignal.value = {
+        status: 'completed',
+        requestedPath,
+        to: routeSignal.value,
+        from,
+      };
+    } catch (error) {
+      lastNavigationSignal.value = {
+        status: 'error',
+        requestedPath,
+        to,
+        from,
+        error,
+      };
+      throw error;
     } finally {
       endNavigation();
     }
