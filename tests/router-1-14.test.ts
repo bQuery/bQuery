@@ -80,7 +80,7 @@ const setupMockHistory = (initial = '/') => {
 
 describe('Router 1.14.0 expansion', () => {
   let router: Router | null = null;
-  let mockHistory: ReturnType<typeof setupMockHistory>;
+  let mockHistory: ReturnType<typeof setupMockHistory> | null = null;
 
   const setup = (routes: RouteDefinition[]) => {
     mockHistory = setupMockHistory('/');
@@ -91,6 +91,7 @@ describe('Router 1.14.0 expansion', () => {
     router?.destroy();
     router = null;
     mockHistory?.restore();
+    mockHistory = null;
   });
 
   describe('pushResult / replaceResult', () => {
@@ -145,6 +146,19 @@ describe('Router 1.14.0 expansion', () => {
       const result = await router!.pushResult('/old');
       expect(result.status).toBe('redirected');
       expect(result.to?.path).toBe('/new');
+    });
+
+    it('returns status="error" instead of throwing when navigation fails', async () => {
+      setup([
+        { path: '/', component: () => 'home' },
+        { path: '/loop', redirectTo: '/loop' },
+      ]);
+
+      const result = await router!.pushResult('/loop');
+
+      expect(result.status).toBe('error');
+      expect(result.error).toBeDefined();
+      expect(router!.lastNavigation.value?.status).toBe('error');
     });
   });
 

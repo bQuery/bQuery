@@ -90,21 +90,26 @@ export const scrollLock = (): DisposableHandle => {
   if (typeof document === 'undefined') {
     return { release: () => {} };
   }
+  const root = document.documentElement;
+  const body = document.body;
+  if (!root || !body) {
+    return { release: () => {} };
+  }
   if (scrollLockRefs === 0) {
-    savedDocOverflow = document.documentElement.style.overflow || null;
-    savedBodyOverflow = document.body.style.overflow || null;
-    savedBodyPaddingRight = document.body.style.paddingRight || null;
+    savedDocOverflow = root.style.overflow || null;
+    savedBodyOverflow = body.style.overflow || null;
+    savedBodyPaddingRight = body.style.paddingRight || null;
     // Compensate for the disappearing scrollbar so the layout doesn't shift.
     const viewportWidth =
       typeof window === 'undefined' || typeof window.innerWidth !== 'number'
-        ? document.documentElement.clientWidth
+        ? root.clientWidth
         : window.innerWidth;
-    const scrollbar = viewportWidth - document.documentElement.clientWidth;
+    const scrollbar = viewportWidth - root.clientWidth;
     if (scrollbar > 0) {
-      document.body.style.paddingRight = `${scrollbar}px`;
+      body.style.paddingRight = `${scrollbar}px`;
     }
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.overflow = 'hidden';
+    root.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
   }
   scrollLockRefs++;
   let released = false;
@@ -115,19 +120,19 @@ export const scrollLock = (): DisposableHandle => {
       scrollLockRefs = Math.max(0, scrollLockRefs - 1);
       if (scrollLockRefs === 0) {
         if (savedDocOverflow === null) {
-          document.documentElement.style.removeProperty('overflow');
+          root.style.removeProperty('overflow');
         } else {
-          document.documentElement.style.overflow = savedDocOverflow;
+          root.style.overflow = savedDocOverflow;
         }
         if (savedBodyOverflow === null) {
-          document.body.style.removeProperty('overflow');
+          body.style.removeProperty('overflow');
         } else {
-          document.body.style.overflow = savedBodyOverflow;
+          body.style.overflow = savedBodyOverflow;
         }
         if (savedBodyPaddingRight === null) {
-          document.body.style.removeProperty('padding-right');
+          body.style.removeProperty('padding-right');
         } else {
-          document.body.style.paddingRight = savedBodyPaddingRight;
+          body.style.paddingRight = savedBodyPaddingRight;
         }
       }
     },

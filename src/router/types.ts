@@ -182,14 +182,16 @@ export type Router = {
   replace: (path: string) => Promise<void>;
   /**
    * Navigate to a path and return a structured result describing the outcome.
-   * Companion to {@link Router.push} that never throws on guard cancellation.
+   * Companion to {@link Router.push} that returns structured cancellation and
+   * error outcomes instead of throwing.
    *
    * @since 1.14.0
    */
   pushResult: (path: string) => Promise<NavigationResult>;
   /**
    * Replace the current history entry and return a structured result.
-   * Companion to {@link Router.replace} that never throws on guard cancellation.
+   * Companion to {@link Router.replace} that returns structured cancellation
+   * and error outcomes instead of throwing.
    *
    * @since 1.14.0
    */

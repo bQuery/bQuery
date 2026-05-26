@@ -192,6 +192,26 @@ describe('A11y 1.14.0 expansion', () => {
         }
       }
     });
+
+    it('returns a no-op handle when document.body is unavailable', () => {
+      const originalBody = document.body;
+
+      Object.defineProperty(document, 'body', {
+        configurable: true,
+        value: null,
+      });
+
+      try {
+        const handle = scrollLock();
+        expect(() => handle.release()).not.toThrow();
+        expect(document.documentElement.style.overflow).not.toBe('hidden');
+      } finally {
+        Object.defineProperty(document, 'body', {
+          configurable: true,
+          value: originalBody,
+        });
+      }
+    });
   });
 
   describe('autoFocus', () => {

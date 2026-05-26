@@ -265,7 +265,8 @@ export const createRouter = (options: RouterOptions): Router => {
   const performNavigation = async (
     path: string,
     method: 'pushState' | 'replaceState',
-    visitedPaths: Set<string> = new Set()
+    visitedPaths: Set<string> = new Set(),
+    throwOnError = false
   ): Promise<NavigationResult> => {
     beginNavigation();
     let from: Route | undefined;
@@ -285,7 +286,7 @@ export const createRouter = (options: RouterOptions): Router => {
       // Check for redirectTo on the matched route
       if (to.matched?.redirectTo) {
         // Navigate to the redirect target instead
-        const inner = await performNavigation(to.matched.redirectTo, method, visitedPaths);
+        const inner = await performNavigation(to.matched.redirectTo, method, visitedPaths, throwOnError);
         const redirected: NavigationResult = {
           status: inner.status === 'completed' ? 'redirected' : inner.status,
           requestedPath: path,
@@ -387,7 +388,10 @@ export const createRouter = (options: RouterOptions): Router => {
         error,
       };
       lastNavigationSignal.value = errored;
-      throw error;
+      if (throwOnError) {
+        throw error;
+      }
+      return errored;
     } finally {
       endNavigation();
     }
@@ -610,10 +614,10 @@ export const createRouter = (options: RouterOptions): Router => {
 
   const router: Router = {
     push: async (path: string) => {
-      await performNavigation(path, 'pushState');
+      await performNavigation(path, 'pushState', new Set(), true);
     },
     replace: async (path: string) => {
-      await performNavigation(path, 'replaceState');
+      await performNavigation(path, 'replaceState', new Set(), true);
     },
     pushResult: (path: string) => performNavigation(path, 'pushState'),
     replaceResult: (path: string) => performNavigation(path, 'replaceState'),

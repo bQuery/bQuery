@@ -45,21 +45,19 @@ export const handleHtmlSafe: DirectiveHandler = (el, expression, context, cleanu
 };
 
 /**
- * Handles bq-memo directive - re-renders subtree only when the dependency
- * tuple changes. The expression must evaluate to an array of dependencies.
+ * Handles bq-memo directive - marks an expression for one-time evaluation on
+ * mount without creating reactive subscriptions.
  *
- * Currently implemented as a no-op marker so authors can colocate the
- * intent; the actual memoization is performed inline by the for-loop
- * reconciler when `bq-memo` appears alongside `bq-for`. For top-level
- * memoization, this serves as a future extension point — for now it simply
- * evaluates the expression once on mount to surface any errors early.
+ * Currently implemented as a lightweight marker so authors can colocate
+ * intent without changing runtime behavior. For now it simply evaluates the
+ * expression once on mount to surface any logged runtime errors without
+ * subscribing to future updates.
  *
  * @internal
  * @since 1.14.0
  */
 export const handleMemo: DirectiveHandler = (_el, expression, context) => {
   // Evaluate once so malformed expressions surface a logged runtime error
-  // during mount, but do not subscribe — the directive's reactive contract
-  // is handled by the surrounding directive (e.g. bq-for keying).
+  // during mount, but do not subscribe to future updates.
   evaluate(expression, context);
 };
