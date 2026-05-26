@@ -200,6 +200,44 @@ Access the element with `$el`:
 <input bq-on:focus="onFocus($el)" />
 ```
 
+Event listeners also support common modifiers such as `.stop`, `.prevent`,
+`.self`, `.capture`, `.passive`, and `.once`. When `.prevent` is present,
+passive mode is disabled automatically so `event.preventDefault()` still works.
+
+### bq-cloak
+
+Use `bq-cloak` to hide pre-hydration or pre-mount markup until the view reaches
+that element:
+
+```html
+<div bq-cloak>
+  <p bq-text="message"></p>
+</div>
+```
+
+```css
+[bq-cloak] {
+  display: none;
+}
+```
+
+The attribute is removed during processing so the subtree becomes visible once
+the view has mounted.
+
+### bq-pre
+
+Use `bq-pre` to skip directive processing for an element and its descendants:
+
+```html
+<section bq-pre>
+  <code bq-text="left-as-authored"></code>
+</section>
+```
+
+This is useful for code samples or third-party DOM islands that should remain
+untouched. If `bq-cloak` is also present on the same element, the cloak marker is
+still removed even though the subtree is skipped.
+
 ### bq-for
 
 List rendering with optional keyed reconciliation for optimal DOM reuse:
@@ -481,6 +519,31 @@ type View = {
   update: (newContext: Partial<BindingContext>) => void;
   destroy: () => void;
 };
+```
+
+### `parseDirective()`
+
+`parseDirective()` is exported for tooling and advanced integrations that need to
+inspect directive syntax without mounting a view.
+
+Pass the directive name after removing the `bq-` prefix:
+
+```ts
+import { parseDirective } from '@bquery/bquery/view';
+
+const parsed = parseDirective('on:click.stop.prevent');
+
+console.log(parsed.directive); // 'on'
+console.log(parsed.arg); // 'click'
+console.log(parsed.modifiers.has('stop')); // true
+console.log(parsed.modParams); // {}
+```
+
+It also supports parameterized modifiers such as `debounce-300`:
+
+```ts
+const parsed = parseDirective('model.debounce-300.trim');
+console.log(parsed.modParams.debounce); // '300'
 ```
 
 ## Security Considerations

@@ -46,7 +46,20 @@
 
 export { announceToScreenReader, clearAnnouncements } from './announce';
 export { auditA11y } from './audit';
+export { autoFocus, inert, scrollLock, type DisposableHandle } from './dom-helpers';
+export { focusVisible, keyboardUserSignal } from './keyboard-signals';
+export {
+  createLiveRegion,
+  type CreateLiveRegionOptions,
+  type LiveRegionHandle,
+} from './live-region';
 export { prefersColorScheme, prefersContrast, prefersReducedMotion } from './media-preferences';
+export {
+  forcedColors,
+  prefersReducedData,
+  prefersReducedTransparency,
+  type ForcedColorsMode,
+} from './media-preferences-extras';
 export { rovingTabIndex } from './roving-tab-index';
 export { skipLink } from './skip-link';
 export { getFocusableElements, releaseFocus, trapFocus } from './trap-focus';

@@ -15,6 +15,7 @@ export {
   TaskWorkerTimeoutError,
   TaskWorkerUnsupportedError,
 } from './errors';
+export { createSharedBuffer, withTransferables } from './helpers';
 export { batchTasks, every, filter, find, map, parallel, reduce, some } from './high-level';
 export { pipeline } from './pipeline';
 export { createRpcPool, createTaskPool } from './pool';
@@ -30,9 +31,11 @@ export { createTaskWorker, runTask } from './task';
 
 export type {
   CallWorkerMethodOptions,
+  ConcurrencyRuntime,
   ConcurrencyPipeline,
   ConcurrencyPipelineOptions,
   ConcurrencySupport,
+  PoolMetrics,
   CreateRpcPoolOptions,
   CreateRpcWorkerOptions,
   CreateTaskPoolOptions,

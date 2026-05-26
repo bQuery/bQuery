@@ -45,4 +45,30 @@ export {
   logStores,
   logComponents,
   logTimeline,
+  subscribeTimeline,
 } from './devtools';
+
+// 1.14+ — Extension helpers
+export {
+  diffSignals,
+  diffStores,
+  exportDevtoolsSnapshot,
+  filterTimeline,
+  getPerformanceSummary,
+  importDevtoolsSnapshot,
+  inspectEffects,
+  installBrowserBridge,
+  measureRender,
+  time,
+  traceSignal,
+  untraceSignal,
+} from './extensions';
+
+export type {
+  DevtoolsSnapshot,
+  DiffChange,
+  EffectSnapshot,
+  ImportedDevtoolsSnapshot,
+  PerformanceSummary,
+  TimelineFilter,
+} from './extensions';

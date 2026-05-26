@@ -54,6 +54,21 @@
 
 export { createI18n } from './i18n';
 export { formatDate, formatNumber } from './formatting';
+export {
+  formatDisplayName,
+  formatList,
+  formatRelativeTime,
+  segment,
+  type ListFormatOptions,
+  type RelativeTimeFormatOptions,
+} from './formatting-extras';
+export {
+  detectLocale,
+  isRTL,
+  negotiateLocale,
+  type DetectLocaleOptions,
+  type NegotiateLocaleOptions,
+} from './locale';
 
 export type {
   DateFormatOptions,

@@ -47,6 +47,21 @@ back();
 forward();
 ```
 
+When you need a structured navigation outcome instead of thrown errors, use
+`router.pushResult()` / `router.replaceResult()`:
+
+```ts
+const result = await router.pushResult('/dashboard');
+
+if (result.status === 'completed') {
+  console.log('Current route:', result.to?.path);
+}
+
+if (result.status === 'canceled') {
+  console.log('Navigation was blocked by a guard');
+}
+```
+
 ## Route Params
 
 Dynamic segments are defined with `:paramName`:
@@ -112,6 +127,20 @@ router.afterEach((to, from) => {
 });
 ```
 
+### beforeResolve
+
+Run logic after `beforeEach` and route-level `beforeEnter` guards, but before the
+router commits the navigation to history:
+
+```ts
+router.beforeResolve(async (to) => {
+  if (to.path.startsWith('/billing')) {
+    const allowed = await canOpenBilling();
+    return allowed || false;
+  }
+});
+```
+
 ### Removing Guards
 
 Both methods return a cleanup function:
@@ -173,6 +202,22 @@ const path = resolve('user', { id: '42' });
 // Returns '/user/42'
 ```
 
+Use `router.resolveRoute()` when you need the router instance to resolve either a
+raw path or a named route descriptor into `{ path, href, matched }` without
+performing navigation:
+
+```ts
+const info = router.resolveRoute({
+  name: 'user',
+  params: { id: '42' },
+  query: { tab: 'profile' },
+  hash: 'activity',
+});
+
+console.log(info.path); // '/user/42?tab=profile#activity'
+console.log(info.href); // Includes the router base/hash mode
+```
+
 ## Navigation State
 
 Use `isNavigating` to reactively track in-flight navigation, including async guards and redirect resolution.
@@ -187,6 +232,18 @@ effect(() => {
 ```
 
 This is useful for global loading indicators, disabling route-changing controls, or preventing duplicate navigation triggers while guards are still resolving.
+
+The router also exposes the last completed/canceled/redirected/error outcome:
+
+```ts
+import { useNavigation } from '@bquery/bquery/router';
+
+const { isNavigating, lastNavigation, status, error } = useNavigation();
+
+effect(() => {
+  console.log(isNavigating.value, status.value, lastNavigation.value, error.value);
+});
+```
 
 ## Active Link Detection
 
@@ -220,6 +277,17 @@ const { path, params, query, hash, matched } = useRoute();
 effect(() => {
   console.log(path.value, params.value, query.value, hash.value, matched.value);
 });
+```
+
+## Initial readiness
+
+`router.isReady()` resolves after the router finishes its initial synchronization.
+This is useful for hydration, integration tests, and code that needs the initial
+route match before rendering:
+
+```ts
+await router.isReady();
+console.log(router.currentRoute.value.path);
 ```
 
 ## Link Helpers
@@ -340,6 +408,33 @@ const router = createRouter({
 // /dashboard/profile -> Profile
 ```
 
+## Dynamic Route Management
+
+Routes can be added, replaced, and removed at runtime by name:
+
+```ts
+router.addRoute(undefined, {
+  path: '/labs',
+  name: 'labs',
+  component: () => import('./Labs'),
+});
+
+if (router.hasRoute('labs')) {
+  console.log(router.resolveRoute({ name: 'labs' }).path);
+}
+
+router.addRoute('labs', {
+  path: '/reports',
+  name: 'labs-reports',
+  component: () => import('./LabsReports'),
+});
+
+router.removeRoute('labs-reports');
+```
+
+After route changes, the router rebuilds its internal route table and re-matches
+the current URL so reactive consumers see the updated match immediately.
+
 ## Cleanup
 
 Destroy the router when no longer needed:
@@ -365,6 +460,20 @@ type RouteDefinition = {
   name?: string;
   meta?: Record<string, unknown>;
   children?: RouteDefinition[];
+};
+
+type NavigationResult = {
+  status: 'completed' | 'canceled' | 'redirected' | 'error';
+  requestedPath: string;
+  to?: Route;
+  from?: Route;
+  error?: unknown;
+};
+
+type ResolvedRouteInfo = {
+  path: string;
+  href: string;
+  matched: RouteDefinition | null;
 };
 
 type RouterOptions = {

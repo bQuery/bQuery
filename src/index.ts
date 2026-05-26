@@ -125,12 +125,21 @@ export * from './i18n/index';
 export {
   announceToScreenReader,
   auditA11y,
+  autoFocus,
   clearAnnouncements,
+  createLiveRegion,
+  focusVisible,
+  forcedColors,
   getFocusableElements,
+  inert,
+  keyboardUserSignal,
   prefersColorScheme,
   prefersContrast,
+  prefersReducedData,
+  prefersReducedTransparency,
   releaseFocus,
   rovingTabIndex,
+  scrollLock,
   skipLink,
   trapFocus,
 } from './a11y/index';
@@ -141,7 +150,11 @@ export type {
   AuditSeverity,
   ColorScheme,
   ContrastPreference,
+  CreateLiveRegionOptions,
+  DisposableHandle,
   FocusTrapHandle,
+  ForcedColorsMode,
+  LiveRegionHandle,
   RovingTabIndexHandle,
   RovingTabIndexOptions,
   SkipLinkHandle,
@@ -156,25 +169,84 @@ export * from './dnd/index';
 export * from './media/index';
 
 // Plugin module: global plugin registration system
-export * from './plugin/index';
+// Note: provide / inject / InjectionKey are not re-exported here because
+// they collide with the component module's component-scoped versions.
+// Use @bquery/bquery/plugin for the global DI helpers.
+export {
+  addAction,
+  addFilter,
+  applyFilters,
+  createInjectionKey,
+  doAction,
+  getCustomDirective,
+  getCustomDirectives,
+  getInstalledPlugins,
+  getPluginInfo,
+  hasProvided,
+  isInstalled,
+  listActions,
+  listFilters,
+  removeAction,
+  removeFilter,
+  resetDi,
+  resetHooks,
+  resetPlugins,
+  uninstall,
+  unuse,
+  use,
+} from './plugin/index';
+export type {
+  BQueryPlugin,
+  CustomDirective,
+  CustomDirectiveHandler,
+  CustomDirectiveLifecycle,
+  CustomDirectiveValue,
+  PluginInfo,
+  PluginInstallContext,
+} from './plugin/index';
 
 // DevTools module: runtime debugging utilities
 export * from './devtools/index';
 
 // Testing module: test helpers for signals, components, router, and events
 export {
-  renderComponent,
-  flushEffects,
-  mockSignal,
-  mockRouter,
+  autoCleanup,
+  cleanup,
+  expectAccessible,
   fireEvent,
+  flushEffects,
+  flushPromises,
+  getReactiveSummary,
+  mockComputed,
+  mockEffect,
+  mockFetch,
+  mockForm,
+  mockI18n,
+  mockRouter,
+  mockSignal,
+  mockStore,
+  mockWebSocket,
+  prettyDOM,
+  renderComponent,
+  runScheduled,
+  screen,
+  tick,
+  userEvent,
   waitFor,
+  within,
 } from './testing/index';
 export type {
+  AccessibilityResult,
   FireEventOptions,
+  MockFetchRoute,
+  MockForm,
+  MockI18n,
   MockRouter,
   MockRouterOptions,
   MockSignal,
+  MockStore,
+  MockWebSocket,
+  Queries,
   RenderComponentOptions,
   RenderResult,
   TestRoute,

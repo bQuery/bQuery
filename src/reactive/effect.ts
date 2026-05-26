@@ -5,6 +5,26 @@
 import { CleanupFn, Observer, track, clearDependencies } from './internals';
 import { getActiveScope, hasScopeDisposer } from './scope';
 
+export interface EffectInspectionSnapshot {
+  readonly label?: string;
+  readonly runs: number;
+  readonly disposed: boolean;
+}
+
+const trackedEffects = new Map<symbol, EffectInspectionSnapshot>();
+let effectInspectionEnabled = false;
+
+/** @internal */
+export const __inspectTrackedEffects = (): EffectInspectionSnapshot[] => {
+  return [...trackedEffects.values()];
+};
+
+/** @internal */
+export const __setEffectInspectionEnabled = (enabled: boolean): void => {
+  effectInspectionEnabled = enabled;
+  if (!enabled) trackedEffects.clear();
+};
+
 /**
  * Creates a side effect that automatically re-runs when dependencies change.
  *
@@ -21,6 +41,11 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
   let cleanupFn: CleanupFn | void;
   let isDisposed = false;
   const scope = getActiveScope();
+  const effectId = Symbol('bquery.effect');
+
+  if (effectInspectionEnabled) {
+    trackedEffects.set(effectId, { runs: 0, disposed: false });
+  }
 
   const runCleanup = (): void => {
     if (cleanupFn) {
@@ -45,6 +70,7 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     }
 
     isDisposed = true;
+    trackedEffects.delete(effectId);
     clearEffectState();
   };
 
@@ -54,6 +80,14 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
 
   const observer: Observer = () => {
     if (isDisposed) return;
+
+    if (effectInspectionEnabled) {
+      const snapshot = trackedEffects.get(effectId);
+      trackedEffects.set(
+        effectId,
+        snapshot ? { ...snapshot, runs: snapshot.runs + 1, disposed: false } : { runs: 1, disposed: false }
+      );
+    }
 
     runCleanup();
 

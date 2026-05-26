@@ -1,4 +1,5 @@
-import type { RenderOptions } from '../ssr/index';
+import type { RenderOptions, RenderToResponseOptions } from '../ssr/index';
+import type { WorkerRpcHandlers, WorkerTaskHandler } from '../concurrency/index';
 import type { BindingContext } from '../view/index';
 
 /**
@@ -53,6 +54,47 @@ export interface ServerHtmlResponseInit extends ServerResponseInit {
    * @default false
    */
   trusted?: boolean;
+}
+
+export interface ServerCookieOptions {
+  domain?: string;
+  httpOnly?: boolean;
+  maxAge?: number;
+  path?: string;
+  sameSite?: 'lax' | 'none' | 'strict';
+  secure?: boolean;
+}
+
+export interface ServerSseEvent {
+  data: string;
+  event?: string;
+  id?: string;
+  retry?: number;
+}
+
+export interface ServerSseOptions extends ServerResponseInit {
+  retry?: number;
+}
+
+export interface ServerLimits {
+  form?: number;
+  json?: number;
+  multipart?: number;
+  text?: number;
+}
+
+export interface ServerListenOptions {
+  hostname?: string;
+  port?: number;
+  runtime?: 'auto' | 'bun' | 'deno' | 'node';
+  signal?: AbortSignal;
+}
+
+export interface ServerListenHandle {
+  addresses: string[];
+  close(): Promise<void>;
+  stop(): Promise<void>;
+  url: string;
 }
 
 /**
@@ -151,11 +193,15 @@ export interface ServerContext {
    * Parsed query object. Repeated keys become arrays.
    */
   query: ServerQuery;
+  /** Parsed request cookies. */
+  cookies: Record<string, string>;
 
   /**
    * Per-request mutable state bag for middleware communication.
    */
   state: Record<string, unknown>;
+  /** Parse the request body based on the request content-type. */
+  body(): Promise<unknown>;
 
   /**
    * Create a raw `Response`.
@@ -196,6 +242,17 @@ export interface ServerContext {
    * ```
    */
   json(data: unknown, init?: ServerResponseInit): Response;
+  /** Create a response from a web ReadableStream. */
+  stream(body: ReadableStream<Uint8Array>, init?: ServerResponseInit): Response;
+  /** Create a Server-Sent Events response. */
+  sse(
+    source: AsyncIterable<ServerSseEvent | string> | Iterable<ServerSseEvent | string>,
+    init?: ServerSseOptions
+  ): Response;
+  /** Select the first accepted content type from the provided list. */
+  accepts(types: string[]): string | null;
+  /** Append a Set-Cookie header to the current response context. */
+  setCookie(name: string, value: string, options?: ServerCookieOptions): void;
 
   /**
    * Create a redirect response.
@@ -216,6 +273,31 @@ export interface ServerContext {
    * ```
    */
   render(template: string, data: BindingContext, options?: ServerRenderResponseOptions): Response;
+  /** Render a template to a streaming response. */
+  renderStream(
+    template: string,
+    data: BindingContext,
+    options?: ServerRenderResponseOptions
+  ): Response;
+  /** Render a template via the SSR response helper. */
+  renderResponse(
+    template: string,
+    data: BindingContext,
+    options?: RenderToResponseOptions
+  ): Promise<Response>;
+  /** Run a one-off worker task from a handler. */
+  runTask<TInput, TResult>(
+    handler: WorkerTaskHandler<TInput, TResult>,
+    input: TInput,
+    options?: import('../concurrency/index').RunTaskOptions
+  ): Promise<TResult>;
+  /** Run one named worker RPC method from a handler. */
+  callWorker<TRoutes extends WorkerRpcHandlers, TMethod extends keyof TRoutes & string>(
+    handlers: TRoutes,
+    method: TMethod,
+    input: Parameters<TRoutes[TMethod]>[0],
+    options?: import('../concurrency/index').CallWorkerMethodOptions
+  ): Promise<Awaited<ReturnType<TRoutes[TMethod]>>>;
 
   /**
    * `true` when the incoming request is a WebSocket upgrade handshake.
@@ -406,6 +488,8 @@ export interface CreateServerOptions {
    * Global middleware applied to every request.
    */
   middlewares?: ServerMiddleware[];
+  /** Body parsing limits by content type. */
+  limits?: ServerLimits;
 
   /**
    * Custom 404 handler.
@@ -475,6 +559,8 @@ export interface ServerApp {
    * Handle a normalized request.
    */
   handle(input: Request | string | URL | ServerRequestInit): Promise<Response>;
+  /** Start a minimal runtime-native HTTP listener for this app. */
+  listen(options?: ServerListenOptions): Promise<ServerListenHandle>;
 
   /**
    * Resolve a WebSocket upgrade request into a runtime-agnostic session.

@@ -7,7 +7,7 @@ type ProcessElementFn = (
   context: BindingContext,
   prefix: string,
   cleanups: CleanupFn[]
-) => void;
+) => boolean;
 
 type ProcessChildrenFn = (
   el: Element,
@@ -126,8 +126,15 @@ export const createForHandler = (options: {
       }
 
       // Process bindings on the clone
-      processElement(clone, childContext, prefix, itemCleanups);
-      processChildren(clone, childContext, prefix, itemCleanups);
+      const shouldProcessChildren = processElement(
+        clone,
+        childContext,
+        prefix,
+        itemCleanups
+      );
+      if (shouldProcessChildren) {
+        processChildren(clone, childContext, prefix, itemCleanups);
+      }
 
       return {
         key,

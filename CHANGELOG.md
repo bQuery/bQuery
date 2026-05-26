@@ -9,8 +9,10 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [Unreleased](#unreleased)
-    - [Added (Unreleased)](#added-unreleased)
-    - [Fixed (Unreleased)](#fixed-unreleased)
+  - [\[1.14.0\] - 2026-05-26](#1140---2026-05-26)
+    - [Added (1.14.0)](#added-1140)
+    - [Changed (1.14.0)](#changed-1140)
+    - [Fixed (1.14.0)](#fixed-1140)
   - [\[1.13.0\] - 2026-05-21](#1130---2026-05-21)
     - [Added (1.13.0)](#added-1130)
     - [Changed (1.13.0)](#changed-1130)
@@ -82,9 +84,99 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-### Added (Unreleased)
+_No unreleased changes yet._
 
-### Fixed (Unreleased)
+## [1.14.0] - 2026-05-26
+
+### Added (1.14.0)
+
+- **Media / Preference signals**: Added `usePreferredColorScheme()`, `usePreferredContrast()`, `usePreferredReducedTransparency()`, `usePreferredLanguage()`, and `usePreferredLanguages()` reactive composables to `@bquery/bquery/media` that wrap `prefers-color-scheme`, `prefers-contrast`, `prefers-reduced-transparency`, and `navigator.language(s)` with deterministic SSR defaults.
+- **Media / Page state**: Added `useOnlineStatus()` (slim boolean variant of `useNetworkStatus()`), `usePageVisibility()`, `useDocumentFocus()`, `useWindowFocus()`, and `useIdle(timeoutMs, opts?)` to track top-level user-activity state.
+- **Media / Element observers**: Added `useElementSize(target, opts?)`, `useElementBounding(target, opts?)`, `useElementVisibility(target, opts?)`, `useHover(target)`, `useFocus(target)`, `useFocusWithin(target)`, and `useActiveElement()` — ergonomic wrappers over `ResizeObserver` / `IntersectionObserver` and DOM focus events. Targets accept plain `Element | null | undefined` values.
+- **Media / Pointer & scroll**: Added `usePointer()` (`{ x, y, pressure, type, isInside }`) and `useScroll(target?)` (`{ x, y, directionX, directionY, isScrolling, arrived }`).
+- **Media / Platform integrations**: Added `usePermission(name)` (`'granted' | 'denied' | 'prompt' | 'unsupported'`), `useWakeLock()` (`isActive`, `request()`, `release()`), `useShare()` / `useShareSupported()`, `useBroadcastChannel<T>(name)` (`{ data, post, close }`), `useEventListener(target, event, opts?)`, `useMediaDevices()`, and `useStorage<T>(key, defaultValue, opts?)` with cross-tab `storage` event sync.
+- **Media / Clipboard**: Added `clipboard.isSupported`, `clipboard.isImageSupported`, `clipboard.readImage()`, `clipboard.writeImage()`, and the standalone `clipboardText()` reactive accessor.
+- **Media / Composables**: Every new composable accepts an optional `{ signal: AbortSignal }` for auto-teardown matching the `motion` 1.13 convention, and an internal shared `createMediaSignal` helper standardises SSR safety + idempotent teardown.
+- **Plugin / Hooks**: Added a synchronous filter pipeline (`addFilter`, `applyFilters`, `removeFilter`, `listFilters`) and a fire-and-forget action bus (`addAction`, `doAction`, `removeAction`, `listActions`) exposed both on the install context (`ctx.addFilter`, `ctx.addAction`) and as standalone exports for app-level consumers.
+- **Plugin / DI**: Added container-level dependency injection — `createInjectionKey<T>()`, `provide(key, value)`, `inject(key)`, `hasProvided(key)`, `resetDi()` — and a matching `ctx.provide` / `ctx.inject`. Plugins can register `ctx.onCleanup(fn)` callbacks that fire when the plugin is uninstalled.
+- **Plugin / Lifecycle**: Added `unuse(name)` and `uninstall(name)` to detach every directive, filter, action, and DI binding owned by a plugin and run its registered cleanups. `install()` may now return `void | Promise<void>`; concurrent installs of the same name are serialised.
+- **Plugin / Metadata**: `BQueryPlugin` now accepts optional `version`, `description`, and `dependencies: string[]`. `use()` enforces dependencies via `dependencyMode: 'error' | 'warn'`. New `getPluginInfo(name)` and `getInstalledPlugins({ withMetadata: true })` overloads expose plugin metadata.
+- **Plugin / Directives**: Directives may now register lifecycle objects `{ mounted, unmounted }` and use plugin-namespaced names like `tooltip:arrow`.
+- **Devtools / Timeline**: Timeline gained a ring buffer (`maxTimelineEntries`, default 1000) and `TimelineEntry` now carries optional `payload`, `source`, and `duration`. New event types: `signal:create`, `signal:dispose`, `effect:dispose`, `component:mount`, `component:unmount`, `component:render`, `route:guard`, `error:caught`, `measure`, `mark`.
+- **Devtools / Querying**: Added `filterTimeline({ types, since, until, search })` and `subscribeTimeline(listener)` for live consumers.
+- **Devtools / Inspection**: Added privacy-aware `inspectSignals({ includeValues: false })`, structural `diffSignals(prev, next)` / `diffStores(prev, next)`, `traceSignal(label)` / `untraceSignal(label)`, and `inspectEffects()`.
+- **Devtools / Snapshots**: Added `exportDevtoolsSnapshot()` and `importDevtoolsSnapshot(json)` for offline inspection and bug reports.
+- **Devtools / Bridge**: Added `installBrowserBridge()` that mirrors timeline events to `window.__BQUERY_DEVTOOLS__.events` for future browser-extension panels (no-op outside a DOM).
+- **Devtools / Performance**: Added `time(label, fn)`, `measureRender(tagName, fn)`, and `getPerformanceSummary()` aggregating event counts and average durations per type.
+- **Testing / Cleanup**: Added `cleanup()` to unmount any tracked render results from the current test, plus `autoCleanup(beforeEach, afterEach)` to wire it into `bun:test`.
+- **Testing / Events**: Attached shortcut methods to the existing `fireEvent` — `fireEvent.click`, `fireEvent.dblClick`, `fireEvent.input(el, value)`, `fireEvent.change(el, value)`, `fireEvent.submit`, `fireEvent.focus`, `fireEvent.blur`, `fireEvent.keyDown`, `fireEvent.keyUp` — and added a `userEvent` namespace (`click`, `dblClick`, `hover`, `unhover`, `type(el, text, { delay? })`, `clear`, `selectOptions`, `tab`, `paste`) that flushes effects + microtasks before returning.
+- **Testing / Queries**: Added a shadow-DOM-aware query layer — `screen.getByRole`/`getByText`/`getByLabelText`/`getByPlaceholderText`/`getByTestId` with `query*` and `find*` variants — and a `within(root)` factory that produces the same scoped query API.
+- **Testing / Reactive helpers**: Added `mockComputed(fn)` (with `recomputeCount`), `mockEffect(fn)` (`{ runs, dispose }`), `tick()` / `nextTick()`, `flushPromises()`, and `runScheduled()`.
+- **Testing / Mocks**: Added `mockStore<T>(initialState)`, `mockI18n({ locale, messages })`, `mockForm<T>(initialValues)`, `mockFetch(routes)`, and `mockWebSocket()` for isolated module testing.
+- **Testing / Snapshots & a11y**: Added `prettyDOM(el, { maxLength, includeShadow })`, `getReactiveSummary(el)`, and `expectAccessible(el)` returning a structured `AccessibilityResult` for image-alt / button-name / label-input rules.
+- **`@bquery/bquery/router`** — additive 1.14.0 expansion:
+  - `NavigationResult` type with `pushResult()` and `replaceResult()`
+    methods that return structured results with `status`, `requestedPath`,
+    `to`, `from`, and `error` fields instead of bare promises (existing
+    `push`/`replace` continue to return `Promise<void>`).
+  - `beforeResolve(guard)` global hook fired after `beforeEach` and
+    route-level `beforeEnter` guards but before navigation commits.
+  - `resolveRoute(input)` method for synchronous route lookup without
+    navigating.
+  - Dynamic route management via `addRoute(parentName?, route)`,
+    `removeRoute(name)`, and `hasRoute(name)`.
+  - `isReady()` returning a promise that settles after the initial route
+    synchronization during router construction,
+    plus `lastNavigation` signal exposing the most recent result.
+  - `useNavigation()` composable returning reactive navigation state
+    (`isNavigating`, `error`, etc.).
+- **`@bquery/bquery/view`** — additive 1.14.0 expansion:
+  - Public `parseDirective(name)` helper and `ParsedDirective` type for
+    parsing `bq-on:event.modifier-param.modifier` syntax.
+  - New directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`,
+    `bq-html-safe`, and `bq-memo`.
+  - Full `bq-on` modifier system: `.stop`, `.prevent`, `.self`, `.capture`,
+    `.passive`, `.once`, mouse-button filters (`.left`/`.middle`/`.right`),
+    system-modifier filters (`.ctrl`/`.alt`/`.shift`/`.meta`), and
+    KeyboardEvent.key filters including aliases (`.enter`, `.esc`, arrow
+    keys, etc.).
+- **`@bquery/bquery/a11y`** — additive 1.14.0 expansion:
+  - `createLiveRegion(options)` for imperative, per-instance ARIA live
+    regions independent of the singleton `announceToScreenReader`.
+  - Reactive `keyboardUserSignal()` and `focusVisible()` signals.
+  - New media-preference signals `prefersReducedTransparency()`,
+    `prefersReducedData()`, and `forcedColors()`.
+  - DOM helpers `inert(target)`, `scrollLock()`, and `autoFocus(target, opts)`.
+- **`@bquery/bquery/i18n`** — additive 1.14.0 expansion:
+  - `negotiateLocale(requested, available, opts)` for pure locale
+    negotiation against a list of available tags.
+  - `detectLocale(opts)` reading from cookies, `localStorage`,
+    `<html lang>`, and `navigator.languages`.
+  - `isRTL(locale)` using `Intl.Locale` text-info when available with a
+    well-known-language fallback.
+  - New Intl helpers `formatRelativeTime`, `formatList`,
+    `formatDisplayName`, and `segment` (graceful fallbacks when the
+    underlying Intl API is unavailable).
+- **`@bquery/bquery/dnd`** — additive 1.14.0 expansion:
+  - Programmatic API on existing handles — `DraggableHandle.moveTo`/`reset`/`getPosition`/`setBounds`/`setAxis`, `SortableHandle.move`/`setOrder`/`getItems`, `DroppableHandle.setAccept`/`isOver`/`getActiveDragged`.
+  - New draggable options `grid` (snap-to-grid), `delay` (long-press threshold), `touchStartThreshold` (minimum pointer movement before drag activates), `keyboard` (opt-in keyboard accessibility with `Space`/`Enter` pickup, arrow-key movement, `Escape` cancel, and ARIA announcements via `@bquery/bquery/a11y`), and `keyboardStep` (keyboard movement step).
+  - `bounds` now accepts an `HTMLElement` reference directly and supports a `'viewport'` shorthand.
+  - Reactive composables `useDraggable()`, `useDroppable()`, `useSortable()`, plus the `draggablePosition()` and `sortableOrder()` adapters for raw handles. Composables auto-dispose when the surrounding reactive scope stops.
+- **`@bquery/bquery/storybook`**: New ergonomic helpers `classMap()`, `styleMap()`, `ifDefined()`, `repeat()`, `storyText()`, and the opt-in sanitizer escape hatch `unsafeHtml()`, all callable inside `storyHtml` template literals. Added `storySvg()` for SVG-rooted stories (interpolated values are HTML-escaped; static template is treated as author-trusted because the HTML sanitizer hard-blocks `<svg>`).
+- **`@bquery/bquery/concurrency`**: Expanded with richer support metadata, `withTransferables()`, `createSharedBuffer()`, RPC `maxInFlight`, pool priority handling, `pause()` / `resume()`, `onIdle()`, and rolling pool metrics with reactive mirrors.
+- **`@bquery/bquery/ssr`**: Expanded with `flushBoundary()`, `createSSRCache()`, `createSSRMetrics()`, `createEdgeHandler()`, cache-aware `renderToResponse()`, and explicit multi-chunk `renderToStream()` boundaries.
+- **`@bquery/bquery/server`**: Expanded with structured `ServerHttpError` helpers, `ctx.body()`, `ctx.cookies`, `ctx.setCookie()`, `ctx.accepts()`, `ctx.stream()`, `ctx.sse()`, `ctx.renderStream()`, `ctx.renderResponse()`, and `app.listen()` for supported runtimes.
+
+### Changed (1.14.0)
+
+- **Devtools**: `inspectSignals()` accepts a new `{ includeValues?: boolean }` option. `enableDevtools()` accepts `maxTimelineEntries` and now flushes any active timeline subscribers on disable.
+- **Plugin**: `BQueryPlugin.install` may now return `void | Promise<void>`; `use()` returns `void` for synchronous installs and `Promise<void>` whenever a plugin installs asynchronously.
+- **Media**: `clipboard` re-uses a shared SSR-safe initialisation helper; existing `readText` / `writeText` signatures are unchanged.
+
+### Fixed (1.14.0)
+
+- Preserved queue ordering within equal priorities for concurrency pools while still allowing higher-priority work to run sooner.
+- Hardened SSR edge and cache helpers so cached responses preserve status and headers consistently.
 
 ## [1.13.0] - 2026-05-21
 
@@ -114,7 +206,7 @@ and this project adheres to Semantic Versioning.
 - **Motion / Timeline**: Timelines now support labels (`addLabel(name, at?)` + label-relative `at` strings like `'label+=200'`), `reverse()`, `playbackRate(n)`, `repeat(count|'infinite')`, `yoyo(boolean)`, `onUpdate(time)` subscriptions, and a `progress()` getter in `[0, 1]`.
 - **Motion / New primitives**: `scrollProgress(element, opts)` exposes a 0..1 scroll-linked stream; `inView(element, opts)` resolves a thenable on enter (with an optional reactive `onChange` callback); `magnetic(element, opts)`, `tilt(element, opts)`, `shake(element, opts)`, `pulse(element, opts)`, and `countUp(element, from, to, opts)` cover the micro-interaction toolkit. All effects honor `prefers-reduced-motion` by default.
 - **Motion / Stagger**: `stagger()` gains `grid: [cols, rows]` + `from: { x, y }` 2D origins, an `axis: 'x' | 'y'` distance restriction, and a deterministic `random` option (with optional `randomSeed`).
-- **Motion / Reduced motion**: `onReducedMotionChange(callback)` subscribes to changes (system preference *or* `setReducedMotion()` override) and returns an unsubscribe; `reducedMotionSignal()` exposes the same value as a reactive `ReadonlySignal<boolean>` for `view`/components.
+- **Motion / Reduced motion**: `onReducedMotionChange(callback)` subscribes to changes (system preference _or_ `setReducedMotion()` override) and returns an unsubscribe; `reducedMotionSignal()` exposes the same value as a reactive `ReadonlySignal<boolean>` for `view`/components.
 - **Utils / Array** (`@bquery/bquery/core`): Added `groupBy`, `keyBy`, `partition`, `zip`, `range`, `first`, `last`, `take`, `drop`, `sample`, `shuffle` (Fisher–Yates), `uniqueBy`, `sortBy` (single or multi-selector), `intersection`, `difference`, `flattenDeep`, `move`, and `chunkBy`.
 - **Utils / Function**: Added `memoize(fn, keyFn?)` (`.clear()` / `.delete(key)`), `compose(...fns)` / `pipe(...fns)`, `curry(fn)`, `partial(fn, ...preset)`, and `retry(fn, opts?)` with exponential backoff, jitter, `shouldRetry`, `onRetry`, and `AbortSignal` support. `debounce()` gained an optional `{ leading?, trailing?, maxWait? }` option bag plus a `.flush()` method; `throttle()` gained `{ leading?, trailing? }` plus `.flush()`. Existing `(fn, ms)` signatures remain fully backward-compatible.
 - **Utils / Object**: Added prototype-pollution-safe deep accessors `get(obj, path, default?)`, `set(obj, path, value)`, and `has(obj, path)` with dot/bracket path syntax; `mapValues`, `mapKeys`, `invert`, `deepEqual` (with `isEqual` alias), `freeze` (deep), `defaults(target, ...sources)`, and typed wrappers `entriesTyped` / `keysTyped`.

@@ -8,17 +8,21 @@ import {
   createAssetManager,
   createBunHandler,
   createDenoHandler,
+  createEdgeHandler,
   createHeadManager,
   createNodeHandler,
   createResumableState,
+  createSSRCache,
   createSSRContext,
   createSSRHandler,
+  createSSRMetrics,
   createSSRRouterContext,
   createWebHandler,
   defer,
   defineLoader,
   deserializeStoreState,
   detectRuntime,
+  flushBoundary,
   getSSRConfig,
   getSSRRuntimeFeatures,
   hydrateIsland,
@@ -52,6 +56,13 @@ import type { HydrationHandle, HydrationMismatch, SSRStoreSnapshot } from '@bque
 ---
 
 ## Server-Side Rendering
+
+### Recent additions
+
+- `flushBoundary()` lets `renderToStream()` split output into multiple chunks on explicit boundaries
+- `createSSRCache()` adds a small in-memory response cache for `renderToResponse()`
+- `createSSRMetrics()` collects render counts, durations, and hydration mismatch counters
+- `createEdgeHandler()` wraps fetch-style edge handlers with optional custom error handling
 
 ### `renderToString()`
 
@@ -446,6 +457,64 @@ return new Response(stream, { headers: { 'content-type': 'text/html' } });
 `renderToStream()` returns a Web `ReadableStream<Uint8Array>` and respects `SSRContext.signal` for graceful cancellation.
 
 ### `renderToResponse()`
+
+`renderToResponse()` now accepts `cache` metadata for `Cache-Control` / `Vary` shaping and optional in-memory caching:
+
+```ts
+const cache = createSSRCache({ maxEntries: 100, ttlMs: 60_000 });
+
+const response = await renderToResponse('<main bq-text="title"></main>', { title: 'Cached' }, {
+  cache: {
+    store: cache,
+    sMaxAge: 60,
+    staleWhileRevalidate: 30,
+    vary: ['accept-language'],
+  },
+  etag: true,
+});
+```
+
+### `renderToStream()` + `flushBoundary()`
+
+Use `flushBoundary()` to insert a temporary streaming marker that `renderToStream()` removes while splitting the rendered template into multiple chunks. Place the boundary only between complete HTML fragments—never inside a tag, attribute, or incomplete element pair—or streamed chunks may become invalid HTML on their own:
+
+```ts
+const stream = renderToStream(
+  `<header><h1 bq-text="title"></h1></header>${flushBoundary()}<main bq-text="content"></main>`,
+  {
+    content: 'Body',
+    title: 'Shell',
+  }
+);
+```
+
+### `createSSRMetrics()`
+
+Metrics collectors can be shared across related render calls through `createSSRContext()`:
+
+```ts
+const metrics = createSSRMetrics();
+const context = createSSRContext({ metrics });
+
+await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'Metrics' }, { context });
+
+console.log(metrics.snapshot());
+```
+
+### `createEdgeHandler()`
+
+`createEdgeHandler()` keeps the fetch-style runtime signature and adds a single place for edge-specific error mapping:
+
+```ts
+const handler = createEdgeHandler(
+  async (request) => renderToResponse('<h1 bq-text="url"></h1>', { url: request.url }),
+  {
+    onError(error, request) {
+      return new Response(`edge error: ${request.url}`, { status: 500 });
+    },
+  }
+);
+```
 
 ```ts
 import { renderToResponse } from '@bquery/bquery/ssr';

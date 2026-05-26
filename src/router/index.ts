@@ -44,6 +44,16 @@ export { interceptLinks, link } from './links';
 export { back, forward, navigate } from './navigation';
 export { createRouter } from './router';
 export { currentRoute, isNavigating } from './state';
-export type { NavigationGuard, Route, RouteDefinition, Router, RouterOptions } from './types';
+export type {
+  NavigationGuard,
+  NavigationResult,
+  ResolvedRouteInfo,
+  ResolveRouteInput,
+  Route,
+  RouteDefinition,
+  Router,
+  RouterOptions,
+} from './types';
+export { useNavigation, type UseNavigationReturn } from './use-navigation';
 export { useRoute, type UseRouteReturn } from './use-route';
 export { isActive, isActiveSignal, resolve } from './utils';

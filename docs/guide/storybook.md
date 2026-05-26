@@ -220,3 +220,105 @@ export const Interactive = {
     `,
 };
 ```
+
+## Helpers added in 1.14.0
+
+The Storybook module ships several ergonomic helpers that mirror the
+`lit-html` conventions used by `@storybook/web-components`, so existing
+community examples translate one-to-one.
+
+### `classMap` and `styleMap`
+
+Build `class` attribute values from plain objects. `styleMap` still returns a
+CSS declaration string, but `storyHtml` sanitizes inline `style=""`
+attributes, so prefer classes or CSS custom properties in story markup:
+
+```ts
+import { classMap, storyHtml } from '@bquery/bquery/storybook';
+
+export const Card = {
+  args: { primary: true, disabled: false, tone: 'danger' },
+  render: ({ primary, disabled, tone }) => storyHtml`
+    <ui-card
+      class="${classMap({ primary, disabled })}"
+      data-tone="${tone}"
+    ></ui-card>
+  `,
+};
+```
+
+`classMap` joins truthy keys with a single space. `styleMap` is still useful
+when another API expects a CSS text string, but interpolating it into
+`storyHtml` `style=""` attributes will be sanitized away unless you opt into a
+trusted `unsafeHtml(...)` escape hatch yourself.
+
+### `ifDefined`
+
+Returns the value as a string when defined, otherwise returns an empty
+string. When used inside `attr="${...}"`, that renders as `attr=""`.
+Useful for optional Storybook args:
+
+```ts
+storyHtml`<ui-input placeholder="${ifDefined(args.placeholder)}"></ui-input>`;
+```
+
+### `repeat`
+
+Keyed list helper that maps `items` to `storyHtml` fragments and emits
+stable `data-bq-key` markers for Storybook's actions panel. Plain string
+results are escaped as text; wrap trusted fragments with `unsafeHtml(...)`:
+
+```ts
+import { repeat, storyHtml, unsafeHtml } from '@bquery/bquery/storybook';
+
+const items = [{ id: 'a', label: 'Apple' }, { id: 'b', label: 'Banana' }];
+
+storyHtml`
+  <ul>
+    ${repeat(items, (item) => unsafeHtml(storyHtml`<li>${item.label}</li>`), (item) => item.id)}
+  </ul>
+`;
+```
+
+### `storyText`
+
+Escape-only helper for text-only fragments. Use this when interpolating
+user-supplied strings without any allowlist inference:
+
+```ts
+storyHtml`<bq-tooltip>${storyText(userInput)}</bq-tooltip>`;
+```
+
+### `unsafeHtml`
+
+Opt-in escape hatch that bypasses the sanitizer for a single
+interpolation. Use this only for content you already trust (icons,
+pre-rendered fragments from a server-side process, etc.). Every call
+site is reviewable, mirroring `lit-html`'s `unsafeHTML`:
+
+```ts
+import { storyHtml, unsafeHtml } from '@bquery/bquery/storybook';
+
+storyHtml`<ui-card>${unsafeHtml(trustedIconSvg)}</ui-card>`;
+```
+
+### `storySvg`
+
+Tagged template for SVG-rooted stories. The static template is treated
+as author-trusted (the HTML sanitizer cannot run on `<svg>` content),
+and every interpolated value is HTML-escaped so user-supplied args
+cannot inject markup. Use `unsafeHtml` to splice pre-built SVG fragments
+into a `storySvg` template.
+
+```ts
+import { storySvg } from '@bquery/bquery/storybook';
+
+export const Icon = {
+  args: { size: 24, color: 'currentColor' },
+  render: ({ size, color }) => storySvg`
+    <svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">
+      <circle cx="12" cy="12" r="10" fill="${color}" />
+    </svg>
+  `,
+};
+```

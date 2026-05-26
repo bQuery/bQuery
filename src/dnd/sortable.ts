@@ -114,6 +114,23 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
     newIndex: newIdx,
   });
 
+  const getReorderIndex = (
+    anchor: HTMLElement,
+    dragged: HTMLElement | null,
+    sortableItems: readonly HTMLElement[]
+  ): number => {
+    let index = 0;
+    const sortableItemSet = new Set(sortableItems);
+
+    for (const child of Array.from(container.children)) {
+      if (child === anchor) return index;
+      if (child === dragged) continue;
+      if (sortableItemSet.has(child as HTMLElement)) index += 1;
+    }
+
+    return index;
+  };
+
   const onPointerDown = (e: PointerEvent): void => {
     if (!enabled) return;
 
@@ -201,7 +218,7 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
       container.appendChild(placeholder);
     }
 
-    const currentIndex = Array.from(container.children).indexOf(placeholder);
+    const currentIndex = getReorderIndex(placeholder, dragItem, items);
     onSortMove?.(createEventData(dragItem, startIndex, currentIndex));
   };
 
@@ -212,7 +229,8 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
     const draggedItem = dragItem;
 
     // Get final index
-    const newIndex = Array.from(container.children).indexOf(placeholder);
+    const items = getItems(container, itemSelector);
+    const newIndex = getReorderIndex(placeholder, draggedItem, items);
 
     // Animate the item back to the placeholder position
     const placeholderRect = placeholder.getBoundingClientRect();
@@ -302,6 +320,51 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
     },
     get enabled() {
       return enabled;
+    },
+    getItems: () => getItems(container, itemSelector),
+    move: (fromIndex: number, toIndex: number) => {
+      const list = getItems(container, itemSelector);
+      if (list.length === 0) return;
+      const clampedFrom = Math.max(0, Math.min(fromIndex, list.length - 1));
+      const clampedTo = Math.max(0, Math.min(toIndex, list.length - 1));
+      if (clampedFrom === clampedTo) return;
+      const item = list[clampedFrom];
+      // Insert before the target index. When moving forward, account for the
+      // fact that `item` is removed before re-insertion: insert before the
+      // element that is currently at `clampedTo + 1` if moving down, or at
+      // `clampedTo` if moving up.
+      const reference =
+        clampedFrom < clampedTo ? (list[clampedTo + 1] ?? null) : list[clampedTo];
+      container.insertBefore(item, reference);
+      onSortEnd?.(createEventData(item, clampedFrom, clampedTo));
+    },
+    setOrder: (indices: readonly number[]) => {
+      const list = getItems(container, itemSelector);
+      if (indices.length !== list.length) {
+        throw new Error(
+          `sortable.setOrder: indices length (${indices.length}) must equal item count (${list.length})`
+        );
+      }
+      // Validate permutation.
+      const seen = new Set<number>();
+      for (const i of indices) {
+        if (i < 0 || i >= list.length || !Number.isInteger(i) || seen.has(i)) {
+          throw new Error(
+            `sortable.setOrder: indices must be a permutation of [0, …, ${list.length - 1}]`
+          );
+        }
+        seen.add(i);
+      }
+      // Append in the requested order; appendChild moves the node, so we end
+      // up with the desired permutation regardless of original DOM position.
+      for (const i of indices) {
+        container.appendChild(list[i]);
+      }
+      const newIndex = indices.findIndex((oldIndex, index) => oldIndex !== index);
+      if (newIndex !== -1) {
+        const oldIndex = indices[newIndex];
+        onSortEnd?.(createEventData(list[oldIndex], oldIndex, newIndex));
+      }
     },
   };
 };

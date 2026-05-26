@@ -104,6 +104,7 @@
 
 export { clearExpressionCache } from './evaluate';
 export { createTemplate, mount } from './mount';
+export { parseDirective, type ParsedDirective } from './parse-directive';
 export type { BindingContext, MountOptions, View } from './types';
 
 /**

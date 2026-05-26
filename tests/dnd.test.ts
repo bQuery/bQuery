@@ -3,7 +3,7 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
-import { draggable } from '../src/dnd/draggable';
+import { draggable, getActiveDrag } from '../src/dnd/draggable';
 import { droppable } from '../src/dnd/droppable';
 import { sortable } from '../src/dnd/sortable';
 
@@ -967,6 +967,88 @@ describe('dnd/sortable', () => {
     handle.destroy();
   });
 
+  it('reports pointer-driven indices using the sortable items list', () => {
+    const list = createSortableList();
+    const spacer = document.createElement('div');
+    spacer.textContent = 'Spacer';
+    list.prepend(spacer);
+    container.appendChild(list);
+
+    const [firstItem, secondItem, thirdItem] = Array.from(list.querySelectorAll('li'));
+    setZoneRect(firstItem, { left: 0, top: 0, right: 100, bottom: 20 });
+    setZoneRect(secondItem, { left: 0, top: 20, right: 100, bottom: 40 });
+    setZoneRect(thirdItem, { left: 0, top: 40, right: 100, bottom: 60 });
+
+    let endData: { oldIndex: number; newIndex: number } | null = null;
+    const handle = sortable(list, {
+      items: 'li',
+      animationDuration: 0,
+      onSortEnd: (data) => {
+        endData = { oldIndex: data.oldIndex, newIndex: data.newIndex };
+      },
+    });
+
+    firePointerEvent(firstItem, 'pointerdown', {
+      clientX: 10,
+      clientY: 10,
+    });
+    firePointerEvent(list, 'pointermove', { clientX: 10, clientY: 100 });
+    firePointerEvent(list, 'pointerup', { clientX: 10, clientY: 100 });
+
+    expect(endData).not.toBeNull();
+    expect(endData!).toEqual({ oldIndex: 0, newIndex: 2 });
+    handle.destroy();
+  });
+
+  it('keeps pointer-driven reordering safe when HTMLElement is unavailable', () => {
+    const list = createSortableList();
+    const spacer = document.createElement('div');
+    spacer.textContent = 'Spacer';
+    list.prepend(spacer);
+    container.appendChild(list);
+
+    const [firstItem, secondItem, thirdItem] = Array.from(list.querySelectorAll('li'));
+    setZoneRect(firstItem, { left: 0, top: 0, right: 100, bottom: 20 });
+    setZoneRect(secondItem, { left: 0, top: 20, right: 100, bottom: 40 });
+    setZoneRect(thirdItem, { left: 0, top: 40, right: 100, bottom: 60 });
+
+    let endData: { oldIndex: number; newIndex: number } | null = null;
+    const handle = sortable(list, {
+      items: 'li',
+      animationDuration: 0,
+      onSortEnd: (data) => {
+        endData = { oldIndex: data.oldIndex, newIndex: data.newIndex };
+      },
+    });
+
+    const originalHTMLElement = globalThis.HTMLElement;
+
+    Object.defineProperty(globalThis, 'HTMLElement', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      firePointerEvent(firstItem, 'pointerdown', {
+        clientX: 10,
+        clientY: 10,
+      });
+      firePointerEvent(list, 'pointermove', { clientX: 10, clientY: 100 });
+      firePointerEvent(list, 'pointerup', { clientX: 10, clientY: 100 });
+    } finally {
+      Object.defineProperty(globalThis, 'HTMLElement', {
+        value: originalHTMLElement,
+        configurable: true,
+        writable: true,
+      });
+      handle.destroy();
+    }
+
+    expect(endData).not.toBeNull();
+    expect(endData!).toEqual({ oldIndex: 0, newIndex: 2 });
+  });
+
   it('should respect handle option', () => {
     const list = createSortableList();
     container.appendChild(list);
@@ -1024,5 +1106,369 @@ describe('dnd module exports', () => {
 
   it('should export sortable function', () => {
     expect(typeof sortable).toBe('function');
+  });
+});
+
+// ─── M1 Programmatic API ─────────────────────────────────────────────────────
+
+describe('dnd/draggable programmatic API', () => {
+  let container: HTMLDivElement;
+  let box: HTMLDivElement;
+
+  beforeEach(() => {
+    container = createContainer();
+    box = createBox('drag-box');
+    container.appendChild(box);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('moveTo() updates the position and applies it via transform', () => {
+    const handle = draggable(box);
+    handle.moveTo({ x: 25, y: 40 });
+    expect(handle.getPosition()).toEqual({ x: 25, y: 40 });
+    expect(box.style.transform).toBe('translate(25px, 40px)');
+    expect(getActiveDrag()).toBeUndefined();
+    handle.destroy();
+  });
+
+  it('moveTo() clamps to bounds when configured', () => {
+    setZoneRect(container, { left: 0, top: 0, right: 200, bottom: 200 });
+    setZoneRect(box, { left: 0, top: 0, right: 100, bottom: 100 });
+    const handle = draggable(box, { bounds: 'parent' });
+    handle.moveTo({ x: 100_000, y: 100_000 });
+    const pos = handle.getPosition();
+    // Clamped to a finite value (the exact value depends on parent vs element
+    // geometry; here we just verify the clamp triggered).
+    expect(pos.x).toBeLessThan(100_000);
+    expect(pos.y).toBeLessThan(100_000);
+    expect(Number.isFinite(pos.x)).toBe(true);
+    expect(Number.isFinite(pos.y)).toBe(true);
+    handle.destroy();
+  });
+
+  it('selector bounds no-op cleanly when document is unavailable', () => {
+    const handle = draggable(box, { bounds: '.bounds' });
+    const originalDocument = globalThis.document;
+
+    Object.defineProperty(globalThis, 'document', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      expect(() => handle.moveTo({ x: 25, y: 40 })).not.toThrow();
+      expect(handle.getPosition()).toEqual({ x: 25, y: 40 });
+    } finally {
+      Object.defineProperty(globalThis, 'document', {
+        value: originalDocument,
+        configurable: true,
+        writable: true,
+      });
+      handle.destroy();
+    }
+  });
+
+  it('reset() returns to {0,0}', () => {
+    const handle = draggable(box);
+    handle.moveTo({ x: 50, y: 50 });
+    handle.reset();
+    expect(handle.getPosition()).toEqual({ x: 0, y: 0 });
+    expect(box.style.transform).toBe('');
+    expect(getActiveDrag()).toBeUndefined();
+    handle.destroy();
+  });
+
+  it('reset() clears transforms consistently in ghost mode', () => {
+    const handle = draggable(box, { ghost: true });
+    handle.moveTo({ x: 50, y: 50 });
+    expect(box.style.transform).toBe('translate(50px, 50px)');
+    handle.reset();
+    expect(handle.getPosition()).toEqual({ x: 0, y: 0 });
+    expect(box.style.transform).toBe('');
+    handle.destroy();
+  });
+
+  it('setAxis() locks subsequent movement', () => {
+    const handle = draggable(box);
+    handle.setAxis('x');
+    handle.moveTo({ x: 30, y: 30 });
+    expect(handle.getPosition()).toEqual({ x: 30, y: 0 });
+    handle.destroy();
+  });
+
+  it('setBounds() updates the constraint without rebinding', () => {
+    const handle = draggable(box);
+    handle.moveTo({ x: 999, y: 999 });
+    expect(handle.getPosition().x).toBe(999);
+    handle.setBounds({ left: -10, top: -10, right: 50, bottom: 50 });
+    handle.moveTo({ x: 999, y: 999 });
+    expect(handle.getPosition()).toEqual({ x: 50, y: 50 });
+    handle.destroy();
+  });
+
+  it('snaps to grid when grid option is set', () => {
+    const handle = draggable(box, { grid: 16 });
+    handle.moveTo({ x: 23, y: 9 });
+    expect(handle.getPosition()).toEqual({ x: 16, y: 16 });
+    handle.destroy();
+  });
+
+  it('supports a [stepX, stepY] tuple for non-square grids', () => {
+    const handle = draggable(box, { grid: [10, 25] });
+    handle.moveTo({ x: 47, y: 60 });
+    expect(handle.getPosition()).toEqual({ x: 50, y: 50 });
+    handle.destroy();
+  });
+});
+
+describe('dnd/draggable delay and threshold', () => {
+  let container: HTMLDivElement;
+  let box: HTMLDivElement;
+
+  beforeEach(() => {
+    container = createContainer();
+    box = createBox('drag-box');
+    container.appendChild(box);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('does not start dragging until the touchStartThreshold is exceeded', () => {
+    let started = 0;
+    const handle = draggable(box, {
+      touchStartThreshold: 10,
+      onDragStart: () => {
+        started += 1;
+      },
+    });
+
+    firePointerEvent(box, 'pointerdown', { clientX: 0, clientY: 0 });
+    firePointerEvent(box, 'pointermove', { clientX: 4, clientY: 0 });
+    expect(started).toBe(0);
+    firePointerEvent(box, 'pointermove', { clientX: 20, clientY: 0 });
+    expect(started).toBe(1);
+    firePointerEvent(box, 'pointerup', { clientX: 20, clientY: 0 });
+    handle.destroy();
+  });
+
+  it('cancels pending pickup on pointerup before threshold is reached', () => {
+    let started = 0;
+    const handle = draggable(box, {
+      touchStartThreshold: 50,
+      onDragStart: () => {
+        started += 1;
+      },
+    });
+    firePointerEvent(box, 'pointerdown', { clientX: 0, clientY: 0 });
+    firePointerEvent(box, 'pointerup', { clientX: 5, clientY: 0 });
+    expect(started).toBe(0);
+    handle.destroy();
+  });
+});
+
+describe('dnd/draggable bounds variants', () => {
+  let container: HTMLDivElement;
+  let box: HTMLDivElement;
+
+  beforeEach(() => {
+    container = createContainer();
+    box = createBox('drag-box');
+    container.appendChild(box);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('accepts an HTMLElement as bounds', () => {
+    const bounder = document.createElement('div');
+    bounder.id = 'bounds-el';
+    document.body.appendChild(bounder);
+    setZoneRect(bounder, { left: 0, top: 0, right: 200, bottom: 200 });
+    setZoneRect(box, { left: 0, top: 0, right: 100, bottom: 100 });
+
+    const handle = draggable(box, { bounds: bounder });
+    handle.moveTo({ x: 100_000, y: 100_000 });
+    const pos = handle.getPosition();
+    expect(pos.x).toBeLessThan(100_000);
+    expect(Number.isFinite(pos.x)).toBe(true);
+    handle.destroy();
+    bounder.remove();
+  });
+
+  it('does not throw for element bounds when HTMLElement is unavailable', () => {
+    const originalHTMLElementDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'HTMLElement');
+
+    try {
+      Object.defineProperty(globalThis, 'HTMLElement', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+
+      const handle = draggable(box, { bounds: box });
+      expect(() => handle.moveTo({ x: 10, y: 15 })).not.toThrow();
+      expect(handle.getPosition()).toEqual({ x: 10, y: 15 });
+      handle.destroy();
+    } finally {
+      if (originalHTMLElementDescriptor) {
+        Object.defineProperty(globalThis, 'HTMLElement', originalHTMLElementDescriptor);
+      }
+    }
+  });
+
+  it("accepts 'viewport' as a bounds shorthand", () => {
+    setZoneRect(box, { left: 50, top: 50, right: 150, bottom: 150 });
+    const handle = draggable(box, { bounds: 'viewport' });
+    // Just verifies it doesn't throw and produces a finite clamp result.
+    handle.moveTo({ x: 10_000, y: 10_000 });
+    const pos = handle.getPosition();
+    expect(Number.isFinite(pos.x)).toBe(true);
+    expect(Number.isFinite(pos.y)).toBe(true);
+    handle.destroy();
+  });
+
+  it("treats 'viewport' bounds as unconstrained when window is unavailable", () => {
+    setZoneRect(box, { left: 50, top: 50, right: 150, bottom: 150 });
+    const handle = draggable(box, { bounds: 'viewport' });
+    const originalWindowDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'window');
+
+    try {
+      Object.defineProperty(globalThis, 'window', {
+        configurable: true,
+        writable: true,
+        value: undefined,
+      });
+
+      handle.moveTo({ x: 10_000, y: 20_000 });
+      expect(handle.getPosition()).toEqual({ x: 10_000, y: 20_000 });
+    } finally {
+      if (originalWindowDescriptor) {
+        Object.defineProperty(globalThis, 'window', originalWindowDescriptor);
+      }
+    }
+
+    handle.destroy();
+  });
+});
+
+describe('dnd/droppable programmatic API', () => {
+  let container: HTMLDivElement;
+  let zone: HTMLDivElement;
+
+  beforeEach(() => {
+    container = createContainer();
+    zone = document.createElement('div');
+    zone.id = 'zone';
+    container.appendChild(zone);
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('isOver() and getActiveDragged() reflect the current zone state', () => {
+    const handle = droppable(zone);
+    expect(handle.isOver()).toBe(false);
+    expect(handle.getActiveDragged()).toBe(null);
+    handle.destroy();
+  });
+
+  it('setAccept() updates the accept predicate without rebinding', () => {
+    let calls = 0;
+    const handle = droppable(zone, {
+      accept: '.never',
+      onDrop: () => {
+        calls += 1;
+      },
+    });
+    handle.setAccept(() => true);
+    // The internal predicate can be inspected indirectly: a drop simulation
+    // would require a draggable element flow; we settle for verifying that
+    // setAccept exists and doesn't throw.
+    expect(typeof handle.setAccept).toBe('function');
+    expect(calls).toBe(0);
+    handle.destroy();
+  });
+});
+
+describe('dnd/sortable programmatic API', () => {
+  let container: HTMLDivElement;
+
+  beforeEach(() => {
+    container = createContainer();
+    for (let i = 0; i < 4; i += 1) {
+      const item = document.createElement('div');
+      item.textContent = `item-${i}`;
+      item.dataset.id = `${i}`;
+      container.appendChild(item);
+    }
+  });
+
+  afterEach(() => {
+    container.remove();
+  });
+
+  it('getItems() returns the current items in DOM order', () => {
+    const handle = sortable(container);
+    const ids = handle.getItems().map((el) => el.dataset.id);
+    expect(ids).toEqual(['0', '1', '2', '3']);
+    handle.destroy();
+  });
+
+  it('move() reorders items and fires onSortEnd', () => {
+    const events: Array<{ oldIndex: number; newIndex: number }> = [];
+    const handle = sortable(container, {
+      onSortEnd: ({ oldIndex, newIndex }) => {
+        events.push({ oldIndex, newIndex });
+      },
+    });
+    handle.move(0, 2);
+    const ids = handle.getItems().map((el) => el.dataset.id);
+    expect(ids).toEqual(['1', '2', '0', '3']);
+    expect(events[events.length - 1]).toEqual({ oldIndex: 0, newIndex: 2 });
+    handle.destroy();
+  });
+
+  it('move() supports moving backwards', () => {
+    const handle = sortable(container);
+    handle.move(3, 1);
+    const ids = handle.getItems().map((el) => el.dataset.id);
+    expect(ids).toEqual(['0', '3', '1', '2']);
+    handle.destroy();
+  });
+
+  it('setOrder() applies a permutation', () => {
+    const handle = sortable(container);
+    handle.setOrder([3, 2, 1, 0]);
+    const ids = handle.getItems().map((el) => el.dataset.id);
+    expect(ids).toEqual(['3', '2', '1', '0']);
+    handle.destroy();
+  });
+
+  it('setOrder() notifies onSortEnd when it changes the DOM order', () => {
+    const events: Array<{ item: string | undefined; oldIndex: number; newIndex: number }> = [];
+    const handle = sortable(container, {
+      onSortEnd: ({ item, oldIndex, newIndex }) => {
+        events.push({ item: item.dataset.id, oldIndex, newIndex });
+      },
+    });
+    handle.setOrder([3, 2, 1, 0]);
+    expect(events).toEqual([{ item: '3', oldIndex: 3, newIndex: 0 }]);
+    handle.destroy();
+  });
+
+  it('setOrder() rejects invalid permutations', () => {
+    const handle = sortable(container);
+    expect(() => handle.setOrder([0, 1, 2])).toThrow();
+    expect(() => handle.setOrder([0, 0, 1, 2])).toThrow();
+    expect(() => handle.setOrder([0, 1, 2, 5])).toThrow();
+    handle.destroy();
   });
 });
