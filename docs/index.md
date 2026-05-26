@@ -3,8 +3,8 @@ layout: home
 title: bQuery.js
 hero:
   name: bQuery.js
-  text: The full-stack web framework that speaks jQuery.
-  tagline: Batteries-included TypeScript framework with signals, Web Components, SSR, routing, and zero mandatory build step.
+  text: The full-stack framework that speaks jQuery.
+  tagline: Batteries-included TypeScript framework with signals, Web Components, routing, SSR, and a dependency-free server — zero mandatory build step.
   image:
     src: /assets/bquerry-logo.svg
     alt: bQuery Logo
@@ -13,45 +13,182 @@ hero:
       text: Get started
       link: /guide/getting-started
     - theme: alt
-      text: Core API
-      link: /guide/api-core
+      text: What is bQuery?
+      link: /introduction
+    - theme: alt
+      text: View on GitHub
+      link: https://github.com/bQuery/bQuery
 features:
-  - title: Zero Build
+  - icon: ⚡
+    title: Zero Build
     details: Works directly in the browser via CDN or ES modules. Vite is optional, not required.
-  - title: Async Data Primitives
-    details: Signal-based async data, fetch, HTTP client, polling, pagination, and request-state workflows without framework ceremony.
-  - title: Off-Main-Thread Concurrency
-    details: Zero-build worker tasks, explicit RPC helpers, bounded pools, reactive worker state, and collection helpers for predictable background work.
-  - title: Realtime & REST
-    details: Typed WebSocket/SSE composables, channel multiplexing, REST helpers, optimistic resources, and reactive submissions.
-  - title: Secure by Default
-    details: Sanitized DOM operations and Trusted Types compatibility.
-  - title: Foundation Components
-    details: Register a default Web Component library, wire signals into components, and preview it in Storybook.
-  - title: Storybook Helpers
-    details: Author safe stories with storyHtml(), when(), and boolean attribute shorthand.
-  - title: Platform APIs
-    details: Storage, cache, cookies, page metadata, announcers, and shared runtime config.
-  - title: Forms & i18n
-    details: Reactive forms, validators, locale-aware messages, pluralization, and Intl formatting.
-  - title: Accessibility & media
-    details: Focus traps, skip links, audits, media preference signals, viewport/network state, and clipboard helpers.
-  - title: Testing, SSR & Server
-    details: Testing utilities, runtime devtools, runtime-agnostic SSR, hydration strategies, and dependency-free backend helpers.
+  - icon: 🧠
+    title: Fine-grained Reactivity
+    details: Signals, computed values, scopes, batching, watch with debounce/throttle, and async data primitives.
+  - icon: 🌐
+    title: Realtime & HTTP
+    details: Built-in HTTP client, polling, pagination, WebSocket/SSE composables, REST helpers, and request deduplication.
+  - icon: 🧩
+    title: Web Components
+    details: Typed Web Components with scoped reactivity, slots, refs, lifecycle hooks, and a previewable default library.
+  - icon: 🛡️
+    title: Secure by Default
+    details: HTML-writing APIs sanitize untrusted input. Trusted Types and CSP-friendly patterns ship out of the box.
+  - icon: 🧵
+    title: Off-Main-Thread
+    details: Zero-build worker tasks, RPC helpers, bounded pools, reactive worker state, and collection helpers.
+  - icon: 🛣️
+    title: Router & Store
+    details: SPA routing with guards and navigation results plus signal-based state management and persistence.
+  - icon: 📝
+    title: Forms & i18n
+    details: Reactive form state, schema validation, locale negotiation, pluralization, and Intl formatting.
+  - icon: ♿
+    title: Accessibility & Media
+    details: Focus traps, live regions, audits, viewport / network / battery signals, clipboard, and reduced-motion helpers.
+  - icon: 🖥️
+    title: SSR & Server
+    details: Runtime-agnostic SSR (Node, Bun, Deno, edge) and a dependency-free backend with WebSocket sessions.
+  - icon: 🧪
+    title: Testing & Devtools
+    details: Component mounts, screen / userEvent helpers, signal mocks, timeline inspection, and snapshot import/export.
+  - icon: 🎨
+    title: Motion & DnD
+    details: Springs, tweens, FLIP, timelines, parallax, drag-and-drop with keyboard a11y, and reactive draggable APIs.
 ---
 
-## Why bQuery
+## What is bQuery.js?
 
-bQuery.js is a batteries-included framework for the modern web. It brings jQuery's direct API ergonomics to reactivity, async data, HTTP clients, polling, pagination, WebSocket/SSE transports, REST helpers, dependency-free server routing, runtime-agnostic SSR, WebSocket sessions, native components, motion, forms, i18n, accessibility, media signals, drag-and-drop, plugins, devtools, and testing in one modular system.
+bQuery.js is a **batteries-included TypeScript framework for the modern web** — not just a DOM utility library. It bundles fine-grained reactivity, Web Components, routing, state management, forms, motion, accessibility, drag-and-drop, runtime-agnostic SSR, and a dependency-free backend behind a familiar **jQuery-inspired API**. Every public module ships its own entry point so bundlers can keep your build small.
 
-## New in 1.14.0
+Read more in the **[Introduction](/introduction)** or jump straight to **[Getting Started](/guide/getting-started)**.
 
-`@bquery/bquery/media`, `@bquery/bquery/plugin`, `@bquery/bquery/devtools`, and `@bquery/bquery/testing` all graduate into a batteries-included tier: 25+ new media composables (preference signals, page state, element observers, pointer/scroll, platform integrations like wake lock / share / broadcast / permission / media devices / storage, plus clipboard image support — every one accepting an optional `{ signal: AbortSignal }`); a plugin hook bus (`addFilter`/`applyFilters`, `addAction`/`doAction`), container DI (`createInjectionKey`/`provide`/`inject`), `unuse`/`uninstall` lifecycle, async install, plugin metadata + dependencies, and namespaced directives with `{ mounted, unmounted }`; devtools ring-buffered timelines with richer `TimelineEntry`, `filterTimeline`/`subscribeTimeline`, `diffSignals`/`diffStores`, `traceSignal`, snapshot import/export, `installBrowserBridge()`, and `time`/`measureRender`/`getPerformanceSummary`; testing screen queries via `screen`/`within`, a `userEvent` namespace, `fireEvent.*` shortcuts, reactive harnesses (`mockComputed`/`mockEffect`/`tick`/`flushPromises`), module mocks (`mockStore`/`mockI18n`/`mockForm`/`mockFetch`/`mockWebSocket`), and a11y helpers (`prettyDOM`/`getReactiveSummary`/`expectAccessible`). Additive module expansions also land across `router` (`NavigationResult`, `pushResult`/`replaceResult`, `beforeResolve`, `resolveRoute`, dynamic `addRoute`/`removeRoute`/`hasRoute`, `isReady`, `lastNavigation`, `useNavigation`), `view` (`parseDirective` + new `bq-once`/`bq-init`/`bq-pre`/`bq-cloak`/`bq-html-safe`/`bq-memo` and the full `bq-on` modifier system), `a11y` (`createLiveRegion`, `keyboardUserSignal`, `focusVisible`, `prefersReducedTransparency`/`prefersReducedData`/`forcedColors`, `inert`/`scrollLock`/`autoFocus`), `i18n` (`negotiateLocale`, `detectLocale`, `isRTL`, `formatRelativeTime`/`formatList`/`formatDisplayName`/`segment`), `dnd` (programmatic handles, grid/delay/touch/keyboard options, `'viewport'` bounds, reactive `useDraggable`/`useDroppable`/`useSortable`), `storybook` (`classMap`/`styleMap`/`ifDefined`/`repeat`/`storyText`/`unsafeHtml`/`storySvg`), `concurrency` (`withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause`/`resume`/`onIdle`, rolling reactive metrics), `ssr` (`flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`), and `server` (`ServerHttpError`, `ctx.body`/`ctx.cookies`/`ctx.setCookie`/`ctx.accepts`/`ctx.stream`/`ctx.sse`/`ctx.renderStream`/`ctx.renderResponse`, `app.listen()`). All 1.13.x and earlier APIs remain unchanged. See the [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md) for the full release notes.
+## Why bQuery?
 
-## New to bQuery?
+| You want…                                                  | bQuery gives you                                                                                                              |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| **A jQuery-style DOM API on modern reactive primitives**   | `$(selector)` returns a typed `BQueryElement`; signals and effects participate in chainable code without a virtual DOM.       |
+| **Zero build for small projects**                          | Drop a `<script type="module">` from a CDN — no Vite, no bundler, no transpiler required.                                     |
+| **A real framework when projects grow**                    | 23 tree-shakeable modules covering routing, state, forms, SSR, server, motion, a11y, i18n, devtools, testing, plugins.        |
+| **One stack for client and server**                        | `@bquery/bquery/ssr` + `@bquery/bquery/server` render and serve from the same runtime (Node, Bun, Deno, or edge).             |
+| **Security defaults that don't fight you**                 | HTML-writing APIs sanitize untrusted input; Trusted Types and CSP-friendly patterns are first-class.                          |
+| **Predictable bundle size**                                | Zero runtime dependencies; every public surface is tree-shakeable; a `/full` bundle is reserved for CDN consumers.            |
 
-Start with the [Getting Started](/guide/getting-started) guide for installation and orientation, then follow the step-by-step [Tutorial](/guide/tutorial) to build a real Notes app that exercises Core, Reactive, View, Store, Forms, Router, Component, Motion, Platform, A11y, and Testing in one project. The [Examples & Recipes](/guide/examples) cookbook has copy-paste-ready snippets for common tasks. Coming from jQuery? The [Migration Guide](/guide/migration) maps jQuery patterns to bQuery equivalents.
+## At a glance
 
-## Looking for answers?
+```
+@bquery/bquery
+├── core ─────────── selectors, traversal, events, utilities
+├── reactive ─────── signals, computed, watch, async data, HTTP, realtime
+├── concurrency ──── worker tasks, RPC, pools, reactive metrics
+├── component ────── typed Web Components, slots, refs, lifecycle
+├── motion ───────── transitions, springs, tweens, timelines
+├── security ─────── sanitization, Trusted Types
+├── platform ─────── storage, cache, cookies, page meta
+├── router ───────── SPA routing, guards, navigation results
+├── store ────────── signal-based state with persistence
+├── view ─────────── declarative bq-* directives
+├── forms ────────── reactive forms, validators, schema
+├── i18n ─────────── locale negotiation, Intl, pluralization
+├── a11y ─────────── focus, live regions, audits, prefs
+├── dnd ──────────── draggable, droppable, sortable
+├── media ────────── viewport, network, clipboard, prefs
+├── plugin ───────── hooks, DI, namespaced directives
+├── devtools ─────── timeline, signal/store diffs, perf
+├── testing ──────── screen, userEvent, mocks
+├── storybook ────── safe story helpers
+├── ssr ──────────── runtime-agnostic rendering & streaming
+└── server ───────── dependency-free routing + WebSockets
+```
 
-Check the [FAQ & Troubleshooting](/guide/faq) for common questions, or read the [Best Practices](/guide/best-practices) guide for patterns that scale from small scripts to large applications.
+See the full **[Architecture overview](/concepts/architecture)** and the **[Modules](#i-want-to)** matrix below.
+
+## Install
+
+::: code-group
+
+```bash [npm]
+npm install @bquery/bquery
+```
+
+```bash [bun]
+bun add @bquery/bquery
+```
+
+```bash [pnpm]
+pnpm add @bquery/bquery
+```
+
+```bash [yarn]
+yarn add @bquery/bquery
+```
+
+```html [CDN]
+<script type="module">
+  import { $, signal, effect } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
+</script>
+```
+
+:::
+
+Supported runtimes: **Node.js ≥ 24**, **Bun ≥ 1.3.13**, modern Chromium / Firefox / Safari / Edge. See **[Supported Runtimes](/concepts/runtimes)**.
+
+## Two-minute example — client
+
+```ts
+import { $, signal, effect } from '@bquery/bquery';
+
+const count = signal(0);
+
+effect(() => {
+  $('#counter').text(`Count: ${count.value}`);
+});
+
+$('#counter').on('click', () => {
+  count.value++;
+});
+```
+
+## Two-minute example — server
+
+```ts
+import { createServer } from '@bquery/bquery/server';
+import { renderToResponse } from '@bquery/bquery/ssr';
+
+const app = createServer();
+
+app.get('/', async (ctx) => {
+  return renderToResponse(() => `<h1>Hello from bQuery SSR</h1>`, { ctx });
+});
+
+app.listen({ port: 3000 });
+```
+
+Walk through both end-to-end in the **[Tutorial](/guide/tutorial)** and the **[Full-Stack Workflows](/workflows/)**.
+
+## I want to…
+
+| I want to…                                  | Start here                                                                          |
+| ------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Reactively update the DOM without a build   | [Core](/guide/api-core) + [Reactive](/guide/reactive)                               |
+| Build a single-page app                     | [Router](/guide/router), [Store](/guide/store), [View](/guide/view)                 |
+| Build Web Components                        | [Component](/guide/components) + [Storybook](/guide/storybook)                      |
+| Build a full-stack app with SSR             | [SSR](/guide/ssr) + [Server](/guide/server)                                         |
+| Handle forms, i18n, and a11y                | [Forms](/guide/forms) + [i18n](/guide/i18n) + [A11y](/guide/a11y)                   |
+| Animate things                              | [Motion](/guide/motion)                                                             |
+| Move work off the main thread               | [Concurrency](/guide/concurrency)                                                   |
+| Migrate from jQuery                         | [Migration Guide](/guide/migration)                                                 |
+
+## What's new in 1.14.0
+
+The 1.14.0 release graduates **media, plugin, devtools, and testing** into batteries-included tiers, with additive expansions across router, view, a11y, i18n, dnd, storybook, concurrency, ssr, and server.
+
+Read the structured release notes at **[Release Notes — 1.14.0](/release-notes/1.14)** or the full [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md).
+
+## Learn more
+
+- **New to the project?** Start with **[Getting Started](/guide/getting-started)** and follow the **[Tutorial](/guide/tutorial)**.
+- **Stuck on a concept?** See **[Core Concepts](/concepts/architecture)** and the **[Glossary](/glossary)**.
+- **Looking for snippets?** The **[Cookbook](/cookbook/)** and **[Examples](/guide/examples)** have copy-paste recipes.
+- **Coming from jQuery?** Read the **[Migration Guide](/guide/migration)**.
+- **Contributing?** Read the **[Contributing Guide](/contributing/)**.

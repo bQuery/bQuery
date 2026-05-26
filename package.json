@@ -113,8 +113,11 @@
   "sideEffects": false,
   "scripts": {
     "dev": "vitepress dev docs",
+    "docs:dev": "vitepress dev docs",
     "build:docs": "vitepress build docs",
+    "docs:build": "vitepress build docs",
     "preview": "vitepress preview docs",
+    "docs:preview": "vitepress preview docs",
     "storybook": "storybook dev -p 6006",
     "build:storybook": "storybook build",
     "build": "bun run build:lib && bun run build:umd && bun run build:types",
