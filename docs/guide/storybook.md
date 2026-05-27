@@ -58,7 +58,7 @@ export const Disabled = {
 };
 ```
 
-When `disabled` is `true`, the output is `<ui-button disabled="">Save</ui-button>`.  
+When `disabled` is `true`, the output is `<ui-button disabled="">Save</ui-button>`.
 When `disabled` is `false`, the attribute is omitted entirely.
 
 **Composing multiple custom elements:**
@@ -326,3 +326,31 @@ export const Icon = {
   `,
 };
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- `storyText` is the safe default — prefer it over interpolating user content into raw template strings.
+- `unsafeHtml` skips sanitization; only use with trusted constants.
+- `classMap` / `styleMap` accept reactive signals — read `.value` first if you only want a snapshot.
+- `ifDefined` distinguishes `undefined` (skip attribute) from `null` (render `null`); be explicit.
+- `repeat()` requires stable keys for stable controls in the Storybook UI.
+
+## Performance notes
+
+- Stories are mounted lightly — avoid heavy global setup outside `decorators`.
+- Combine `storyText` with a fixed locale to keep snapshot tests deterministic.
+
+## Testing this module
+
+- Pair with `@bquery/bquery/testing`'s `renderComponent()` to assert story output.
+
+## Related modules
+
+- [Component](./components) — the units being storied.
+- [Testing](./testing) — share helpers for component assertions.
+
+## Version history
+
+- **1.14.0** — `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, `storySvg`.

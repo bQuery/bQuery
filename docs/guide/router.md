@@ -489,3 +489,33 @@ type RouterOptions = {
 
 type NavigationGuard = (to: Route, from: Route) => boolean | void | Promise<boolean | void>;
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Guards run sequentially — returning a `Promise` blocks navigation until it resolves. Use `beforeResolve` for non-blocking work.
+- `pushResult()` / `replaceResult()` return a `NavigationResult` describing whether navigation succeeded, was redirected, or cancelled — check it instead of assuming success.
+- Dynamic route ops (`addRoute`, `removeRoute`, `hasRoute`) take effect immediately; existing matches are not retroactively re-evaluated.
+- `resolveRoute()` does not navigate — it returns the matched route descriptor for previewing links or generating URLs.
+- `isReady()` resolves once the initial navigation finishes; use it to delay app mounting until the route is known.
+
+## Performance notes
+
+- Lazy routes (`component: () => import(...)`) are code-split automatically; pair with `whenIdle()` to prefetch likely next routes.
+- Cache route-derived data in a store so guards do not refetch on every navigation.
+
+## Testing this module
+
+- `@bquery/bquery/testing` exposes `mockRouter()` (signal-driven, no `window.history`) and `useNavigation()` mocks.
+- Assert `lastNavigation` and `NavigationResult` values directly.
+
+## Related modules
+
+- [Store](./store) — share navigation-derived state across the app.
+- [SSR](./ssr) — route resolution during server rendering.
+- [View](./view) — `bq-on:click` with `router.push` for declarative links.
+
+## Version history
+
+- **1.14.0** — `NavigationResult`, `pushResult` / `replaceResult`, `beforeResolve`, `resolveRoute`, dynamic `addRoute` / `removeRoute` / `hasRoute`, `isReady`, `lastNavigation`, `useNavigation`.

@@ -2,36 +2,58 @@
 
 Short, focused recipes that solve one problem each. Each recipe states the **problem**, gives a **minimal working solution**, and links to the relevant module guide for depth.
 
-::: tip Work in progress
-The cookbook is being split out from the long-form [Examples & Recipes](/guide/examples) page into one recipe per file. Until that work lands, the [Examples & Recipes](/guide/examples) page remains the most complete source of copy-paste snippets.
-:::
+For end-to-end tutorials, see [Workflows](/workflows/). For the long-form snippet catalogue, see [Examples & Recipes](/guide/examples).
 
-## Recipe categories (planned)
+## Reactivity & async data
 
-| Category               | What it covers                                                                                           |
-| ---------------------- | -------------------------------------------------------------------------------------------------------- |
-| **DOM basics**         | Selectors, traversal, events, manipulation, delegated handlers.                                          |
-| **Reactivity**         | Signals, computed, effects, batching, watching, untracking.                                              |
-| **Async & data**       | Fetch with `useFetch`, polling, paginated lists, infinite scrolls, REST resources, optimistic updates.   |
-| **Realtime**           | WebSocket, channels, SSE, heartbeats, reconnect strategies.                                              |
-| **Components**         | Defining a component, slots, refs, lifecycle, errorBoundary, props & attributes, delegated events.       |
-| **Routing**            | Programmatic navigation, guards, lazy routes, route params, navigation results, beforeResolve.           |
-| **State**              | Store actions, persistence plugins, snapshots, testing stores with `mockStore`.                          |
-| **Forms**              | Schema validation, field arrays, async validators, SSR-safe form state, `bindForm`.                      |
-| **i18n & a11y**        | Locale negotiation, RTL, focus traps, live regions, keyboard-user detection.                             |
-| **Motion**             | Springs, tweens, timelines, FLIP, parallax, reduced-motion-aware animations.                             |
-| **Drag & drop**        | Sortable lists with keyboard support, grid snapping, viewport bounds.                                    |
-| **SSR & server**       | Streaming, cache keys, edge handlers, `app.listen()`, body parsing, cookies, SSE responses.              |
-| **Devtools & testing** | Trace a signal, diff stores, mock a fetch, write a shadow-DOM-aware screen query.                        |
-| **Bundle & deploy**    | Pick a sub-path import, configure Vite, deploy SSR to Node / Bun / Deno / edge.                          |
+- [Reactive counter](./reactive-counter)
+- [Debounced search input](./debounced-search)
+- [Polling for live data](./polling)
+- [Paginated data loading](./pagination)
+- [Infinite scroll](./infinite-scroll)
 
-## Today
+## Realtime
 
-Until each recipe has its own page, the existing [Examples & Recipes](/guide/examples) page contains ~30 worked snippets covering the categories above. Each module guide also has its own recipes section.
+- [WebSocket channel with reconnect](./websocket-reconnect)
+- [Server-Sent Events stream](./sse-stream)
+
+## Components & UI
+
+- [Notification toast component](./notification-toast)
+- [Reusable modal dialog](./modal-dialog)
+- [Theme switcher](./theme-switcher)
+
+## Forms
+
+- [Login form with validation](./login-form)
+
+## Routing & state
+
+- [Protected routes with guards](./route-guards)
+- [Persisted store](./persisted-store)
+
+## Motion & drag-and-drop
+
+- [Fade-in elements on scroll](./scroll-reveal)
+- [Spring-based drag](./spring-drag)
+
+## i18n & a11y
+
+- [RTL-aware localized layout](./rtl-locale)
+
+## Devtools & testing
+
+- [Trace a signal in development](./trace-signal)
+- [Mock a fetch in tests](./mock-fetch-test)
+
+## Bundle & deploy
+
+- [Pick a sub-path import](./pick-subpath-import)
+- [Deploy SSR to Node, Bun, or Deno](./ssr-deploy)
 
 ## See also
 
-- [Examples & Recipes](/guide/examples)
-- [Workflows](/workflows/) — longer end-to-end tutorials
-- [Module guides](/guide/api-core) — depth for each topic
-- [Runnable examples on GitHub](https://github.com/bQuery/bQuery/tree/main/examples)
+- [Workflows](/workflows/) — longer end-to-end tutorials.
+- [Examples & Recipes](/guide/examples) — the original long-form snippet collection.
+- Each [module guide](/guide/api-core) carries its own recipes section.
+- Runnable apps: [`examples/` on GitHub](https://github.com/bQuery/bQuery/tree/main/examples).

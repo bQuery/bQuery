@@ -504,3 +504,33 @@ const handle = draggable(box);
 const position = draggablePosition(box, handle);
 // position is a ReadonlySignal<DragPosition>
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Touch devices need `touchStartThreshold` to distinguish drag from scroll — default is `8px`.
+- Keyboard sortable mode requires focusable items (`tabindex="0"`); enable it via `keyboard: true` and tune `keyboardStep`.
+- `bounds: 'viewport'` is recomputed on `resize`; for custom containers pass an element ref.
+- Programmatic `handle` APIs (`activate()`, `cancel()`) bypass user input but still emit lifecycle events.
+- Sortable lists must use stable keys for animation continuity.
+
+## Performance notes
+
+- Pair with motion's `spring()` for elastic snap-back without recomputing layout per frame.
+- Use `grid` snapping to reduce update churn on coarse drag surfaces.
+
+## Testing this module
+
+- Use `@bquery/bquery/testing`'s `fireEvent.keyDown` / `userEvent.tab` for keyboard sortable tests.
+- Assert `draggablePosition` signal values directly.
+
+## Related modules
+
+- [A11y](./a11y) — keyboard navigation primitives.
+- [Motion](./motion) — springs and timelines for drag feedback.
+- [View](./view) — declarative `bq-on:pointerdown` integration.
+
+## Version history
+
+- **1.14.0** — programmatic handle APIs, `grid`, `delay`, `touchStartThreshold`, `keyboard`, `keyboardStep`, `'viewport'` bounds, reactive `useDraggable` / `useDroppable` / `useSortable`.

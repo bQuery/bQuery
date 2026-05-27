@@ -626,3 +626,54 @@ A fully sandboxed expression parser would:
 - Still require careful security review
 
 The current approach matches industry standards (Vue, Alpine, Angular) while keeping the implementation focused and predictable. The key is ensuring expressions come only from trusted sources.
+
+<!-- uniform-template-footer -->
+
+## Directive reference (1.14.0)
+
+| Directive                  | Purpose                                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bq-text`                  | Set element text content from an expression.                                                                                                   |
+| `bq-html` / `bq-html-safe` | Render HTML — `bq-html-safe` sanitizes before insertion.                                                                                       |
+| `bq-model`                 | Two-way binding for inputs, selects, textareas, checkboxes.                                                                                    |
+| `bq-show` / `bq-if`        | Toggle visibility or DOM mounting on a condition.                                                                                              |
+| `bq-for`                   | Render lists from arrays / iterables; supports `key` helper.                                                                                   |
+| `bq-on:event[.mods]`       | Event handler with modifier matrix (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`, `.self`, `.left`, `.right`, `.middle`, key filters). |
+| `bq-class` / `bq-style`    | Reactive class / style objects.                                                                                                                |
+| `bq-attr` / `bq-aria`      | Reactive attribute / ARIA bag.                                                                                                                 |
+| `bq-once`                  | Run the binding exactly once, then untrack.                                                                                                    |
+| `bq-init`                  | Execute an expression on mount only.                                                                                                           |
+| `bq-pre`                   | Skip directive parsing in this subtree (preserve literal source).                                                                              |
+| `bq-cloak`                 | Hide until the view is mounted to prevent FOUC.                                                                                                |
+| `bq-memo`                  | Memoize a subtree by a reactive key.                                                                                                           |
+| `bq-error`                 | Per-subtree error boundary for binding failures.                                                                                               |
+
+## Pitfalls and gotchas
+
+- View expressions run through `new Function(...)` — your CSP must allow `'unsafe-eval'` or you must use the strict-mode allow-list.
+- Do not feed untrusted strings into `bq-html`; use `bq-html-safe` (default-sanitized) or sanitize yourself first.
+- `bq-for` requires stable keys for reordering — supply `key=(item) => item.id` to avoid re-creating subtrees.
+- `bq-model` on `<select multiple>` always reads/writes an array, not a single string.
+- `unmount()` must be called when removing dynamic views — leaked bindings keep signals subscribed.
+
+## Performance notes
+
+- Wrap expensive subtrees in `bq-memo` keyed on their inputs.
+- Use `bq-once` for write-once data (translations, server-injected props) to skip per-update work.
+- Cache compiled templates with `createTemplate()` when instantiating many copies.
+
+## Testing this module
+
+- `@bquery/bquery/testing` ships `mount()`, `screen`, `within()`, `fireEvent.*`, and `tick()` helpers to drive views in `bun:test`.
+- Combine with `mockSignal()` to assert reactivity at the directive level.
+
+## Related modules
+
+- [Reactive](./reactive) — the signal layer view bindings subscribe to.
+- [Component](./components) — declarative components that compose views.
+- [Security](./security) — sanitizer, Trusted Types, and CSP guidance for `bq-html`.
+- [Plugin](./plugin) — register custom directives (`tooltip`, `tooltip:arrow`, …).
+
+## Version history
+
+- **1.14.0** — `parseDirective`, `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, full `bq-on` modifier system.

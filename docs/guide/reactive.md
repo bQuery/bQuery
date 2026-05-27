@@ -1139,3 +1139,42 @@ const api = createHttp({
   },
 });
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Reading `.value` inside an `effect()` or `computed()` subscribes the caller — use `.peek()` for one-shot reads you do not want to track.
+- `computed()` is read-only. Use [`linkedSignal()`](./reactive#linkedsignal) when you need a derived value you can also write to.
+- `watch()` debounce/throttle variants keep the same `(newValue, oldValue)` signature; do not pass the timing options as the callback.
+- `effect()` returns a disposer — keep it and call it from your component's `disconnected` or scope's `dispose()` to avoid leaks in long-lived pages.
+- Async helpers (`useFetch`, `usePolling`, `useWebSocket`, …) always return disposers/`dispose()`; never spawn them without ownership in a long-lived component.
+
+## Performance notes
+
+- Batch multiple writes with `batch(() => { … })` to coalesce subscribers into a single notification pass.
+- Prefer `computed()` over re-deriving values in templates — computed memoization avoids redundant work.
+- Use `deduplicateRequest()` for read-heavy endpoints to collapse concurrent calls, and `createRequestQueue()` to bound concurrency on slow back-ends.
+- For high-frequency producers (pointermove, scroll, SSE) wrap subscribers in `watchThrottle` / `watchDebounce` instead of raw `effect()`.
+
+## Testing this module
+
+- Use `@bquery/bquery/testing`'s `mockSignal`, `mockComputed`, `flushEffects`, and `runScheduled` helpers to drive reactive code under `bun:test`.
+- Mock HTTP with `mockFetch()` and WebSockets with `mockWebSocket()` before exercising `useFetch` / `useWebSocket`.
+- For scope-based teardown, wrap test setup in `effectScope()` and assert that subscribers drop after `scope.dispose()`.
+
+## Related modules
+
+- [Store](./store) — opinionated state containers built on signals.
+- [Component](./components) — `useSignal()`, `useComputed()`, `useEffect()` lifecycle wrappers.
+- [View](./view) — declarative `bq-*` bindings that read signals automatically.
+- [Concurrency](./concurrency) — offload reactive workloads to workers with `createReactiveTaskPool()`.
+- [Devtools](./devtools) — `traceSignal()`, `diffSignals()`, and timeline events for reactive debugging.
+
+## Version history
+
+- **1.12.0** — `WebSocketSendData` becomes a public type; plugin teardown helpers added.
+- **1.11.0** — runtime-agnostic WebSocket sessions integrated with `ssr` / `server`.
+- **1.10.0** — concurrency primitives interop with reactive metrics.
+- **1.9.0** — `watchDebounce` / `watchThrottle`, `useResource`, `useResourceList`, `usePaginatedFetch`, `useInfiniteFetch` added.
+- **1.8.0** — HTTP/WebSocket/SSE composables and `createRequestQueue` introduced.

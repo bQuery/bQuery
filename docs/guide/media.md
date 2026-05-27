@@ -872,3 +872,34 @@ effect(() => {
 - Observer composables follow the `MediaSignalHandle` pattern with non-enumerable `observe`/`unobserve`/`takeRecords`/`destroy` methods.
 - `useResizeObserver` reads `borderBoxSize` or `devicePixelContentBoxSize` when the corresponding box option is configured, with a `contentRect` fallback when box-specific sizes are unavailable.
 - When no mutation observer options are given, `useMutationObserver` defaults to `{ attributes: true }`.
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- All composables accept `{ signal: AbortSignal }` (1.14.0) for auto-teardown — prefer it over manual `destroy()`.
+- `usePermission()` returns `null` when the permission API is unavailable; do not assume it always resolves.
+- `useStorage()` swallows JSON parse errors and falls back to the default value — set `onError` if you need to log them.
+- `useShare()` requires a secure context and user gesture; check `useShareSupported()` first.
+- `usePointer()` updates at pointer-event frequency — wrap subscribers with `watchThrottle`.
+
+## Performance notes
+
+- Use `useElementVisibility()` (IntersectionObserver-based) over `useScroll()` polling.
+- Bulk-cleanup breakpoint collections with `destroyAll()`.
+- Prefer `useResizeObserver` with explicit `box` option instead of polling `getBoundingClientRect`.
+
+## Testing this module
+
+- `happy-dom` stubs most observers; for fine-grained tests assert reactivity by dispatching events to `window` / `document`.
+- Combine with `@bquery/bquery/testing`'s `tick()` to flush observer callbacks.
+
+## Related modules
+
+- [A11y](./a11y) — `prefersReducedMotion`, `prefersReducedTransparency`, etc. share the media-query infrastructure.
+- [Platform](./platform) — storage, notifications, and cookies that complement these signals.
+- [Reactive](./reactive) — underlying signal layer.
+
+## Version history
+
+- **1.14.0** — 25+ new composables: preference signals, page state, element observers, pointer/scroll, platform integrations, clipboard upgrades. All accept `{ signal: AbortSignal }`.

@@ -420,3 +420,34 @@ if (snapshot) form.restore(snapshot);
 // or simply:
 hydrateForm(form, 'login');
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- `submit()` calls all field validators before the handler — throw inside `onSubmit` to populate `submitError`, do not return an error string.
+- `createFieldArray()` requires stable item ids for keyed list reconciliation; supply `getKey` if items lack `id`.
+- `bindField` / `bindForm` install delegated listeners — unmount them when the form leaves the DOM.
+- `validationStrategy` defaults to `'touched'`; switch to `'always'` only when you need eager errors on first render.
+- SSR helpers (`serializeFormState` / `readSerializedFormState`) intentionally drop functions and `File` references — hydrate large blobs separately.
+
+## Performance notes
+
+- Async validators run with debouncing via `isValidating`; coalesce remote checks with `deduplicateRequest()` from reactive.
+- Use `getDirtyValues()` to PATCH only changed fields.
+
+## Testing this module
+
+- `@bquery/bquery/testing` exports `mockForm()` plus `userEvent.type` / `userEvent.clear` for ergonomic field interaction.
+- Assert `field.errors.value` and `form.isValid.value` directly.
+
+## Related modules
+
+- [Reactive](./reactive) — underlying signal infrastructure.
+- [i18n](./i18n) — translated validation messages via `withMessage()`.
+- [A11y](./a11y) — live-region announcements for submit errors.
+- [SSR](./ssr) — `serializeFormState` / `hydrateForm` for server-rendered forms.
+
+## Version history
+
+- **1.13.0** — new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`), combinators (`compose`, `all`, `not`, `withMessage`), field arrays, schema-style config, `bindField` / `bindForm`, scope-aware composables, SSR helpers.

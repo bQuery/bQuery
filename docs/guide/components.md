@@ -505,3 +505,35 @@ component('todo-list', {
   },
 });
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Reactive helpers (`useSignal`, `useComputed`, `useEffect`, `useAsync`) must run inside `setup()` so the component's lifecycle scope owns the disposer.
+- Use `setProp` / `getProp` for non-string props; HTML attributes are always strings.
+- Delegated event helpers (`on`, `onClick`, …) sanitize event paths — prefer them over manual `addEventListener` for shadow-DOM safety.
+- `errorBoundary` only catches errors thrown inside lifecycle hooks and reactive callbacks — it does not catch async rejections from user-spawned promises.
+- `css` tagged templates produce adoptable stylesheets — they are shared across instances unless the template depends on instance state.
+
+## Performance notes
+
+- Use `keyedList()` / `reconcileKeyed()` for lists that frequently reorder; the diff is O(n) with key reuse.
+- Defer non-critical work with `whenIdle()` so first paint stays snappy.
+- Share styles via `css` adoptable stylesheets to avoid per-instance `<style>` cost.
+
+## Testing this module
+
+- `@bquery/bquery/testing` exposes `renderComponent()`, `screen`, `within()`, `fireEvent.*`, and `userEvent` with shadow-DOM-aware queries.
+- Use `errorBoundary` in tests to assert recovery paths.
+
+## Related modules
+
+- [Reactive](./reactive) — signals and computed values used in components.
+- [View](./view) — declarative bindings inside component templates.
+- [Storybook](./storybook) — author component stories with `storyText`, `classMap`, `styleMap`, etc.
+- [Testing](./testing) — `renderComponent`, `userEvent`, and `expectAccessible`.
+
+## Version history
+
+- **1.13.0** — slot helpers, refs, `useAsync` / `whenIdle`, DI, `errorBoundary`, `setProp` / `getProp`, delegated event helpers, `css` tagged template, `keyedList` / `reconcileKeyed`.

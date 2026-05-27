@@ -497,3 +497,33 @@ clearTimeline();
 - Pairs nicely with `@bquery/bquery/testing` when you want assertions over reactive behavior.
 - All inspection methods return snapshot copies, not live references.
 - Timeline events include millisecond timestamps for performance analysis.
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Timeline uses a ring buffer (default 1000 entries via `maxTimelineEntries`); long sessions overwrite old events.
+- `inspectSignals({ includeValues: false })` is the privacy-aware default — pass `true` only in trusted dev contexts.
+- `installBrowserBridge()` opens a `postMessage` channel; remove it before going to production.
+- Snapshot export/import is structural only — it cannot reattach reactive subscribers, just inspect their shape.
+- Performance helpers (`time`, `measureRender`, `mark`, `measure`) use `performance.mark` / `performance.measure` — they show up in browser devtools.
+
+## Performance notes
+
+- Disable devtools in production via tree-shaking by importing only in `import.meta.env.DEV` branches.
+- `filterTimeline({ types, since, until, search })` is far cheaper than iterating snapshots in user code.
+
+## Testing this module
+
+- Combine `traceSignal()` / `untraceSignal()` with `bun:test` assertions to verify reactive flow.
+- `diffSignals` / `diffStores` make snapshot diffs reviewable.
+
+## Related modules
+
+- [Reactive](./reactive) — the signals being inspected.
+- [Store](./store) — store inspection helpers.
+- [Testing](./testing) — ships its own reactive harnesses.
+
+## Version history
+
+- **1.14.0** — ring-buffered timeline, expanded `TimelineEntry`, new event types, `filterTimeline`, `subscribeTimeline`, privacy-aware `inspectSignals`, `diffSignals` / `diffStores`, `traceSignal` / `untraceSignal`, `inspectEffects`, snapshot import/export, `installBrowserBridge`, perf helpers.

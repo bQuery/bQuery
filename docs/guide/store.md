@@ -556,3 +556,33 @@ const stop = watchStore(store, selector, callback, {
 
 const mapped = mapGetters(store, ['getterKey']);
 ```
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Define actions as regular methods (`actions: { increment() { this.count++ } }`) — arrow functions break `this` binding.
+- Mutations go through `this` inside actions, not via a separate state parameter.
+- Persistence plugins run on every action commit; use `persist({ keys: [...] })` to scope storage writes.
+- `unregisterPlugin()` / `clearPlugins()` (1.12.0) are essential for test isolation when multiple suites register the same plugin.
+- Getters are pure derivations — do not mutate state inside them.
+
+## Performance notes
+
+- Group multiple state changes inside a single action so subscribers fire once.
+- Use `mapState` / `mapGetters` to subscribe components to slices instead of the whole store.
+
+## Testing this module
+
+- `@bquery/bquery/testing` ships `mockStore()` for ergonomic store mocks with reset helpers.
+- Always call `clearPlugins()` in `afterEach` if your suite registers persistence or devtools plugins.
+
+## Related modules
+
+- [Reactive](./reactive) — stores are signal-backed under the hood.
+- [Devtools](./devtools) — `inspectStores()` and `diffStores()` for runtime inspection.
+- [SSR](./ssr) — `serialize()` / `hydrate()` for state transfer.
+
+## Version history
+
+- **1.12.0** — `unregisterPlugin()` and `clearPlugins()` for plugin teardown and test isolation.

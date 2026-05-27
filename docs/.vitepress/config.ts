@@ -49,9 +49,91 @@ const moduleItems = [
   { text: 'Agents', link: '/guide/agents' },
 ];
 
-const workflowsItems = [{ text: 'Overview', link: '/workflows/' }];
+const workflowsItems = [
+  { text: 'Overview', link: '/workflows/' },
+  { text: 'Todo SPA', link: '/workflows/todo-spa' },
+  { text: 'Web Component library', link: '/workflows/component-library' },
+  { text: 'SSR + hydration (Node/Bun/Deno)', link: '/workflows/ssr-hydration' },
+  { text: 'Streaming SSR', link: '/workflows/streaming-ssr' },
+  { text: 'Backend API + WebSocket', link: '/workflows/backend-api' },
+  { text: 'Forms + validation + i18n + a11y', link: '/workflows/forms-validation' },
+  { text: 'Sortable lists with keyboard a11y', link: '/workflows/sortable-keyboard' },
+  { text: 'Off-main-thread work', link: '/workflows/off-main-thread' },
+];
 
-const cookbookItems = [{ text: 'Overview', link: '/cookbook/' }];
+const cookbookItems = [
+  { text: 'Overview', link: '/cookbook/' },
+  {
+    text: 'Reactivity & async data',
+    collapsed: true,
+    items: [
+      { text: 'Reactive counter', link: '/cookbook/reactive-counter' },
+      { text: 'Debounced search input', link: '/cookbook/debounced-search' },
+      { text: 'Polling for live data', link: '/cookbook/polling' },
+      { text: 'Paginated data loading', link: '/cookbook/pagination' },
+      { text: 'Infinite scroll', link: '/cookbook/infinite-scroll' },
+    ],
+  },
+  {
+    text: 'Realtime',
+    collapsed: true,
+    items: [
+      { text: 'WebSocket with reconnect', link: '/cookbook/websocket-reconnect' },
+      { text: 'Server-Sent Events stream', link: '/cookbook/sse-stream' },
+    ],
+  },
+  {
+    text: 'Components & UI',
+    collapsed: true,
+    items: [
+      { text: 'Notification toast', link: '/cookbook/notification-toast' },
+      { text: 'Modal dialog', link: '/cookbook/modal-dialog' },
+      { text: 'Theme switcher', link: '/cookbook/theme-switcher' },
+    ],
+  },
+  {
+    text: 'Forms',
+    collapsed: true,
+    items: [{ text: 'Login form', link: '/cookbook/login-form' }],
+  },
+  {
+    text: 'Routing & state',
+    collapsed: true,
+    items: [
+      { text: 'Protected routes', link: '/cookbook/route-guards' },
+      { text: 'Persisted store', link: '/cookbook/persisted-store' },
+    ],
+  },
+  {
+    text: 'Motion & DnD',
+    collapsed: true,
+    items: [
+      { text: 'Scroll reveal', link: '/cookbook/scroll-reveal' },
+      { text: 'Spring-based drag', link: '/cookbook/spring-drag' },
+    ],
+  },
+  {
+    text: 'i18n & a11y',
+    collapsed: true,
+    items: [{ text: 'RTL locale layout', link: '/cookbook/rtl-locale' }],
+  },
+  {
+    text: 'Devtools & testing',
+    collapsed: true,
+    items: [
+      { text: 'Trace a signal', link: '/cookbook/trace-signal' },
+      { text: 'Mock fetch in tests', link: '/cookbook/mock-fetch-test' },
+    ],
+  },
+  {
+    text: 'Bundle & deploy',
+    collapsed: true,
+    items: [
+      { text: 'Pick a sub-path import', link: '/cookbook/pick-subpath-import' },
+      { text: 'Deploy SSR (Node/Bun/Deno)', link: '/cookbook/ssr-deploy' },
+    ],
+  },
+];
 
 const releaseNotesItems = [
   { text: 'Overview', link: '/release-notes/' },
