@@ -153,15 +153,14 @@ $('#counter').on('click', () => {
 
 ```ts
 import { createServer } from '@bquery/bquery/server';
-import { renderToResponse } from '@bquery/bquery/ssr';
 
 const app = createServer();
 
 app.get('/', async (ctx) => {
-  return renderToResponse(() => `<h1>Hello from bQuery SSR</h1>`, { ctx });
+  return ctx.renderResponse(`<h1 bq-text="message"></h1>`, { message: 'Hello from bQuery SSR' });
 });
 
-app.listen({ port: 3000 });
+await app.listen({ port: 3000 });
 ```
 
 Walk through both end-to-end in the **[Tutorial](/guide/tutorial)** and the **[Full-Stack Workflows](/workflows/)**.

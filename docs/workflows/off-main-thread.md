@@ -6,26 +6,24 @@ Heavy work — markdown rendering, syntax highlighting, image processing, JSON n
 
 ```ts
 // src/workers/highlight.ts
-import { createReactiveTaskPool, withTransferables } from '@bquery/bquery/concurrency';
+import { createReactiveTaskPool } from '@bquery/bquery/concurrency';
 
 interface HighlightInput { source: string; lang: string }
 interface HighlightOutput { html: string }
 
-export const highlighter = createReactiveTaskPool<HighlightInput, HighlightOutput>({
-  size: 2,
-  priority: 'background',
-  maxInFlight: 4,
-  async task({ source, lang }) {
+export const highlighter = createReactiveTaskPool<HighlightInput, HighlightOutput>(
+  async ({ source, lang }) => {
     // Runs inside the worker. Import third-party libs lazily so the main
     // thread does not pull them.
     const { highlight } = await import('https://esm.sh/shiki@1');
     const html = await highlight(source, { lang });
-    return withTransferables({ html }, []);
+    return html;
   },
-});
+  { concurrency: 2, maxQueue: 16 }
+);
 ```
 
-`createReactiveTaskPool` returns a pool with reactive metrics (`metrics.queued`, `metrics.running`, `metrics.completed`, `metrics.avgMs`) you can read inside any `effect()`.
+`createReactiveTaskPool` returns a pool with reactive signal mirrors (`pending$`, `size$`, `state$`, `paused$`, `metrics$`) you can read inside any `effect()`. `metrics$` is a `Signal<PoolMetrics>` exposing `{ completed, failed, avgRuntimeMs, p95RuntimeMs }`.
 
 ## 2. Call it from a component
 
@@ -58,12 +56,19 @@ import { effect } from '@bquery/bquery/reactive';
 import { highlighter } from './workers/highlight';
 
 effect(() => {
-  const { queued, running, completed, avgMs } = highlighter.metrics;
-  console.debug('[highlight]', queued.value, running.value, completed.value, `${avgMs.value.toFixed(1)}ms`);
+  const { completed, failed, avgRuntimeMs, p95RuntimeMs } = highlighter.metrics$.value;
+  console.debug(
+    '[highlight]',
+    'pending', highlighter.pending$.value,
+    'size', highlighter.size$.value,
+    'completed', completed,
+    'failed', failed,
+    `${avgRuntimeMs.toFixed(1)}ms (p95 ${p95RuntimeMs.toFixed(1)}ms)`
+  );
 });
 ```
 
-Wire the same signals into a tiny status bar or a [Devtools](/guide/devtools) timeline mark via `mark('highlight:burst', { source: 'pool', payload: { queued: queued.value } })`.
+Wire the same signals into a tiny status bar or a [Devtools](/guide/devtools) timeline mark via `mark('highlight:burst', { source: 'pool', payload: { pending: highlighter.pending$.value } })`.
 
 ## 4. Backpressure and graceful pause
 
@@ -86,20 +91,22 @@ await highlighter.onIdle();
 
 ## 5. Shared memory (when applicable)
 
-For image / audio buffers, use `createSharedBuffer({ size })` to avoid copy costs. This requires the page to be `crossOriginIsolated`:
+For image / audio buffers, use `createSharedBuffer(byteLength)` to avoid copy costs. This requires the page to be `crossOriginIsolated`:
 
 ```ts
 import { createSharedBuffer } from '@bquery/bquery/concurrency';
 
-const shared = createSharedBuffer({ size: 1024 * 1024 });
-await highlighter.run({ source: '...', lang: 'ts', shared });
+const shared = createSharedBuffer(1024 * 1024);
+// Pass the shared buffer as part of the task input (extend `HighlightInput`
+// to include `shared?: SharedArrayBuffer` if your handler reads from it).
+await highlighter.run({ source: '…', lang: 'ts' });
 ```
 
 ## What you exercised
 
-- **Reactive pools** — pool metrics are signals; UIs and observability layer subscribe with no polling.
-- **Transferables** — `withTransferables` avoids serialising large outputs back to the main thread.
-- **Priority + concurrency control** — `priority: 'background'` and `maxInFlight` keep interaction snappy.
+- **Reactive pools** — pool signal mirrors (`pending$`, `size$`, `metrics$`, …) feed UIs and observability layers without polling.
+- **Transferables** — `withTransferables(value)` discovers `Transferable` values inside a payload so they can be moved via `postMessage` instead of cloned.
+- **Concurrency control** — `{ concurrency, maxQueue }` keep interaction snappy; per-run priority is a number on `runOptions.priority`.
 - **Pause / resume / idle** — graceful backpressure without dropping work.
 
 ## Constraints

@@ -733,24 +733,37 @@ The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds t
 
 The SSR module ships dedicated helpers for streaming and cache-aware rendering:
 
-- `flushBoundary(name)` — marks a flush point inside a template so `renderToStream()` can emit a chunk early.
-- `createSSRCache({ ttl, max })` — in-memory LRU keyed by request URL + variant; pass to `renderToResponse` via `{ cache }`.
-- `createSSRMetrics()` — reactive counters for hits / misses / render time, useful in dashboards.
-- `createEdgeHandler(template, options)` — thin wrapper that maps a `Request` to a streamed `Response` for edge runtimes.
+- `flushBoundary()` — returns a marker string. Embed it in a template so `renderToStream()` can split the rendered HTML and emit a chunk early.
+- `createSSRCache({ ttlMs, maxEntries, getKey })` — in-memory cache keyed by request URL + `Vary` headers (or a custom `getKey`); pass to `renderToResponse` via `{ cache: { store, vary } }`.
+- `createSSRMetrics()` — imperative collector with `recordRender()` / `recordSlot()` and a `snapshot()` returning `{ renderCount, totalRenderMs, slotCount, totalSlotMs, hydrationMismatches }`. Pass it via `createSSRContext({ metrics })` to gather render/slot timings.
+- `createEdgeHandler(handler, options?)` — thin wrapper around a fetch-style `(request, context?) => Response` handler that adds optional `onError` mapping for edge runtimes.
 
 ```ts
-import { createSSRCache, createEdgeHandler, flushBoundary } from '@bquery/bquery/ssr';
+import {
+  createSSRCache,
+  createEdgeHandler,
+  createSSRContext,
+  createSSRMetrics,
+  flushBoundary,
+  renderToResponse,
+} from '@bquery/bquery/ssr';
 
-const cache = createSSRCache({ ttl: 30_000, max: 1024 });
+const cache = createSSRCache({ ttlMs: 30_000, maxEntries: 1024 });
+const metrics = createSSRMetrics();
 
-export default createEdgeHandler(
-  `<main>
-     <h1 bq-text="title"></h1>
-     ${flushBoundary('above-the-fold')}
-     <article bq-html-safe="body"></article>
-   </main>`,
-  { cache, metrics: true }
-);
+const template = `<main>
+   <h1 bq-text="title"></h1>
+   ${flushBoundary()}
+   <article bq-html-safe="body"></article>
+ </main>`;
+
+export default createEdgeHandler(async (request) => {
+  const context = createSSRContext({ request, metrics });
+  return renderToResponse(template, { title: 'Hello', body: '<p>…</p>' }, {
+    context,
+    cache: { store: cache, vary: ['accept-language'] },
+  });
+});
 ```
 
 ## Pitfalls and gotchas
@@ -758,13 +771,13 @@ export default createEdgeHandler(
 - `renderToString()` is DOM-free — it must not touch `window` or `document` directly. Use `renderToStringAsync()` for awaiting async data.
 - `renderToStream()` chunks at `flushBoundary()` markers; without them the stream emits as one piece.
 - Hydration keys must match between server and client — mismatched markup falls back to a full client render and logs a warning.
-- Cache keys default to the request URL; pass `{ key }` to add user/session variance.
+- Cache keys default to the request URL plus `cache.vary` headers; pass `createSSRCache({ getKey })` to add user/session variance.
 - Resumability (when enabled) requires you not to mutate signals during `renderToString` — do all setup in async resolvers.
 
 ## Performance notes
 
 - Combine `createSSRCache` with `flushBoundary` to ship above-the-fold HTML immediately while caching only stable sections.
-- Set `max` on the cache to bound memory; `ttl` controls freshness.
+- Set `maxEntries` on the cache to bound memory; `ttlMs` controls freshness.
 - Use `renderToResponse` over `renderToStringAsync` + manual `new Response` to inherit cache + metrics wiring.
 
 ## Testing this module

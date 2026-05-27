@@ -29,11 +29,12 @@ Use when: marketing pages, content sites, e-commerce, anything that needs SEO or
 
 ```ts
 import { createServer } from '@bquery/bquery/server';
-import { renderToResponse } from '@bquery/bquery/ssr';
 
 const app = createServer();
-app.get('/', (ctx) => renderToResponse(() => html(), { ctx }));
-app.listen({ port: 3000 });
+app.get('/', (ctx) =>
+  ctx.renderResponse(`<h1 bq-text="title"></h1>`, { title: 'Hello' })
+);
+await app.listen({ port: 3000 });
 ```
 
 ## Streaming SSR
@@ -46,9 +47,19 @@ app.listen({ port: 3000 });
 Use when: pages with mixed fast/slow data fetches; user-facing pages where TTFB matters.
 
 ```ts
-ctx.renderStream(() => view(), {
-  boundaries: ['header', 'main', 'footer'],
-});
+import { flushBoundary } from '@bquery/bquery/ssr';
+
+const template = `
+  <header bq-text="title"></header>
+  ${flushBoundary()}
+  <main bq-html-safe="bodyHtml"></main>
+  ${flushBoundary()}
+  <footer bq-text="footer"></footer>
+`;
+
+app.get('/article', (ctx) =>
+  ctx.renderStream(template, { title: '…', bodyHtml: '…', footer: '…' })
+);
 ```
 
 ## Resumable hydration
@@ -74,7 +85,7 @@ You can mix modes per route in the same app — `createServer()` lets each route
 
 ## Hydration vs no-hydration
 
-By default, SSR output ships with a hydration script that wires up signals and event listeners. For pages that are truly static (a privacy page, an about page), you can opt out and ship pure HTML — see [SSR](/guide/ssr) for `serveStatic` and `noHydrate` options.
+By default, SSR output ships with a hydration script that wires up signals and event listeners. For pages that are truly static (a privacy page, an about page), you can return the rendered HTML as-is without shipping a hydration bundle to the client — see [SSR](/guide/ssr) for the available render APIs and asset wiring.
 
 ## SSR cache
 
