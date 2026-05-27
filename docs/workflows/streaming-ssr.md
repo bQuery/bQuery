@@ -5,7 +5,7 @@ For data-heavy pages, streaming the above-the-fold HTML immediately and progress
 ## Goal
 
 - Stream the page shell instantly.
-- Defer heavy sections (`recommended`, `comments`) until their async data resolves.
+- Push heavy sections (`recommended`, `comments`) into later HTML chunks after the shell.
 - Cache the shell for 30 s, leave dynamic sections uncached.
 - Expose hit / miss counters to a metrics endpoint.
 
@@ -107,7 +107,9 @@ import { createEdgeHandler, createSSRContext, renderToResponse } from '@bquery/b
 
 export default createEdgeHandler(async (request) => {
   const context = createSSRContext({ request, metrics });
-  const data = { /* …resolve data from the request… */ };
+  const data = {
+    /* …resolve data from the request… */
+  };
   return renderToResponse(compiled, data, {
     context,
     cache: { store: cache, vary: ['accept-language'] },

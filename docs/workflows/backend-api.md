@@ -50,13 +50,23 @@ app.ws('/rooms/:id', (ctx) => ({
   },
 }));
 
+type BunSocketSession = {
+  open(socket: unknown): Promise<void>;
+  message(socket: unknown, event: MessageEvent): Promise<void>;
+  close(socket: unknown, event: CloseEvent): Promise<void>;
+};
+
+const getSession = (ws: { data: unknown }) =>
+  (ws.data as unknown as { session: BunSocketSession }).session;
+
 // Bun adapter
 Bun.serve({
   port: 3000,
   async fetch(request, server) {
     if (isWebSocketRequest(request)) {
       const result = await app.handleWebSocket(request);
-      if (result instanceof Response || result === null) return result ?? new Response(null, { status: 404 });
+      if (result instanceof Response || result === null)
+        return result ?? new Response(null, { status: 404 });
       if (isServerWebSocketSession(result)) {
         if (server.upgrade(request, { data: { session: result } })) return;
         return new Response(null, { status: 426 });
@@ -65,9 +75,15 @@ Bun.serve({
     return app.handle(request);
   },
   websocket: {
-    open(ws) { void (ws.data as any).session.open(ws); },
-    message(ws, message) { void (ws.data as any).session.message(ws, { data: message }); },
-    close(ws, code, reason) { void (ws.data as any).session.close(ws, { code, reason }); },
+    open(ws) {
+      void getSession(ws).open(ws);
+    },
+    message(ws, message) {
+      void getSession(ws).message(ws, { data: message });
+    },
+    close(ws, code, reason) {
+      void getSession(ws).close(ws, { code, reason });
+    },
   },
 });
 ```
