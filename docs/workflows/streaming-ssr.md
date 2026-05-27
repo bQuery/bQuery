@@ -53,7 +53,7 @@ export const metrics = createSSRMetrics();
 
 ```ts
 import { createServer } from '@bquery/bquery/server';
-import { createSSRContext, renderToResponse, renderToStream } from '@bquery/bquery/ssr';
+import { createSSRContext, renderToStream } from '@bquery/bquery/ssr';
 
 const app = createServer();
 

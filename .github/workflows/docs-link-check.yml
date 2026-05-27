@@ -43,7 +43,7 @@ jobs:
           args: --config lychee.toml --no-progress 'docs/**/*.md'
           # Treat broken external links as warnings on PRs by default; only
           # fail the run when a markdown reference itself is malformed or a
-          # relative link does not resolve. Internal-only enforcement is in
-          # docs:check (relative paths inside docs/).
+          # relative link does not resolve. `docs:check` separately audits
+          # whether exported APIs are mentioned in the docs corpus.
           fail: false
           jobSummary: true

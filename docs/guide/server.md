@@ -341,7 +341,7 @@ globalThis.DOMParser = window.DOMParser;
 ## Body parsing, cookies, and streaming (1.14.0 deep-dive)
 
 ```ts
-import { createServer, ServerHttpError, badRequest } from '@bquery/bquery/server';
+import { createServer, badRequest } from '@bquery/bquery/server';
 
 const app = createServer();
 
