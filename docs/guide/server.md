@@ -439,7 +439,7 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 | Node 24+ | `app.listen({ port })`                                  | Native HTTP server via `node:http`.            |
 | Bun      | `Bun.serve({ fetch: app.handle })`                      | First-class WebSocket upgrade via `Bun.serve`. |
 | Deno     | `Deno.serve(app.handle)`                                | Use `Deno.upgradeWebSocket` to adopt sessions. |
-| Edge     | `createEdgeHandler(template)` from `@bquery/bquery/ssr` | Streams responses without persistent sockets.  |
+| Edge     | `createEdgeHandler(handler)` from `@bquery/bquery/ssr`  | Streams responses without persistent sockets.  |
 | Workers  | `app.handle` from a fetch handler                       | WebSocket support depends on runtime APIs.     |
 
 ## Related modules

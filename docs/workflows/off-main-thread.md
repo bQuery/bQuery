@@ -17,7 +17,7 @@ export const highlighter = createReactiveTaskPool<HighlightInput, HighlightOutpu
     // thread does not pull them.
     const { highlight } = await import('https://esm.sh/shiki@1');
     const html = await highlight(source, { lang });
-    return html;
+    return { html };
   },
   { concurrency: 2, maxQueue: 16 }
 );

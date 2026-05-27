@@ -14,8 +14,13 @@ watchDebounce(
   query,
   async (q) => {
     if (!q) return (results.value = []);
-    const { data } = await useFetch(`/api/search?q=${encodeURIComponent(q)}`, { immediate: true });
-    results.value = (data.value as unknown[]) ?? [];
+    const state = useFetch(`/api/search?q=${encodeURIComponent(q)}`, { immediate: false });
+    try {
+      await state.execute();
+      results.value = (state.data.value as unknown[]) ?? [];
+    } finally {
+      state.dispose();
+    }
   },
   { wait: 300 }
 );

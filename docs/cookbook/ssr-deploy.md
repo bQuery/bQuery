@@ -9,7 +9,7 @@
 | Node 24+ | `examples/ssr-node/serve.ts`  | `node --experimental-strip-types examples/ssr-node/serve.ts`                 |
 | Bun      | `examples/ssr-bun/serve.ts`   | `bun examples/ssr-bun/serve.ts`                                              |
 | Deno     | `examples/ssr-deno/serve.ts`  | `deno run -A examples/ssr-deno/serve.ts`                                     |
-| Edge     | `createEdgeHandler(template)` | Deploy as a fetch handler on Cloudflare Workers / Vercel Edge / Deno Deploy. |
+| Edge     | `createEdgeHandler(handler)`  | Deploy as a fetch handler on Cloudflare Workers / Vercel Edge / Deno Deploy. |
 
 The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the public surface across all three runtimes.
 

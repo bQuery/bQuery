@@ -82,9 +82,9 @@ async function readSource(path) {
 }
 
 function buildDocCorpus(doc) {
-  // Drop fenced code blocks for the purposes of matching prose, but keep
-  // inline code spans so symbols in `code` are counted.
-  return doc.replace(/```[\s\S]*?```/g, '\n');
+  // Keep fenced code block contents because many public identifiers only appear
+  // in examples; strip the fence markers themselves.
+  return doc.replace(/^```[^\n]*$/gm, '');
 }
 
 function isMentioned(name, corpus) {
