@@ -1,5 +1,9 @@
 # Concurrency
 
+::: tip What's new in 1.14.0
+Concurrency gained `withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause` / `resume` / `onIdle`, and rolling reactive metrics in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The concurrency module adds a small, explicit browser-side worker layer for bQuery's zero-build model.
 
 > **New in 1.10.0:** The module now includes explicit RPC workers, bounded task/RPC pools, opt-in reactive worker state wrappers, and high-level helpers such as `parallel()`, `batchTasks()`, `map()`, `filter()`, `reduce()`, and `pipeline()`.
@@ -547,3 +551,35 @@ await runTask((input: ArrayBuffer) => input.byteLength, buffer, {
   validation/revival uses `new Function(...)` on the main thread and inside worker scripts
 - If your environment forbids dynamic evaluation, avoid the concurrency module in that deployment
 - Reactive wrappers are opt-in via `createReactiveTaskWorker()`, `createReactiveRpcWorker()`, `createReactiveTaskPool()`, and `createReactiveRpcPool()`
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Worker bodies are serialized via `new Function(...)` on the main thread — your CSP must allow `'unsafe-eval'`.
+- Transferables (`ArrayBuffer`, `MessagePort`) are detached on send; pass `withTransferables()` to mark them explicitly.
+- `maxInFlight` on RPC pools is per worker, not global — multiply by pool size for total concurrency.
+- `pause()` / `resume()` drain in-flight tasks first; queued tasks resume only after `resume()`.
+- Shared buffers (`createSharedBuffer`) require `crossOriginIsolated` and the right COOP/COEP headers.
+
+## Performance notes
+
+- Use pool priorities to keep interactive work ahead of background batches.
+- Reactive metrics (`pool.metrics`) are rolling — read them inside `effect()` to throttle dashboards.
+- For one-shot tasks, prefer `runTask()` over spinning up a long-lived worker.
+
+## Testing this module
+
+- `bun:test` runs in a single worker; assert pool behavior with `pool.onIdle()` to await drain.
+- `mockFetch()` from testing is unaffected by workers — use the main-thread fetch wrapper.
+
+## Related modules
+
+- [Reactive](./reactive) — wrap pools in reactive metrics.
+- [Devtools](./devtools) — surface pool metrics on the timeline.
+- [Server](./server) — offload heavy SSR work to a pool when needed.
+
+## Version history
+
+- **1.14.0** — `withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause` / `resume` / `onIdle`, rolling reactive metrics.
+- **1.10.0** — zero-build worker tasks, RPC dispatch, reactive wrappers, support detection, timeout/abort.

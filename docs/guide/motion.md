@@ -531,3 +531,33 @@ button.addEventListener('pointerleave', () => scale.to(1));
 - **`scrollAnimate()` is great for landing pages** — it automatically triggers animations when elements scroll into view
 - **Springs feel more natural** than CSS transitions for interactive elements like drag, resize, and button feedback
 - **Use `sequence()` or `timeline()`** when you need multiple animations to run in a specific order
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Animations that ignore `prefersReducedMotion` can cause vestibular harm — pass `respectReducedMotion: true` or short-circuit manually.
+- Springs do not have a fixed duration; pair them with `signal` cancellation when the user navigates away.
+- `timeline()` labels must be strings; numeric offsets are interpreted as seconds.
+- Calling `animate()` on a node that is removed mid-animation leaves the handle in a `finished` state — always cancel via `AbortSignal` if uncertain.
+
+## Performance notes
+
+- Prefer `transform` / `opacity` keyframes for GPU compositing; avoid animating layout properties.
+- Reuse spring configs (`spring({ stiffness, damping })`) instead of re-creating per frame.
+- `stagger()` accepts grid + axis options for deterministic, jank-free entrance animations on large lists.
+
+## Testing this module
+
+- Use `runScheduled()` / `flushPromises()` from `@bquery/bquery/testing` to advance time-driven animations.
+- For deterministic snapshots, pass `playbackRate: 0` and seek with `progress()`.
+
+## Related modules
+
+- [A11y](./a11y) — `prefersReducedMotion` signal and focus-visible helpers.
+- [View](./view) — drive class/style transitions declaratively.
+- [DnD](./dnd) — pair with springs for elastic drag feedback.
+
+## Version history
+
+- **1.13.0** — full Penner easing family, `cubicBezier`, `steps`, `mix`, `chain`, `tween`, `animateValue`, richer `spring`/`timeline`/`stagger`, `scrollProgress`, `inView`, `magnetic`, `tilt`, `shake`, `pulse`, `countUp`, reactive reduced-motion signals.

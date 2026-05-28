@@ -1,5 +1,9 @@
 # Plugin System
 
+::: tip What's new in 1.14.0
+The plugin module graduated to a batteries-included tier in 1.14.0 with a hook bus (`addFilter` / `applyFilters`, `addAction` / `doAction`), DI container helpers (`createInjectionKey` / `provide` / `inject`), plugin-scoped `ctx.onCleanup`, async `install()`, plugin metadata (`version`, `description`, `dependencies`, `dependencyMode`), `unuse()` / `uninstall()`, directive lifecycle objects, and namespaced directives like `tooltip:arrow`. See the [1.14.0 release notes](/release-notes/1.14#plugin-batteries-included).
+:::
+
 The plugin module lets you register reusable integrations that add custom directives and Web Components globally. Plugins are installed at most once (by name) and integrate directly with the view module.
 
 ```ts
@@ -394,3 +398,33 @@ mount('#app', { message });
 - Plugin registration should generally happen before `mount()` or component/router setup.
 - The `cleanups` array in directive handlers ensures proper teardown when views unmount.
 - Plugins can register both directives and custom elements in the same `install()` call.
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- `install()` may be async (1.14.0); concurrent installs of the same plugin name are serialized — do not assume parallel execution.
+- `unuse(name)` / `uninstall(name)` detach plugin-owned directives, hooks, and DI bindings — anything you registered manually outside `ctx` survives.
+- Namespaced directives like `tooltip:arrow` are parsed via `parseDirective`; the colon is significant.
+- Dependencies declared in metadata default to `dependencyMode: 'error'`; use `'warn'` for optional deps.
+- DI keys created via `createInjectionKey()` are scoped to the container — use `hasProvided()` before `inject()` when optional.
+
+## Performance notes
+
+- Hook callbacks run synchronously in registration order; keep filter functions pure and fast.
+- Use `addAction` for side effects and `addFilter` for value transforms — do not mix.
+
+## Testing this module
+
+- `getInstalledPlugins({ withMetadata: true })` and `getPluginInfo(name)` make assertions about install state explicit.
+- Pair with store's `clearPlugins()` in `afterEach` for clean teardown.
+
+## Related modules
+
+- [View](./view) — register custom directives.
+- [Component](./components) — DI for shared services (`formContextKey`, etc.).
+- [Devtools](./devtools) — inspect installed plugins via `installBrowserBridge`.
+
+## Version history
+
+- **1.14.0** — hook bus (`addFilter` / `applyFilters` / `addAction` / `doAction`), DI (`createInjectionKey` / `provide` / `inject` / `hasProvided`), `unuse` / `uninstall`, async `install`, plugin metadata, dependency mode, namespaced directive names, directive lifecycle objects.

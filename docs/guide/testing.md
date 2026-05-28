@@ -1,5 +1,9 @@
 # Testing
 
+::: tip What's new in 1.14.0
+Testing graduated to a batteries-included tier in 1.14.0 with auto cleanup (`cleanup`, `autoCleanup`), `fireEvent.*` shortcut methods (`click` / `input` / `change` / `submit` / `focus` / `blur` / `dblClick` / `keyDown` / `keyUp`), a `userEvent` namespace (`click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`), shadow-DOM-aware queries via `screen` and `within(el)` (`getByRole` / `getByText` / `getByLabelText` / `getByPlaceholderText` / `getByTestId` plus `query*` and `find*` variants), reactive harnesses (`mockComputed`, `mockEffect`), async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), and snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`). See the [1.14.0 release notes](/release-notes/1.14#testing-batteries-included).
+:::
+
 The testing module provides focused helpers for mounting components, mocking reactive state, dispatching events, and waiting for async conditions. All utilities work with `bun:test` and `happy-dom`.
 
 ```ts
@@ -643,3 +647,27 @@ describe('router', () => {
 - `mockRouter()` does not touch `window.history` — it is purely signal-based.
 - `fireEvent()` dispatches events and calls `flushEffects()` automatically so you don't need to flush manually after events.
 - `waitFor()` supports both synchronous and asynchronous predicates.
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- `autoCleanup()` is opt-in — enable it in `tests/setup.ts` if you want every `renderComponent` mount removed automatically.
+- `screen` / `within()` queries traverse shadow DOM by default; pass `{ shadow: false }` for legacy behavior.
+- `userEvent.type()` simulates real keystrokes (including key-down/up); use `fireEvent.input` for direct value writes.
+- `mockFetch()` returns a typed builder — register handlers before the code under test issues the request.
+- `mockWebSocket()` does not auto-open; call `socket.acceptConnection()` in your test to mimic the server.
+
+## Performance notes
+
+- Use `flushPromises()` / `runScheduled()` instead of `setTimeout(..., 0)` to advance scheduling deterministically.
+- Prefer `getByRole` over `getByText` for accessibility-first assertions.
+
+## Related modules
+
+- All other modules — testing is the primary harness for them.
+- [Devtools](./devtools) — pairs with `traceSignal` / `diffStores` for fine-grained assertions.
+
+## Version history
+
+- **1.14.0** — auto cleanup, `fireEvent.*` shortcuts, `userEvent` namespace, shadow-DOM-aware `screen` / `within`, reactive harnesses (`mockComputed`, `mockEffect`), async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).

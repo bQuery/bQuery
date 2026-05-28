@@ -1,0 +1,48 @@
+name: Docs link check
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+      - development
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs-link-check.yml'
+      - 'lychee.toml'
+  pull_request:
+    branches:
+      - main
+      - development
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs-link-check.yml'
+      - 'lychee.toml'
+  schedule:
+    # Weekly check of external links — Monday 06:00 UTC.
+    - cron: '0 6 * * 1'
+
+jobs:
+  link-check:
+    name: Lychee
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Run lychee
+        id: lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --config lychee.toml --no-progress 'docs/**/*.md'
+          # Report broken links without failing the workflow (`fail: false`).
+          # `docs:check` separately audits whether exported APIs are mentioned
+          # in the docs corpus.
+          fail: false
+          jobSummary: true

@@ -2,6 +2,10 @@
 title: View
 ---
 
+::: tip What's new in 1.14.0
+View gained `parseDirective` / `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The view module provides declarative DOM bindings similar to Vue/Svelte templates, but without requiring a compiler. Bindings are evaluated at runtime using bQuery's reactive system. Internally, the view module is now split into focused submodules while the public API remains unchanged.
 
 ```ts
@@ -622,3 +626,54 @@ A fully sandboxed expression parser would:
 - Still require careful security review
 
 The current approach matches industry standards (Vue, Alpine, Angular) while keeping the implementation focused and predictable. The key is ensuring expressions come only from trusted sources.
+
+<!-- uniform-template-footer -->
+
+## Directive reference (1.14.0)
+
+| Directive                  | Purpose                                                                                                                                        |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bq-text`                  | Set element text content from an expression.                                                                                                   |
+| `bq-html` / `bq-html-safe` | Render HTML — `bq-html-safe` sanitizes before insertion.                                                                                       |
+| `bq-model`                 | Two-way binding for inputs, selects, textareas, checkboxes.                                                                                    |
+| `bq-show` / `bq-if`        | Toggle visibility or DOM mounting on a condition.                                                                                              |
+| `bq-for`                   | Render lists from arrays / iterables; supports keyed reconciliation via `:key` / `bq-key`.                                                     |
+| `bq-on:event[.mods]`       | Event handler with modifier matrix (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`, `.self`, `.left`, `.right`, `.middle`, key filters). |
+| `bq-class` / `bq-style`    | Reactive class / style objects.                                                                                                                |
+| `bq-attr` / `bq-aria`      | Reactive attribute / ARIA bag.                                                                                                                 |
+| `bq-once`                  | Run the binding exactly once, then untrack.                                                                                                    |
+| `bq-init`                  | Execute an expression on mount only.                                                                                                           |
+| `bq-pre`                   | Skip directive parsing in this subtree (preserve literal source).                                                                              |
+| `bq-cloak`                 | Hide until the view is mounted to prevent FOUC.                                                                                                |
+| `bq-memo`                  | Memoize a subtree by a reactive key.                                                                                                           |
+| `bq-error`                 | Per-subtree error boundary for binding failures.                                                                                               |
+
+## Pitfalls and gotchas
+
+- View expressions run through `new Function(...)` — your CSP must allow `'unsafe-eval'` or you must use the strict-mode allow-list.
+- Do not feed untrusted strings into `bq-html`; use `bq-html-safe` (default-sanitized) or sanitize yourself first.
+- `bq-for` requires stable keys for reordering — supply `:key="item.id"` (or `bq-key="item.id"`) to avoid re-creating subtrees.
+- `bq-model` on `<select multiple>` always reads/writes an array, not a single string.
+- Call `destroy()` on the `View` returned by `mount()` when removing dynamic views — leaked bindings keep signals subscribed.
+
+## Performance notes
+
+- Wrap expensive subtrees in `bq-memo` keyed on their inputs.
+- Use `bq-once` for write-once data (translations, server-injected props) to skip per-update work.
+- Cache compiled templates with `createTemplate()` when instantiating many copies.
+
+## Testing this module
+
+- Import `mount()` from `@bquery/bquery/view`, then pair it with `screen`, `within()`, `fireEvent.*`, and `tick()` from `@bquery/bquery/testing` to drive views in `bun:test`.
+- Combine with `mockSignal()` to assert reactivity at the directive level.
+
+## Related modules
+
+- [Reactive](./reactive) — the signal layer view bindings subscribe to.
+- [Component](./components) — declarative components that compose views.
+- [Security](./security) — sanitizer, Trusted Types, and CSP guidance for `bq-html`.
+- [Plugin](./plugin) — register custom directives (`tooltip`, `tooltip:arrow`, …).
+
+## Version history
+
+- **1.14.0** — `parseDirective`, `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, full `bq-on` modifier system.

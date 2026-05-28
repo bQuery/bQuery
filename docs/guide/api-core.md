@@ -395,3 +395,35 @@ later.cancel();
 - `sortBy(items, fn|fns)`
 - `intersection(a, b)` / `difference(a, b)`
 - `move(items, from, to)`
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- `$(selector)` **throws** if no element matches — use `$$(selector)` (collection, never throws) for optional queries.
+- Mutating wrappers return `this` for chaining; non-mutating getters (`.text()`, `.attr()` without args) do not.
+- `.text()` / `.attr()` / `.css()` are overloaded as getter and setter — pass a value to mutate.
+- HTML-writing APIs (`.html(value)`) sanitize untrusted content by default; use `.raw.innerHTML` only for trusted strings.
+- Utility helpers like `deepEqual`, `cloneDeep`, and `freeze` operate by structure — symbols and non-enumerable props are intentionally skipped.
+
+## Performance notes
+
+- Cache wrappers when re-using them in tight loops — each `$()` call performs a `querySelector`.
+- Prefer `.find()` / `.children()` over re-querying from `document` to keep selector scope narrow.
+- For very large lists, use `chunkBy()` / `range()` from `core/utils` to stream work rather than materializing arrays.
+
+## Testing this module
+
+- DOM tests use `happy-dom` via `tests/setup.ts`. Inline DOM creation, assertion, then `.remove()` is the preferred pattern (see `tests/core.test.ts`).
+- Utility helpers are pure functions — assert with `bun:test`'s `expect`.
+
+## Related modules
+
+- [Reactive](./reactive) — combine signals with DOM updates.
+- [View](./view) — declarative bindings on top of the core wrappers.
+- [Security](./security) — sanitizer used by `.html()` and related APIs.
+
+## Version history
+
+- **1.13.0** — major `core/utils` expansion (array / function / object / string / number / misc helpers, additional type guards).
+- **1.0.0** — original chainable jQuery-inspired wrappers shipped.

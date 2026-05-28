@@ -59,3 +59,7 @@ temp/
 .npm/
 */.vitepress/cache/
 package-lock.json
+
+# Generated documentation outputs
+docs/api/
+docs/.vitepress/dist/
