@@ -776,7 +776,7 @@ export default createEdgeHandler(async (request) => {
 
 ## Performance notes
 
-- Combine `createSSRCache` with `flushBoundary` to ship above-the-fold HTML immediately while caching only stable sections.
+- Use Suspense streaming when you need earlier TTFB for async sections, and use `flushBoundary()` to control chunk boundaries around already-rendered HTML while caching stable sections with `createSSRCache`.
 - Set `maxEntries` on the cache to bound memory; `ttlMs` controls freshness.
 - Use `renderToResponse` over `renderToStringAsync` + manual `new Response` to inherit cache + metrics wiring.
 

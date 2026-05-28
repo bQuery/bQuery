@@ -654,7 +654,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 - Do not feed untrusted strings into `bq-html`; use `bq-html-safe` (default-sanitized) or sanitize yourself first.
 - `bq-for` requires stable keys for reordering — supply `:key="item.id"` (or `bq-key="item.id"`) to avoid re-creating subtrees.
 - `bq-model` on `<select multiple>` always reads/writes an array, not a single string.
-- `unmount()` must be called when removing dynamic views — leaked bindings keep signals subscribed.
+- Call `destroy()` on the `View` returned by `mount()` when removing dynamic views — leaked bindings keep signals subscribed.
 
 ## Performance notes
 
@@ -664,7 +664,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Testing this module
 
-- `@bquery/bquery/testing` ships `mount()`, `screen`, `within()`, `fireEvent.*`, and `tick()` helpers to drive views in `bun:test`.
+- Import `mount()` from `@bquery/bquery/view`, then pair it with `screen`, `within()`, `fireEvent.*`, and `tick()` from `@bquery/bquery/testing` to drive views in `bun:test`.
 - Combine with `mockSignal()` to assert reactivity at the directive level.
 
 ## Related modules
