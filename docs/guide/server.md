@@ -364,12 +364,13 @@ app.get('/me', (ctx) => {
 // Streaming with manual chunks
 app.get('/log', (ctx) =>
   ctx.stream(
-    new ReadableStream({
+    new ReadableStream<Uint8Array>({
       start(controller) {
-        controller.enqueue('start\n');
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode('start\n'));
         setTimeout(() => {
-          controller.enqueue('mid\n');
-          controller.enqueue('end\n');
+          controller.enqueue(encoder.encode('mid\n'));
+          controller.enqueue(encoder.encode('end\n'));
           controller.close();
         }, 50);
       },

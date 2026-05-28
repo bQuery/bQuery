@@ -563,7 +563,7 @@ const mapped = mapGetters(store, ['getterKey']);
 
 - Define actions as regular methods (`actions: { increment() { this.count++ } }`) — arrow functions break `this` binding.
 - Mutations go through `this` inside actions, not via a separate state parameter.
-- Persistence plugins run on every action commit; use `persist({ keys: [...] })` to scope storage writes.
+- Persistence plugins run on every action commit; filter persisted fields with `createPersistedStore(..., { serializer })` or a custom `StorePlugin`.
 - `unregisterPlugin()` / `clearPlugins()` (1.12.0) are essential for test isolation when multiple suites register the same plugin.
 - Getters are pure derivations — do not mutate state inside them.
 

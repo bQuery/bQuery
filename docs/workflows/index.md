@@ -8,7 +8,7 @@ End-to-end tutorials that exercise multiple bQuery.js modules together. Each wor
 | ------------------------------------------------------------------------ | ---------------------------------------- |
 | [Build a Todo SPA](./todo-spa)                                           | Core, Reactive, Router, Store, View      |
 | [Build a Web Component library](./component-library)                     | Component, Storybook, Testing            |
-| [SSR + hydration on Node, Bun, and Deno](./ssr-hydration)                | SSR, Server (mirrors `examples/ssr-*`)   |
+| [SSR + hydration on Node, Bun, and Deno](./ssr-hydration)                | SSR, runtime adapters (mirrors `examples/ssr-*`) |
 | [Streaming SSR with `flushBoundary` + `createSSRCache`](./streaming-ssr) | SSR, Server                              |
 | [Backend API + WebSocket session](./backend-api)                         | Server, Reactive (realtime), Concurrency |
 | [Forms with validation, i18n, and a11y](./forms-validation)              | Forms, i18n, A11y, View                  |
