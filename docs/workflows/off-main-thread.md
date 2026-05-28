@@ -89,7 +89,7 @@ effect(() => {
 });
 ```
 
-Wire the same signals into a tiny status bar or a [Devtools](/guide/devtools) timeline mark via `mark('highlight:burst', { source: 'pool', payload: { pending: highlighter.pending$.value } })`.
+Wire the same signals into a tiny status bar or a [Devtools](/guide/devtools) timeline mark via `recordEvent('mark', 'highlight:burst', { source: 'pool', payload: { pending: highlighter.pending$.value } })`.
 
 ## 4. Backpressure and graceful pause
 
