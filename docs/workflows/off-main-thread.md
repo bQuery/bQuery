@@ -36,18 +36,18 @@ defineComponent('code-block', {
   props: { lang: { type: 'string', default: 'ts' } },
   setup({ props, slot }) {
     const source = slot.text();
-    const { data, isPending } = useAsync(() => highlighter.run({ source, lang: props.lang }));
+    const { data, loading } = useAsync(() => highlighter.run({ source, lang: props.lang }));
 
     return ({ html }) => html`
       <pre data-lang=${props.lang}>
-        ${isPending.value || !data.value?.html ? html`<code>${source}</code>` : data.value.html}
+        ${loading.value || !data.value?.html ? html`<code>${source}</code>` : data.value.html}
       </pre>
     `;
   },
 });
 ```
 
-`useAsync` schedules the task off the render path and exposes `isPending` so the component shows raw source first and upgrades to highlighted markup when the worker returns.
+`useAsync` schedules the task off the render path and exposes `loading` so the component shows raw source first and upgrades to highlighted markup when the worker returns.
 
 ## 3. Surface metrics
 

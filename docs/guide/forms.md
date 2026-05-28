@@ -425,10 +425,10 @@ hydrateForm(form, 'login');
 
 ## Pitfalls and gotchas
 
-- `submit()` calls all field validators before the handler — throw inside `onSubmit` to populate `submitError`, do not return an error string.
+- `handleSubmit()` runs field validation before the handler — throw inside `onSubmit` to populate `submitError`, do not return an error string.
 - `createFieldArray()` requires stable item ids for keyed list reconciliation; supply `getKey` if items lack `id`.
 - `bindField` / `bindForm` install delegated listeners — unmount them when the form leaves the DOM.
-- `validationStrategy` defaults to `'touched'`; switch to `'always'` only when you need eager errors on first render.
+- `validationStrategy` defaults to `'manual'`; use `'onChange'`, `'onBlur'`, or `'onSubmit'` when you want automatic validation.
 - SSR helpers (`serializeFormState` / `readSerializedFormState`) intentionally drop functions and `File` references — hydrate large blobs separately.
 
 ## Performance notes
@@ -439,7 +439,7 @@ hydrateForm(form, 'login');
 ## Testing this module
 
 - `@bquery/bquery/testing` exports `mockForm()` plus `userEvent.type` / `userEvent.clear` for ergonomic field interaction.
-- Assert `field.errors.value` and `form.isValid.value` directly.
+- Assert `field.error.value` and `form.isValid.value` directly.
 
 ## Related modules
 
