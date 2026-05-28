@@ -40,7 +40,7 @@ defineComponent('code-block', {
 
     return ({ html }) => html`
       <pre data-lang=${props.lang}>
-        ${isPending.value ? html`<code>${source}</code>` : html`<code .innerHTML=${data.value?.html ?? ''}></code>`}
+        ${isPending.value || !data.value?.html ? html`<code>${source}</code>` : data.value.html}
       </pre>
     `;
   },

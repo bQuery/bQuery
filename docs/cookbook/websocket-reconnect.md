@@ -7,19 +7,28 @@
 ```ts
 import { useWebSocketChannel } from '@bquery/bquery/reactive';
 
-const channel = useWebSocketChannel('/realtime', {
-  protocols: ['app.v1'],
-  reconnect: { delay: 500, maxDelay: 10_000, maxAttempts: Infinity, backoff: 'exponential' },
-  heartbeat: { interval: 25_000, message: { type: 'ping' } },
-});
+type OrdersFrame = {
+  channel: string;
+  data: { type: string; topic?: string; payload?: unknown };
+};
 
-channel.on('event', (payload) => render(payload));
+const channel = useWebSocketChannel<{ type: 'subscribe'; topic: string }, OrdersFrame>(
+  '/realtime',
+  {
+    protocols: ['app.v1'],
+    autoReconnect: { delay: 500, maxDelay: 10_000, maxAttempts: Infinity, factor: 2 },
+    heartbeat: { interval: 25_000, message: 'ping' },
+  }
+);
+
+const orders = channel.subscribe('orders');
+orders.data.subscribe((frame) => frame && render(frame.data));
 
 // Send typed frames
-channel.send({ type: 'subscribe', topic: 'orders' });
+channel.publish('orders', { type: 'subscribe', topic: 'orders' });
 ```
 
-**Why it works.** Exponential backoff prevents reconnect storms; heartbeats keep proxies from idling out the connection. `dispose()` tears everything down deterministically.
+**Why it works.** Exponential backoff prevents reconnect storms; heartbeats keep proxies from idling out the connection. `channel.ws.dispose()` tears everything down deterministically.
 
 ## Related
 

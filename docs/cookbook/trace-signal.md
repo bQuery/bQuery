@@ -5,20 +5,21 @@
 **Solution.** Use [`traceSignal`](/guide/devtools) to print the signal lineage to the timeline.
 
 ```ts
-import { traceSignal, subscribeTimeline, filterTimeline } from '@bquery/bquery/devtools';
+import { filterTimeline, subscribeTimeline, traceSignal, trackSignal } from '@bquery/bquery/devtools';
 import { signal } from '@bquery/bquery/reactive';
 
 const cart = signal<{ items: number }>({ items: 0 });
-traceSignal(cart, { label: 'cart' });
+trackSignal('cart', () => cart.peek(), () => 0);
+traceSignal('cart');
 
 subscribeTimeline((entry) => {
-  if (entry.type === 'signal:set' && entry.payload?.label === 'cart') {
+  if (entry.type === 'signal:update' && entry.source === 'cart') {
     console.debug('cart updated', entry.payload);
   }
 });
 
 // later:
-console.log(filterTimeline({ types: ['signal:set'], search: 'cart' }));
+console.log(filterTimeline({ types: ['signal:update'], search: 'cart' }));
 ```
 
 **Why it works.** Traces are emitted as timeline entries with millisecond timestamps, so you can diff bursts and correlate them with renders.

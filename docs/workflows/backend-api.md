@@ -90,27 +90,31 @@ Bun.serve({
 
 The same `app.handle` / `app.handleWebSocket` pair works on Node 24+ and Deno via their respective socket upgrade APIs (see the [SSR workflow](./ssr-hydration#cross-runtime-ci)).
 
-## 2. Client: REST + WebSocket channel
+## 2. Client: REST + WebSocket
 
 ```ts
 // src/chat.ts
 import { signal } from '@bquery/bquery/reactive';
-import { useFetch, useWebSocketChannel } from '@bquery/bquery/reactive';
+import { useFetch, useWebSocket } from '@bquery/bquery/reactive';
 
-export const messages = signal<{ user: string; text: string; at: number }[]>([]);
+type ChatMessage = { user: string; text: string; at: number };
+type ChatFrame =
+  | { type: 'hello'; room: string }
+  | { type: 'message'; entry: ChatMessage }
+  | { type: 'echo'; message: unknown };
+
+export const messages = signal<ChatMessage[]>([]);
 
 // Initial load
-const { data, refresh } = useFetch('/messages', { immediate: true });
+const { data } = useFetch('/messages', { immediate: true });
 data.subscribe((rows) => rows && (messages.value = rows));
 
-// Live updates via WebSocket channel
-const channel = useWebSocketChannel('/rooms/lobby', {
+// Live updates via WebSocket
+const ws = useWebSocket<unknown, ChatFrame>('/rooms/lobby', {
   protocols: ['chat.v1'],
-  parse: (raw) => JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw)),
-});
-
-channel.on('message', (frame: any) => {
-  if (frame?.type === 'message') messages.value = [...messages.value, frame.entry];
+  onMessage: (frame) => {
+    if (frame.type === 'message') messages.value = [...messages.value, frame.entry];
+  },
 });
 
 export async function send(user: string, text: string) {
@@ -122,7 +126,7 @@ export async function send(user: string, text: string) {
   // No manual refresh — the WS frame patches `messages`.
 }
 
-export const dispose = () => channel.dispose();
+export const dispose = () => ws.dispose();
 ```
 
 ## 3. Render the chat
@@ -146,7 +150,7 @@ export const dispose = () => channel.dispose();
 
 - **Dependency-free routing** — `createServer()` covers HTTP and WebSocket with the same context.
 - **Runtime adaptation** — `handleWebSocket()` returns a session you bridge to Bun / Node / Deno sockets.
-- **Reactive channels** — `useWebSocketChannel()` keeps the connection signal-managed; UI updates without manual subscriptions.
+- **Reactive sockets** — `useWebSocket()` keeps the connection signal-managed; UI updates without manual polling.
 
 ## Next steps
 
