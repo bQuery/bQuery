@@ -11,6 +11,7 @@ import {
   createServer,
   isServerWebSocketSession,
   isWebSocketRequest,
+  type ServerWebSocketConnection,
 } from '@bquery/bquery/server';
 
 const app = createServer();
@@ -30,7 +31,7 @@ app.post('/messages', async (ctx) => {
 });
 
 // WebSocket: live updates per room
-const peers = new Set<WebSocket>();
+const peers = new Set<ServerWebSocketConnection>();
 function broadcast(entry: unknown) {
   const frame = JSON.stringify({ type: 'message', entry });
   for (const peer of peers) peer.send(frame);
@@ -39,14 +40,14 @@ function broadcast(entry: unknown) {
 app.ws('/rooms/:id', (ctx) => ({
   protocols: ['chat.v1'],
   onOpen(socket) {
-    peers.add(socket as unknown as WebSocket);
+    peers.add(socket);
     socket.sendJson({ type: 'hello', room: ctx.params.id });
   },
   onMessage(message, socket) {
     socket.sendJson({ type: 'echo', message });
   },
   onClose(socket) {
-    peers.delete(socket as unknown as WebSocket);
+    peers.delete(socket);
   },
 }));
 
