@@ -343,11 +343,15 @@ globalThis.DOMParser = window.DOMParser;
 ```ts
 import { createServer, badRequest } from '@bquery/bquery/server';
 
-const app = createServer();
+const app = createServer({
+  limits: {
+    json: 5_000_000,
+  },
+});
 
 // JSON, form, multipart, or text — auto-detected from Content-Type
 app.post('/upload', async (ctx) => {
-  const body = await ctx.body({ maxBytes: 5_000_000 });
+  const body = await ctx.body();
   if (!body || typeof body !== 'object') {
     throw badRequest('Expected a JSON body.');
   }
@@ -417,7 +421,7 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 ## Pitfalls and gotchas
 
 - `params` and `query` are null-prototype dicts — do not rely on inherited methods (`hasOwnProperty`, etc.).
-- `ctx.body({ maxBytes })` enforces the limit *before* JSON / form parsing to defend against billion-laughs-style attacks.
+- Configure `createServer({ limits })` to enforce body size limits *before* JSON / form parsing to defend against billion-laughs-style attacks.
 - `ctx.setCookie()` validates header-safe characters and rejects malformed values.
 - `ctx.html()` sanitizes by default; pass `{ sanitize: false }` only with fully trusted content.
 - WebSocket sessions returned by `handleWebSocket()` are runtime-agnostic — you must adapt them to your runtime's socket via `result.open(socket)` / `result.message(socket, event)` / `result.close(socket, event)`.
