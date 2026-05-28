@@ -12,17 +12,22 @@ const results = signal<unknown[]>([]);
 
 watchDebounce(
   query,
-  async (q) => {
+  (q) => {
     if (!q) return (results.value = []);
-    const state = useFetch(`/api/search?q=${encodeURIComponent(q)}`, { immediate: false });
-    try {
-      await state.execute();
-      results.value = (state.data.value as unknown[]) ?? [];
-    } finally {
-      state.dispose();
-    }
+    void (async () => {
+      const state = useFetch(`/api/search?q=${encodeURIComponent(q)}`, { immediate: false });
+      try {
+        await state.execute();
+        results.value = (state.data.value as unknown[]) ?? [];
+      } catch (error) {
+        console.error('Search request failed:', error);
+        results.value = [];
+      } finally {
+        state.dispose();
+      }
+    })();
   },
-  { wait: 300 }
+  300
 );
 
 document.querySelector('input#search')!.addEventListener('input', (e) => {

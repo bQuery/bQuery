@@ -72,8 +72,8 @@ Components, routes, and `useResource()` results manage their own scopes for you.
 import { watch, watchDebounce, watchThrottle } from '@bquery/bquery/reactive';
 
 watch(query, (next, prev) => console.log(`query: ${prev} → ${next}`));
-watchDebounce(query, fetchSuggestions, { wait: 200 });
-watchThrottle(scrollY, syncScroll, { interval: 16 });
+watchDebounce(query, fetchSuggestions, 200);
+watchThrottle(scrollY, syncScroll, 16);
 ```
 
 ## Async data primitives
