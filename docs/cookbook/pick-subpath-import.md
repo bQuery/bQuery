@@ -10,7 +10,7 @@ import { signal, computed } from '@bquery/bquery/reactive';
 import { $ } from '@bquery/bquery/core';
 
 // ❌ Pulls every module
-import { signal } from '@bquery/bquery/full';
+import { signal as fullSignal } from '@bquery/bquery/full';
 ```
 
 For CDN / no-build setups, `@bquery/bquery/full` is fine — it is the documented all-in-one entry. For app bundles, prefer per-module imports.

@@ -15,7 +15,7 @@ describe('user list', () => {
 
   it('renders fetched users', async () => {
     mock.on('GET', '/api/users', () => ({ status: 200, body: [{ id: 1, name: 'Ada' }] }));
-    renderComponent('<user-list></user-list>');
+    renderComponent('user-list');
     expect(await screen.findByText('Ada')).toBeTruthy();
   });
 });

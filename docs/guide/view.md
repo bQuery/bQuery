@@ -651,7 +651,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 ## Pitfalls and gotchas
 
 - View expressions run through `new Function(...)` — your CSP must allow `'unsafe-eval'` or you must use the strict-mode allow-list.
-- Do not feed untrusted strings into `bq-html`; use `bq-html-safe` (default-sanitized) or sanitize yourself first.
+- `bq-html` sanitizes when the `sanitize` mount option is `true` (the default); `bq-html-safe` sanitizes unconditionally — prefer it for untrusted content to guard against accidental `sanitize: false`.
 - `bq-for` requires stable keys for reordering — supply `:key="item.id"` (or `bq-key="item.id"`) to avoid re-creating subtrees.
 - `bq-model` on `<select multiple>` always reads/writes an array, not a single string.
 - Call `destroy()` on the `View` returned by `mount()` when removing dynamic views — leaked bindings keep signals subscribed.

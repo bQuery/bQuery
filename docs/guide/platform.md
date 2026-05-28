@@ -763,7 +763,7 @@ announcer.destroy();
 - `definePageMeta()` mutates `<head>` — always invoke its returned cleanup on route change to restore prior title/description/OG tags.
 - `cache` and `buckets` fall back to no-op stores when the underlying APIs are missing; check `isSupported()` if you need to gate features.
 - Notifications require user-gesture initiated permission requests; granting silently in `effect()` will fail.
-- Storage quotas vary across browsers — surface errors from `buckets.set()` rather than assuming success.
+- Storage quotas vary across browsers — surface errors from `bucket.put()` rather than assuming success.
 
 ## Performance notes
 

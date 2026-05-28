@@ -656,7 +656,7 @@ describe('router', () => {
 - `screen` / `within()` queries traverse shadow DOM by default; pass `{ shadow: false }` for legacy behavior.
 - `userEvent.type()` simulates real keystrokes (including key-down/up); use `fireEvent.input` for direct value writes.
 - `mockFetch()` returns a typed builder — register handlers before the code under test issues the request.
-- `mockWebSocket()` does not auto-open; call `socket.acceptConnection()` in your test to mimic the server.
+- `mockWebSocket()` does not auto-open; call `socket.open()` in your test to mimic the server.
 
 ## Performance notes
 
