@@ -330,6 +330,40 @@ describe('motion/prefersReducedMotion', () => {
       setReducedMotion(null);
     }
   });
+
+  it('keeps reducedMotionSignal aligned when re-subscribing after matchMedia starts throwing', () => {
+    const original = window.matchMedia;
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: true,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const sig = reducedMotionSignal();
+      setReducedMotion(true);
+      expect(sig.value).toBe(true);
+      setReducedMotion(null);
+
+      window.matchMedia = mock(() => {
+        throw new Error('matchMedia unavailable');
+      }) as unknown as typeof window.matchMedia;
+
+      expect(prefersReducedMotion()).toBe(false);
+      expect(sig.value).toBe(false);
+    } finally {
+      window.matchMedia = original;
+      setReducedMotion(null);
+    }
+  });
 });
 
 describe('motion/animate', () => {

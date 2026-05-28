@@ -46,8 +46,6 @@ const syncMediaQuerySubscription = (): void => {
   if (!hadListeners) return;
 
   ensureMediaQuerySubscription();
-  if (!mediaQueryList) return;
-
   lastDispatchedValue = previousValue;
   dispatchIfChanged();
 };
