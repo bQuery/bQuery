@@ -135,7 +135,7 @@ export const dispose = () => ws.dispose();
 ## 3. Render the chat
 
 ```html
-<section bq-on:submit.prevent="send(user, text); text = ''">
+<section bq-on:submit.prevent="send(user.value, text.value); text.value = ''">
   <ul>
     <li bq-for="m in messages" :key="m.at">
       <strong bq-text="m.user"></strong>: <span bq-text="m.text"></span>

@@ -18,7 +18,7 @@ const count = signal(0);
 effect(() => $('#counter').text(`Count: ${count.value}`));
 ```
 
-## SSR — Server-Side Rendering (sync)
+## SSR — Server-Side Rendering (async)
 
 `renderToStringAsync()` renders the application to an HTML string on the server, including any signal state and any awaited async data. The browser receives a fully rendered HTML document and hydrates it.
 
@@ -31,9 +31,7 @@ Use when: marketing pages, content sites, e-commerce, anything that needs SEO or
 import { createServer } from '@bquery/bquery/server';
 
 const app = createServer();
-app.get('/', (ctx) =>
-  ctx.renderResponse(`<h1 bq-text="title"></h1>`, { title: 'Hello' })
-);
+app.get('/', (ctx) => ctx.renderResponse(`<h1 bq-text="title"></h1>`, { title: 'Hello' }));
 await app.listen({ port: 3000 });
 ```
 
@@ -64,7 +62,7 @@ app.get('/article', (ctx) =>
 
 ## Resumable hydration
 
-`createResumableState()` serialises just enough server state for the client to *resume* execution without re-running setup. The client takes over the existing DOM and reactive graph without rebuilding it.
+`createResumableState()` serialises just enough server state for the client to _resume_ execution without re-running setup. The client takes over the existing DOM and reactive graph without rebuilding it.
 
 **Pros**: Minimal JS executed at hydration; ideal for content-heavy pages.
 **Cons**: Newer model; not every app pattern benefits.
@@ -73,13 +71,13 @@ Use when: large content pages with localized interactivity (article + comments, 
 
 ## Choosing a mode
 
-| Need                                            | Recommended mode               |
-| ----------------------------------------------- | ------------------------------ |
-| SEO + fast first paint                          | SSR or Streaming SSR           |
-| Mixed fast/slow data on one page                | Streaming SSR                  |
-| Mostly content with small interactive islands   | Resumable hydration            |
-| Behind auth, no SEO need                        | CSR                            |
-| Embeddable widget                               | CSR (or pre-rendered HTML)     |
+| Need                                          | Recommended mode           |
+| --------------------------------------------- | -------------------------- |
+| SEO + fast first paint                        | SSR or Streaming SSR       |
+| Mixed fast/slow data on one page              | Streaming SSR              |
+| Mostly content with small interactive islands | Resumable hydration        |
+| Behind auth, no SEO need                      | CSR                        |
+| Embeddable widget                             | CSR (or pre-rendered HTML) |
 
 You can mix modes per route in the same app — `createServer()` lets each route decide how it renders.
 

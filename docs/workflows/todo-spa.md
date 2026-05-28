@@ -100,15 +100,15 @@ export const router = createRouter({
   </nav>
 </header>
 
-<form bq-on:submit.prevent="todos.add(title); title = ''">
+<form bq-on:submit.prevent="todos.add(title.value); title.value = ''">
   <input bq-model="title" placeholder="What needs doing?" />
 </form>
 
 <ul>
   <li bq-for="t in visible" :key="t.id">
-    <input type="checkbox" bq-model="t.done" bq-on:change="todos.toggle(t.id)" />
+    <input type="checkbox" :checked="t.done" bq-on:change="todos.toggle(t.value.id)" />
     <span bq-text="t.title" bq-class="{ done: t.done }"></span>
-    <button bq-on:click="todos.remove(t.id)" aria-label="Delete">×</button>
+    <button bq-on:click="todos.remove(t.value.id)" aria-label="Delete">×</button>
   </li>
 </ul>
 ```

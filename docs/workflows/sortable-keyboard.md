@@ -46,7 +46,7 @@ export function attachSortable(container: HTMLElement) {
 ```html
 <ul id="task-list" role="list">
   <li
-    bq-for="item in items.value"
+    bq-for="item in items"
     :key="item.id"
     tabindex="0"
     role="listitem"

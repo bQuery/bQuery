@@ -637,7 +637,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 | `bq-html` / `bq-html-safe` | Render HTML — `bq-html-safe` sanitizes before insertion.                                                                                       |
 | `bq-model`                 | Two-way binding for inputs, selects, textareas, checkboxes.                                                                                    |
 | `bq-show` / `bq-if`        | Toggle visibility or DOM mounting on a condition.                                                                                              |
-| `bq-for`                   | Render lists from arrays / iterables; supports `key` helper.                                                                                   |
+| `bq-for`                   | Render lists from arrays / iterables; supports keyed reconciliation via `:key` / `bq-key`.                                                     |
 | `bq-on:event[.mods]`       | Event handler with modifier matrix (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`, `.self`, `.left`, `.right`, `.middle`, key filters). |
 | `bq-class` / `bq-style`    | Reactive class / style objects.                                                                                                                |
 | `bq-attr` / `bq-aria`      | Reactive attribute / ARIA bag.                                                                                                                 |
@@ -652,7 +652,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 - View expressions run through `new Function(...)` — your CSP must allow `'unsafe-eval'` or you must use the strict-mode allow-list.
 - Do not feed untrusted strings into `bq-html`; use `bq-html-safe` (default-sanitized) or sanitize yourself first.
-- `bq-for` requires stable keys for reordering — supply `key=(item) => item.id` to avoid re-creating subtrees.
+- `bq-for` requires stable keys for reordering — supply `:key="item.id"` (or `bq-key="item.id"`) to avoid re-creating subtrees.
 - `bq-model` on `<select multiple>` always reads/writes an array, not a single string.
 - `unmount()` must be called when removing dynamic views — leaked bindings keep signals subscribed.
 
