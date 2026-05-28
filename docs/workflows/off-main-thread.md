@@ -28,19 +28,40 @@ export const highlighter = createReactiveTaskPool<HighlightInput, HighlightOutpu
 ## 2. Call it from a component
 
 ```ts
-import { defineComponent } from '@bquery/bquery/component';
-import { useAsync } from '@bquery/bquery/component';
+import { defineComponent, html, safeHtml, slotText, useAsync, useEffect } from '@bquery/bquery/component';
+import { sanitizeHtml, trusted } from '@bquery/bquery/security';
 import { highlighter } from '../workers/highlight';
 
 defineComponent('code-block', {
-  props: { lang: { type: 'string', default: 'ts' } },
-  setup({ props, slot }) {
-    const source = slot.text();
-    const { data, loading } = useAsync(() => highlighter.run({ source, lang: props.lang }));
+  props: { lang: { type: String, default: 'ts' } },
+  state: { source: '', highlighted: '', loading: true },
+  connected() {
+    this.setState('source', slotText(this));
 
-    return ({ html }) => html`
-      <pre data-lang=${props.lang}>
-        ${loading.value || !data.value?.html ? html`<code>${source}</code>` : data.value.html}
+    const { data, loading } = useAsync(() =>
+      highlighter.run({
+        source: this.getState('source'),
+        lang: this.getProp<string>('lang'),
+      })
+    );
+
+    useEffect(() => {
+      this.setState('loading', loading.value);
+      this.setState('highlighted', data.value?.html ?? '');
+    });
+  },
+  render({ props, state }) {
+    if (state.loading || !state.highlighted) {
+      return html`
+        <pre data-lang=${props.lang}>
+          <code>${state.source}</code>
+        </pre>
+      `;
+    }
+
+    return safeHtml`
+      <pre data-lang="${props.lang}">
+        ${trusted(sanitizeHtml(state.highlighted))}
       </pre>
     `;
   },

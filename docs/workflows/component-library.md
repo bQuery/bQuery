@@ -6,11 +6,17 @@ How to ship a reusable Web Component library with [Component](/guide/components)
 
 ```ts
 // src/button.ts
-import { defineComponent, css } from '@bquery/bquery/component';
-import { signal } from '@bquery/bquery/reactive';
+import {
+  bindDelegatedEvents,
+  css,
+  defineComponent,
+  html,
+  onClick,
+} from '@bquery/bquery/component';
 
 defineComponent('ds-button', {
-  props: { variant: { type: 'string', default: 'primary' } },
+  props: { variant: { type: String, default: 'primary' } },
+  state: { pressed: false },
   styles: css`
     button {
       font: inherit;
@@ -22,11 +28,18 @@ defineComponent('ds-button', {
     button[data-variant='primary'] { background: var(--accent, #0b5fff); color: white; border-color: transparent; }
     button[data-variant='ghost']   { background: transparent; }
   `,
-  setup({ props, on }) {
-    const pressed = signal(false);
-    on('click', () => (pressed.value = !pressed.value));
-    return ({ html }) => html`
-      <button data-variant=${props.variant} aria-pressed=${pressed.value}>
+  connected() {
+    bindDelegatedEvents(this);
+  },
+  render({ props, state }) {
+    return html`
+      <button
+        data-variant=${props.variant}
+        aria-pressed=${state.pressed}
+        ${onClick(() => {
+          state.pressed = !state.pressed;
+        })}
+      >
         <slot></slot>
       </button>
     `;
