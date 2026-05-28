@@ -30,8 +30,6 @@ export function attachSortable(container: HTMLElement) {
   return useSortable(container, {
     items: 'li',
     handle: '.drag-handle',
-    delay: 100,
-    touchStartThreshold: 8,
     onSortEnd({ item, oldIndex, newIndex }) {
       if (oldIndex === newIndex) return;
 
@@ -51,7 +49,7 @@ export function attachSortable(container: HTMLElement) {
 }
 ```
 
-`useSortable()` keeps the DOM order reactive through its `order` signal. In `onSortEnd`, mirror that reorder back into your backing `items` signal so UI, persistence, and analytics stay in sync with the rendered order.
+`useSortable()` keeps the DOM order reactive through its `order` signal. It does not mutate your backing `items` signal for you, so in `onSortEnd` you should mirror that reorder back into your data source to keep UI, persistence, and analytics in sync with the rendered order.
 
 ## 3. Declarative markup
 
