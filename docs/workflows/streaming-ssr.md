@@ -1,11 +1,10 @@
 # Streaming SSR with `flushBoundary` and `createSSRCache`
 
-For data-heavy pages, streaming the above-the-fold HTML immediately and progressively flushing slower sections keeps Largest Contentful Paint low. This workflow combines [`flushBoundary`](/guide/ssr#streaming-and-caching-1-14-0), [`createSSRCache`](/guide/ssr#streaming-and-caching-1-14-0), and [`createSSRMetrics`](/guide/ssr#streaming-and-caching-1-14-0).
+For data-heavy pages, `flushBoundary()` lets you split the final SSR HTML into multiple stream chunks once rendering completes. This workflow combines [`flushBoundary`](/guide/ssr#streaming-and-caching-1-14-0), [`createSSRCache`](/guide/ssr#streaming-and-caching-1-14-0), and [`createSSRMetrics`](/guide/ssr#streaming-and-caching-1-14-0); use `renderToStreamSuspense()` with `defer()` when you need true progressive async streaming.
 
 ## Goal
 
-- Stream the page shell instantly.
-- Push heavy sections (`recommended`, `comments`) into later HTML chunks after the shell.
+- Split the page shell, `recommended`, and `comments` into separate HTML chunks.
 - Cache the shell for 30 s, leave dynamic sections uncached.
 - Expose render / slot timing metrics to a metrics endpoint.
 
@@ -90,13 +89,13 @@ await app.listen({ port: 3000 });
 
 ## How chunks land in the browser
 
-1. The hero (everything before the first `flushBoundary()`) ships instantly — usually < 50 ms after the request hits the server.
-2. The recommended block streams next.
-3. The comments block flushes last.
+1. The hero (everything before the first `flushBoundary()`) becomes the first chunk in the response stream.
+2. The recommended block becomes the next chunk.
+3. The comments block becomes the final chunk.
 
-Note that `renderToStream()` currently resolves the full binding context before emitting chunks, so awaited values must already be resolved when you call it; the boundaries control where the resulting HTML is split, not when individual sections become available.
+Note that `renderToStream()` currently resolves the full binding context and renders every chunk before enqueueing them, so flush boundaries control how the final HTML is chunked on the stream, not time-to-first-byte or when async sections become available. Use `renderToStreamSuspense()` with `defer()` for true progressive/out-of-order streaming.
 
-The browser progressively renders each chunk, so the user sees content as soon as it is available rather than waiting for the slowest section.
+The browser still receives distinct chunks on the response stream, but the boundaries do not let slow async sections render ahead of the rest of the document.
 
 ## Edge variant
 

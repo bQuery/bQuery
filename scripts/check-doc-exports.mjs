@@ -140,12 +140,13 @@ async function main() {
   }
 
   let hasGaps = false;
+  let hasErrors = false;
   console.log('Documentation export coverage report');
   console.log('-------------------------------------');
   for (const r of results) {
     if (r.error) {
       console.log(`[error]   ${r.moduleName}: ${r.error}`);
-      hasGaps = true;
+      hasErrors = true;
       continue;
     }
     const covered = r.total - r.missing.length;
@@ -163,18 +164,18 @@ async function main() {
   }
 
   console.log('-------------------------------------');
-  if (!hasGaps) {
+  if (!hasGaps && !hasErrors) {
     console.log('All public runtime exports are mentioned in their module guide.');
     process.exit(0);
   }
 
   if (strict) {
-    console.log('Strict mode: some exports are not mentioned in their module guide.');
+    console.log('Strict mode: the documentation export audit reported coverage gaps or audit errors.');
     process.exit(1);
   }
 
   console.log(
-    'Informational: some exports are not mentioned in their module guide. ' +
+    'Informational: the documentation export audit reported coverage gaps or audit errors. ' +
       'Pass --strict to fail the run.'
   );
   process.exit(0);

@@ -37,12 +37,12 @@ await app.listen({ port: 3000 });
 
 ## Streaming SSR
 
-`renderToStream()` flushes the page in chunks as they're ready. Combined with [`flushBoundary`](/guide/ssr), slow async data does not block the rest of the document.
+`renderToStream()` returns a streamed `ReadableStream<Uint8Array>`, and [`flushBoundary`](/guide/ssr) splits the final HTML into multiple chunks. The current implementation resolves the full binding context and renders all chunks before enqueueing them, so use `renderToStreamSuspense()` with `defer()` when you need true progressive/out-of-order streaming.
 
-**Pros**: Time-to-First-Byte stays low even when individual sections are slow.
-**Cons**: More moving parts; intermediate proxies / CDNs must support streaming.
+**Pros**: Stream-friendly response shape; explicit chunk boundaries in the final HTML stream.
+**Cons**: Boundaries do not currently reduce TTFB for async sections; intermediate proxies / CDNs must support streaming.
 
-Use when: pages with mixed fast/slow data fetches; user-facing pages where TTFB matters.
+Use when: you want streamed responses or chunk boundaries across runtimes; use Suspense streaming when async sections must arrive progressively.
 
 ```ts
 import { flushBoundary } from '@bquery/bquery/ssr';
