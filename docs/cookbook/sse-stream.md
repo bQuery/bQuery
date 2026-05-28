@@ -5,8 +5,7 @@
 **Solution.** [`useEventSource`](/guide/reactive#sse-helpers) exposes `data`, `eventName`, `error`, and lifecycle controls as signals.
 
 ```ts
-import { useEventSource } from '@bquery/bquery/reactive';
-import { effect } from '@bquery/bquery/reactive';
+import { effect, useEventSource } from '@bquery/bquery/reactive';
 
 const sse = useEventSource('/events', {
   events: ['progress', 'done'],

@@ -80,10 +80,10 @@ Bun.serve({
       void getSession(ws).open(ws);
     },
     message(ws, message) {
-      void getSession(ws).message(ws, { data: message });
+      void getSession(ws).message(ws, new MessageEvent('message', { data: message }));
     },
     close(ws, code, reason) {
-      void getSession(ws).close(ws, { code, reason });
+      void getSession(ws).close(ws, new CloseEvent('close', { code, reason }));
     },
   },
 });
@@ -95,8 +95,7 @@ The same `app.handle` / `app.handleWebSocket` pair works on Node 24+ and Deno vi
 
 ```ts
 // src/chat.ts
-import { effect, signal } from '@bquery/bquery/reactive';
-import { useFetch, useWebSocket } from '@bquery/bquery/reactive';
+import { effect, signal, useFetch, useWebSocket } from '@bquery/bquery/reactive';
 
 type ChatMessage = { user: string; text: string; at: number };
 type ChatFrame =
