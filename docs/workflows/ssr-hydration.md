@@ -28,7 +28,7 @@ import { renderToResponse } from '@bquery/bquery/ssr';
 import { template, initialData } from '../shared/app';
 
 createServer(async (req, res) => {
-  const request = new Request(`http://localhost${req.url}`);
+  const request = new Request(`http://localhost${req.url ?? '/'}`);
   const response = await renderToResponse(template, await initialData(request));
   res.writeHead(response.status, Object.fromEntries(response.headers));
   res.end(await response.text());
