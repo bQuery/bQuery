@@ -106,9 +106,9 @@ export const router = createRouter({
 
 <ul>
   <li bq-for="t in visible" :key="t.id">
-    <input type="checkbox" :checked="t.done" bq-on:change="todos.toggle(t.value.id)" />
+    <input type="checkbox" :checked="t.done" bq-on:change="todos.toggle(t.id)" />
     <span bq-text="t.title" bq-class="{ done: t.done }"></span>
-    <button bq-on:click="todos.remove(t.value.id)" aria-label="Delete">×</button>
+    <button bq-on:click="todos.remove(t.id)" aria-label="Delete">×</button>
   </li>
 </ul>
 ```
