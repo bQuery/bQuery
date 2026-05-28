@@ -21,15 +21,47 @@ let reducedMotionOverride: boolean | null = null;
  */
 const reducedMotionListeners = new Set<(reduced: boolean) => void>();
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
 let lastDispatchedValue: boolean | null = null;
 let mediaQueryList: MediaQueryList | null = null;
 let mediaQueryHandler: ((event: MediaQueryListEvent) => void) | null = null;
+let subscribedMatchMedia: ((query: string) => MediaQueryList) | null = null;
+
+const syncMediaQuerySubscription = (): void => {
+  if (
+    !mediaQueryList ||
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function' ||
+    subscribedMatchMedia === window.matchMedia
+  ) {
+    return;
+  }
+
+  const previousValue = mediaQueryList.matches;
+  const hadListeners = reducedMotionListeners.size > 0;
+
+  teardownMediaQuerySubscription();
+
+  if (!hadListeners) return;
+
+  ensureMediaQuerySubscription();
+  if (!mediaQueryList) return;
+
+  lastDispatchedValue = previousValue;
+  dispatchIfChanged();
+};
 
 const evaluateCurrent = (): boolean => {
   if (reducedMotionOverride !== null) return reducedMotionOverride;
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  syncMediaQuerySubscription();
   if (mediaQueryList) return mediaQueryList.matches;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  try {
+    return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+  } catch {
+    return false;
+  }
 };
 
 const dispatchIfChanged = (): void => {
@@ -42,9 +74,11 @@ const dispatchIfChanged = (): void => {
 const ensureMediaQuerySubscription = (): void => {
   if (mediaQueryList || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
   try {
-    mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
+    subscribedMatchMedia = window.matchMedia;
+    mediaQueryList = subscribedMatchMedia(REDUCED_MOTION_QUERY);
   } catch {
     mediaQueryList = null;
+    subscribedMatchMedia = null;
     return;
   }
   mediaQueryHandler = () => dispatchIfChanged();
@@ -72,6 +106,7 @@ const teardownMediaQuerySubscription = (): void => {
   }
   mediaQueryList = null;
   mediaQueryHandler = null;
+  subscribedMatchMedia = null;
   lastDispatchedValue = null;
 };
 

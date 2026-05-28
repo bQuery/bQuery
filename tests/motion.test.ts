@@ -20,6 +20,7 @@ import {
   transition,
   typewriter,
 } from '../src/motion/index';
+import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
 
 // Mock DOM elements for testing
 const createMockElement = (bounds: DOMRect): Element => {
@@ -286,6 +287,48 @@ describe('motion/prefersReducedMotion', () => {
     expect(prefersReducedMotion()).toBe(true);
 
     window.matchMedia = original;
+  });
+
+  it('refreshes cached media queries when matchMedia changes under an active signal subscription', () => {
+    const original = window.matchMedia;
+    setReducedMotion(null);
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: false,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      reducedMotionSignal();
+
+      window.matchMedia = mock(
+        () =>
+          ({
+            matches: true,
+            media: '(prefers-reduced-motion: reduce)',
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false,
+          }) as MediaQueryList
+      ) as unknown as typeof window.matchMedia;
+
+      expect(prefersReducedMotion()).toBe(true);
+      expect(reducedMotionSignal().value).toBe(true);
+    } finally {
+      window.matchMedia = original;
+      setReducedMotion(null);
+    }
   });
 });
 
