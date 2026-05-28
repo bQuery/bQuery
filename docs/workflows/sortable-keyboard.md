@@ -21,77 +21,108 @@ export const items = signal([
 ```ts
 import { useSortable } from '@bquery/bquery/dnd';
 import { createLiveRegion, prefersReducedMotion } from '@bquery/bquery/a11y';
+import { animate } from '@bquery/bquery/motion';
 
 const region = createLiveRegion({ priority: 'polite' });
 const reducedMotion = prefersReducedMotion();
 
 export function attachSortable(container: HTMLElement) {
   return useSortable(container, {
-    items, // signal — reordered in place
-    keyboard: true,
-    keyboardStep: 1,
+    items: 'li',
+    handle: '.drag-handle',
     delay: 100,
     touchStartThreshold: 8,
-    bounds: 'viewport',
-    onMove({ from, to, item }) {
-      region.announce(`${item.label} moved from position ${from + 1} to ${to + 1}.`);
+    onSortEnd({ item, oldIndex, newIndex }) {
+      if (oldIndex === newIndex) return;
+
+      const next = [...items.value];
+      const [moved] = next.splice(oldIndex, 1);
+      if (!moved) return;
+      next.splice(newIndex, 0, moved);
+      items.value = next;
+
+      region.announce(`${moved.label} moved from position ${oldIndex + 1} to ${newIndex + 1}.`);
+
+      if (!reducedMotion.value) {
+        animate(item, { transform: ['scale(1.02)', 'scale(1)'] }, { duration: 180 });
+      }
     },
   });
 }
 ```
 
-`useSortable` mutates the `items` signal in place when a reorder happens, so every subscriber (UI, persistence, analytics) sees the change.
+`useSortable()` keeps the DOM order reactive through its `order` signal. In `onSortEnd`, mirror that reorder back into your backing `items` signal so UI, persistence, and analytics stay in sync with the rendered order.
 
 ## 3. Declarative markup
 
 ```html
-<ul id="task-list" role="list">
+<ul id="task-list" role="list" aria-describedby="task-list-help">
   <li
     bq-for="item in items"
     :key="item.id"
     tabindex="0"
     role="listitem"
-    bq-aria="{ grabbed: item.id === sortable.activeId.value }"
   >
-    <span aria-hidden="true">⠿</span>
+    <button type="button" class="drag-handle" aria-label="Reorder item">⠿</button>
     <span bq-text="item.label"></span>
   </li>
 </ul>
+
+<p id="task-list-help">Press ArrowUp or ArrowDown on a focused item to move it.</p>
 ```
 
 Important a11y bits:
 
-- `tabindex="0"` makes each row focusable so keyboard sortable mode can take over.
+- `tabindex="0"` makes each row focusable for custom keyboard reorder shortcuts.
 - `role="listitem"` keeps semantics intact for assistive tech.
-- `aria-grabbed` toggles via [`bq-aria`](/guide/view#directive-reference-1-14-0) as the user activates an item.
+- `aria-describedby` points screen readers at a short interaction hint.
+- `handle: '.drag-handle'` keeps pointer drags on the grip while the row itself stays keyboard-focusable.
 
 ## 4. Keyboard interaction model
 
+```ts
+const sortable = attachSortable(document.querySelector('#task-list')!);
+
+document.querySelector('#task-list')!.addEventListener('keydown', (event) => {
+  const row = (event.target as HTMLElement).closest('li');
+  if (!row) return;
+
+  const index = sortable.order.value.indexOf(row);
+  if (index === -1) return;
+
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    sortable.handle.move(index, index - 1);
+  }
+
+  if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    sortable.handle.move(index, index + 1);
+  }
+});
+```
+
 | Key               | Action                                                 |
 | ----------------- | ------------------------------------------------------ |
-| `Space` / `Enter` | Pick up / drop the focused item.                       |
-| `↑` / `↓`         | Move the picked-up item one position (`keyboardStep`). |
-| `Home` / `End`    | Move to first / last position.                         |
-| `Escape`          | Cancel the in-progress drag.                           |
+| `↑`               | Move the focused item one slot earlier.                |
+| `↓`               | Move the focused item one slot later.                  |
 
-`useSortable({ keyboard: true })` wires all of this automatically and emits the same `onMove` payload as pointer drags, so the live region speaks the same announcement regardless of input device.
+Because `handle.move()` also triggers `onSortEnd`, pointer drags and keyboard reorders reuse the same live-region announcement and `items` signal update.
 
 ## 5. Visual feedback with reduced-motion respect
 
 ```ts
-import { animate } from '@bquery/bquery/motion';
-
-sortable.on('drop', ({ element }) => {
-  if (reducedMotion.value) return;
-  animate(element, { transform: ['scale(1.02)', 'scale(1)'] }, { duration: 180 });
-});
+onSortEnd({ item, oldIndex, newIndex }) {
+  if (oldIndex === newIndex || reducedMotion.value) return;
+  animate(item, { transform: ['scale(1.02)', 'scale(1)'] }, { duration: 180 });
+}
 ```
 
 ## What you exercised
 
-- **Keyboard parity** — sortable lists move with arrow keys, not only pointers.
+- **Keyboard parity** — focused rows move with arrow keys, not only pointers.
 - **Live region announcements** — every reorder is spoken without forcing focus.
-- **Reactive list mutation** — `items.value` updates in place; UI, persistence, and undo stacks see the same diff.
+- **Reactive data sync** — `onSortEnd` mirrors DOM reorders back into `items.value`.
 - **Reduced-motion guard** — animations skip when the user prefers reduced motion.
 
 ## Next steps
