@@ -754,3 +754,32 @@ announcer.destroy();
 - `definePageMeta()` returns a cleanup function that restores previous document state.
 - Announcer defaults can be configured globally via `defineBqueryConfig()`.
 - The `cache` and `buckets` singletons gracefully handle environments where their underlying APIs are not available.
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- `useCookie()` requires `Secure` for `sameSite: 'None'` and will refuse to write otherwise.
+- `definePageMeta()` mutates `<head>` — always invoke its returned cleanup on route change to restore prior title/description/OG tags.
+- `cache` and `buckets` fall back to no-op stores when the underlying APIs are missing; check `isSupported()` if you need to gate features.
+- Notifications require user-gesture initiated permission requests; granting silently in `effect()` will fail.
+- Storage quotas vary across browsers — surface errors from `bucket.put()` rather than assuming success.
+
+## Performance notes
+
+- Coalesce many small `useCookie()` writes by batching state changes inside a single effect.
+- Use `cache` for large idempotent fetches; the bucket layer handles eviction.
+
+## Testing this module
+
+- `happy-dom` stubs cookies and storage; for fine-grained tests assert against `document.cookie` directly.
+
+## Related modules
+
+- [Media](./media) — `useStorage`, `usePermission`, `useShare`, `useBroadcastChannel` complement this module.
+- [Reactive](./reactive) — signal infrastructure for cookie / storage values.
+- [SSR](./ssr) — `definePageMeta` integrates with server-rendered head tags.
+
+## Version history
+
+- Storage, cookies, notifications, announcer, and page meta helpers have shipped incrementally since `1.5.0`; consult the [release notes](/release-notes/) for per-version deltas.

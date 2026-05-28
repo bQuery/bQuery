@@ -1,5 +1,9 @@
 # SSR
 
+::: tip What's new in 1.14.0
+SSR gained `flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, and multi-chunk `renderToStream` in 1.14.0. `Vary` merging now preserves wildcard semantics (`Vary: *` survives merge). See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The SSR module renders bQuery templates to HTML strings, streams, or full `Response` objects on the server, serializes store state for transfer, and hydrates the client-side DOM back into a live reactive application.
 
 ```ts
@@ -722,3 +726,73 @@ Three minimal SSR servers — one per runtime — live in [`examples/`](https://
 | Node    | `ssr-node/` | `node --experimental-strip-types examples/ssr-node/serve.ts` |
 
 The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.3 and Deno 2 to guard the runtime-agnostic surface.
+
+<!-- uniform-template-footer -->
+
+## Streaming and caching (1.14.0)
+
+The SSR module ships dedicated helpers for streaming and cache-aware rendering:
+
+- `flushBoundary()` — returns a marker string. Embed it in a template so `renderToStream()` can split the final HTML into multiple stream chunks. For true progressive/out-of-order streaming of async data, use [`renderToStreamSuspense()` with `defer()`](#suspense-out-of-order-streaming).
+- `createSSRCache({ ttlMs, maxEntries, getKey })` — in-memory cache keyed by request URL + `Vary` headers (or a custom `getKey`); pass to `renderToResponse` via `{ cache: { store, vary } }`.
+- `createSSRMetrics()` — imperative collector with `recordRender()` / `recordSlot()` and a `snapshot()` returning `{ renderCount, totalRenderMs, slotCount, totalSlotMs, hydrationMismatches }`. Pass it via `createSSRContext({ metrics })` to gather render/slot timings.
+- `createEdgeHandler(handler, options?)` — thin wrapper around a fetch-style `(request, context?) => Response` handler that adds optional `onError` mapping for edge runtimes.
+
+```ts
+import {
+  createSSRCache,
+  createEdgeHandler,
+  createSSRContext,
+  createSSRMetrics,
+  flushBoundary,
+  renderToResponse,
+} from '@bquery/bquery/ssr';
+
+const cache = createSSRCache({ ttlMs: 30_000, maxEntries: 1024 });
+const metrics = createSSRMetrics();
+
+const template = `<main>
+   <h1 bq-text="title"></h1>
+   ${flushBoundary()}
+   <article bq-html-safe="body"></article>
+ </main>`;
+
+export default createEdgeHandler(async (request) => {
+  const context = createSSRContext({ request, metrics });
+  return renderToResponse(template, { title: 'Hello', body: '<p>…</p>' }, {
+    context,
+    cache: { store: cache, vary: ['accept-language'] },
+  });
+});
+```
+
+## Pitfalls and gotchas
+
+- `renderToString()` is DOM-free — it must not touch `window` or `document` directly. Use `renderToStringAsync()` for awaiting async data.
+- `renderToStream()` chunks at `flushBoundary()` markers; without them the stream emits as one piece.
+- Hydration keys must match between server and client — mismatched markup falls back to a full client render and logs a warning.
+- Cache keys default to the request URL plus `cache.vary` headers; pass `createSSRCache({ getKey })` to add user/session variance.
+- Resumability (when enabled) requires you not to mutate signals during `renderToString` — do all setup in async resolvers.
+
+## Performance notes
+
+- Use Suspense streaming when you need earlier TTFB for async sections, and use `flushBoundary()` to control chunk boundaries around already-rendered HTML while caching stable sections with `createSSRCache`.
+- Set `maxEntries` on the cache to bound memory; `ttlMs` controls freshness.
+- Use `renderToResponse` over `renderToStringAsync` + manual `new Response` to inherit cache + metrics wiring.
+
+## Testing this module
+
+- `tests/ssr.test.ts` / `tests/ssr-runtime.test.ts` cover the DOM-free fallback path; pattern your tests after them.
+- Use `mockFetch()` for async resolvers and assert the streamed chunks via `for await (const chunk of stream)`.
+
+## Related modules
+
+- [Server](./server) — `ctx.render*` helpers wrap these primitives.
+- [Reactive](./reactive) — async data composables resolve before render.
+- [Store](./store) — `serialize()` / `hydrate()` for state transfer.
+- [Security](./security) — server-rendered HTML still goes through the sanitizer for unsafe paths.
+
+## Version history
+
+- **1.14.0** — `flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`.
+- **1.11.0** — `createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions.

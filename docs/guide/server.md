@@ -1,5 +1,9 @@
 # Server
 
+::: tip What's new in 1.14.0
+The server module gained `ServerHttpError`, expanded `ctx` helpers (`ctx.body`, `ctx.cookies`, `ctx.setCookie`, `ctx.accepts`, `ctx.stream`, `ctx.sse`, `ctx.renderStream`, `ctx.renderResponse`), and `app.listen()` in 1.14.0. Cookies now validate header-safe characters and body parsing enforces size limits by streamed byte count *before* decoding JSON / form / multipart / text bodies. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+:::
+
 The server module adds a lightweight, Express-inspired backend layer to bQuery without introducing runtime dependencies. It focuses on the smallest useful primitives for request pipelines: middleware, route params, query parsing, safe response helpers, direct SSR rendering, and runtime-agnostic WebSocket session routing.
 
 ```ts
@@ -12,12 +16,12 @@ import { ServerHttpError, badRequest, createServer } from '@bquery/bquery/server
 
 Runtime helpers:
 
-| Export                            | Purpose                                                                                              |
-| --------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `createServer()`                  | Create an app-like server handle with middleware, HTTP routes, SSR responses, and WebSocket routing. |
-| `ServerHttpError` / `badRequest()` etc. | Structured HTTP errors for reusable status-aware failures.                                      |
-| `isWebSocketRequest(request)`     | Check whether a `Request` is a valid WebSocket upgrade handshake.                                    |
-| `isServerWebSocketSession(value)` | Narrow the result of `handleWebSocket()` to a runtime-agnostic session descriptor.                   |
+| Export                                  | Purpose                                                                                              |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `createServer()`                        | Create an app-like server handle with middleware, HTTP routes, SSR responses, and WebSocket routing. |
+| `ServerHttpError` / `badRequest()` etc. | Structured HTTP errors for reusable status-aware failures.                                           |
+| `isWebSocketRequest(request)`           | Check whether a `Request` is a valid WebSocket upgrade handshake.                                    |
+| `isServerWebSocketSession(value)`       | Narrow the result of `handleWebSocket()` to a runtime-agnostic session descriptor.                   |
 
 Commonly used types:
 
@@ -331,3 +335,126 @@ globalThis.window = window;
 globalThis.document = window.document;
 globalThis.DOMParser = window.DOMParser;
 ```
+
+<!-- uniform-template-footer -->
+
+## Body parsing, cookies, and streaming (1.14.0 deep-dive)
+
+```ts
+import { createServer, badRequest } from '@bquery/bquery/server';
+
+const app = createServer({
+  limits: {
+    json: 5_000_000,
+  },
+});
+
+// JSON, form, multipart, or text — auto-detected from Content-Type
+app.post('/upload', async (ctx) => {
+  const body = await ctx.body();
+  if (!body || typeof body !== 'object') {
+    throw badRequest('Expected a JSON body.');
+  }
+  return ctx.json({ received: Object.keys(body).length });
+});
+
+// Cookies are header-safe; reserved keys are rejected
+app.get('/me', (ctx) => {
+  const session = ctx.cookies.session;
+  ctx.setCookie('seen', '1', { httpOnly: true, sameSite: 'Strict', path: '/' });
+  return ctx.json({ session });
+});
+
+// Streaming with manual chunks
+app.get('/log', (ctx) =>
+  ctx.stream(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        const encoder = new TextEncoder();
+        controller.enqueue(encoder.encode('start\n'));
+        setTimeout(() => {
+          controller.enqueue(encoder.encode('mid\n'));
+          controller.enqueue(encoder.encode('end\n'));
+          controller.close();
+        }, 50);
+      },
+    }),
+    { headers: { 'content-type': 'text/plain; charset=utf-8' } }
+  )
+);
+
+// Server-Sent Events
+app.get('/events', (ctx) =>
+  ctx.sse(async function* () {
+    yield { event: 'ready', data: 'connected' };
+    for (let i = 0; i < 3; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      yield { event: 'tick', data: String(i) };
+    }
+  })
+);
+```
+
+## Listening on a runtime
+
+`app.listen()` (1.14.0) starts a runtime-native listener when available:
+
+```ts
+// Node 24+
+await app.listen({ port: 3000 });
+
+// Bun
+Bun.serve({ port: 3000, fetch: app.handle });
+
+// Deno
+Deno.serve({ port: 3000 }, app.handle);
+```
+
+When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocket()` directly from your runtime's request handler.
+
+## Error handling
+
+- Throw `ServerHttpError` (or `badRequest()`, `notFound()`, `unauthorized()`, `forbidden()`, …) to return a status-aware response.
+- Define `onError(error, ctx)` on `createServer()` for a default mapper.
+- Route-level middleware can short-circuit by returning a `Response` instead of calling `next()`.
+
+## Pitfalls and gotchas
+
+- `params` and `query` are null-prototype dicts — do not rely on inherited methods (`hasOwnProperty`, etc.).
+- Configure `createServer({ limits })` to enforce body size limits *before* JSON / form parsing to defend against billion-laughs-style attacks.
+- `ctx.setCookie()` validates header-safe characters and rejects malformed values.
+- `ctx.html()` sanitizes by default; pass `{ sanitize: false }` only with fully trusted content.
+- WebSocket sessions returned by `handleWebSocket()` are runtime-agnostic — you must adapt them to your runtime's socket via `result.open(socket)` / `result.message(socket, event)` / `result.close(socket, event)`.
+
+## Performance notes
+
+- Reuse one `createServer()` instance per process; route registration is O(1) lookup after a one-time compile.
+- For high-throughput endpoints, prefer `ctx.json` over `ctx.render*` and cache server-rendered HTML via `createSSRCache()`.
+- Stream large responses with `ctx.stream` rather than buffering.
+
+## Testing this module
+
+- `tests/server.test.ts` covers routing, middleware, body parsing, cookies, SSE, and WebSocket session resolution.
+- `app.handle(input)` accepts a `string`, `URL`, or `Request` — ideal for `bun:test` cases.
+
+## Deployment targets
+
+| Runtime  | Recommended entry                                       | Notes                                          |
+| -------- | ------------------------------------------------------- | ---------------------------------------------- |
+| Node 24+ | `app.listen({ port })`                                  | Native HTTP server via `node:http`.            |
+| Bun      | `Bun.serve({ fetch: app.handle })`                      | First-class WebSocket upgrade via `Bun.serve`. |
+| Deno     | `Deno.serve(app.handle)`                                | Use `Deno.upgradeWebSocket` to adopt sessions. |
+| Edge     | `createEdgeHandler(handler)` from `@bquery/bquery/ssr`  | Streams responses without persistent sockets.  |
+| Workers  | `app.handle` from a fetch handler                       | WebSocket support depends on runtime APIs.     |
+
+## Related modules
+
+- [SSR](./ssr) — `ctx.render*` wraps `renderToString*` / `renderToResponse`.
+- [Reactive](./reactive) — `useWebSocketChannel` consumes server sessions.
+- [Security](./security) — default-sanitized `ctx.html()`.
+- [Store](./store) — hydrate server state on the client.
+
+## Version history
+
+- **1.14.0** — `ServerHttpError`, `ctx.body`, `ctx.cookies`, `ctx.setCookie`, `ctx.accepts`, `ctx.stream`, `ctx.sse`, `ctx.renderStream`, `ctx.renderResponse`, `app.listen()`.
+- **1.11.0** — `createServer`, runtime-agnostic WebSocket sessions, dependency-free routing.

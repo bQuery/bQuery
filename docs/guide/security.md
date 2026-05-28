@@ -335,7 +335,7 @@ function generateNonce(length?: number): string;
 | --------- | -------- | ------- | --------------------------------- |
 | `length`  | `number` | `16`    | Nonce length in bytes (max: 1024) |
 
-**Throws:** `RangeError` if length is less than 1, non-integer, or exceeds 1024.  
+**Throws:** `RangeError` if length is less than 1, non-integer, or exceeds 1024.
 **Throws:** `Error` if `crypto.getRandomValues` or `btoa` are unavailable.
 
 ```ts
@@ -441,3 +441,32 @@ document.head.appendChild(script);
 - `trusted()` should only be used with values you have already sanitized — never with raw user input.
 - The default allowed tag set includes a broad set of safe HTML elements.
 - `generateNonce()` requires a secure context (`crypto.getRandomValues`).
+
+<!-- uniform-template-footer -->
+
+## Pitfalls and gotchas
+
+- Never write `innerHTML = untrustedInput` — use `sanitizeHtml()` or `bq-html-safe` first.
+- `trusted()` is an escape hatch for already-sanitized content; never feed it raw user input.
+- Trusted Types policies must be created early in app startup; later creation may fail under strict CSP.
+- Custom sanitizer config (allowed tags / attrs) replaces the default — spread `defaultSanitizerOptions` to extend rather than replace.
+- View and concurrency intentionally use `new Function(...)` — deployments under strict CSP must allow `'unsafe-eval'` or avoid those modules.
+
+## Performance notes
+
+- The sanitizer is a linear scanner; pre-sanitize templates once at build time when possible.
+- Cache nonces per request, not per element.
+
+## Testing this module
+
+- Round-trip sanitizer tests with known XSS vectors live in `tests/security.test.ts` — use them as a template.
+
+## Related modules
+
+- [View](./view) — `bq-html-safe` defers to this sanitizer.
+- [Component](./components) — sanitize untrusted props before interpolation.
+- [SSR](./ssr) — server-rendered HTML benefits from the same default sanitization.
+
+## Version history
+
+- Sanitizer, Trusted Types helpers, and CSP nonce utilities have shipped since `1.0.0` and remain the default for HTML-writing APIs.

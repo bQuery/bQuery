@@ -21,15 +21,60 @@ let reducedMotionOverride: boolean | null = null;
  */
 const reducedMotionListeners = new Set<(reduced: boolean) => void>();
 
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
+
 let lastDispatchedValue: boolean | null = null;
 let mediaQueryList: MediaQueryList | null = null;
 let mediaQueryHandler: ((event: MediaQueryListEvent) => void) | null = null;
+let subscribedMatchMedia: ((query: string) => MediaQueryList) | null = null;
+let subscribedMatchMediaSource: ((query: string) => MediaQueryList) | null = null;
+
+const resolveMatchMedia = (): {
+  readonly source: (query: string) => MediaQueryList;
+  readonly call: (query: string) => MediaQueryList;
+} | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const { matchMedia } = window;
+    return typeof matchMedia === 'function'
+      ? {
+          source: matchMedia,
+          call: matchMedia.bind(window),
+        }
+      : null;
+  } catch {
+    return null;
+  }
+};
+
+const syncMediaQuerySubscription = (
+  currentMatchMedia: ReturnType<typeof resolveMatchMedia>
+): void => {
+  if (!mediaQueryList || subscribedMatchMediaSource === currentMatchMedia?.source) return;
+
+  const previousValue = mediaQueryList.matches;
+  const hadListeners = reducedMotionListeners.size > 0;
+
+  teardownMediaQuerySubscription();
+
+  if (!hadListeners) return;
+
+  ensureMediaQuerySubscription(currentMatchMedia);
+  lastDispatchedValue = previousValue;
+  dispatchIfChanged();
+};
 
 const evaluateCurrent = (): boolean => {
   if (reducedMotionOverride !== null) return reducedMotionOverride;
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  const currentMatchMedia = resolveMatchMedia();
+  syncMediaQuerySubscription(currentMatchMedia);
   if (mediaQueryList) return mediaQueryList.matches;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!currentMatchMedia) return false;
+  try {
+    return currentMatchMedia.call(REDUCED_MOTION_QUERY).matches;
+  } catch {
+    return false;
+  }
 };
 
 const dispatchIfChanged = (): void => {
@@ -39,12 +84,18 @@ const dispatchIfChanged = (): void => {
   for (const listener of reducedMotionListeners) listener(value);
 };
 
-const ensureMediaQuerySubscription = (): void => {
-  if (mediaQueryList || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+const ensureMediaQuerySubscription = (
+  currentMatchMedia: ReturnType<typeof resolveMatchMedia> = resolveMatchMedia()
+): void => {
+  if (mediaQueryList || !currentMatchMedia) return;
   try {
-    mediaQueryList = window.matchMedia('(prefers-reduced-motion: reduce)');
+    subscribedMatchMediaSource = currentMatchMedia.source;
+    subscribedMatchMedia = currentMatchMedia.call;
+    mediaQueryList = subscribedMatchMedia(REDUCED_MOTION_QUERY);
   } catch {
     mediaQueryList = null;
+    subscribedMatchMedia = null;
+    subscribedMatchMediaSource = null;
     return;
   }
   mediaQueryHandler = () => dispatchIfChanged();
@@ -72,6 +123,8 @@ const teardownMediaQuerySubscription = (): void => {
   }
   mediaQueryList = null;
   mediaQueryHandler = null;
+  subscribedMatchMedia = null;
+  subscribedMatchMediaSource = null;
   lastDispatchedValue = null;
 };
 
