@@ -169,13 +169,16 @@ async function main() {
     process.exit(0);
   }
 
+  const issueSummary =
+    hasGaps && hasErrors ? 'coverage gaps and audit errors' : hasErrors ? 'audit errors' : 'coverage gaps';
+
   if (strict) {
-    console.log('Strict mode: the documentation export audit reported coverage gaps or audit errors.');
+    console.log(`Strict mode: the documentation export audit reported ${issueSummary}.`);
     process.exit(1);
   }
 
   console.log(
-    'Informational: the documentation export audit reported coverage gaps or audit errors. ' +
+    `Informational: the documentation export audit reported ${issueSummary}. ` +
       'Pass --strict to fail the run.'
   );
   process.exit(0);

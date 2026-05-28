@@ -37,7 +37,7 @@ await app.listen({ port: 3000 });
 
 ## Streaming SSR
 
-`renderToStream()` returns a streamed `ReadableStream<Uint8Array>`, and [`flushBoundary`](/guide/ssr) splits the final HTML into multiple chunks. The current implementation resolves the full binding context and renders all chunks before enqueueing them, so use `renderToStreamSuspense()` with `defer()` when you need true progressive/out-of-order streaming.
+`renderToStream()` returns a streamed `ReadableStream<Uint8Array>`, and [`flushBoundary`](/guide/ssr) splits the final HTML into multiple chunks. The current implementation resolves the full binding context and renders all chunks before enqueueing them, so use [`renderToStreamSuspense()` with `defer()`](/guide/ssr#suspense-out-of-order-streaming) when you need true progressive/out-of-order streaming.
 
 **Pros**: Stream-friendly response shape; explicit chunk boundaries in the final HTML stream.
 **Cons**: Boundaries do not currently reduce TTFB for async sections; intermediate proxies / CDNs must support streaming.

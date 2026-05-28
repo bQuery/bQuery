@@ -733,7 +733,7 @@ The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds t
 
 The SSR module ships dedicated helpers for streaming and cache-aware rendering:
 
-- `flushBoundary()` — returns a marker string. Embed it in a template so `renderToStream()` can split the final HTML into multiple stream chunks. For true progressive/out-of-order streaming of async data, use `renderToStreamSuspense()` with `defer()`.
+- `flushBoundary()` — returns a marker string. Embed it in a template so `renderToStream()` can split the final HTML into multiple stream chunks. For true progressive/out-of-order streaming of async data, use [`renderToStreamSuspense()` with `defer()`](#suspense-out-of-order-streaming).
 - `createSSRCache({ ttlMs, maxEntries, getKey })` — in-memory cache keyed by request URL + `Vary` headers (or a custom `getKey`); pass to `renderToResponse` via `{ cache: { store, vary } }`.
 - `createSSRMetrics()` — imperative collector with `recordRender()` / `recordSlot()` and a `snapshot()` returning `{ renderCount, totalRenderMs, slotCount, totalSlotMs, hydrationMismatches }`. Pass it via `createSSRContext({ metrics })` to gather render/slot timings.
 - `createEdgeHandler(handler, options?)` — thin wrapper around a fetch-style `(request, context?) => Response` handler that adds optional `onError` mapping for edge runtimes.
