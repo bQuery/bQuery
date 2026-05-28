@@ -406,7 +406,7 @@ describe('motion/prefersReducedMotion', () => {
       if (originalDescriptor) {
         Object.defineProperty(window, 'matchMedia', originalDescriptor);
       } else {
-        delete (window as Window & { matchMedia?: typeof window.matchMedia }).matchMedia;
+        Reflect.deleteProperty(window, 'matchMedia');
       }
       off();
       setReducedMotion(null);
