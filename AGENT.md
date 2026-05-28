@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.14.0                                                                                                                                                                                            |
+| Version     | 1.14.1                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -39,6 +39,10 @@ bun run dev           # VitePress docs server
 ## Workspace Prompt Pack
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.14.1 Highlights
+
+- `@bquery/bquery/motion` now refreshes its cached reduced-motion `MediaQueryList` when `window.matchMedia` changes, so `prefersReducedMotion()` and `reducedMotionSignal()` stop returning stale values in tests and other runtimes that swap the media-query implementation.
 
 ## Version 1.14.0 Highlights
 
