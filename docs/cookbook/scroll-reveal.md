@@ -8,9 +8,11 @@
 import { inView, animate } from '@bquery/bquery/motion';
 import { prefersReducedMotion } from '@bquery/bquery/a11y';
 
+const reducedMotion = prefersReducedMotion();
+
 document.querySelectorAll<HTMLElement>('.reveal').forEach((el) => {
   inView(el, () => {
-    if (prefersReducedMotion.value) { el.style.opacity = '1'; return; }
+    if (reducedMotion.value) { el.style.opacity = '1'; return; }
     animate(el, { opacity: [0, 1], transform: ['translateY(20px)', 'translateY(0)'] }, { duration: 300 });
   }, { once: true });
 });

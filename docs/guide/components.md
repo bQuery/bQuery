@@ -510,7 +510,7 @@ component('todo-list', {
 
 ## Pitfalls and gotchas
 
-- Reactive helpers (`useSignal`, `useComputed`, `useEffect`, `useAsync`) must run inside `setup()` so the component's lifecycle scope owns the disposer.
+- Reactive helpers (`useSignal`, `useComputed`, `useEffect`, `useAsync`) must run inside lifecycle hooks such as `connected()` so the component's lifecycle scope owns the disposer.
 - Use `setProp` / `getProp` for non-string props; HTML attributes are always strings.
 - Delegated event helpers (`on`, `onClick`, …) sanitize event paths — prefer them over manual `addEventListener` for shadow-DOM safety.
 - `errorBoundary` only catches errors thrown inside lifecycle hooks and reactive callbacks — it does not catch async rejections from user-spawned promises.

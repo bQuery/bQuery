@@ -20,9 +20,10 @@ export const items = signal([
 
 ```ts
 import { useSortable } from '@bquery/bquery/dnd';
-import { createLiveRegion } from '@bquery/bquery/a11y';
+import { createLiveRegion, prefersReducedMotion } from '@bquery/bquery/a11y';
 
-const region = createLiveRegion({ politeness: 'polite' });
+const region = createLiveRegion({ priority: 'polite' });
+const reducedMotion = prefersReducedMotion();
 
 export function attachSortable(container: HTMLElement) {
   return useSortable(container, {
@@ -79,10 +80,9 @@ Important a11y bits:
 
 ```ts
 import { animate } from '@bquery/bquery/motion';
-import { prefersReducedMotion } from '@bquery/bquery/a11y';
 
 sortable.on('drop', ({ element }) => {
-  if (prefersReducedMotion.value) return;
+  if (reducedMotion.value) return;
   animate(element, { transform: ['scale(1.02)', 'scale(1)'] }, { duration: 180 });
 });
 ```

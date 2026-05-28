@@ -59,7 +59,7 @@ import { createLiveRegion } from '@bquery/bquery/a11y';
 import { effect } from '@bquery/bquery/reactive';
 import { form } from './signup-form';
 
-const region = createLiveRegion({ politeness: 'assertive' });
+const region = createLiveRegion({ priority: 'assertive' });
 
 effect(() => {
   const errors = Object.values(form.errors)
