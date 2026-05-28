@@ -74,11 +74,13 @@ Wire the same signals into a tiny status bar or a [Devtools](/guide/devtools) ti
 
 ```ts
 // Pause during a busy interaction (e.g. scroll), resume when idle
+import { effect } from '@bquery/bquery/reactive';
 import { useScroll } from '@bquery/bquery/media';
 
 const scroll = useScroll();
 let paused = false;
-scroll.isScrolling.subscribe((scrolling) => {
+effect(() => {
+  const scrolling = scroll.value.isScrolling;
   if (scrolling && !paused) { highlighter.pause(); paused = true; }
   if (!scrolling && paused)  { highlighter.resume(); paused = false; }
 });

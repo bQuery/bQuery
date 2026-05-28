@@ -5,7 +5,7 @@
 **Solution.** [`useWebSocket`](/guide/reactive#websocket-helpers) handles reconnect and heartbeats; combine it with [`useWebSocketChannel`](/guide/reactive#websocket-helpers) for typed framing.
 
 ```ts
-import { useWebSocketChannel } from '@bquery/bquery/reactive';
+import { effect, useWebSocketChannel } from '@bquery/bquery/reactive';
 
 type OrdersFrame = {
   channel: string;
@@ -22,7 +22,10 @@ const channel = useWebSocketChannel<{ type: 'subscribe'; topic: string }, Orders
 );
 
 const orders = channel.subscribe('orders');
-orders.data.subscribe((frame) => frame && render(frame.data));
+effect(() => {
+  const frame = orders.data.value;
+  if (frame) render(frame.data);
+});
 
 // Send typed frames
 channel.publish('orders', { type: 'subscribe', topic: 'orders' });

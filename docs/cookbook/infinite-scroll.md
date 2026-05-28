@@ -9,18 +9,22 @@ import { useInfiniteFetch } from '@bquery/bquery/reactive';
 import { useElementVisibility } from '@bquery/bquery/media';
 import { effect } from '@bquery/bquery/reactive';
 
-const feed = useInfiniteFetch<Post>('/api/posts', { pageSize: 20 });
+const feed = useInfiniteFetch<Post[], Post[]>((cursor) => `/api/posts?cursor=${cursor ?? ''}`, {
+  getNextCursor: (page) => (page.length > 0 ? page[page.length - 1].id : undefined),
+  transform: (pages) => pages.flat(),
+});
 
 const sentinel = document.querySelector('#sentinel') as HTMLElement;
 const visible = useElementVisibility(sentinel);
 
 effect(() => {
-  if (visible.value && !feed.isFetching.value && feed.hasMore.value) {
-    feed.loadMore();
+  if (visible.value && !feed.pending.value && feed.hasMore.value) {
+    void feed.fetchNextPage();
   }
-});
 
-feed.items.subscribe((items) => renderFeed(items));
+  const items = feed.data.value;
+  if (items) renderFeed(items);
+});
 ```
 
 **Why it works.** The IntersectionObserver-backed `useElementVisibility` keeps observation cheap; `hasMore` short-circuits requests when the API reports the last page.

@@ -2,23 +2,23 @@
 
 **Problem.** Page through a long REST list with next/prev controls.
 
-**Solution.** [`usePaginatedFetch`](/guide/reactive#usepaginatedfetch) tracks `page`, `totalPages`, and exposes `next` / `prev` actions.
+**Solution.** [`usePaginatedFetch`](/guide/reactive#usepaginatedfetch) tracks `page` and exposes `next` / `prev` / `goTo` actions.
 
 ```ts
-import { usePaginatedFetch } from '@bquery/bquery/reactive';
+import { effect, usePaginatedFetch } from '@bquery/bquery/reactive';
 
-const users = usePaginatedFetch<User>('/api/users', {
-  pageSize: 25,
-  parsePage: (res) => ({ items: res.data, total: res.total }),
-});
+const users = usePaginatedFetch<User[]>((page) => `/api/users?page=${page}`);
 
 document.querySelector('#next')!.addEventListener('click', () => users.next());
 document.querySelector('#prev')!.addEventListener('click', () => users.prev());
 
-users.items.subscribe(render);
+effect(() => {
+  const items = users.data.value;
+  if (items) render(items);
+});
 ```
 
-**Why it works.** `usePaginatedFetch` debounces concurrent page requests, retains the previous page during transitions, and signals `isFetching` so you can show a spinner without flicker.
+**Why it works.** `usePaginatedFetch` debounces concurrent page requests, retains the previous page during transitions, and signals `pending` so you can show a spinner without flicker.
 
 ## Related
 

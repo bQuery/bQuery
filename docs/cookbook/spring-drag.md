@@ -2,23 +2,27 @@
 
 **Problem.** Make a draggable element snap back with elastic physics rather than a stiff transition.
 
-**Solution.** Combine [`draggable`](/guide/dnd) with a [`spring`](/guide/motion) animation on release.
+**Solution.** Combine [`draggable`](/guide/dnd) with a [`springVector`](/guide/motion) animation on release.
 
 ```ts
 import { draggable } from '@bquery/bquery/dnd';
-import { spring } from '@bquery/bquery/motion';
+import { springVector } from '@bquery/bquery/motion';
 
 const box = document.querySelector('.draggable') as HTMLElement;
+const snap = springVector({ x: 0, y: 0 }, { stiffness: 120, damping: 14 });
 
-const handle = draggable(box, { bounds: 'viewport' });
+snap.onChange(({ x, y }) => {
+  box.style.transform = `translate(${x}px, ${y}px)`;
+});
 
-const snap = spring({ stiffness: 120, damping: 14 });
-
-handle.on('end', () => {
-  snap.set({ x: 0, y: 0 });
-  snap.subscribe(({ x, y }) => {
-    box.style.transform = `translate(${x}px, ${y}px)`;
-  });
+draggable(box, {
+  bounds: 'viewport',
+  onDrag({ position }) {
+    snap.set(position);
+  },
+  onDragEnd() {
+    void snap.to({ x: 0, y: 0 });
+  },
 });
 ```
 

@@ -94,7 +94,7 @@ The same `app.handle` / `app.handleWebSocket` pair works on Node 24+ and Deno vi
 
 ```ts
 // src/chat.ts
-import { signal } from '@bquery/bquery/reactive';
+import { effect, signal } from '@bquery/bquery/reactive';
 import { useFetch, useWebSocket } from '@bquery/bquery/reactive';
 
 type ChatMessage = { user: string; text: string; at: number };
@@ -106,8 +106,11 @@ type ChatFrame =
 export const messages = signal<ChatMessage[]>([]);
 
 // Initial load
-const { data } = useFetch('/messages', { immediate: true });
-data.subscribe((rows) => rows && (messages.value = rows));
+const { data } = useFetch<ChatMessage[]>('/messages', { immediate: true });
+effect(() => {
+  const rows = data.value;
+  if (rows) messages.value = rows;
+});
 
 // Live updates via WebSocket
 const ws = useWebSocket<unknown, ChatFrame>('/rooms/lobby', {
