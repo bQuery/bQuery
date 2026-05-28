@@ -27,21 +27,30 @@ let lastDispatchedValue: boolean | null = null;
 let mediaQueryList: MediaQueryList | null = null;
 let mediaQueryHandler: ((event: MediaQueryListEvent) => void) | null = null;
 let subscribedMatchMedia: ((query: string) => MediaQueryList) | null = null;
+let subscribedMatchMediaSource: ((query: string) => MediaQueryList) | null = null;
 
-const resolveMatchMedia = (): ((query: string) => MediaQueryList) | null => {
+const resolveMatchMedia = (): {
+  readonly source: (query: string) => MediaQueryList;
+  readonly call: (query: string) => MediaQueryList;
+} | null => {
   if (typeof window === 'undefined') return null;
   try {
     const { matchMedia } = window;
-    return typeof matchMedia === 'function' ? matchMedia : null;
+    return typeof matchMedia === 'function'
+      ? {
+          source: matchMedia,
+          call: matchMedia.bind(window),
+        }
+      : null;
   } catch {
     return null;
   }
 };
 
 const syncMediaQuerySubscription = (
-  currentMatchMedia: ((query: string) => MediaQueryList) | null
+  currentMatchMedia: ReturnType<typeof resolveMatchMedia>
 ): void => {
-  if (!mediaQueryList || subscribedMatchMedia === currentMatchMedia) return;
+  if (!mediaQueryList || subscribedMatchMediaSource === currentMatchMedia?.source) return;
 
   const previousValue = mediaQueryList.matches;
   const hadListeners = reducedMotionListeners.size > 0;
@@ -62,7 +71,7 @@ const evaluateCurrent = (): boolean => {
   if (mediaQueryList) return mediaQueryList.matches;
   if (!currentMatchMedia) return false;
   try {
-    return currentMatchMedia(REDUCED_MOTION_QUERY).matches;
+    return currentMatchMedia.call(REDUCED_MOTION_QUERY).matches;
   } catch {
     return false;
   }
@@ -76,15 +85,17 @@ const dispatchIfChanged = (): void => {
 };
 
 const ensureMediaQuerySubscription = (
-  currentMatchMedia: ((query: string) => MediaQueryList) | null = resolveMatchMedia()
+  currentMatchMedia: ReturnType<typeof resolveMatchMedia> = resolveMatchMedia()
 ): void => {
   if (mediaQueryList || !currentMatchMedia) return;
   try {
-    subscribedMatchMedia = currentMatchMedia;
+    subscribedMatchMediaSource = currentMatchMedia.source;
+    subscribedMatchMedia = currentMatchMedia.call;
     mediaQueryList = subscribedMatchMedia(REDUCED_MOTION_QUERY);
   } catch {
     mediaQueryList = null;
     subscribedMatchMedia = null;
+    subscribedMatchMediaSource = null;
     return;
   }
   mediaQueryHandler = () => dispatchIfChanged();
@@ -113,6 +124,7 @@ const teardownMediaQuerySubscription = (): void => {
   mediaQueryList = null;
   mediaQueryHandler = null;
   subscribedMatchMedia = null;
+  subscribedMatchMediaSource = null;
   lastDispatchedValue = null;
 };
 

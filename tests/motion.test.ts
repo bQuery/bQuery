@@ -290,7 +290,7 @@ describe('motion/prefersReducedMotion', () => {
     window.matchMedia = original;
   });
 
-  it('refreshes cached media queries when matchMedia changes under an active signal subscription', () => {
+  it('refreshes cached media query when matchMedia changes under an active signal subscription', () => {
     const original = window.matchMedia;
     setReducedMotion(null);
     window.matchMedia = mock(
