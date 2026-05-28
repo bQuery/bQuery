@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.14.0
+- Version: 1.14.1
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,10 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
+
+## Version 1.14.1 Highlights
+
+- Motion: `prefersReducedMotion()` and `reducedMotionSignal()` now refresh their cached reduced-motion media query when `window.matchMedia` changes, preventing stale preference reads in tests and other runtimes that swap the media-query implementation.
 
 ## Version 1.14.0 Highlights
 

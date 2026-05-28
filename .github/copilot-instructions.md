@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.14.0**.
+Current release baseline: **1.14.1**.
 
 Start here before making assumptions:
 
@@ -29,6 +29,10 @@ Start here before making assumptions:
 Prefer pointing back to those files instead of duplicating large architecture sections into new instructions or docs.
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
+
+## Version 1.14.1 highlights
+
+- `@bquery/bquery/motion` refreshes its cached reduced-motion `MediaQueryList` whenever `window.matchMedia` changes, keeping `prefersReducedMotion()` and `reducedMotionSignal()` aligned with the active media-query implementation in tests and runtime swaps.
 
 ## Version 1.14.0 highlights
 

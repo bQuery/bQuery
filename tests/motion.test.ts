@@ -8,6 +8,7 @@ import {
   flipElements,
   keyframePresets,
   morphElement,
+  onReducedMotionChange,
   parallax,
   prefersReducedMotion,
   scrollAnimate,
@@ -20,6 +21,7 @@ import {
   transition,
   typewriter,
 } from '../src/motion/index';
+import { reducedMotionSignal } from '../src/motion/reduced-motion-signal';
 
 // Mock DOM elements for testing
 const createMockElement = (bounds: DOMRect): Element => {
@@ -286,6 +288,129 @@ describe('motion/prefersReducedMotion', () => {
     expect(prefersReducedMotion()).toBe(true);
 
     window.matchMedia = original;
+  });
+
+  it('refreshes cached media query when matchMedia changes under an active signal subscription', () => {
+    const original = window.matchMedia;
+    setReducedMotion(null);
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: false,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+    const off = onReducedMotionChange(() => {});
+
+    try {
+      reducedMotionSignal();
+
+      window.matchMedia = mock(
+        () =>
+          ({
+            matches: true,
+            media: '(prefers-reduced-motion: reduce)',
+            onchange: null,
+            addListener: () => {},
+            removeListener: () => {},
+            addEventListener: () => {},
+            removeEventListener: () => {},
+            dispatchEvent: () => false,
+          }) as MediaQueryList
+      ) as unknown as typeof window.matchMedia;
+
+      expect(prefersReducedMotion()).toBe(true);
+      expect(reducedMotionSignal().value).toBe(true);
+    } finally {
+      off();
+      window.matchMedia = original;
+      setReducedMotion(null);
+    }
+  });
+
+  it('keeps reducedMotionSignal aligned when re-subscribing after matchMedia starts throwing', () => {
+    const original = window.matchMedia;
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: true,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+    const off = onReducedMotionChange(() => {});
+
+    try {
+      const sig = reducedMotionSignal();
+      setReducedMotion(true);
+      expect(sig.value).toBe(true);
+      setReducedMotion(null);
+
+      window.matchMedia = mock(() => {
+        throw new Error('matchMedia unavailable');
+      }) as unknown as typeof window.matchMedia;
+
+      expect(prefersReducedMotion()).toBe(false);
+      expect(sig.value).toBe(false);
+    } finally {
+      off();
+      window.matchMedia = original;
+      setReducedMotion(null);
+    }
+  });
+
+  it('returns false and realigns reducedMotionSignal when matchMedia getter throws', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    const off = onReducedMotionChange(() => {});
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: true,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const sig = reducedMotionSignal();
+      setReducedMotion(true);
+      expect(sig.value).toBe(true);
+      setReducedMotion(null);
+
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        get() {
+          throw new Error('matchMedia unavailable');
+        },
+      });
+
+      expect(prefersReducedMotion()).toBe(false);
+      expect(sig.value).toBe(false);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(window, 'matchMedia', originalDescriptor);
+      } else {
+        Reflect.deleteProperty(window, 'matchMedia');
+      }
+      off();
+      setReducedMotion(null);
+    }
   });
 });
 
