@@ -9,35 +9,35 @@ A reusable sign-up form combining [Forms](/guide/forms) validation, [i18n](/guid
 import {
   createForm,
   required,
-  length,
+  email,
+  minLength,
   oneOf,
-  withMessage,
-  compose,
 } from '@bquery/bquery/forms';
 import { t } from '@bquery/bquery/i18n';
 
 export const form = createForm({
   fields: {
     email: {
-      initial: '',
-      validators: compose(
-        withMessage(required(), () => t('errors.required')),
-        withMessage((v) => /.+@.+\..+/.test(v), () => t('errors.email'))
-      ),
+      initialValue: '',
+      validators: [
+        (value) => required(t('errors.required'))(value),
+        (value) => email(t('errors.email'))(value),
+      ],
     },
     password: {
-      initial: '',
-      validators: compose(
-        withMessage(required(), () => t('errors.required')),
-        withMessage(length({ min: 8 }), () => t('errors.password.short'))
-      ),
+      initialValue: '',
+      validators: [
+        (value) => required(t('errors.required'))(value),
+        (value) => minLength(8, t('errors.password.short'))(value),
+      ],
     },
     plan: {
-      initial: 'free',
-      validators: withMessage(oneOf(['free', 'pro']), () => t('errors.plan')),
+      initialValue: 'free',
+      validators: [(value) => oneOf(['free', 'pro'], t('errors.plan'))(value)],
     },
   },
-  mode: 'change', // validate on input
+  validationStrategy: 'onChange',
+  mode: 'first',
   async onSubmit(values) {
     const res = await fetch('/signup', {
       method: 'POST',
@@ -49,7 +49,7 @@ export const form = createForm({
 });
 ```
 
-`withMessage()` wraps each validator with a translation function so the messages stay reactive when the user switches locales.
+Each validator calls `t()` when validation runs, so the active locale decides which message string is returned.
 
 ## 2. Announce errors to assistive tech
 
@@ -62,7 +62,9 @@ import { form } from './signup-form';
 const region = createLiveRegion({ politeness: 'assertive' });
 
 effect(() => {
-  const errors = Object.values(form.errors.value).flat().filter(Boolean);
+  const errors = Object.values(form.errors)
+    .map((error) => error.value)
+    .filter(Boolean);
   if (errors.length === 0) return;
   region.announce(errors.join('. '));
 });
@@ -73,21 +75,27 @@ The live region is created once and reused — every announcement is debounced i
 ## 3. Bind the form declaratively
 
 ```html
-<form bq-on:submit.prevent="form.submit()">
+<form bq-on:submit.prevent="form.handleSubmit()">
   <label>
     <span bq-text="t('email.label')"></span>
     <input
       type="email"
       bq-model="form.fields.email.value"
-      bq-aria="{ invalid: form.fields.email.errors.length > 0 }"
+      bq-aria="{ invalid: Boolean(form.fields.email.error.value) }"
     />
-    <small bq-show="form.fields.email.errors.length" bq-text="form.fields.email.errors.join(', ')"></small>
+    <small
+      bq-show="form.fields.email.error.value"
+      bq-text="form.fields.email.error.value"
+    ></small>
   </label>
 
   <label>
     <span bq-text="t('password.label')"></span>
     <input type="password" bq-model="form.fields.password.value" />
-    <small bq-show="form.fields.password.errors.length" bq-text="form.fields.password.errors[0]"></small>
+    <small
+      bq-show="form.fields.password.error.value"
+      bq-text="form.fields.password.error.value"
+    ></small>
   </label>
 
   <fieldset>
@@ -123,7 +131,7 @@ export default {
 };
 ```
 
-When the user switches locale via `setLocale('de')`, `t()` re-evaluates and the live region announces the translated error.
+When the user switches locale via `setLocale('de')`, the next validation pass calls `t()` again and the live region announces the translated error.
 
 ## 5. Keyboard / focus polish
 

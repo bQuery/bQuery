@@ -2,20 +2,20 @@
 
 **Problem.** Validate a login form on input, disable submit until valid, surface server errors.
 
-**Solution.** Use [`createForm`](/guide/forms) with [`compose`](/guide/forms) validators and `submitError`.
+**Solution.** Use [`createForm`](/guide/forms) with built-in validators and `submitError`.
 
 ```ts
-import { createForm, required, length, compose, withMessage } from '@bquery/bquery/forms';
+import { createForm, required, minLength } from '@bquery/bquery/forms';
 
 const form = createForm({
   fields: {
-    email: { initial: '', validators: required('Email is required.') },
+    email: { initialValue: '', validators: [required('Email is required.')] },
     password: {
-      initial: '',
-      validators: compose(required('Password is required.'), withMessage(length({ min: 8 }), () => 'Use 8+ characters.')),
+      initialValue: '',
+      validators: [required('Password is required.'), minLength(8, 'Use 8+ characters.')],
     },
   },
-  mode: 'change',
+  validationStrategy: 'onChange',
   async onSubmit(values) {
     const res = await fetch('/login', { method: 'POST', body: JSON.stringify(values) });
     if (!res.ok) throw new Error(await res.text());
@@ -24,17 +24,17 @@ const form = createForm({
 ```
 
 ```html
-<form bq-on:submit.prevent="form.submit()">
+<form bq-on:submit.prevent="form.handleSubmit()">
   <input bq-model="form.fields.email.value" />
-  <small bq-text="form.fields.email.errors[0]"></small>
+  <small bq-show="form.fields.email.error.value" bq-text="form.fields.email.error.value"></small>
   <input type="password" bq-model="form.fields.password.value" />
-  <small bq-text="form.fields.password.errors[0]"></small>
+  <small bq-show="form.fields.password.error.value" bq-text="form.fields.password.error.value"></small>
   <button :disabled="!form.isValid.value || form.isSubmitting.value">Sign in</button>
   <p role="alert" bq-text="form.submitError.value"></p>
 </form>
 ```
 
-**Why it works.** `mode: 'change'` validates on every keystroke; throwing inside `onSubmit` populates `submitError` automatically.
+**Why it works.** `validationStrategy: 'onChange'` validates on every keystroke; throwing inside `onSubmit` populates `submitError` automatically.
 
 ## Related
 
