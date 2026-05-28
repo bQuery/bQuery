@@ -7,7 +7,7 @@ For data-heavy pages, streaming the above-the-fold HTML immediately and progress
 - Stream the page shell instantly.
 - Push heavy sections (`recommended`, `comments`) into later HTML chunks after the shell.
 - Cache the shell for 30 s, leave dynamic sections uncached.
-- Expose hit / miss counters to a metrics endpoint.
+- Expose render / slot timing metrics to a metrics endpoint.
 
 ## 1. Template with flush points
 
@@ -17,7 +17,7 @@ const template = `
     <header>
       <h1 bq-text="title"></h1>
     </header>
-    ${'/* flush after the hero */'}
+    <!-- flush after the hero -->
     <!--@flush:hero-->
 
     <section bq-html-safe="recommendedHtml"></section>

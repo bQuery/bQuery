@@ -4,8 +4,8 @@
  * export from `src/<module>/index.ts` is mentioned at least once.
  *
  * This is intentionally a soft check: it prints a report and exits non-zero
- * only when --strict is passed. The default mode (used in CI) prints the
- * report and exits 0 so contributors are informed without being blocked.
+ * only when --strict is passed. The default mode prints the report and exits 0
+ * so contributors are informed without being blocked.
  *
  * Usage:
  *   bun scripts/check-doc-exports.mjs            # informational (exit 0)
