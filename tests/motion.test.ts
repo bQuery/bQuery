@@ -8,6 +8,7 @@ import {
   flipElements,
   keyframePresets,
   morphElement,
+  onReducedMotionChange,
   parallax,
   prefersReducedMotion,
   scrollAnimate,
@@ -305,6 +306,7 @@ describe('motion/prefersReducedMotion', () => {
           dispatchEvent: () => false,
         }) as MediaQueryList
     ) as unknown as typeof window.matchMedia;
+    const off = onReducedMotionChange(() => {});
 
     try {
       reducedMotionSignal();
@@ -326,6 +328,7 @@ describe('motion/prefersReducedMotion', () => {
       expect(prefersReducedMotion()).toBe(true);
       expect(reducedMotionSignal().value).toBe(true);
     } finally {
+      off();
       window.matchMedia = original;
       setReducedMotion(null);
     }
@@ -346,6 +349,7 @@ describe('motion/prefersReducedMotion', () => {
           dispatchEvent: () => false,
         }) as MediaQueryList
     ) as unknown as typeof window.matchMedia;
+    const off = onReducedMotionChange(() => {});
 
     try {
       const sig = reducedMotionSignal();
@@ -360,7 +364,51 @@ describe('motion/prefersReducedMotion', () => {
       expect(prefersReducedMotion()).toBe(false);
       expect(sig.value).toBe(false);
     } finally {
+      off();
       window.matchMedia = original;
+      setReducedMotion(null);
+    }
+  });
+
+  it('returns false and realigns reducedMotionSignal when matchMedia getter throws', () => {
+    const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'matchMedia');
+    const off = onReducedMotionChange(() => {});
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: true,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => false,
+        }) as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const sig = reducedMotionSignal();
+      setReducedMotion(true);
+      expect(sig.value).toBe(true);
+      setReducedMotion(null);
+
+      Object.defineProperty(window, 'matchMedia', {
+        configurable: true,
+        get() {
+          throw new Error('matchMedia unavailable');
+        },
+      });
+
+      expect(prefersReducedMotion()).toBe(false);
+      expect(sig.value).toBe(false);
+    } finally {
+      if (originalDescriptor) {
+        Object.defineProperty(window, 'matchMedia', originalDescriptor);
+      } else {
+        delete (window as Window & { matchMedia?: typeof window.matchMedia }).matchMedia;
+      }
+      off();
       setReducedMotion(null);
     }
   });

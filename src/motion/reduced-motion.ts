@@ -28,15 +28,20 @@ let mediaQueryList: MediaQueryList | null = null;
 let mediaQueryHandler: ((event: MediaQueryListEvent) => void) | null = null;
 let subscribedMatchMedia: ((query: string) => MediaQueryList) | null = null;
 
-const syncMediaQuerySubscription = (): void => {
-  if (
-    !mediaQueryList ||
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function' ||
-    subscribedMatchMedia === window.matchMedia
-  ) {
-    return;
+const resolveMatchMedia = (): ((query: string) => MediaQueryList) | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const { matchMedia } = window;
+    return typeof matchMedia === 'function' ? matchMedia : null;
+  } catch {
+    return null;
   }
+};
+
+const syncMediaQuerySubscription = (
+  currentMatchMedia: ((query: string) => MediaQueryList) | null
+): void => {
+  if (!mediaQueryList || subscribedMatchMedia === currentMatchMedia) return;
 
   const previousValue = mediaQueryList.matches;
   const hadListeners = reducedMotionListeners.size > 0;
@@ -45,18 +50,19 @@ const syncMediaQuerySubscription = (): void => {
 
   if (!hadListeners) return;
 
-  ensureMediaQuerySubscription();
+  ensureMediaQuerySubscription(currentMatchMedia);
   lastDispatchedValue = previousValue;
   dispatchIfChanged();
 };
 
 const evaluateCurrent = (): boolean => {
   if (reducedMotionOverride !== null) return reducedMotionOverride;
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
-  syncMediaQuerySubscription();
+  const currentMatchMedia = resolveMatchMedia();
+  syncMediaQuerySubscription(currentMatchMedia);
   if (mediaQueryList) return mediaQueryList.matches;
+  if (!currentMatchMedia) return false;
   try {
-    return window.matchMedia(REDUCED_MOTION_QUERY).matches;
+    return currentMatchMedia(REDUCED_MOTION_QUERY).matches;
   } catch {
     return false;
   }
@@ -69,10 +75,12 @@ const dispatchIfChanged = (): void => {
   for (const listener of reducedMotionListeners) listener(value);
 };
 
-const ensureMediaQuerySubscription = (): void => {
-  if (mediaQueryList || typeof window === 'undefined' || typeof window.matchMedia !== 'function') return;
+const ensureMediaQuerySubscription = (
+  currentMatchMedia: ((query: string) => MediaQueryList) | null = resolveMatchMedia()
+): void => {
+  if (mediaQueryList || !currentMatchMedia) return;
   try {
-    subscribedMatchMedia = window.matchMedia;
+    subscribedMatchMedia = currentMatchMedia;
     mediaQueryList = subscribedMatchMedia(REDUCED_MOTION_QUERY);
   } catch {
     mediaQueryList = null;
