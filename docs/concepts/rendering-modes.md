@@ -18,7 +18,7 @@ const count = signal(0);
 effect(() => $('#counter').text(`Count: ${count.value}`));
 ```
 
-## SSR — Server-Side Rendering (async)
+## SSR — Server-Side Rendering
 
 `renderToStringAsync()` renders the application to an HTML string on the server, including any signal state and any awaited async data. The browser receives a fully rendered HTML document and hydrates it.
 
