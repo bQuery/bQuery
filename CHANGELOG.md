@@ -9,6 +9,8 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [Unreleased](#unreleased)
+  - [\[1.14.1\] - 2026-05-28](#1141---2026-05-28)
+    - [Fixed (1.14.1)](#fixed-1141)
   - [\[1.14.0\] - 2026-05-26](#1140---2026-05-26)
     - [Added (1.14.0)](#added-1140)
     - [Changed (1.14.0)](#changed-1140)
@@ -85,6 +87,12 @@ and this project adheres to Semantic Versioning.
 ## [Unreleased]
 
 _No unreleased changes yet._
+
+## [1.14.1] - 2026-05-28
+
+### Fixed (1.14.1)
+
+- **Motion**: `prefersReducedMotion()` and `reducedMotionSignal()` now refresh their cached reduced-motion media query when `window.matchMedia` changes, preventing stale preference reads in tests and other environments that swap the media-query implementation at runtime.
 
 ## [1.14.0] - 2026-05-26
 
