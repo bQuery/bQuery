@@ -502,12 +502,16 @@ describe('serializeStoreState', () => {
   });
 
   it('sanitizes dangerous top-level store state keys during serialization', () => {
-    const pollutedState = Object.assign(Object.create(null), {
-      safe: 'ok',
-      constructor: 'bad',
-      prototype: 'bad',
-      ['__proto__']: 'bad',
-    }) as Record<string, unknown>;
+    const pollutedState = Object.create(null) as Record<string, unknown>;
+    pollutedState.safe = 'ok';
+    pollutedState.constructor = 'bad';
+    pollutedState.prototype = 'bad';
+    Object.defineProperty(pollutedState, '__proto__', {
+      value: 'bad',
+      enumerable: true,
+      configurable: true,
+      writable: true,
+    });
 
     createStore({ id: 'serialize-pollution', state: () => pollutedState });
 
