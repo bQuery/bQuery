@@ -1038,7 +1038,7 @@ describe('forms/createForm', () => {
       });
       const errors = Object.create(null) as Record<string, string>;
       errors.name = 'Required';
-      Object.defineProperty(errors, '__proto__', { value: 'ignored', enumerable: true });
+      Object.defineProperty(errors, '__proto__', { value: { polluted: true }, enumerable: true });
       Object.defineProperty(errors, 'constructor', { value: 'ignored', enumerable: true });
       Object.defineProperty(errors, 'prototype', { value: 'ignored', enumerable: true });
 
