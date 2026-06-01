@@ -332,10 +332,10 @@ describe('View', () => {
 
     it('should ignore prototype-pollution keys in expression-returned ARIA maps', () => {
       container.innerHTML = '<div bq-aria="ariaState"></div>';
-      const initialState = Object.create(null) as Record<string, string>;
+      const initialState = Object.create(null) as Record<string, unknown>;
       initialState.label = 'Safe label';
       Object.defineProperty(initialState, '__proto__', {
-        value: 'unsafe',
+        value: { polluted: true },
         enumerable: true,
         configurable: true,
       });
@@ -346,7 +346,7 @@ describe('View', () => {
       const div = container.querySelector('div')!;
       expect(div.getAttribute('aria-label')).toBe('Safe label');
       expect(div.hasAttribute('aria-__proto__')).toBe(false);
-      expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'unsafe')).toBe(false);
+      expect(Object.prototype.hasOwnProperty.call(Object.prototype, 'polluted')).toBe(false);
     });
 
     it('should accept keys that already include the aria- prefix', () => {
