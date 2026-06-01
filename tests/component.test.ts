@@ -40,7 +40,9 @@ describe('component/html', () => {
   });
 
   it('handles null and undefined values', () => {
-    const result = html`<div>${null}${undefined}</div>`;
+    const maybeUndefined: undefined = undefined;
+    const undefinedAsEmpty = String(maybeUndefined ?? '');
+    const result = html`<div>${null}${undefinedAsEmpty}</div>`;
     expect(result).toBe('<div></div>');
   });
 
