@@ -8,7 +8,8 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [Unreleased](#unreleased)
+  - [\[Unreleased\]](#unreleased)
+    - [Fixed](#fixed)
   - [\[1.14.1\] - 2026-05-28](#1141---2026-05-28)
     - [Fixed (1.14.1)](#fixed-1141)
   - [\[1.14.0\] - 2026-05-26](#1140---2026-05-26)
@@ -86,7 +87,9 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-_No unreleased changes yet._
+### Fixed
+
+- Updating Dev-Dependencies
 
 ## [1.14.1] - 2026-05-28
 
