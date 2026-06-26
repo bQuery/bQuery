@@ -16,9 +16,7 @@
 
 ---
 
-> **New in 1.14.1:** `@bquery/bquery/motion` refreshes its cached reduced-motion media query whenever `window.matchMedia` changes, so `prefersReducedMotion()` and `reducedMotionSignal()` stay aligned with the active runtime implementation instead of returning stale values.
-
-> **New in 1.14.0:** `@bquery/bquery/media`, `@bquery/bquery/plugin`, `@bquery/bquery/devtools`, and `@bquery/bquery/testing` all graduate into the batteries-included tier. Media ships 25+ new reactive composables — preference signals (`usePreferredColorScheme`, `usePreferredContrast`, `usePreferredReducedTransparency`, `usePreferredLanguage`/`usePreferredLanguages`), page state (`useOnlineStatus`, `usePageVisibility`, `useDocumentFocus`, `useWindowFocus`, `useIdle`), element observers (`useElementSize`, `useElementBounding`, `useElementVisibility`, `useHover`, `useFocus`, `useFocusWithin`, `useActiveElement`), pointer/scroll (`usePointer`, `useScroll`), platform integrations (`usePermission`, `useWakeLock`, `useShare`/`useShareSupported`, `useBroadcastChannel`, `useEventListener`, `useMediaDevices`, `useStorage`), and clipboard upgrades (`clipboard.isSupported`/`clipboard.isImageSupported`/`clipboard.readImage()`/`clipboard.writeImage()`/`clipboardText()`) — every composable accepts an optional `{ signal: AbortSignal }` for auto-teardown. Plugin gains a hook bus (`addFilter`/`applyFilters`, `addAction`/`doAction`), container DI (`createInjectionKey`/`provide`/`inject`), `unuse`/`uninstall` lifecycle, async install, plugin metadata + dependencies (`getPluginInfo`, `getInstalledPlugins`), and namespaced directives with `{ mounted, unmounted }`. Devtools adds a ring-buffered timeline (`maxTimelineEntries`, default 1000) with richer `TimelineEntry`, `filterTimeline`/`subscribeTimeline`, privacy-aware `inspectSignals`, structural `diffSignals`/`diffStores`, `traceSignal`/`untraceSignal`, `inspectEffects`, snapshot import/export, `installBrowserBridge()`, and perf helpers `time`/`measureRender`/`getPerformanceSummary`. Testing adds auto cleanup, `fireEvent.*` shortcuts, a `userEvent` namespace, shadow-DOM-aware `screen`/`within` queries, reactive harnesses (`mockComputed`/`mockEffect`/`tick`/`flushPromises`), module mocks (`mockStore`/`mockI18n`/`mockForm`/`mockFetch`/`mockWebSocket`), and a11y helpers (`prettyDOM`/`getReactiveSummary`/`expectAccessible`). Additive 1.14.0 expansions also land across `router` (`NavigationResult`, `pushResult`/`replaceResult`, `beforeResolve`, `resolveRoute`, dynamic `addRoute`/`removeRoute`/`hasRoute`, `isReady`, `lastNavigation`, `useNavigation`), `view` (`parseDirective`, new `bq-once`/`bq-init`/`bq-pre`/`bq-cloak`/`bq-html-safe`/`bq-memo`, full `bq-on` modifier system), `a11y` (`createLiveRegion`, `keyboardUserSignal`, `focusVisible`, `prefersReducedTransparency`/`prefersReducedData`/`forcedColors`, `inert`/`scrollLock`/`autoFocus`), `i18n` (`negotiateLocale`, `detectLocale`, `isRTL`, `formatRelativeTime`/`formatList`/`formatDisplayName`/`segment`), `dnd` (programmatic handles, `grid`/`delay`/`touchStartThreshold`/`keyboard`/`keyboardStep`, `'viewport'` bounds, reactive `useDraggable`/`useDroppable`/`useSortable`), `storybook` (`classMap`/`styleMap`/`ifDefined`/`repeat`/`storyText`/`unsafeHtml`/`storySvg`), `concurrency` (`withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause`/`resume`/`onIdle`, rolling reactive metrics), `ssr` (`flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`), and `server` (`ServerHttpError`, `ctx.body`/`ctx.cookies`/`ctx.setCookie`/`ctx.accepts`/`ctx.stream`/`ctx.sse`/`ctx.renderStream`/`ctx.renderResponse`, `app.listen()`). All 1.13.x and earlier APIs remain unchanged.
+> **New in 1.14.2:** Dev-dependency maintenance — TypeScript-ESLint, ESLint, Vite, and related toolchain packages updated; Bun bumped to 1.3.14; Dependabot added for automated future updates. No public API changes.
 
 ## Highlights
 
@@ -915,10 +913,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
 >

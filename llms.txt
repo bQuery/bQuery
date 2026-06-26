@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.14.1
+- Version: 1.14.2
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,10 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
+
+## Version 1.14.2 Highlights
+
+- Dev-dependency maintenance release — no public API changes. Toolchain packages (TypeScript-ESLint, ESLint, Vite, globals) and the Bun runtime were updated to their latest versions; Dependabot was added for automated future dependency updates.
 
 ## Version 1.14.1 Highlights
 
