@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.14.1                                                                                                                                                                                            |
+| Version     | 1.14.2                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -39,6 +39,10 @@ bun run dev           # VitePress docs server
 ## Workspace Prompt Pack
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.14.2 Highlights
+
+- Dev-dependency maintenance release — no public API changes. Toolchain packages (TypeScript-ESLint, ESLint, Vite, globals) and the Bun runtime were updated to their latest versions; Dependabot was added for automated future dependency updates.
 
 ## Version 1.14.1 Highlights
 

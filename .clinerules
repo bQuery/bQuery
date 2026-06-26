@@ -6,7 +6,9 @@ You are working on bQuery.js (`@bquery/bquery`), a batteries-included TypeScript
 
 bQuery.js is not a utility library; its broad module surface is the product. The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.14.1**.
+Current release baseline: **1.14.2**.
+
+Version `1.14.2` is a dev-dependency maintenance release — no public API changes. Toolchain packages (TypeScript-ESLint, ESLint, Vite, globals) and Bun runtime were updated; Dependabot was added for automated future dependency updates.
 
 Version `1.14.1` fixes `@bquery/bquery/motion` reduced-motion detection so `prefersReducedMotion()` and `reducedMotionSignal()` refresh their cached `MediaQueryList` when `window.matchMedia` changes, preventing stale preference reads in tests and other runtimes that swap the media-query implementation.
 

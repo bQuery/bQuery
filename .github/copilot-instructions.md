@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.14.1**.
+Current release baseline: **1.14.2**.
 
 Start here before making assumptions:
 
