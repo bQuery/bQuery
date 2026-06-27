@@ -13,6 +13,7 @@
  */
 
 import {
+  createResumableBoundary,
   createResumableState,
   createSSRContext,
   detectRuntime,
@@ -149,6 +150,35 @@ await test('createResumableState round-trips JSON safely', () => {
   r.set('key', { nested: ['ok'] });
   const tag = r.render();
   assert(tag.includes('"nested"'), `unexpected: ${tag}`);
+});
+
+await test('full directive mode renders bq-model/bq-on in the DOM-free runtime', () => {
+  const { html } = renderToString(
+    '<input bq-model="name"><button bq-on:click="save">Save</button>',
+    { name: 'Ada' },
+    { directives: 'full' }
+  );
+  assert(html.includes('value="Ada"'), `expected bq-model value, got: ${html}`);
+  assert(html.includes('data-bq-on="click"'), `expected bq-on marker, got: ${html}`);
+});
+
+await test('unsupported directive boundary can throw in the DOM-free runtime', () => {
+  let threw = false;
+  try {
+    renderToString('<div bq-ref="el"></div>', {}, { onUnsupportedDirective: 'throw' });
+  } catch {
+    threw = true;
+  }
+  assert(threw, 'expected onUnsupportedDirective: throw to raise');
+});
+
+await test('resumable boundary emits a serialized graph script', () => {
+  const boundary = createResumableBoundary('cart', { serialize: ['signals', 'handlers'] });
+  boundary.signal('count', 3).handler('addItem');
+  const tag = boundary.render({ nonce: 'N1' });
+  assert(tag.includes('nonce="N1"'), `expected nonce, got: ${tag}`);
+  assert(tag.includes('window["__BQUERY_RESUME_GRAPH__"]='), `unexpected: ${tag}`);
+  assert(boundary.toJSON().signals.count === 3, 'expected serialized signal value');
 });
 
 console.log(`\n${passed} passed, ${failures.length} failed (${runtimeName}).`);

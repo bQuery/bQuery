@@ -1,4 +1,5 @@
 import type { HydrateMountOptions } from './hydrate';
+import type { SSRDirectiveMode, UnsupportedDirectiveStrategy } from './directive-support';
 
 /**
  * Public types for the SSR / Pre-rendering module.
@@ -13,6 +14,31 @@ export type RenderOptions = {
    * @default 'bq'
    */
   prefix?: string;
+
+  /**
+   * Which directive set the server evaluates.
+   *
+   * - `'static'` (default) renders the structural/binding directives only
+   *   (`bq-text`, `bq-html`, `bq-if`, `bq-show`, `bq-for`, `bq-class`,
+   *   `bq-style`, `bq-bind:*`) — the historical behaviour.
+   * - `'full'` additionally renders the interactive directives: `bq-model`
+   *   emits the control's initial value/`checked`/selected option, and
+   *   `bq-on:*` emits a `data-bq-on` hydration marker so listeners attach on
+   *   hydrate. Handlers are never executed on the server.
+   *
+   * @default 'static'
+   */
+  directives?: SSRDirectiveMode;
+
+  /**
+   * What to do when the renderer meets a directive it cannot server-render
+   * (e.g. `bq-model`/`bq-on` in `'static'` mode, or a client-only directive
+   * such as `bq-ref`). `'warn'` logs once, `'throw'` raises, `'ignore'` is
+   * silent.
+   *
+   * @default 'ignore'
+   */
+  onUnsupportedDirective?: UnsupportedDirectiveStrategy;
 
   /**
    * Whether to strip directive attributes from the output HTML.
