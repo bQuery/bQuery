@@ -131,13 +131,19 @@ const escapeScriptBody = (s: string): string =>
 /**
  * Options for `renderToStreamSuspense`.
  *
- * Only `context`, `prefix`, `stripDirectives`, and `annotateHydration` are
- * inherited from the base async render options. Head/store injection and other
- * response-shaping options are intentionally unsupported here.
+ * Only `context`, `prefix`, `stripDirectives`, `annotateHydration`,
+ * `directives`, and `onUnsupportedDirective` are inherited from the base async
+ * render options. Head/store injection and other response-shaping options are
+ * intentionally unsupported here.
  */
 export interface SuspenseStreamOptions extends Pick<
   AsyncRenderOptions,
-  'context' | 'prefix' | 'stripDirectives' | 'annotateHydration'
+  | 'context'
+  | 'prefix'
+  | 'stripDirectives'
+  | 'annotateHydration'
+  | 'directives'
+  | 'onUnsupportedDirective'
 > {
   /**
    * Prefix used for slot/template IDs. Default: `'bq-s'` for placeholders
@@ -191,6 +197,8 @@ const renderResolvedFragment = (
         prefix: options.prefix,
         stripDirectives: options.stripDirectives,
         annotateHydration: options.annotateHydration,
+        directives: options.directives,
+        onUnsupportedDirective: options.onUnsupportedDirective,
       }
     ).html;
   }
@@ -435,6 +443,8 @@ export const renderToStreamSuspense = (
           prefix: options.prefix,
           stripDirectives: options.stripDirectives,
           annotateHydration: options.annotateHydration,
+          directives: options.directives,
+          onUnsupportedDirective: options.onUnsupportedDirective,
         }).html;
 
         const wrapped = replaceSlotsInShell(shell, syncContext, slots, options);

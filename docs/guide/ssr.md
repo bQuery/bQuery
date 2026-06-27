@@ -15,6 +15,8 @@ import {
   createEdgeHandler,
   createHeadManager,
   createNodeHandler,
+  createResumableBoundary,
+  createResumableGraph,
   createResumableState,
   createSSRCache,
   createSSRContext,
@@ -25,10 +27,12 @@ import {
   defer,
   defineLoader,
   deserializeStoreState,
+  detectHydrationMismatches,
   detectRuntime,
   flushBoundary,
   getSSRConfig,
   getSSRRuntimeFeatures,
+  hydrate,
   hydrateIsland,
   hydrateMount,
   hydrateOnIdle,
@@ -47,15 +51,66 @@ import {
   renderToStreamSuspense,
   renderToString,
   renderToStringAsync,
+  RESUMABLE_BOUNDARY_ATTR,
+  RESUMABLE_EVENT_ATTR,
+  RESUMABLE_HANDLER_ATTR,
   resolveSSRRoute,
+  resume,
   resumeState,
   runRouteLoaders,
   serializeStoreSnapshot,
   serializeStoreState,
+  SSR_ON_MARKER_ATTR,
   verifyHydration,
 } from '@bquery/bquery/ssr';
-import type { HydrationHandle, HydrationMismatch, SSRStoreSnapshot } from '@bquery/bquery/ssr';
+import type {
+  HydrateOptions,
+  HydrateResult,
+  HydrationBoundaryMismatch,
+  HydrationHandle,
+  HydrationMismatch,
+  MismatchStrategy,
+  ResumableBoundary,
+  ResumableGraph,
+  ResumeResult,
+  SSRDirectiveMode,
+  SSRStoreSnapshot,
+  UnsupportedDirectiveStrategy,
+} from '@bquery/bquery/ssr';
 ```
+
+---
+
+## Stability: targeting Stable in 1.15.0
+
+`ssr` is the last foundational module still marked **Experimental**. The work to graduate it is tracked in [#127](https://github.com/bQuery/bQuery/issues/127); its three substantive prerequisites — [#128](https://github.com/bQuery/bQuery/issues/128) directive parity, [#129](https://github.com/bQuery/bQuery/issues/129) resumability, [#130](https://github.com/bQuery/bQuery/issues/130) hydration correctness — are resolved (see the sections below). Promotion to **Stable** then follows one full minor cycle with the public surface frozen.
+
+### Exit criteria
+
+- [x] Directive parity resolved or boundary documented ([#128](https://github.com/bQuery/bQuery/issues/128)) — `directives: 'full'` server-renders `bq-model`/`bq-on`; `onUnsupportedDirective` enforces the boundary.
+- [x] Resumability model finalized ([#129](https://github.com/bQuery/bQuery/issues/129)) — `createResumableBoundary` / `createResumableGraph` / `resume`.
+- [x] Hydration-mismatch handling productionized ([#130](https://github.com/bQuery/bQuery/issues/130)) — `hydrate()` + `detectHydrationMismatches()` with `warn`/`repair`/`error`.
+- [x] Per-runtime support matrix published (below).
+- [ ] Public exports frozen for one minor (no additive breaking changes) — demonstrated across the 1.15 cycle.
+
+### Frozen surface
+
+The contract that must not break once Stable: `renderToString`, `renderToStringAsync`, `renderToStream`, `renderToStreamSuspense`, `defer`, `renderToResponse`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, `hydrateMount`, `hydrate`, `detectHydrationMismatches`, `verifyHydration`, `hydrateOnVisible`/`Idle`/`Interaction`/`Media`, `hydrateIsland`, `createResumableState`, `createResumableBoundary`, `createResumableGraph`, `resume`.
+
+### Per-runtime support matrix
+
+| Capability                                | Node ≥ 24 | Bun       | Deno      | Edge      |
+| ----------------------------------------- | --------- | --------- | --------- | --------- |
+| `renderToString` (sync, DOM-free)         | yes       | yes       | yes       | yes       |
+| `renderToStringAsync` / `defer`           | yes       | yes       | yes       | yes       |
+| `renderToStream` (Web streams)            | yes       | yes       | yes       | yes       |
+| `renderToStreamSuspense`                  | yes       | yes       | yes       | yes       |
+| `renderToResponse` (+ cache, ETag)        | yes       | yes       | yes       | yes       |
+| Full directive set (`bq-model`/`bq-on`)   | yes       | yes       | yes       | yes       |
+| Island hydration / `hydrate()`            | client    | client    | client    | client    |
+| Resumable boundaries                      | emit      | emit      | emit      | emit      |
+
+Per-runtime adapters: `createNodeHandler` (Node), `createBunHandler` (Bun), `createDenoHandler` (Deno), `createWebHandler` (edge/workerd). Hydration runs in the browser; the matrix marks server-emit support. The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the runtime-agnostic surface on Node 24, Bun 1.3 and Deno.
 
 ---
 
@@ -92,8 +147,15 @@ type RenderOptions = {
   stripDirectives?: boolean;
   /** Include serialized store state. Accepts `true` (all stores) or an array of store IDs. Default: `false` */
   includeStoreState?: boolean | string[];
+  /** Which directive set to evaluate: `'static'` (default) or `'full'` (adds `bq-model`/`bq-on`). */
+  directives?: SSRDirectiveMode; // 'full' | 'static'
+  /** Reporting for directives the server cannot render: `'warn' | 'throw' | 'ignore'` (default). */
+  onUnsupportedDirective?: UnsupportedDirectiveStrategy;
 };
 ```
+
+`directives` and `onUnsupportedDirective` also flow through `renderToStringAsync()`,
+`renderToStream()`, `renderToStreamSuspense()`, and `renderToResponse()`.
 
 #### `SSRResult`
 
@@ -108,16 +170,23 @@ type SSRResult = {
 
 #### Supported SSR Directives
 
-| Directive   | Description                                    |
-| ----------- | ---------------------------------------------- |
-| `bq-text`   | Sets text content from a context value         |
-| `bq-html`   | Sets innerHTML from a context value            |
-| `bq-if`     | Conditionally includes the element             |
-| `bq-show`   | Toggles `display: none` based on a condition   |
-| `bq-for`    | Repeats the element for each array item        |
-| `bq-class`  | Applies CSS classes from an object or string   |
-| `bq-style`  | Applies inline styles from an object or string |
-| `bq-bind:*` | Binds any attribute (e.g., `bq-bind:href`)     |
+| Directive   | Mode     | Description                                     |
+| ----------- | -------- | ----------------------------------------------- |
+| `bq-text`   | static   | Sets text content from a context value          |
+| `bq-html`   | static   | Sets innerHTML from a context value             |
+| `bq-if`     | static   | Conditionally includes the element              |
+| `bq-show`   | static   | Toggles `display: none` when falsy              |
+| `bq-for`    | static   | Repeats the element per array item              |
+| `bq-class`  | static   | Applies CSS classes (object or string)          |
+| `bq-style`  | static   | Applies inline styles (object or string)        |
+| `bq-bind:*` | static   | Binds any attribute (e.g. `bq-bind:href`)       |
+| `bq-model`  | **full** | Emits initial `value`/`checked`/selected option |
+| `bq-on:*`   | **full** | Emits a `data-bq-on` hydration marker           |
+
+Directives marked **full** are only rendered when `directives: 'full'` is passed.
+Client-only directives (`bq-ref`, `bq-init`, `bq-memo`, `bq-once`, `bq-error`) are
+not server-rendered and attach during hydration; set `onUnsupportedDirective: 'warn'`
+to surface them at render time.
 
 #### Examples
 
@@ -647,6 +716,56 @@ if (process.env.NODE_ENV !== 'production') {
 
 `verifyHydration()` returns the list of `HydrationMismatch` entries and emits a `console.warn` for each by default (gated by `NODE_ENV`). Pass `{ warn: false, onMismatch }` for full control. The check is collision-tolerant — false positives are impossible, only false negatives.
 
+## Interactive directives: `bq-model` & `bq-on`
+
+By default `renderToString()` evaluates the structural/binding directive set only. Pass `directives: 'full'` to also server-render the two interactive directives, so a component authored with two-way binding or event handlers produces hydration-ready markup instead of diverging from its client behaviour:
+
+- **`bq-model`** emits the control's initial state into the markup — `value` for text inputs, `checked` for checkboxes/radios, the selected `<option>` for `<select>`, and the body for `<textarea>`.
+- **`bq-on:*`** emits a `SSR_ON_MARKER_ATTR` (`data-bq-on`) hydration marker listing the bound events (modifiers stripped). Handlers are **never** executed on the server; the marker lets the client attach listeners on hydrate even when directives were stripped.
+
+```ts
+import { renderToString, SSR_ON_MARKER_ATTR } from '@bquery/bquery/ssr';
+
+const { html } = renderToString(
+  '<input bq-model="name"><button bq-on:click="save">Save</button>',
+  { name: 'Ada' },
+  { directives: 'full' }
+);
+// <input bq-model="name" value="Ada"><button bq-on:click="save" data-bq-on="click">Save</button>
+```
+
+Both renderer backends (DOM and DOM-free) produce identical output. Directives the server cannot render — `bq-model`/`bq-on` in `'static'` mode, or client-only directives (`bq-ref`, `bq-init`, `bq-memo`, `bq-once`, `bq-error`) — are governed by `onUnsupportedDirective`:
+
+```ts
+renderToString(template, data, {
+  directives: 'full',
+  onUnsupportedDirective: 'warn', // 'warn' | 'throw' | 'ignore' (default)
+});
+```
+
+`'ignore'` keeps the historical silent behaviour; `'warn'` logs once per directive; `'throw'` fails loudly (useful in CI to enforce the SSR boundary).
+
+## Production hydration & mismatch recovery
+
+`verifyHydration()` is a dev-only structural check. For production, `hydrate()` wraps `hydrateMount()` with a defined mismatch-recovery strategy, and `detectHydrationMismatches()` exposes the underlying content-level diff.
+
+`detectHydrationMismatches(root, context)` compares what the server emitted against what the client `context` evaluates to, for `bq-text`, `bq-show`, `bq-bind:*`, `bq-model`, and the structural `data-bq-h` signature. It uses the CSP-safe evaluator and skips expressions whose root identifier is absent from the context (so `bq-for` loop variables never produce false positives).
+
+```ts
+import { hydrate } from '@bquery/bquery/ssr';
+
+const { view, mismatches } = hydrate('#app', context, {
+  onMismatch: 'repair', // 'warn' (default) | 'repair' | 'error'
+  onError: (err, boundary) => reportToDevtools(err, boundary),
+});
+```
+
+- `'warn'` (default) — logs each mismatch (dev-gated when left at the default; always logged when set explicitly).
+- `'repair'` — rewrites the affected boundary from client state before reactivity attaches.
+- `'error'` — routes each mismatch to `onError`; throws before mounting when no `onError` is given.
+
+Recovery is boundary-scoped (per directive-bearing element), never whole-document. `HydrateResult` returns the mounted `view` and every `HydrationBoundaryMismatch` detected. Wire `onError` into your devtools bridge to make mismatches inspectable. After detection/recovery, `hydrate()` attaches reactive bindings exactly like `hydrateMount()`.
+
 ## Suspense out-of-order streaming
 
 `renderToStreamSuspense()` flushes the synchronous shell first (with each `defer(...)` value's fallback), then streams `<template id="bq-r-N">…</template>` + a tiny CSP-nonce-aware patch script per resolved promise. Add `bq-defer="key"` on the wrapping element to mark where each placeholder should be installed; without a marker the patches append at the end of `<body>`.
@@ -714,6 +833,39 @@ if (hasSnapshot) {
   const user = get<User>('user');
 }
 ```
+
+## Resumable boundaries
+
+`createResumableBoundary()` / `createResumableGraph()` go beyond the flat key/value collector: each boundary carries the slices an island needs to **resume** in place rather than re-run its setup — `signals` (seeded back into existing client signals), `handlers` (event-handler _ids_, never code), and `store` slices (rehydrated via `hydrateStore()`). It is opt-in, tree-shakeable, zero-dependency, and never `eval`s handlers. It pairs with island hydration: `hydrateOnVisible/Idle/Interaction/Media` islands can now resume state instead of reconstructing it.
+
+```ts
+// Server — collect a boundary and emit its snapshot script.
+import { createResumableBoundary } from '@bquery/bquery/ssr';
+
+const boundary = createResumableBoundary('cart', { serialize: ['signals', 'handlers', 'store'] });
+boundary.signal('count', count).handler('addItem').store('cart');
+
+const tag = boundary.render({ nonce: ctx.nonce });
+// Place the marker attributes on the island root:
+//   <section data-bq-resume="cart">
+//     <button data-bq-handler="addItem" data-bq-event="click">+</button>
+//   </section>
+// (see RESUMABLE_BOUNDARY_ATTR / RESUMABLE_HANDLER_ATTR / RESUMABLE_EVENT_ATTR)
+```
+
+```ts
+// Client — resume without replaying setup.
+import { resume } from '@bquery/bquery/ssr';
+
+const result = resume({
+  signals: { count }, // seeded from the snapshot, producer never re-runs
+  handlers: { addItem: () => (count.value += 1) }, // wired by id, no eval
+  hydrateStores: true,
+});
+// result: { resumed, boundaries, seededSignals, wiredHandlers }
+```
+
+Use `createResumableGraph()` when one page has several boundaries — it aggregates them into a single snapshot `<script>`. The serialized payload is `</script>`/Unicode-escaped and filters prototype-pollution keys, like the rest of the SSR serializers.
 
 ## Cross-runtime examples
 
@@ -794,5 +946,6 @@ export default createEdgeHandler(async (request) => {
 
 ## Version history
 
+- **1.15.0 (targeting Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.
 - **1.14.0** — `flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`.
 - **1.11.0** — `createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions.

@@ -12,6 +12,16 @@ import { isComputed, isSignal, type Signal } from '../reactive/index';
 import { DANGEROUS_PROTOCOLS } from '../security/constants';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
+import {
+  classifyUnsupportedDirective,
+  collectOnEvents,
+  directiveHead,
+  reportUnsupportedDirective,
+  resolveModelReflection,
+  SSR_ON_MARKER_ATTR,
+  type SSRDirectiveMode,
+  type UnsupportedDirectiveStrategy,
+} from './directive-support';
 import { cheapHash, collectDirectiveSignatureFromElement, HYDRATION_HASH_ATTR } from './hash';
 import { renderTemplatePure, sanitizeHtmlForSSR } from './renderer';
 import type { RenderOptions, SSRResult } from './types';
@@ -204,6 +214,54 @@ const parseForExpression = (
 };
 
 /**
+ * Per-render directive options threaded through the DOM-backed pipeline.
+ * @internal
+ */
+interface DomDirectiveOpts {
+  annotateHydration: boolean;
+  mode: SSRDirectiveMode;
+  onUnsupported: UnsupportedDirectiveStrategy;
+}
+
+const DEFAULT_DOM_DIRECTIVE_OPTS: DomDirectiveOpts = {
+  annotateHydration: false,
+  mode: 'static',
+  onUnsupported: 'ignore',
+};
+
+/** Reflects a resolved `bq-model` value onto a live DOM form-control element. */
+const applyModelToDomElement = (el: Element, value: unknown): void => {
+  const reflection = resolveModelReflection(
+    el.tagName,
+    el.getAttribute('type') ?? undefined,
+    el.getAttribute('value') ?? undefined,
+    value
+  );
+  switch (reflection.kind) {
+    case 'attr':
+      el.setAttribute(reflection.name, reflection.value);
+      break;
+    case 'boolean-attr':
+      if (reflection.present) el.setAttribute(reflection.name, '');
+      else el.removeAttribute(reflection.name);
+      break;
+    case 'text':
+      el.textContent = reflection.value;
+      break;
+    case 'select': {
+      for (const option of Array.from(el.querySelectorAll('option'))) {
+        const optionValue = option.getAttribute('value') ?? option.textContent?.trim() ?? '';
+        if (optionValue === reflection.value) option.setAttribute('selected', '');
+        else option.removeAttribute('selected');
+      }
+      break;
+    }
+    case 'none':
+      break;
+  }
+};
+
+/**
  * Processes an element's SSR directives, modifying it in place.
  * Returns `false` if the element should be removed from output (bq-if = false).
  * @internal
@@ -212,8 +270,9 @@ const processSSRElement = (
   el: Element,
   context: BindingContext,
   prefix: string,
-  annotateHydration = false
+  opts: DomDirectiveOpts = DEFAULT_DOM_DIRECTIVE_OPTS
 ): boolean => {
+  const { annotateHydration } = opts;
   // Handle bq-for before other directives so each clone gets an item-scoped context.
   const forExpr = el.getAttribute(`${prefix}-for`);
   const parsedFor = forExpr !== null ? parseForExpression(forExpr) : null;
@@ -256,16 +315,11 @@ const processSSRElement = (
           }
 
           // Recursively process the clone
-          const shouldRenderClone = processSSRElement(
-            clone,
-            itemContext,
-            prefix,
-            annotateHydration
-          );
+          const shouldRenderClone = processSSRElement(clone, itemContext, prefix, opts);
           if (!shouldRenderClone) {
             continue;
           }
-          processSSRChildren(clone, itemContext, prefix, annotateHydration);
+          processSSRChildren(clone, itemContext, prefix, opts);
 
           parent.insertBefore(clone, el);
         }
@@ -379,6 +433,33 @@ const processSSRElement = (
     }
   }
 
+  // bq-model / bq-on — interactive directive parity (#128).
+  if (opts.mode === 'full') {
+    const modelExpr = el.getAttribute(`${prefix}-model`);
+    if (modelExpr !== null) {
+      applyModelToDomElement(el, evaluateSSR(modelExpr, context));
+    }
+    const onEvents = collectOnEvents(
+      attrs.map((attr) => attr.name),
+      prefix
+    );
+    if (onEvents.length > 0) {
+      el.setAttribute(SSR_ON_MARKER_ATTR, onEvents.join(' '));
+    }
+  }
+
+  // Report directives that this backend cannot server-render.
+  if (opts.onUnsupported !== 'ignore') {
+    for (const attr of attrs) {
+      const head = directiveHead(attr.name, prefix);
+      if (!head) continue;
+      const kind = classifyUnsupportedDirective(head, opts.mode);
+      if (kind) {
+        reportUnsupportedDirective(attr.name, el.tagName.toLowerCase(), kind, opts.onUnsupported);
+      }
+    }
+  }
+
   if (signature) {
     el.setAttribute(HYDRATION_HASH_ATTR, cheapHash(signature));
   }
@@ -394,7 +475,7 @@ const processSSRChildren = (
   parent: Element,
   context: BindingContext,
   prefix: string,
-  annotateHydration = false
+  opts: DomDirectiveOpts = DEFAULT_DOM_DIRECTIVE_OPTS
 ): void => {
   // Process a snapshotted child list so removals do not affect iteration
   const children = Array.from(parent.children);
@@ -403,7 +484,7 @@ const processSSRChildren = (
 
     // Handle elements that start with bq-for before the normal per-element pass.
     if (child.hasAttribute(`${prefix}-for`)) {
-      const keep = processSSRElement(child, context, prefix, annotateHydration);
+      const keep = processSSRElement(child, context, prefix, opts);
       processedForDirective = true;
       if (!keep) {
         child.remove();
@@ -419,7 +500,7 @@ const processSSRChildren = (
     }
 
     if (!processedForDirective) {
-      const keep = processSSRElement(child, context, prefix, annotateHydration);
+      const keep = processSSRElement(child, context, prefix, opts);
       if (!keep) {
         child.remove();
         continue;
@@ -427,7 +508,7 @@ const processSSRChildren = (
     }
 
     // Recurse into children
-    processSSRChildren(child, context, prefix, annotateHydration);
+    processSSRChildren(child, context, prefix, opts);
   }
 };
 
@@ -509,6 +590,8 @@ export const renderToString = (
     stripDirectives = false,
     includeStoreState = false,
     annotateHydration = false,
+    directives = 'static',
+    onUnsupportedDirective = 'ignore',
   } = options;
 
   if (!template || typeof template !== 'string') {
@@ -516,6 +599,11 @@ export const renderToString = (
   }
 
   const normalizedTemplate = template.trim();
+  const domDirectiveOpts: DomDirectiveOpts = {
+    annotateHydration,
+    mode: directives,
+    onUnsupported: onUnsupportedDirective,
+  };
 
   // Resolve the renderer backend. Defaults to the legacy DOM-based path when
   // a `DOMParser` is available (browser/happy-dom in tests); otherwise the
@@ -528,6 +616,8 @@ export const renderToString = (
       prefix,
       stripDirectives,
       annotateHydration,
+      mode: directives,
+      onUnsupported: onUnsupportedDirective,
     });
     let storeState: string | undefined;
     if (includeStoreState) {
@@ -554,7 +644,7 @@ export const renderToString = (
   }
 
   // Process all children of the body
-  processSSRChildren(body, data, prefix, annotateHydration);
+  processSSRChildren(body, data, prefix, domDirectiveOpts);
 
   // Strip directive attributes if requested
   if (stripDirectives) {

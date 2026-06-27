@@ -38,6 +38,8 @@ bQuery follows semver. The maturity of each module today:
 
 Stable modules will not introduce breaking changes between minor releases. Beta and experimental modules may evolve faster — breaking changes for those are flagged in the [Release Notes](/release-notes/).
 
+`ssr` is **targeting Stable in 1.15.0**: its substantive prerequisites (directive parity, resumability, production hydration) are resolved, and its public surface is now frozen for one minor cycle. See the [SSR Stability section](/guide/ssr) for the exit-criteria checklist, frozen surface, and per-runtime support matrix.
+
 ## When to use bQuery
 
 bQuery is a good fit when you want:

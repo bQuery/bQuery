@@ -170,6 +170,8 @@ const createBaseRenderOptions = (options: AsyncRenderOptions): RenderOptions => 
   stripDirectives: options.stripDirectives,
   includeStoreState: false,
   annotateHydration: options.annotateHydration,
+  directives: options.directives,
+  onUnsupportedDirective: options.onUnsupportedDirective,
 });
 
 const createRenderFragments = (

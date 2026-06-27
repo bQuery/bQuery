@@ -20,6 +20,16 @@ import {
   RESERVED_IDS,
 } from '../security/constants';
 import type { BindingContext } from '../view/types';
+import {
+  classifyUnsupportedDirective,
+  collectOnEvents,
+  directiveHead,
+  reportUnsupportedDirective,
+  resolveModelReflection,
+  SSR_ON_MARKER_ATTR,
+  type SSRDirectiveMode,
+  type UnsupportedDirectiveStrategy,
+} from './directive-support';
 import { evaluateExpression } from './expression';
 import { cheapHash, collectDirectiveSignatureFromAttrs, HYDRATION_HASH_ATTR } from './hash';
 import {
@@ -107,6 +117,10 @@ interface RenderOpts {
   stripDirectives: boolean;
   /** Whether to add `data-bq-h` mismatch hashes to elements with directives. */
   annotateHydration: boolean;
+  /** Directive set to evaluate: `'static'` (default) or `'full'`. */
+  mode: SSRDirectiveMode;
+  /** How to report directives that cannot be server-rendered. */
+  onUnsupported: UnsupportedDirectiveStrategy;
 }
 
 /**
@@ -179,6 +193,59 @@ const stripDirectiveAttributes = (node: SSRNode, prefix: string): void => {
 
 const setText = (el: SSRElement, value: string): void => {
   el.children = [{ type: 'text', value }];
+};
+
+/** Recursively collects `<option>` descendants of a virtual `<select>`. */
+const collectOptionElements = (node: SSRNode, out: SSRElement[]): void => {
+  if (node.type === 'element') {
+    if (node.tag === 'option') out.push(node);
+    for (const child of node.children) collectOptionElements(child, out);
+  } else if (node.type === 'fragment') {
+    for (const child of node.children) collectOptionElements(child, out);
+  }
+};
+
+/** Returns the text content of a virtual option element (used as its value fallback). */
+const optionText = (el: SSRElement): string => {
+  let text = '';
+  for (const child of el.children) {
+    if (child.type === 'text') text += child.value;
+  }
+  return text.trim();
+};
+
+/** Reflects a resolved `bq-model` value onto a virtual form-control element. */
+const applyModelToPureElement = (el: SSRElement, value: unknown): void => {
+  const reflection = resolveModelReflection(
+    el.tag,
+    el.attributes['type'],
+    el.attributes['value'],
+    value
+  );
+  switch (reflection.kind) {
+    case 'attr':
+      setAttr(el, reflection.name, reflection.value);
+      break;
+    case 'boolean-attr':
+      if (reflection.present) setAttr(el, reflection.name, '');
+      else removeAttr(el, reflection.name);
+      break;
+    case 'text':
+      setText(el, reflection.value);
+      break;
+    case 'select': {
+      const options: SSRElement[] = [];
+      collectOptionElements(el, options);
+      for (const option of options) {
+        const optionValue = option.attributes['value'] ?? optionText(option);
+        if (optionValue === reflection.value) setAttr(option, 'selected', '');
+        else removeAttr(option, 'selected');
+      }
+      break;
+    }
+    case 'none':
+      break;
+  }
 };
 
 const setHtml = (el: SSRElement, raw: string): void => {
@@ -402,6 +469,28 @@ const evaluateElement = (
     }
   }
 
+  // bq-model / bq-on — interactive directive parity (#128).
+  if (opts.mode === 'full') {
+    const modelExpr = el.attributes[`${prefix}-model`];
+    if (modelExpr !== undefined) {
+      applyModelToPureElement(el, evaluateExpression<unknown>(modelExpr, context));
+    }
+    const onEvents = collectOnEvents(el.attributeOrder, prefix);
+    if (onEvents.length > 0) {
+      setAttr(el, SSR_ON_MARKER_ATTR, onEvents.join(' '));
+    }
+  }
+
+  // Report directives that this backend cannot server-render.
+  if (opts.onUnsupported !== 'ignore') {
+    for (const name of el.attributeOrder) {
+      const head = directiveHead(name, prefix);
+      if (!head) continue;
+      const kind = classifyUnsupportedDirective(head, opts.mode);
+      if (kind) reportUnsupportedDirective(name, el.tag, kind, opts.onUnsupported);
+    }
+  }
+
   // Drop on*-attributes and unsafe URL attributes for security parity with the
   // legacy serializer.
   for (const name of [...el.attributeOrder]) {
@@ -437,12 +526,20 @@ const evaluateElement = (
 export const renderTemplatePure = (
   template: string,
   data: BindingContext,
-  options: { prefix?: string; stripDirectives?: boolean; annotateHydration?: boolean } = {}
+  options: {
+    prefix?: string;
+    stripDirectives?: boolean;
+    annotateHydration?: boolean;
+    mode?: SSRDirectiveMode;
+    onUnsupported?: UnsupportedDirectiveStrategy;
+  } = {}
 ): string => {
   const opts: RenderOpts = {
     prefix: options.prefix ?? 'bq',
     stripDirectives: options.stripDirectives ?? false,
     annotateHydration: options.annotateHydration ?? false,
+    mode: options.mode ?? 'static',
+    onUnsupported: options.onUnsupported ?? 'ignore',
   };
 
   const fragment = parseTemplate(template);
