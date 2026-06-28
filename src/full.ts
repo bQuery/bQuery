@@ -672,7 +672,14 @@ export type {
 // ============================================================================
 // View Module: Declarative DOM bindings without compiler
 // ============================================================================
-export { clearExpressionCache, createTemplate, mount, parseDirective } from './view/index';
+export {
+  clearCompiledExpressions,
+  clearExpressionCache,
+  createTemplate,
+  mount,
+  parseDirective,
+  registerCompiledExpressions,
+} from './view/index';
 export type { BindingContext, MountOptions, ParsedDirective, View } from './view/index';
 
 // ============================================================================

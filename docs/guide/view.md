@@ -2,8 +2,8 @@
 title: View
 ---
 
-::: tip What's new in 1.14.0
-View gained `parseDirective` / `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system in 1.14.0. See the [1.14.0 release notes](/release-notes/1.14#additive-module-expansions).
+::: tip What's new in 1.15.0
+View is **targeting Stable in 1.15.0**: the directive contract is frozen, the documented `bq-for` duplicate-key and object-expression edge cases are resolved, declarative [enter/leave/move transitions](#transitions) bind the `motion` engine to `bq-if`/`bq-show`/`bq-for`, and an [optional compiler](#optional-compiler-build-step) precompiles `bq-*` expressions. See [Stability](#stability-targeting-stable-in-1150).
 :::
 
 The view module provides declarative DOM bindings similar to Vue/Svelte templates, but without requiring a compiler. Bindings are evaluated at runtime using bQuery's reactive system. Internally, the view module is now split into focused submodules while the public API remains unchanged.
@@ -12,6 +12,39 @@ The view module provides declarative DOM bindings similar to Vue/Svelte template
 import { mount } from '@bquery/bquery/view';
 import { signal, computed } from '@bquery/bquery/reactive';
 ```
+
+## Stability: targeting Stable in 1.15.0
+
+`view` is the declarative rendering layer and has been **Beta**. Its directive contract grew materially in 1.14.0 (`bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system). The work to graduate it is tracked in [#136](https://github.com/bQuery/bQuery/issues/136): freeze the directive set and grammar for one minor cycle, resolve the documented parser edge cases, and publish a versioned directive reference with per-directive SSR support. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+
+### Exit criteria
+
+- [x] **Directive set + expression grammar frozen for one minor** — see [Frozen directive reference](#frozen-directive-reference-1150) below; no additive directives land during the freeze.
+- [x] **`bq-for` duplicate-key edge case resolved** ([#136](https://github.com/bQuery/bQuery/issues/136)) — a deterministic, referentially-stable composite key replaces the colliding key (so duplicate rows reuse their DOM), and the warning is dev-only and emitted once per offending key instead of on every re-render.
+- [x] **Object-expression parsing edge case resolved** — shorthand properties (`bq-class="{ active }"`) now behave like JS object shorthand (`{ active: active }`) instead of being silently dropped.
+- [x] **Per-directive SSR support documented** ([#128](https://github.com/bQuery/bQuery/issues/128)) — see the [matrix](#per-directive-ssr-support) below.
+- [ ] **Public surface frozen for one minor** (no breaking directive/grammar changes) — demonstrated across the 1.15 cycle.
+
+### Frozen directive reference (1.15.0)
+
+The frozen directive set: `bq-text`, `bq-html`, `bq-html-safe`, `bq-if`, `bq-show`, `bq-for`, `bq-class`, `bq-style`, `bq-bind:*`, `bq-model`, `bq-on` (+ modifiers), `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-memo`, `bq-error`, `bq-aria`, `bq-ref`. The declarative transition companions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate`) and the `bq-key` / `:key` companion are part of the frozen surface. The expression grammar is standard JavaScript expressions evaluated against the binding context.
+
+### Per-directive SSR support
+
+The SSR renderer evaluates a subset of directives into hydration-ready markup; the rest attach on the client during hydration. Pass `{ directives: 'full' }` to `renderToString()` to server-render the interactive directives, and `onUnsupportedDirective` to enforce the boundary (see the [SSR guide](./ssr)).
+
+| Directive                                              | SSR (`static`) | SSR (`full`) | Client (hydrate) |
+| ------------------------------------------------------ | -------------- | ------------ | ---------------- |
+| `bq-text` / `bq-html`                                  | yes            | yes          | yes              |
+| `bq-if` / `bq-show` / `bq-for`                         | yes            | yes          | yes              |
+| `bq-class` / `bq-style` / `bq-bind:*`                  | yes            | yes          | yes              |
+| `bq-model`                                             | no             | yes (value)  | yes              |
+| `bq-on:*`                                              | no             | marker only  | yes (attaches)   |
+| `bq-html-safe` / `bq-once` / `bq-init` / `bq-memo` / `bq-ref` | no       | no           | yes (client-only)|
+| `bq-error` / `bq-aria`                                 | no             | no           | yes              |
+| Transitions (`bq-transition`/`bq-in`/…)                | no             | no           | yes (client-only)|
+
+Transitions are inherently client-only (they animate live DOM); on the server the companion attributes are inert and stripped/ignored.
 
 ## Basic Usage
 
@@ -331,6 +364,96 @@ mount('#app', { inputEl });
 inputEl.value?.focus();
 ```
 
+## Transitions
+
+Declarative enter/leave/move transitions bind the [`motion`](./motion) engine to the structural directives — no lifecycle glue required. They are a thin layer over `motion` (Web Animations for enter/leave, FLIP for moves) and automatically respect the user's reduced-motion preference.
+
+```html
+<!-- enter/leave on conditional render -->
+<div bq-if="open" bq-transition="fade" bq-transition-duration="200">…</div>
+
+<!-- separate in / out -->
+<li bq-if="visible" bq-in="slide-up" bq-out="fade">…</li>
+
+<!-- FLIP move on list reorder -->
+<ul>
+  <li bq-for="item in items" bq-key="item.id" bq-animate="flip">…</li>
+</ul>
+```
+
+### Companion attributes
+
+| Attribute                 | Applies to                | Purpose                                                              |
+| ------------------------- | ------------------------- | ------------------------------------------------------------------- |
+| `bq-transition`           | `bq-if` / `bq-show` / `bq-for` | Named preset used for **both** enter and leave.                |
+| `bq-in`                   | `bq-if` / `bq-show` / `bq-for` | Enter-only preset (overrides `bq-transition` for enter).       |
+| `bq-out`                  | `bq-if` / `bq-show` / `bq-for` | Leave-only preset (overrides `bq-transition` for leave).       |
+| `bq-transition-duration`  | same                      | Duration in milliseconds (default `200`; FLIP default `300`).       |
+| `bq-transition-easing`    | same                      | CSS easing (default `ease`; FLIP default `ease-out`).               |
+| `bq-animate="flip"`       | `bq-for`                  | FLIP move animation when list items reorder.                        |
+
+Built-in presets: `fade`, `scale`, `slide`, `slide-up`, `slide-down`, `slide-left`, `slide-right`. (`slide` is an alias for `slide-up`; an unknown name falls back to `fade`.)
+
+### Behaviour
+
+- **No animation on first paint.** Initial render is not animated — only subsequent inserts/removals/reorders are (parity with Vue/Svelte, which require an explicit appear transition).
+- **Leave defers removal.** `bq-if` keeps the element mounted until its leave animation finishes, then swaps in the placeholder; `bq-for` removes the row only after its leave resolves.
+- **Race-safe.** Re-showing an element while it is leaving cancels the pending removal and animates it back in.
+- **Reduced motion.** When `prefers-reduced-motion` is set (or `setReducedMotion(true)`), animations are skipped and state changes commit immediately.
+
+```ts
+import { mount, signal } from '@bquery/bquery/view';
+
+const items = signal([{ id: 1, label: 'One' }]);
+mount('#list', {
+  items,
+  add: () => (items.value = [...items.value, { id: items.value.length + 1, label: 'New' }]),
+});
+```
+
+```html
+<ul id="list">
+  <li bq-for="item in items" bq-key="item.id" bq-animate="flip" bq-in="slide-up" bq-out="fade" bq-text="item.label"></li>
+</ul>
+```
+
+## Optional compiler (build step)
+
+`view` evaluates directive expressions at runtime via `new Function()` — exactly right for the zero-build CDN story, but it requires `'unsafe-eval'` in your CSP and pays a parse cost on the hot path. The **opt-in** compiler at `@bquery/bquery/view/compiler` pre-parses `bq-*` expressions at build time and emits optimized, `with`-free update functions. The runtime evaluator stays the default; compiled and runtime paths are behaviourally identical, and any expression the compiler can't statically handle transparently falls back to runtime.
+
+```ts
+import { compileToModule } from '@bquery/bquery/view/compiler';
+
+const { code, stats } = compileToModule(templateHtml);
+// Write `code` to disk and import it once before mounting. The emitted module
+// calls registerCompiledExpressions(...) — no `new Function()`, CSP-safe.
+console.log(`${stats.compiled}/${stats.total} expressions compiled`);
+```
+
+The emitted module registers the precompiled functions via `registerCompiledExpressions()` (from `@bquery/bquery/view`); the runtime then uses them automatically. You can also register a map by hand and clear it with `clearCompiledExpressions()`:
+
+```ts
+import { registerCompiledExpressions, clearCompiledExpressions } from '@bquery/bquery/view';
+
+registerCompiledExpressions({ 'count + 1': ($ctx) => $ctx.count + 1 });
+// …later, to restore the pure runtime path (e.g. in tests):
+clearCompiledExpressions();
+```
+
+### CLI
+
+A dependency-free CLI compiles template files to sibling modules (pass explicit paths; let your shell expand globs):
+
+```bash
+bquery-view-compile --out-dir src/views/.compiled src/views/*.html
+```
+
+Or drive it from a build script with `compileFiles()` / `runCompileCli()`. The compiler is intentionally **not** a build tool of its own — `compileViews()` and `compileToModule()` are small transforms usable from any bundler (Vite/esbuild/Rollup).
+
+### What compiles
+
+The transform is conservative: identifiers, member access, calls, arithmetic/logical/comparison operators, ternaries, array and object literals (including shorthand), and string literals compile. It bails — and the expression falls back to runtime — on assignments, arrow/`function` bodies, `new`, spread, regex and template literals. Those skipped expressions are listed in `stats.skipped` with a reason, so nothing is silently dropped.
+
 ## Mounting
 
 ### mount()
@@ -629,7 +752,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 <!-- uniform-template-footer -->
 
-## Directive reference (1.14.0)
+## Directive reference (1.15.0, frozen)
 
 | Directive                  | Purpose                                                                                                                                        |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -647,6 +770,8 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 | `bq-cloak`                 | Hide until the view is mounted to prevent FOUC.                                                                                                |
 | `bq-memo`                  | Memoize a subtree by a reactive key.                                                                                                           |
 | `bq-error`                 | Per-subtree error boundary for binding failures.                                                                                               |
+| `bq-transition` / `bq-in` / `bq-out` | Declarative enter/leave [transitions](#transitions) on `bq-if` / `bq-show` / `bq-for` (companion attributes).                        |
+| `bq-animate="flip"`        | FLIP [move transition](#transitions) when `bq-for` items reorder.                                                                              |
 
 ## Pitfalls and gotchas
 
@@ -676,4 +801,5 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Version history
 
+- **1.15.0** — **targeting Stable**: directive set + grammar frozen; `bq-for` duplicate-key and object-expression (`{ active }` shorthand) edge cases resolved; declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`); optional `@bquery/bquery/view/compiler` build step with `registerCompiledExpressions` / `clearCompiledExpressions` runtime hooks.
 - **1.14.0** — `parseDirective`, `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, full `bq-on` modifier system.

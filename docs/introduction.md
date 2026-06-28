@@ -44,6 +44,8 @@ Stable modules will not introduce breaking changes between minor releases. Beta 
 
 `concurrency` is also **targeting Stable in 1.15.0**: its adoption-blocking prerequisite is resolved — CSP-safe module workers (`defineWorker` / `exposeTask`) remove the mandatory `'unsafe-eval'` — and the public surface is now frozen for one minor cycle. It also gains client UI-scheduling primitives (`suspense`, `startTransition`, `deferred`). See the [Concurrency Stability section](/guide/concurrency) for the exit-criteria checklist, frozen surface, and per-environment support matrix.
 
+`view` is also **targeting Stable in 1.15.0**: the directive set and expression grammar are frozen, the documented `bq-for` duplicate-key and object-expression edge cases are resolved, and a per-directive SSR support matrix is published. It also gains declarative enter/leave/move transitions (binding the `motion` engine to `bq-if`/`bq-show`/`bq-for`) and an optional `@bquery/bquery/view/compiler` build step that precompiles `bq-*` expressions without `'unsafe-eval'`. See the [View Stability section](/guide/view) for the exit-criteria checklist, frozen directive reference, and per-directive SSR matrix.
+
 ## When to use bQuery
 
 bQuery is a good fit when you want:
