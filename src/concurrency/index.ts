@@ -17,6 +17,13 @@ export {
 } from './errors';
 export { createSharedBuffer, withTransferables } from './helpers';
 export { batchTasks, every, filter, find, map, parallel, reduce, some } from './high-level';
+export {
+  defineRpcWorker,
+  defineWorker,
+  exposeRpc,
+  exposeTask,
+  isWorkerModule,
+} from './module-worker';
 export { pipeline } from './pipeline';
 export { createRpcPool, createTaskPool } from './pool';
 export {
@@ -26,7 +33,8 @@ export {
   createReactiveTaskWorker,
 } from './reactive';
 export { callWorkerMethod, createRpcWorker } from './rpc';
-export { getConcurrencySupport, isConcurrencySupported } from './support';
+export { deferred, startTransition, suspense } from './scheduling';
+export { getConcurrencySupport, isConcurrencySupported, isModuleWorkerSupported } from './support';
 export { createTaskWorker, runTask } from './task';
 
 export type {
@@ -35,6 +43,9 @@ export type {
   ConcurrencyPipeline,
   ConcurrencyPipelineOptions,
   ConcurrencySupport,
+  DefineWorkerOptions,
+  DeferredOptions,
+  DeferredSource,
   PoolMetrics,
   CreateRpcPoolOptions,
   CreateRpcWorkerOptions,
@@ -54,13 +65,26 @@ export type {
   ReactiveTaskWorker,
   RpcPool,
   RpcWorker,
+  RpcWorkerModule,
   RunTaskOptions,
+  SuspendableState,
+  SuspenseBoundary,
+  SuspenseOptions,
+  SuspenseSource,
   TaskPool,
   TaskRunOptions,
   TaskWorker,
   TaskWorkerErrorCode,
   TaskWorkerState,
+  StartTransitionOptions,
+  Transition,
+  TransitionStart,
+  WorkerExecutionMode,
+  WorkerHostScope,
+  WorkerModule,
   WorkerRpcHandler,
   WorkerRpcHandlers,
+  WorkerRpcSource,
   WorkerTaskHandler,
+  WorkerTaskSource,
 } from './types';

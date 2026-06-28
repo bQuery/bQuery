@@ -4,7 +4,7 @@
  * @module bquery/concurrency
  */
 
-import type { ReadonlySignalHandle } from '../reactive/index';
+import type { MaybeSignal, ReadonlySignalHandle } from '../reactive/index';
 
 /**
  * Standalone task handler executed inside a Web Worker.
@@ -249,6 +249,13 @@ export interface ConcurrencySupport {
   blob: boolean;
   /** `URL.createObjectURL()` and `URL.revokeObjectURL()` availability. */
   objectUrl: boolean;
+  /**
+   * Whether CSP-safe module workers can be created.
+   *
+   * Module workers only require the `Worker` constructor, so they are
+   * available under a strict CSP without `'unsafe-eval'` or `blob:` sources.
+   */
+  moduleWorker: boolean;
   /** `AbortController` availability for cancellation ergonomics. */
   abortController: boolean;
   /** `SharedArrayBuffer` availability for shared-memory workflows. */
@@ -494,4 +501,180 @@ export interface ReactiveRpcPool<
   readonly paused$: ReadonlySignalHandle<boolean>;
   /** Reactive mirror of {@link RpcPool.metrics}. */
   readonly metrics$: ReadonlySignalHandle<PoolMetrics>;
+}
+
+// ============================================================================
+// CSP-safe module workers (#134)
+// ============================================================================
+
+/**
+ * Worker script type passed to the `Worker` constructor.
+ *
+ * Mirrors the DOM `WorkerType`. `'module'` is the CSP-safe default: it loads a
+ * pre-bundled worker script by URL instead of reviving a serialized function
+ * body with `new Function(...)`, so it needs neither `'unsafe-eval'` nor a
+ * `blob:` worker source.
+ */
+export type WorkerExecutionMode = 'classic' | 'module';
+
+/** Options accepted by {@link WorkerModule} factories. */
+export interface DefineWorkerOptions {
+  /**
+   * Worker script type.
+   * @default 'module'
+   */
+  type?: WorkerExecutionMode;
+}
+
+declare const WORKER_TASK_PHANTOM: unique symbol;
+declare const WORKER_RPC_PHANTOM: unique symbol;
+
+/**
+ * CSP-safe reference to a pre-registered task worker module addressed by URL.
+ *
+ * Produced by `defineWorker(new URL('./x.worker.ts', import.meta.url))`. Unlike
+ * function handlers, a module worker is never stringified or revived with
+ * `new Function(...)`, so it runs under a strict Content-Security-Policy without
+ * `'unsafe-eval'`. The worker script wires itself up with `exposeTask()`.
+ *
+ * @template TInput - Serializable input passed to the worker handler
+ * @template TResult - Result resolved by the worker handler
+ */
+export interface WorkerModule<TInput = unknown, TResult = unknown> {
+  /** Resolved worker script URL. */
+  readonly url: string | URL;
+  /** Worker script type passed to the `Worker` constructor. */
+  readonly type: WorkerExecutionMode;
+  /** Phantom signature used purely for input/result inference. @internal */
+  readonly [WORKER_TASK_PHANTOM]?: (input: TInput) => TResult;
+}
+
+/**
+ * CSP-safe reference to a pre-registered RPC worker module addressed by URL.
+ *
+ * Produced by `defineRpcWorker(...)`. The worker script wires its named methods
+ * up with `exposeRpc()`.
+ *
+ * @template TRoutes - Map of named RPC handlers implemented by the worker module
+ */
+export interface RpcWorkerModule<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> {
+  /** Resolved worker script URL. */
+  readonly url: string | URL;
+  /** Worker script type passed to the `Worker` constructor. */
+  readonly type: WorkerExecutionMode;
+  /** Phantom routes used purely for method inference. @internal */
+  readonly [WORKER_RPC_PHANTOM]?: TRoutes;
+}
+
+/**
+ * Accepted task source: either an inline standalone handler (dynamic mode,
+ * needs `'unsafe-eval'`) or a CSP-safe {@link WorkerModule} (module mode).
+ */
+export type WorkerTaskSource<TInput = void, TResult = unknown> =
+  | WorkerTaskHandler<TInput, TResult>
+  | WorkerModule<TInput, TResult>;
+
+/**
+ * Accepted RPC source: either an inline map of standalone handlers (dynamic
+ * mode) or a CSP-safe {@link RpcWorkerModule} (module mode).
+ */
+export type WorkerRpcSource<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> =
+  | TRoutes
+  | RpcWorkerModule<TRoutes>;
+
+/**
+ * Minimal worker global-scope surface used by `exposeTask()` / `exposeRpc()`.
+ *
+ * Defaults to the ambient worker `self`; pass one explicitly to host the worker
+ * protocol on a `MessagePort`, a `SharedWorker` connection, or a test double.
+ */
+export interface WorkerHostScope {
+  /** Incoming-message handler installed by the host helper. */
+  onmessage: ((event: { data: unknown }) => void) | null;
+  /** Posts a serializable response back to the controlling thread. */
+  postMessage(message: unknown, transfer?: Transferable[]): void;
+}
+
+// ============================================================================
+// Client async-concurrency primitives (#135)
+// ============================================================================
+
+/** A reactive or plain value readable by {@link deferred}. */
+export type DeferredSource<T> = MaybeSignal<T> | (() => T);
+
+/**
+ * Options for {@link startTransition}.
+ *
+ * Named `StartTransitionOptions` (not `TransitionOptions`) to avoid colliding
+ * with the `motion` module's `TransitionOptions` in the flat `/full` bundle.
+ */
+export interface StartTransitionOptions {
+  /**
+   * Delay in milliseconds before the non-urgent scope runs. `0` schedules the
+   * work on the next idle callback (or macrotask) without an explicit delay.
+   * @default 0
+   */
+  timeout?: number;
+}
+
+/** Schedules a non-urgent update produced by {@link startTransition}. */
+export type TransitionStart = (scope: () => void) => void;
+
+/**
+ * Tuple returned by {@link startTransition}: a readonly `isPending` signal and
+ * a `start` function that marks an update as non-urgent.
+ */
+export type Transition = readonly [ReadonlySignalHandle<boolean>, TransitionStart];
+
+/** Options for {@link deferred}. */
+export interface DeferredOptions {
+  /**
+   * Maximum time in milliseconds the deferred value may lag behind its source.
+   * When omitted, the deferred value updates on the next idle callback (or
+   * macrotask). Rapid source changes coalesce into a single trailing update.
+   */
+  timeout?: number;
+}
+
+/**
+ * A reactive source that {@link suspense} can treat as pending work: a
+ * `Promise`, an `AsyncDataState`-style object exposing a reactive `pending`
+ * (and optional `error`) signal, or a plain pending getter.
+ */
+export interface SuspendableState {
+  /** Reactive `pending` flag (e.g. from `useAsyncData()` / `useResource()`). */
+  readonly pending: { readonly value: boolean };
+  /** Optional reactive error mirror surfaced through the boundary. */
+  readonly error?: { readonly value: Error | null };
+}
+
+/** Anything {@link suspense} can await: a promise, a reactive state, or a getter. */
+export type SuspenseSource = Promise<unknown> | SuspendableState | (() => boolean);
+
+/** Options for {@link suspense}. */
+export interface SuspenseOptions {
+  /**
+   * When `true` (default) a settled boundary that later becomes pending again
+   * re-enters the pending state. Set `false` to latch `settled` after the first
+   * resolution.
+   */
+  retrigger?: boolean;
+}
+
+/**
+ * Declarative async boundary handle produced by {@link suspense}.
+ *
+ * Aggregates one or more async sources into reactive `pending` / `settled` /
+ * `error` signals so the view layer can swap fallback and content without
+ * bespoke loading flags.
+ */
+export interface SuspenseBoundary {
+  /** `true` while any tracked source is still pending. */
+  readonly pending: ReadonlySignalHandle<boolean>;
+  /** `true` once every tracked source has settled at least once. */
+  readonly settled: ReadonlySignalHandle<boolean>;
+  /** First error surfaced by a tracked source, or `null`. */
+  readonly error: ReadonlySignalHandle<Error | null>;
+  /** Detach internal effects and promise listeners. */
+  dispose(): void;
 }

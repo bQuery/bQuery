@@ -18,7 +18,8 @@ import type {
   TaskWorker,
   TaskWorkerState,
   WorkerRpcHandlers,
-  WorkerTaskHandler,
+  WorkerRpcSource,
+  WorkerTaskSource,
 } from './types';
 
 const DEFAULT_POOL_CONCURRENCY = 4;
@@ -435,7 +436,7 @@ const createWorkerNames = (
  * ```
  */
 export function createTaskPool<TInput = void, TResult = unknown>(
-  handler: WorkerTaskHandler<TInput, TResult>,
+  source: WorkerTaskSource<TInput, TResult>,
   options: CreateTaskPoolOptions = {}
 ): TaskPool<TInput, TResult> {
   const { concurrency: concurrencyOption, maxQueue: maxQueueOption, ...workerOptions } = options;
@@ -453,7 +454,7 @@ export function createTaskPool<TInput = void, TResult = unknown>(
       try {
         for (let index = 0; index < poolConcurrency; index++) {
           workers.push(
-            createTaskWorker(handler, {
+            createTaskWorker(source, {
               ...workerOptions,
               name: names[index],
             })
@@ -540,7 +541,7 @@ export function createTaskPool<TInput = void, TResult = unknown>(
  * ```
  */
 export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
-  handlers: TRoutes,
+  source: WorkerRpcSource<TRoutes>,
   options: CreateRpcPoolOptions = {}
 ): RpcPool<TRoutes> {
   const { concurrency: concurrencyOption, maxQueue: maxQueueOption, ...workerOptions } = options;
@@ -563,7 +564,7 @@ export function createRpcPool<TRoutes extends WorkerRpcHandlers>(
       try {
         for (let index = 0; index < poolConcurrency; index++) {
           workers.push(
-            createRpcWorker(handlers, {
+            createRpcWorker(source, {
               ...workerOptions,
               name: names[index],
             })

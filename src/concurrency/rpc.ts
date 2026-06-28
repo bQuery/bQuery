@@ -12,7 +12,9 @@ import {
   TaskWorkerUnsupportedError,
 } from './errors';
 import {
+  createModuleWorkerInstance,
   createWorkerInstance,
+  isWorkerModuleDescriptor,
   normalizeTimeout,
   restoreWorkerError,
   validateTaskHandler,
@@ -23,9 +25,11 @@ import type {
   CallWorkerMethodOptions,
   CreateRpcWorkerOptions,
   RpcWorker,
+  RpcWorkerModule,
   TaskRunOptions,
   TaskWorkerState,
   WorkerRpcHandlers,
+  WorkerRpcSource,
 } from './types';
 
 interface WorkerSuccessMessage<TResult> {
@@ -141,6 +145,10 @@ self.onmessage = async (event) => {
  * call, but an interrupted run resets the worker instance and rejects every
  * currently in-flight call before future calls recreate the worker.
  *
+ * Pass an inline map of standalone handlers for the zero-build dynamic mode, or
+ * a {@link RpcWorkerModule} from `defineRpcWorker()` for the CSP-safe module
+ * mode that needs no `'unsafe-eval'`.
+ *
  * @example
  * ```ts
  * import { createRpcWorker } from '@bquery/bquery/concurrency';
@@ -155,15 +163,28 @@ self.onmessage = async (event) => {
  * ```
  */
 export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
-  handlers: TRoutes,
+  source: WorkerRpcSource<TRoutes>,
   options: CreateRpcWorkerOptions = {}
 ): RpcWorker<TRoutes> {
-  if (!isConcurrencySupported()) {
-    throw new TaskWorkerUnsupportedError();
+  let spawnWorker: () => Worker;
+
+  if (isWorkerModuleDescriptor(source)) {
+    if (typeof Worker !== 'function') {
+      throw new TaskWorkerUnsupportedError();
+    }
+
+    const moduleSource = source as RpcWorkerModule<TRoutes>;
+    spawnWorker = () => createModuleWorkerInstance(moduleSource, options.name);
+  } else {
+    if (!isConcurrencySupported()) {
+      throw new TaskWorkerUnsupportedError();
+    }
+
+    const handlerSources = validateRpcHandlers(source as TRoutes);
+    const scriptSource = createRpcWorkerScript(handlerSources);
+    spawnWorker = () => createWorkerInstance(scriptSource, options.name);
   }
 
-  const handlerSources = validateRpcHandlers(handlers);
-  const scriptSource = createRpcWorkerScript(handlerSources);
   const defaultTimeout = normalizeTimeout(options.timeout);
   const maxInFlight =
     typeof options.maxInFlight === 'number' &&
@@ -229,7 +250,7 @@ export function createRpcWorker<TRoutes extends WorkerRpcHandlers>(
       return worker;
     }
 
-    const instance = createWorkerInstance(scriptSource, options.name);
+    const instance = spawnWorker();
     instance.onmessage = (event: MessageEvent<WorkerResponse<unknown>>) => {
       const message = event.data;
       if (!message) {
@@ -389,12 +410,12 @@ export async function callWorkerMethod<
   TRoutes extends WorkerRpcHandlers,
   TMethod extends keyof TRoutes & string,
 >(
-  handlers: TRoutes,
+  source: WorkerRpcSource<TRoutes>,
   method: TMethod,
   input: Parameters<TRoutes[TMethod]>[0],
   options: CallWorkerMethodOptions = {}
 ): Promise<Awaited<ReturnType<TRoutes[TMethod]>>> {
-  const worker = createRpcWorker(handlers, options);
+  const worker = createRpcWorker(source, options);
 
   try {
     return await worker.call(method, input, options);
