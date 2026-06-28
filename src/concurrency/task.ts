@@ -12,7 +12,9 @@ import {
   TaskWorkerUnsupportedError,
 } from './errors';
 import {
+  createModuleWorkerInstance,
   createWorkerInstance,
+  isWorkerModuleDescriptor,
   normalizeTimeout,
   restoreWorkerError,
   validateTaskHandler,
@@ -25,7 +27,9 @@ import type {
   TaskRunOptions,
   TaskWorker,
   TaskWorkerState,
+  WorkerModule,
   WorkerTaskHandler,
+  WorkerTaskSource,
 } from './types';
 
 interface WorkerSuccessMessage<TResult> {
@@ -94,25 +98,47 @@ self.onmessage = async (event) => {
 /**
  * Creates a reusable worker task handle around a standalone function.
  *
+ * Pass an inline standalone function for the zero-build dynamic mode (which
+ * relies on `new Function(...)` and therefore needs a relaxed CSP), or a
+ * {@link WorkerModule} from `defineWorker()` for the CSP-safe module mode.
+ *
  * @example
  * ```ts
- * import { createTaskWorker } from '@bquery/bquery/concurrency';
+ * import { createTaskWorker, defineWorker } from '@bquery/bquery/concurrency';
  *
+ * // dynamic mode (needs 'unsafe-eval')
  * const worker = createTaskWorker((value: number) => value * value, { name: 'square-worker' });
  * const result = await worker.run(12);
  * worker.terminate();
+ *
+ * // module mode (CSP-safe, no eval)
+ * const heavy = defineWorker<number, number>(new URL('./square.worker.ts', import.meta.url));
+ * const moduleWorker = createTaskWorker(heavy);
  * ```
  */
 export function createTaskWorker<TInput = void, TResult = unknown>(
-  handler: WorkerTaskHandler<TInput, TResult>,
+  source: WorkerTaskSource<TInput, TResult>,
   options: CreateTaskWorkerOptions = {}
 ): TaskWorker<TInput, TResult> {
-  if (!isConcurrencySupported()) {
-    throw new TaskWorkerUnsupportedError();
+  let spawnWorker: () => Worker;
+
+  if (isWorkerModuleDescriptor(source)) {
+    if (typeof Worker !== 'function') {
+      throw new TaskWorkerUnsupportedError();
+    }
+
+    const moduleSource = source as WorkerModule<TInput, TResult>;
+    spawnWorker = () => createModuleWorkerInstance(moduleSource, options.name);
+  } else {
+    if (!isConcurrencySupported()) {
+      throw new TaskWorkerUnsupportedError();
+    }
+
+    const handlerSource = validateTaskHandler(source as WorkerTaskHandler<TInput, TResult>);
+    const scriptSource = createWorkerScript(handlerSource);
+    spawnWorker = () => createWorkerInstance(scriptSource, options.name);
   }
 
-  const handlerSource = validateTaskHandler(handler);
-  const scriptSource = createWorkerScript(handlerSource);
   const defaultTimeout = normalizeTimeout(options.timeout);
   let disposed = false;
   let worker: Worker | null = null;
@@ -168,7 +194,7 @@ export function createTaskWorker<TInput = void, TResult = unknown>(
       return worker;
     }
 
-    const instance = createWorkerInstance(scriptSource, options.name);
+    const instance = spawnWorker();
     instance.onmessage = (event: MessageEvent<WorkerResponse<TResult>>) => {
       const current = pending;
       if (!current) {
@@ -296,6 +322,9 @@ export function createTaskWorker<TInput = void, TResult = unknown>(
 /**
  * Executes a single task in a fresh worker and tears it down afterwards.
  *
+ * Accepts either an inline standalone function (dynamic mode) or a
+ * {@link WorkerModule} from `defineWorker()` (CSP-safe module mode).
+ *
  * @example
  * ```ts
  * import { runTask } from '@bquery/bquery/concurrency';
@@ -304,11 +333,11 @@ export function createTaskWorker<TInput = void, TResult = unknown>(
  * ```
  */
 export async function runTask<TInput = void, TResult = unknown>(
-  handler: WorkerTaskHandler<TInput, TResult>,
+  source: WorkerTaskSource<TInput, TResult>,
   input: TInput,
   options: RunTaskOptions = {}
 ): Promise<TResult> {
-  const worker = createTaskWorker(handler, options);
+  const worker = createTaskWorker(source, options);
 
   try {
     return await worker.run(input, options);

@@ -42,6 +42,8 @@ Stable modules will not introduce breaking changes between minor releases. Beta 
 
 `server` is also **targeting Stable in 1.15.0**: its session/middleware prerequisite is resolved (first-party sessions, CSRF, guards, and auth helpers), and the `ctx`/`app` contract is now frozen for one minor cycle. See the [Server Stability section](/guide/server) for the exit-criteria checklist, frozen surface, and per-runtime support matrix.
 
+`concurrency` is also **targeting Stable in 1.15.0**: its adoption-blocking prerequisite is resolved — CSP-safe module workers (`defineWorker` / `exposeTask`) remove the mandatory `'unsafe-eval'` — and the public surface is now frozen for one minor cycle. It also gains client UI-scheduling primitives (`suspense`, `startTransition`, `deferred`). See the [Concurrency Stability section](/guide/concurrency) for the exit-criteria checklist, frozen surface, and per-environment support matrix.
+
 ## When to use bQuery
 
 bQuery is a good fit when you want:
