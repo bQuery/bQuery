@@ -9,11 +9,11 @@ import {
   renderToString,
   serializeStoreState,
 } from '../ssr/index';
+import { serializeCookie } from './cookies';
 import { ServerHttpError } from './errors';
 import type {
   CreateServerOptions,
   ServerApp,
-  ServerCookieOptions,
   ServerContext,
   ServerHandler,
   ServerHtmlResponseInit,
@@ -69,13 +69,6 @@ const JSON_ESCAPE_LOOKUP: Record<string, string> = {
 const JSON_ESCAPE_PATTERN = /[<>&\u2028\u2029]/g;
 const METHOD_ALL = null;
 const WEBSOCKET_PASSTHROUGH_HEADER = 'x-bquery-websocket-passthrough';
-const COOKIE_NAME_PATTERN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
-const INVALID_COOKIE_ATTRIBUTE_VALUE_PATTERN = /[\u0000-\u001F\u007F;]/;
-const COOKIE_SAME_SITE_LOOKUP = {
-  lax: 'Lax',
-  none: 'None',
-  strict: 'Strict',
-} as const;
 
 const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 /**
@@ -276,42 +269,6 @@ const parseCookies = (header: string | null): Record<string, string> => {
   return cookies;
 };
 
-const assertCookieName = (name: string): void => {
-  if (!COOKIE_NAME_PATTERN.test(name)) {
-    throw new TypeError('Cookie name contains invalid characters.');
-  }
-};
-
-const assertCookieAttributeValue = (label: string, value: string): string => {
-  if (INVALID_COOKIE_ATTRIBUTE_VALUE_PATTERN.test(value)) {
-    throw new TypeError(`Cookie ${label} contains invalid characters.`);
-  }
-  return value;
-};
-
-const serializeCookie = (name: string, value: string, options: ServerCookieOptions = {}): string => {
-  assertCookieName(name);
-  const parts = [`${name}=${encodeURIComponent(value)}`];
-  if (options.path) parts.push(`Path=${assertCookieAttributeValue('path', options.path)}`);
-  if (options.domain) parts.push(`Domain=${assertCookieAttributeValue('domain', options.domain)}`);
-  if (typeof options.maxAge === 'number' && Number.isFinite(options.maxAge)) {
-    parts.push(`Max-Age=${Math.trunc(options.maxAge)}`);
-  }
-  if (options.sameSite) {
-    if (typeof options.sameSite !== 'string') {
-      throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
-    }
-    const sameSite = COOKIE_SAME_SITE_LOOKUP[options.sameSite.toLowerCase() as keyof typeof COOKIE_SAME_SITE_LOOKUP];
-    if (!sameSite) {
-      throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
-    }
-    parts.push(`SameSite=${sameSite}`);
-  }
-  if (options.httpOnly) parts.push('HttpOnly');
-  if (options.secure) parts.push('Secure');
-  return parts.join('; ');
-};
-
 interface AcceptEntry {
   q: number;
   range: string;
@@ -349,8 +306,10 @@ const matchesAcceptedType = (type: string, range: string): boolean => {
     return false;
   }
 
-  return (rangeMajor === '*' || rangeMajor === typeMajor) &&
-    (rangeMinor === '*' || rangeMinor === typeMinor);
+  return (
+    (rangeMajor === '*' || rangeMajor === typeMajor) &&
+    (rangeMinor === '*' || rangeMinor === typeMinor)
+  );
 };
 
 const getMediaType = (contentType: string): string => {
@@ -485,7 +444,7 @@ const createSseResponse = (
     Symbol.asyncIterator in Object(source)
       ? (source as AsyncIterable<ServerSseEvent | string>)
       : (async function* () {
-          yield* (source as Iterable<ServerSseEvent | string>);
+          yield* source as Iterable<ServerSseEvent | string>;
         })();
   const iterator = asyncSource[Symbol.asyncIterator]();
   let cancelled = false;
@@ -894,7 +853,11 @@ const createBodyReader = (
 
       if (mediaType === 'application/x-www-form-urlencoded') {
         const textBody = new TextDecoder().decode(
-          await readRequestBodyBuffer(request, limits?.form, 'Form body exceeds the configured limit.')
+          await readRequestBodyBuffer(
+            request,
+            limits?.form,
+            'Form body exceeds the configured limit.'
+          )
         );
         return decodeFormUrlEncoded(textBody);
       }
@@ -908,8 +871,7 @@ const createBodyReader = (
           limits?.multipart,
           'Multipart form body exceeds the configured limit.'
         );
-        const requestBody =
-          bodyBuffer.byteLength > 0 ? bodyBuffer.slice().buffer : undefined;
+        const requestBody = bodyBuffer.byteLength > 0 ? bodyBuffer.slice().buffer : undefined;
         const formData = await new Request(request.url, {
           body: requestBody,
           headers: request.headers,
@@ -934,7 +896,11 @@ const createBodyReader = (
 
       if (mediaType.startsWith('text/')) {
         const textBody = new TextDecoder().decode(
-          await readRequestBodyBuffer(request, limits?.text, 'Text body exceeds the configured limit.')
+          await readRequestBodyBuffer(
+            request,
+            limits?.text,
+            'Text body exceeds the configured limit.'
+          )
         );
         return textBody;
       }
@@ -1327,7 +1293,47 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
       }
 
       if (resolvedRuntime === 'deno') {
-        throw new Error('createServer().listen() is not yet implemented for Deno in this runtime.');
+        const denoGlobal = globalThis as typeof globalThis & {
+          Deno?: {
+            serve(
+              options: {
+                hostname?: string;
+                port?: number;
+                signal?: AbortSignal;
+                onListen?: (address: { hostname: string; port: number }) => void;
+              },
+              handler: (request: Request) => Promise<Response>
+            ): { addr?: { hostname?: string; port?: number }; shutdown(): Promise<void> };
+          };
+        };
+        if (!denoGlobal.Deno?.serve) {
+          throw new Error('Deno runtime APIs are unavailable.');
+        }
+        // `Deno.serve` binds before returning, so `server.addr` is populated
+        // synchronously; `onListen` is overridden only to suppress the default
+        // "Listening on…" log line.
+        const server = denoGlobal.Deno.serve(
+          {
+            hostname,
+            port,
+            signal: listenOptions.signal,
+            onListen: () => undefined,
+          },
+          (request) => app.handle(request)
+        );
+        const resolvedHost = server.addr?.hostname || hostname;
+        const resolvedPort = server.addr?.port ?? port;
+        const url = formatListenUrl(resolvedHost, resolvedPort);
+        return {
+          addresses: [url],
+          async close() {
+            await server.shutdown();
+          },
+          async stop() {
+            await server.shutdown();
+          },
+          url,
+        };
       }
 
       throw new Error(`createServer().listen() is not supported in runtime "${resolvedRuntime}".`);

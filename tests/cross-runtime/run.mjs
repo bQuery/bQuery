@@ -1,12 +1,13 @@
 /**
- * Cross-runtime smoke test for `@bquery/bquery/ssr`.
+ * Cross-runtime smoke test for `@bquery/bquery/ssr` and `@bquery/bquery/server`.
  *
- * Exercises the runtime-agnostic SSR pipeline using only Web standard APIs
- * (Request, Response, ReadableStream, fetch, URL, TextEncoder/Decoder).
+ * Exercises the runtime-agnostic SSR pipeline and the server module's
+ * Web-Crypto-backed session/CSRF primitives using only Web standard APIs
+ * (Request, Response, ReadableStream, fetch, URL, TextEncoder/Decoder, crypto).
  *
  * Designed to run unmodified on Node ≥ 24, Bun ≥ 1.3.13 and Deno latest by
- * importing the built ESM bundle (`dist/ssr.es.mjs`). Run `bun run build`
- * first.
+ * importing the built ESM bundles (`dist/ssr.es.mjs`, `dist/server.es.mjs`). Run
+ * `bun run build` first.
  *
  * The runtime is detected automatically; the script exits with a non-zero
  * code on the first failed assertion.
@@ -25,6 +26,15 @@ import {
   resolveSSRRoute,
   serializeStoreSnapshot,
 } from '../../dist/ssr.es.mjs';
+import {
+  createServer,
+  csrf,
+  csrfToken,
+  memoryStore,
+  session,
+  signValue,
+  unsignValue,
+} from '../../dist/server.es.mjs';
 
 const failures = [];
 let passed = 0;
@@ -179,6 +189,69 @@ await test('resumable boundary emits a serialized graph script', () => {
   assert(tag.includes('nonce="N1"'), `expected nonce, got: ${tag}`);
   assert(tag.includes('window["__BQUERY_RESUME_GRAPH__"]='), `unexpected: ${tag}`);
   assert(boundary.toJSON().signals.count === 3, 'expected serialized signal value');
+});
+
+await test('server signValue/unsignValue round-trips via Web Crypto', async () => {
+  const signed = await signValue('session-id', 'cross-runtime-secret');
+  assert(signed.startsWith('session-id.'), `unexpected signed value: ${signed}`);
+  assert(
+    (await unsignValue(signed, ['cross-runtime-secret'])) === 'session-id',
+    'expected signature to verify'
+  );
+  assert(
+    (await unsignValue(`${signed}x`, ['cross-runtime-secret'])) === null,
+    'expected tampered signature to be rejected'
+  );
+});
+
+await test('server session persists across requests on the active runtime', async () => {
+  const app = createServer();
+  app.use(session({ secret: 'cross-runtime-secret', store: memoryStore() }));
+  app.post('/login', (ctx) => {
+    ctx.session.userId = 'u_1';
+    return ctx.json({ ok: true });
+  });
+  app.get('/me', (ctx) => ctx.json({ userId: ctx.session?.userId ?? null }));
+
+  const login = await app.handle({ url: '/login', method: 'POST' });
+  const setCookie =
+    typeof login.headers.getSetCookie === 'function'
+      ? login.headers.getSetCookie()[0]
+      : login.headers.get('set-cookie');
+  assert(
+    typeof setCookie === 'string' && setCookie.startsWith('bq.sid='),
+    'expected signed session cookie'
+  );
+  const cookie = setCookie.split(';')[0];
+
+  const me = await app.handle({ url: '/me', headers: { cookie } });
+  const body = await me.json();
+  assert(body.userId === 'u_1', `expected persisted session, got ${JSON.stringify(body)}`);
+});
+
+await test('server csrf protects state-changing requests on the active runtime', async () => {
+  const app = createServer();
+  app.use(csrf({ secret: 'cross-runtime-secret' }));
+  app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+  app.post('/x', (ctx) => ctx.json({ ok: true }));
+
+  const tokenRes = await app.handle('/token');
+  const token = (await tokenRes.json()).token;
+  const setCookie =
+    typeof tokenRes.headers.getSetCookie === 'function'
+      ? tokenRes.headers.getSetCookie()[0]
+      : tokenRes.headers.get('set-cookie');
+  const cookie = setCookie.split(';')[0];
+
+  const rejected = await app.handle({ url: '/x', method: 'POST' });
+  assert(rejected.status === 403, `expected 403 without token, got ${rejected.status}`);
+
+  const accepted = await app.handle({
+    url: '/x',
+    method: 'POST',
+    headers: { cookie, 'x-csrf-token': token },
+  });
+  assert(accepted.status === 200, `expected 200 with valid token, got ${accepted.status}`);
 });
 
 console.log(`\n${passed} passed, ${failures.length} failed (${runtimeName}).`);

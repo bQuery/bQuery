@@ -161,6 +161,47 @@ export interface ServerWebSocketConnection extends ServerWebSocketPeer {
 }
 
 /**
+ * Request-scoped session surface attached to `ctx.session` by the
+ * {@link ServerMiddleware} returned from `session()`.
+ *
+ * Session payload is read and written as plain properties — `ctx.session.userId`
+ * — while lifecycle operations live behind `$`-prefixed members so they never
+ * collide with arbitrary data keys.
+ *
+ * @example
+ * ```ts
+ * ctx.session.userId = user.id; // marks the session dirty and persists it
+ * if (ctx.session.$isNew) ctx.session.role = 'guest';
+ * ctx.session.$destroy(); // clears data and expires the cookie
+ * ```
+ */
+export interface ServerSession {
+  /** Current session id, or `null` until the session is first written to. */
+  readonly $id: string | null;
+
+  /** `true` when no existing session was loaded from the incoming cookie. */
+  readonly $isNew: boolean;
+
+  /** Shallow snapshot of the current session payload. */
+  readonly $data: Readonly<Record<string, unknown>>;
+
+  /**
+   * Rotate the session id while keeping the current payload. The previous id is
+   * removed from the store on the next response (mitigates session fixation).
+   */
+  $regenerate(): void;
+
+  /** Clear the payload and expire the session cookie on the next response. */
+  $destroy(): void;
+
+  /** Remove every key from the payload without destroying the session. */
+  $clear(): void;
+
+  /** Arbitrary request-scoped session payload. */
+  [key: string]: unknown;
+}
+
+/**
  * Request/response context passed through the server pipeline.
  */
 export interface ServerContext {
@@ -200,6 +241,13 @@ export interface ServerContext {
    * Per-request mutable state bag for middleware communication.
    */
   state: Record<string, unknown>;
+
+  /**
+   * Request-scoped session, present only after the `session()` middleware runs.
+   *
+   * @see {@link ServerSession}
+   */
+  session?: ServerSession;
   /** Parse the request body based on the request content-type. */
   body(): Promise<unknown>;
 
