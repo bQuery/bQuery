@@ -59,6 +59,10 @@
       "import": "./dist/view.es.mjs",
       "types": "./dist/view/index.d.ts"
     },
+    "./view/compiler": {
+      "import": "./dist/view-compiler.es.mjs",
+      "types": "./dist/view/compiler/index.d.ts"
+    },
     "./storybook": {
       "import": "./dist/storybook.es.mjs",
       "types": "./dist/storybook/index.d.ts"
@@ -107,9 +111,13 @@
   "files": [
     "dist",
     "src",
+    "bin",
     "README.md",
     "LICENSE.md"
   ],
+  "bin": {
+    "bquery-view-compile": "bin/bquery-view-compile.mjs"
+  },
   "sideEffects": false,
   "scripts": {
     "dev": "vitepress dev docs",

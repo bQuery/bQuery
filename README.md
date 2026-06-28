@@ -214,7 +214,7 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **Platform**    | Stable       | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                                               |
 | **Router**      | Stable       | SPA routing, constrained params, redirects, guards, `useRoute()`, and `<bq-link>`                                                                                           |
 | **Store**       | Stable       | Signal-based state management, persistence, migrations, action hooks, and plugin lifecycle helpers                                                                          |
-| **View**        | Beta         | Declarative DOM bindings with `bq-*` directives for content, classes, forms, errors, ARIA, and plugins                                                                      |
+| **View**        | Beta         | Declarative DOM bindings with `bq-*` directives, declarative enter/leave/move transitions, and an optional expression precompiler (targeting Stable in 1.15.0)              |
 | **Forms**       | Beta         | Reactive form state with sync/async validation and submit handling                                                                                                          |
 | **i18n**        | Beta         | Reactive locales, interpolation, pluralization, lazy loading, and Intl formatting                                                                                           |
 | **A11y**        | Beta         | Focus traps, live-region announcements, roving tabindex, skip links, and audits                                                                                             |

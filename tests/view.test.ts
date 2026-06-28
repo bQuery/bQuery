@@ -975,7 +975,7 @@ describe('View', () => {
         expect(duplicateKeyWarning).toBeDefined();
         const warningMessage = String(duplicateKeyWarning![0]);
         expect(warningMessage).toContain('"A"');
-        expect(warningMessage).toContain('Falling back to index-based key');
+        expect(warningMessage).toContain('Falling back to a composite key');
       });
     });
   });

@@ -88,6 +88,20 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
+### Added (Unreleased)
+
+- **`@bquery/bquery/view`** — declarative enter/leave/move transitions ([#137](https://github.com/bQuery/bQuery/issues/137)). New companion attributes `bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing` drive enter/leave animations on `bq-if` / `bq-show`, and `bq-animate="flip"` drives FLIP move animations when `bq-for` items reorder. The layer delegates to the existing `motion` engine (Web Animations + FLIP), skips the initial paint, defers removal until the leave finishes, is race-safe on rapid toggles, and honours `prefers-reduced-motion`.
+- **`@bquery/bquery/view/compiler`** — optional, build-tool-agnostic compiler ([#138](https://github.com/bQuery/bQuery/issues/138)). `compileViews()`, `compileToModule()`, `compileExpression()`, `emitModule()`, and the dependency-free CLI (`runCompileCli` / `compileFiles`, `bquery-view-compile`) pre-parse `bq-*` expressions into optimized, `with`-free update functions. New runtime hooks `registerCompiledExpressions()` / `clearCompiledExpressions()` (exported from `@bquery/bquery/view`) let the runtime use the precompiled functions, skipping the `new Function()` evaluator (and its `'unsafe-eval'` requirement). The runtime evaluator stays the default; un-compilable expressions transparently fall back to it, so both paths are behaviourally identical.
+
+### Changed (Unreleased)
+
+- **`@bquery/bquery/view`** — `view` is now **targeting Stable in 1.15.0** ([#136](https://github.com/bQuery/bQuery/issues/136)). The directive set and expression grammar are frozen for one minor cycle, and a per-directive SSR support matrix is published in the [View guide](https://bquery.js.org/guide/view).
+
+### Fixed (Unreleased)
+
+- **`@bquery/bquery/view`** — `bq-for` duplicate-key handling is resolved ([#136](https://github.com/bQuery/bQuery/issues/136)): colliding keys now fall back to a deterministic, referentially-stable composite key so duplicate rows reuse their DOM across re-renders, and the duplicate-key warning is dev-only and emitted once per offending key instead of on every reactive update.
+- **`@bquery/bquery/view`** — object-expression shorthand is resolved ([#136](https://github.com/bQuery/bQuery/issues/136)): `bq-class="{ active }"` (and `bq-style` / `bq-aria` object syntax) now behaves like JS object shorthand (`{ active: active }`) instead of silently dropping the property.
+
 ## [1.14.2] - 2026-06-26
 
 ### Fixed (1.14.2)

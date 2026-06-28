@@ -1,8 +1,18 @@
 import type { CleanupFn } from '../reactive/index';
 import { detectDevEnvironment } from '../core/env';
 import { getCustomDirective } from './custom-directives';
+import { TRANSITION_ATTRS } from './directives/transitions';
 import { parseDirective } from './parse-directive';
 import type { BindingContext, DirectiveHandler } from './types';
+
+/**
+ * Companion attributes consumed by other directives rather than processed as
+ * standalone directives: `bq-key` (read by `bq-for`) and the transition
+ * attributes (read by `bq-if` / `bq-show` / `bq-for`). They are skipped
+ * silently so they never trigger the unknown-directive warning.
+ * @internal
+ */
+const PASSIVE_DIRECTIVES = new Set<string>(['key', ...TRANSITION_ATTRS]);
 
 export type DirectiveHandlers = {
   text: DirectiveHandler;
@@ -58,6 +68,10 @@ export const processElement = (
 
     const rawDirective = attributeName.slice(prefix.length + 1); // Remove prefix and dash
     const { directive, arg, modifiers } = parseDirective(rawDirective);
+
+    // Skip companion attributes (bq-key, bq-transition, bq-in, bq-out, …) that
+    // are read by their owning directive rather than processed here.
+    if (PASSIVE_DIRECTIVES.has(directive)) continue;
 
     // Handle bq-for specially (creates new scope)
     if (directive === 'for') {

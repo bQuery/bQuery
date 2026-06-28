@@ -70,6 +70,15 @@
  * The view module is designed for rapid prototyping and applications where CSP flexibility
  * is acceptable. For security-critical applications requiring strict CSP, use the alternatives above.
  *
+ * @remarks
+ * Stability: **targeting Stable in 1.15.0**. The directive set and expression
+ * grammar are frozen, the documented `bq-for` duplicate-key and
+ * object-expression edge cases are resolved, and the optional
+ * `@bquery/bquery/view/compiler` build step removes the runtime evaluator (and
+ * its `'unsafe-eval'` requirement) on the hot path. See the
+ * {@link https://bquery.js.org/guide/view | View guide} for the exit-criteria
+ * checklist, frozen directive reference, and per-directive SSR support matrix.
+ *
  * @module bquery/view
  *
  * @example
@@ -102,7 +111,11 @@
  * ```
  */
 
-export { clearExpressionCache } from './evaluate';
+export {
+  clearCompiledExpressions,
+  clearExpressionCache,
+  registerCompiledExpressions,
+} from './evaluate';
 export { createTemplate, mount } from './mount';
 export { parseDirective, type ParsedDirective } from './parse-directive';
 export type { BindingContext, MountOptions, View } from './types';
