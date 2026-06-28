@@ -6,6 +6,11 @@
  * and browser Observer APIs (IntersectionObserver, ResizeObserver,
  * MutationObserver).
  *
+ * Targeting **Stable** in 1.15.0: the composable surface is frozen for one
+ * minor cycle. Every composable is SSR-safe — on the server it stays at its
+ * documented fallback with no listeners attached — and exposes an idempotent
+ * `destroy()` (plus `{ signal }` auto-teardown on 1.14+ composables).
+ *
  * @module bquery/media
  *
  * @example

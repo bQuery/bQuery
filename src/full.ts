@@ -777,10 +777,12 @@ export type {
 // ============================================================================
 export {
   createI18n,
+  defineMessages,
   detectLocale,
   formatDate,
   formatDisplayName,
   formatList,
+  formatMessage,
   formatNumber,
   formatRelativeTime,
   isRTL,
@@ -811,6 +813,7 @@ export type {
 export {
   announceToScreenReader,
   auditA11y,
+  auditRules,
   autoFocus,
   clearAnnouncements,
   createLiveRegion,
@@ -833,6 +836,7 @@ export type {
   AnnouncePriority,
   AuditFinding,
   AuditResult,
+  AuditRule,
   AuditSeverity,
   ColorScheme,
   ContrastPreference,

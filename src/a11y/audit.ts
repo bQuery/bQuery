@@ -8,10 +8,101 @@
  * @module bquery/a11y
  */
 
-import type { AuditFinding, AuditResult, AuditSeverity } from './types';
+import type { AuditFinding, AuditResult, AuditRule, AuditSeverity } from './types';
 
 /**
- * Creates a finding object.
+ * The complete, frozen catalog of rules the runtime audit checks, each mapped
+ * to a WCAG 2.1 success criterion and annotated with what it **cannot** detect.
+ *
+ * This is the audit's documented scope. The runtime audit catches structural,
+ * statically-determinable issues only; it does **not** evaluate colour
+ * contrast, focus order, reading order, motion, timing, or any criterion that
+ * requires rendering, computed styles, or human judgement. Treat it as a fast
+ * development signal, never as a substitute for a manual or professional audit.
+ *
+ * @see {@link auditA11y}
+ */
+export const auditRules: readonly AuditRule[] = [
+  {
+    rule: 'img-alt',
+    wcag: '1.1.1',
+    severity: 'error',
+    description: 'Images expose an `alt` attribute.',
+    cannotDetect: 'Whether the alt text is accurate or meaningful.',
+  },
+  {
+    rule: 'img-decorative',
+    wcag: '1.1.1',
+    severity: 'info',
+    description: 'Empty-alt images are flagged as possibly decorative.',
+    cannotDetect: 'Whether the image is genuinely decorative.',
+  },
+  {
+    rule: 'input-label',
+    wcag: '4.1.2',
+    severity: 'error',
+    description:
+      'Form controls have an accessible name (`<label>`, wrapping label, `aria-label`/`aria-labelledby`, or `title`).',
+    cannotDetect: 'Whether the label text is descriptive or correct.',
+  },
+  {
+    rule: 'button-name',
+    wcag: '4.1.2',
+    severity: 'error',
+    description: 'Buttons have an accessible name (text, `aria-label`, or `title`).',
+    cannotDetect: 'Whether the name communicates the action.',
+  },
+  {
+    rule: 'link-name',
+    wcag: '2.4.4',
+    severity: 'error',
+    description: 'Links have an accessible name (text, labelled image, `aria-label`, or `title`).',
+    cannotDetect: 'Whether the link purpose is clear from its name or context.',
+  },
+  {
+    rule: 'heading-order',
+    wcag: '1.3.1',
+    severity: 'warning',
+    description: 'Heading levels are not skipped (e.g. `<h2>` → `<h4>`).',
+    cannotDetect: 'Whether headings reflect the true document outline.',
+  },
+  {
+    rule: 'heading-empty',
+    wcag: '1.3.1',
+    severity: 'warning',
+    description: 'Headings are not empty.',
+    cannotDetect: 'Whether heading text is meaningful.',
+  },
+  {
+    rule: 'aria-labelledby-ref',
+    wcag: '4.1.2',
+    severity: 'error',
+    description: '`aria-labelledby` references resolve to elements in the document.',
+    cannotDetect: 'References inside other shadow roots or not yet rendered.',
+  },
+  {
+    rule: 'aria-describedby-ref',
+    wcag: '4.1.2',
+    severity: 'error',
+    description: '`aria-describedby` references resolve to elements in the document.',
+    cannotDetect: 'References inside other shadow roots or not yet rendered.',
+  },
+  {
+    rule: 'landmark-main',
+    wcag: '1.3.1',
+    severity: 'warning',
+    description: 'The page exposes a `<main>` (or `role="main"`) landmark.',
+    cannotDetect: 'Whether other landmarks (nav, banner, contentinfo) are correct.',
+  },
+];
+
+/** WCAG lookup keyed by rule id, derived from {@link auditRules}. @internal */
+const WCAG_BY_RULE: Record<string, string> = Object.fromEntries(
+  auditRules.map((r) => [r.rule, r.wcag])
+);
+
+/**
+ * Creates a finding object, stamping the WCAG criterion from {@link auditRules}.
  * @internal
  */
 const finding = (
@@ -24,6 +115,7 @@ const finding = (
   message,
   element,
   rule,
+  wcag: WCAG_BY_RULE[rule] ?? '',
 });
 
 /**
