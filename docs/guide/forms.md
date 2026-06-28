@@ -6,6 +6,30 @@ The forms module provides reactive form state, sync/async validation, cross-fiel
 import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 ```
 
+## Stability: targeting Stable in 1.15.0
+
+`forms` has been **Beta**, and its surface expanded materially in 1.13.0 (validators + combinators, a schema builder, field arrays, `bindForm`/`bindField`, scope composables, and SSR helpers all arrived roughly one minor ago). A surface that large and that new — with defaults that surprise — is not yet a stable contract. The work to graduate it is tracked in [#139](https://github.com/bQuery/bQuery/issues/139): freeze the public surface for one minor cycle, settle the surprising defaults and serialization boundaries as documented guarantees, and validate the field-array key contract with clear errors. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+
+### Exit criteria
+
+- [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below; no additive breaking changes land during the freeze. The progressive-enhancement action model ([#140](https://github.com/bQuery/bQuery/issues/140)) is additive and ships alongside.
+- [x] **`validationStrategy` default reviewed and clearly documented** ([#139](https://github.com/bQuery/bQuery/issues/139)) — the default stays `'manual'` (the least-surprising choice for "validate on submit"), and the contract is now explicit: **`handleSubmit()` always runs the full validation pass**, regardless of strategy. `validationStrategy` only controls *automatic* per-change / per-blur validation. See [Validation timing](#validation-timing-validationstrategy).
+- [x] **SSR serialization boundary documented as guaranteed** ([#139](https://github.com/bQuery/bQuery/issues/139)) — `serializeFormState()` deterministically drops functions, `File` / `Blob` / `FileList` handles, `bigint`, and `symbol`. This is a stable contract, not an incidental `JSON.stringify` side effect. See [SSR serialization boundary](#ssr-serialization-boundary).
+- [x] **`createFieldArray()` key contract validated with clear errors** ([#139](https://github.com/bQuery/bQuery/issues/139)) — supplying `getKey` enforces present, unique, stable keys on every structural mutation and throws a descriptive error naming the offending key. See [Field arrays and the stable-key contract](#field-arrays-and-the-stable-key-contract).
+- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+
+### Frozen surface reference (1.15.0)
+
+The frozen public surface of `@bquery/bquery/forms`:
+
+- **Entry points:** `createForm`, `useFormField`, `createFieldArray`, `useForm`, `useField`, `useFieldArray`.
+- **Validators:** `required`, `minLength`, `maxLength`, `pattern`, `email`, `url`, `min`, `max`, `integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `validDate`, `dateAfter`, `dateBefore`, `fileSize`, `fileType`, `custom`, `customAsync`, `matchField`.
+- **Combinators:** `compose`, `all`, `not`, `withMessage`.
+- **Schema builder:** `field`, `schema`.
+- **DOM bindings:** `bindField`, `bindForm`.
+- **SSR helpers:** `serializeFormState`, `readSerializedFormState`, `hydrateForm`.
+- **Progressive-enhancement actions (new in 1.15.0, additive):** `formAction`, `useFormStatus`, `optimistic`.
+
 ## Concepts
 
 A bQuery form is a **graph of signals**. Each field owns its own `value`, `error`, `isTouched`, `isDirty`, `isFocused`, and `isValidating` signal; the parent form derives aggregate signals (`isValid`, `isDirty`, `isSubmitting`, `submitCount`, …) from those. Because everything is signal-based:
@@ -421,15 +445,139 @@ if (snapshot) form.restore(snapshot);
 hydrateForm(form, 'login');
 ```
 
+## What's new in 1.15.0 — Stable-track surface
+
+The 1.15.0 cycle freezes the `forms` surface and settles its documented sharp
+edges into guaranteed contracts ([#139](https://github.com/bQuery/bQuery/issues/139)),
+and adds a progressive-enhancement action model
+([#140](https://github.com/bQuery/bQuery/issues/140)). All additions are
+backwards-compatible.
+
+### Validation timing (`validationStrategy`)
+
+`validationStrategy` controls only **automatic** validation as the user
+interacts with the form. It does **not** gate submit:
+
+```ts
+const form = createForm({
+  fields: { email: { initialValue: '', validators: [required(), email()] } },
+  // default — no automatic per-keystroke/blur validation
+  validationStrategy: 'manual',
+});
+
+// typing leaves `error` untouched under 'manual'…
+form.fields.email.value.value = 'nope';
+console.log(form.errors.email.value); // ''
+
+// …but handleSubmit() ALWAYS runs the full validation pass first
+await form.handleSubmit();
+console.log(form.errors.email.value); // 'Invalid email address' — onSubmit was skipped
+```
+
+- `'manual'` (**default**): errors surface on `handleSubmit()` or an explicit
+  `validate()` / `validateField()` / `setValue(v, { validate: true })`. This is
+  the default because it is the least surprising for the common "validate on
+  submit" flow and avoids flagging fields the user hasn't finished editing.
+- `'onChange'` / `'onBlur'`: validate each field live as it changes / blurs.
+- `'onSubmit'`: a self-documenting alias — automatic feedback behaves like
+  `'manual'`; submit validates either way.
+
+Per-field `validateOn` overrides the form-wide strategy for one field.
+
+### Field arrays and the stable-key contract
+
+`createFieldArray()` is positional by default. For **keyed** list reconciliation
+(e.g. rendering with `bq-for`), supply `getKey` — the array then enforces the
+"stable item ids" contract on every structural mutation and throws a descriptive
+error the moment it is violated, instead of letting duplicate keys cause silent
+DOM-reuse bugs downstream:
+
+```ts
+const rows = createFieldArray<{ id: string; text: string }>({
+  initial: [{ id: 'a', text: 'first' }],
+  factory: (value) => useFormField(value),
+  getKey: (value) => value.id, // must be present, unique, and stable
+});
+
+rows.keys();        // ['a']
+rows.keyAt(0);      // 'a'
+rows.add({ id: 'a', text: 'dup' });
+// → Error: createFieldArray() requires stable, unique item keys, but getKey
+//   returned "a" for both index 0 and index 1.
+```
+
+Keys must be a non-empty `string` or a finite `number`. When `getKey` is omitted,
+the array stays positional and `keys()` / `keyAt()` return `[]` / `undefined`
+(unchanged behaviour).
+
+### SSR serialization boundary
+
+`serializeFormState()` guarantees a stable serialization boundary: values that
+cannot meaningfully cross the server → HTML → client boundary as JSON are
+**deterministically dropped** (the key is omitted), rather than emitted as
+`null`, `{}`, or `"[object File]"`:
+
+- **functions** — not transferable.
+- **`File` / `Blob` / `FileList`** — binary handles; re-attach file inputs on the
+  client after hydration.
+- **`bigint`** — would otherwise throw in `JSON.stringify`.
+- **`symbol` / `undefined`** — already omitted by JSON.
+
+This is a tested contract, not an incidental side effect — rely on it, and
+hydrate large blobs separately.
+
+### Progressive-enhancement form actions
+
+`formAction()` binds a form to a server action that **posts natively when JS is
+unavailable** and progressively enhances to a `fetch`-based submit with reactive
+pending state when JS is present. It composes with the validation pipeline and
+with the `server` module's `csrf()` middleware.
+
+```ts
+import { formAction, useFormStatus, optimistic } from '@bquery/bquery/forms';
+import { signal } from '@bquery/bquery/reactive';
+
+// Binds to a server action; falls back to a native POST without JS.
+const submit = formAction('/todos', { method: 'POST', csrf: () => csrfToken });
+const { pending, error } = useFormStatus(submit);
+
+// Optimistic instant feedback, reconciled on response.
+const todos = signal<string[]>([]);
+const list = optimistic(todos, (current, draft: string) => [...current, draft]);
+
+// Progressive enhancement: sets native action/method + a hidden _csrf field,
+// then intercepts submit for a fetch-based, optimistic-aware POST.
+const cleanup = submit.enhance(document.querySelector('form')!);
+```
+
+- **`formAction(target, options)`** → a handle with reactive `pending`, `error`,
+  `result`, `submitCount`, `submittedAt`; an `enhance(form)` method (PE attach,
+  returns cleanup); a programmatic `submit(formData)`; and `reset()`. `target` is
+  an endpoint URL (native-fallback capable) or a function `(formData) => result`.
+  Non-OK responses throw a `FormActionError` carrying `status` and `response`.
+- **`useFormStatus(action)`** → read-only (`readonly()`) views of the action's
+  status signals, mirroring React 19's `useFormStatus`.
+- **`optimistic(base, reducer)`** → a controller whose reactive `value` folds the
+  base state through every pending draft. `add(draft)` returns a handle with
+  `remove()`; `run(draft, task)` applies the overlay for the duration of an async
+  task and removes it on settle; `pending` / `drafts` are reactive; `clear()`
+  drops all overlays.
+
+Native fallback requires the server-rendered `<form>` to carry the `action`
+(and a hidden CSRF field) — `enhance()` fills these in when missing. Native forms
+only support `GET`/`POST`, so `PUT`/`PATCH`/`DELETE` degrade to a native `POST`
+(the enhanced fetch still uses the real verb).
+
 <!-- uniform-template-footer -->
 
 ## Pitfalls and gotchas
 
-- `handleSubmit()` runs field validation before the handler — throw inside `onSubmit` to populate `submitError`, do not return an error string.
-- `createFieldArray()` requires stable item ids for keyed list reconciliation; supply `getKey` if items lack `id`.
+- `handleSubmit()` runs the full validation pass before the handler — throw inside `onSubmit` to populate `submitError`, do not return an error string.
+- `validationStrategy` defaults to `'manual'`: submit always validates, but there is **no** automatic per-keystroke/blur feedback until you opt into `'onChange'` / `'onBlur'`. See [Validation timing](#validation-timing-validationstrategy).
+- For **keyed** field arrays, pass `getKey` to `createFieldArray()`; it validates the stable-key contract with clear errors. Without `getKey` the array is positional. See [the stable-key contract](#field-arrays-and-the-stable-key-contract).
 - `bindField` / `bindForm` install delegated listeners — unmount them when the form leaves the DOM.
-- `validationStrategy` defaults to `'manual'`; use `'onChange'`, `'onBlur'`, or `'onSubmit'` when you want automatic validation.
-- SSR helpers (`serializeFormState` / `readSerializedFormState`) intentionally drop functions and `File` references — hydrate large blobs separately.
+- `serializeFormState()` drops functions, `File` / `Blob` / `FileList`, `bigint`, and `symbol` as a [guaranteed boundary](#ssr-serialization-boundary) — hydrate large blobs separately.
+- `formAction()` native fallback needs a server-rendered `<form action>` (and a hidden CSRF field) to POST without JS; `enhance()` fills these in when missing.
 
 ## Performance notes
 
@@ -450,4 +598,5 @@ hydrateForm(form, 'login');
 
 ## Version history
 
+- **1.15.0** — **targeting Stable**: surface frozen for one minor cycle ([#139](https://github.com/bQuery/bQuery/issues/139)); `validationStrategy` default and SSR serialization boundary documented as guaranteed contracts; `createFieldArray()` `getKey` stable-key contract validated with clear errors (plus `keys()` / `keyAt()`). New progressive-enhancement actions ([#140](https://github.com/bQuery/bQuery/issues/140)): `formAction`, `useFormStatus`, `optimistic`.
 - **1.13.0** — new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`), combinators (`compose`, `all`, `not`, `withMessage`), field arrays, schema-style config, `bindField` / `bindForm`, scope-aware composables, SSR helpers.
