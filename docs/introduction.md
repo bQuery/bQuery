@@ -2,7 +2,7 @@
 
 bQuery.js is a **batteries-included TypeScript framework for the modern web**. It brings the directness and ergonomics of jQuery's API to fine-grained reactivity, Web Components, SPA routing, state management, motion, accessibility, i18n, drag-and-drop, server-side rendering, and a dependency-free backend — all in one modular system with **zero runtime dependencies**.
 
-> If you only need a quick installation walkthrough, jump to **[Getting Started](/guide/getting-started)**. This page explains the *why*.
+> If you only need a quick installation walkthrough, jump to **[Getting Started](/guide/getting-started)**. This page explains the _why_.
 
 ## Design goals
 
@@ -24,21 +24,23 @@ These are explicitly **not** goals — calling them out so expectations stay cal
 - **All-in-one mega-package.** Each module is independently importable; the root entry is a curated convenience, not an unavoidable surface.
 - **A new build tool.** bQuery integrates with Vite, Rollup, esbuild, tsup, Rspack, and webpack. It does not ship one of its own.
 - **A CSS framework.** Styling is left to the host project. The library is style-agnostic.
-- **Drop-in jQuery compatibility.** The API is *inspired by* jQuery, not a clone of it. See the [Migration Guide](/guide/migration) for a translation table.
+- **Drop-in jQuery compatibility.** The API is _inspired by_ jQuery, not a clone of it. See the [Migration Guide](/guide/migration) for a translation table.
 
 ## Stability matrix
 
 bQuery follows semver. The maturity of each module today:
 
-| Status         | Modules                                                                                                 |
-| -------------- | ------------------------------------------------------------------------------------------------------- |
-| **Stable**     | `core`, `reactive`, `security`, `component`, `motion`, `platform`, `router`, `store`                    |
-| **Beta**       | `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`           |
-| **Experimental** | `ssr`, `server`, `concurrency`                                                                        |
+| Status           | Modules                                                                                       |
+| ---------------- | --------------------------------------------------------------------------------------------- |
+| **Stable**       | `core`, `reactive`, `security`, `component`, `motion`, `platform`, `router`, `store`          |
+| **Beta**         | `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook` |
+| **Experimental** | `ssr`, `server`, `concurrency`                                                                |
 
 Stable modules will not introduce breaking changes between minor releases. Beta and experimental modules may evolve faster — breaking changes for those are flagged in the [Release Notes](/release-notes/).
 
 `ssr` is **targeting Stable in 1.15.0**: its substantive prerequisites (directive parity, resumability, production hydration) are resolved, and its public surface is now frozen for one minor cycle. See the [SSR Stability section](/guide/ssr) for the exit-criteria checklist, frozen surface, and per-runtime support matrix.
+
+`server` is also **targeting Stable in 1.15.0**: its session/middleware prerequisite is resolved (first-party sessions, CSRF, guards, and auth helpers), and the `ctx`/`app` contract is now frozen for one minor cycle. See the [Server Stability section](/guide/server) for the exit-criteria checklist, frozen surface, and per-runtime support matrix.
 
 ## When to use bQuery
 

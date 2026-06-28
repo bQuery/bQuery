@@ -224,7 +224,7 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **Devtools**    | Beta         | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
 | **Testing**     | Beta         | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
 | **SSR**         | Experimental | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
-| **Server**      | Experimental | Express-inspired backend routing, middleware, safe response helpers, SSR-aware request handling, and runtime-agnostic WebSocket sessions                                    |
+| **Server**      | Experimental | Express-inspired backend routing, middleware, safe responses, SSR-aware requests, sessions, CSRF, guards, auth, and WebSocket sessions (targeting Stable in 1.15.0)         |
 
 Storybook authoring helpers are also available as a dedicated entry point via `@bquery/bquery/storybook`. Worker-task, RPC, worker-pool, high-level task-list / collection helpers, and the optional fluent pipeline layer ship as a dedicated entry point via `@bquery/bquery/concurrency`. Server-side middleware, HTTP routing, and runtime-agnostic WebSocket session helpers ship as a dedicated entry point via `@bquery/bquery/server`.
 
@@ -913,10 +913,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full  |
-| Firefox | 90+     | ✅ Full  |
-| Safari  | 15+     | ✅ Full  |
-| Edge    | 90+     | ✅ Full  |
+| Chrome  | 90+     | ✅ Full |
+| Firefox | 90+     | ✅ Full |
+| Safari  | 15+     | ✅ Full |
+| Edge    | 90+     | ✅ Full |
 
 > **No IE support** by design.
 >
