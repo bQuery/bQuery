@@ -29,10 +29,36 @@ export type SSRRouteLoader<T = unknown> = (args: {
   ctx: SSRContext;
 }) => T | Promise<T>;
 
+/**
+ * File-route `load` signature (the convention emitted by `createFileRoutes()`).
+ * Recognised in addition to `meta.loader`; the bridge adapts the active
+ * `SSRContext` into the `{ params, url, request, ctx, signal }` shape.
+ */
+type FileRouteLoad<T = unknown> = (args: {
+  params: Record<string, string>;
+  url: URL;
+  request?: Request;
+  ctx?: SSRContext;
+  signal?: AbortSignal;
+}) => T | Promise<T>;
+
 const getLoader = (route: RouteDefinition | null): SSRRouteLoader | undefined => {
   if (!route || !route.meta) return undefined;
-  const loader = (route.meta as { loader?: unknown }).loader;
-  return typeof loader === 'function' ? (loader as SSRRouteLoader) : undefined;
+  const meta = route.meta as { loader?: unknown; load?: unknown };
+  // Prefer the typed file-route `load` (from createFileRoutes), adapting the
+  // SSR context into its argument shape. Falls back to the legacy `meta.loader`.
+  if (typeof meta.load === 'function') {
+    const load = meta.load as FileRouteLoad;
+    return ({ route: matchedRoute, ctx }) =>
+      load({
+        params: matchedRoute.params,
+        url: ctx.url,
+        request: ctx.request,
+        ctx,
+        signal: ctx.signal,
+      });
+  }
+  return typeof meta.loader === 'function' ? (meta.loader as SSRRouteLoader) : undefined;
 };
 
 /** Result of `resolveSSRRoute()`. */

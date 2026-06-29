@@ -28,13 +28,15 @@ These are explicitly **not** goals — calling them out so expectations stay cal
 
 ## Stability matrix
 
-bQuery follows semver. The maturity of each module today:
+bQuery follows semver. The maturity of each module today (mirrored from the
+canonical [Stability Matrix](https://github.com/bQuery/bQuery/blob/main/STABILITY.md),
+the single source of truth enforced by `bun run check:stability`):
 
 | Status           | Modules                                                                                       |
 | ---------------- | --------------------------------------------------------------------------------------------- |
 | **Stable**       | `core`, `reactive`, `security`, `component`, `motion`, `platform`, `router`, `store`          |
 | **Beta**         | `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook` |
-| **Experimental** | `ssr`, `server`, `concurrency`                                                                |
+| **Experimental** | `concurrency`, `ssr`, `server`                                                                |
 
 Stable modules will not introduce breaking changes between minor releases. Beta and experimental modules may evolve faster — breaking changes for those are flagged in the [Release Notes](/release-notes/).
 

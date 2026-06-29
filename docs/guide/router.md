@@ -510,12 +510,44 @@ type NavigationGuard = (to: Route, from: Route) => boolean | void | Promise<bool
 - `@bquery/bquery/testing` exposes `mockRouter()` (signal-driven, no `window.history`) and `useNavigation()` mocks.
 - Assert `lastNavigation` and `NavigationResult` values directly.
 
+## File-based routing (opt-in)
+
+An additive, bundler-agnostic convention derives the route table from a directory
+layout and attaches typed route-level `load` and `action`. Programmatic routing
+above stays fully supported; see the dedicated [File-based Routing](./file-routing)
+guide for the full story. The surface lives in this module:
+
+- `createFileRoutes(manifest, options?)` — build `{ routes, entries }` from a
+  manifest (a bundler glob such as `import.meta.glob` or a hand-written map).
+  Routes are ordered by `sortEntriesBySpecificity` so static patterns beat
+  dynamic ones and catch-alls sort last.
+- `parseFilePath` / `filePathToRoutePattern` — the pure path → pattern conversion
+  (`routes/users/[id]/+page.ts` → `/users/:id`).
+- `createRouteData(router, options?)` / `useRouteData()` — run the matched route's
+  `load` on client navigation and read the reactive `data` / `pending` / `error`.
+- `getRouteLoad(route)` / `getRouteAction(route)` — read the `load` / `action`
+  attached to a matched route's `meta`.
+
+```ts
+import { createFileRoutes, createRouter, createRouteData, useRouteData } from '@bquery/bquery/router';
+
+const { routes } = createFileRoutes(import.meta.glob('./routes/**/+page.ts'));
+const router = createRouter({ routes });
+const { data, pending } = createRouteData(router);
+// In a component: const { data } = useRouteData<{ user: User }>();
+```
+
 ## Related modules
 
+- [File-based Routing](./file-routing) — the opt-in convention and typed loaders/actions.
 - [Store](./store) — share navigation-derived state across the app.
 - [SSR](./ssr) — route resolution during server rendering.
 - [View](./view) — `bq-on:click` with `router.push` for declarative links.
 
 ## Version history
 
+- **1.15.0** — Opt-in file-route convention: `createFileRoutes`,
+  `parseFilePath` / `filePathToRoutePattern`, `sortEntriesBySpecificity`,
+  `createRouteData` / `useRouteData`, `getRouteLoad` / `getRouteAction`, and the
+  typed `Load` / `Action` contracts. See [File-based Routing](./file-routing).
 - **1.14.0** — `NavigationResult`, `pushResult` / `replaceResult`, `beforeResolve`, `resolveRoute`, dynamic `addRoute` / `removeRoute` / `hasRoute`, `isReady`, `lastNavigation`, `useNavigation`.

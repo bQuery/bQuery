@@ -613,8 +613,33 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 | Edge     | `createEdgeHandler(handler)` from `@bquery/bquery/ssr`       | Streams responses without persistent sockets.                                         |
 | Workers  | `app.handle` from a fetch handler                            | WebSocket support depends on runtime APIs.                                            |
 
+## File-route actions
+
+When you adopt the opt-in [file-route convention](./file-routing), the `action`
+functions on your `+page` modules become reachable server routes. Pass the
+`entries` from `createFileRoutes()` to `mountFileRoutes(app, entries, options?)`
+(or `createFileRouteServerRoutes(entries, options?)` for the raw `ServerRoute[]`):
+
+```ts
+import { createServer, csrf, mountFileRoutes } from '@bquery/bquery/server';
+import { createFileRoutes } from '@bquery/bquery/router';
+
+const { entries } = createFileRoutes(import.meta.glob('./routes/**/+page.ts'));
+
+const app = createServer();
+mountFileRoutes(app, entries, {
+  middlewares: [csrf()], // mutations are CSRF-guarded
+  dataPath: '/__data',   // optional: also serve each route's `load` as JSON
+});
+```
+
+Routes whose module statically exports no `action` are skipped; lazily-imported
+routes reply `405` when no `action` is present. The `FileRouteServerOptions`
+type documents `actionMethod`, `dataPath`, `basePath`, and the middleware hooks.
+
 ## Related modules
 
+- [File-based Routing](./file-routing) — defines the `action` / `load` these endpoints serve.
 - [SSR](./ssr) — `ctx.render*` wraps `renderToString*` / `renderToResponse`.
 - [Reactive](./reactive) — `useWebSocketChannel` consumes server sessions.
 - [Security](./security) — default-sanitized `ctx.html()`.
@@ -622,6 +647,6 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 
 ## Version history
 
-- **1.15.0** — first-party `session` / `memoryStore`, `csrf` / `csrfToken`, `guard`, `basicAuth` / `bearerAuth`, and Web-Crypto signing utilities (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`, `base64UrlEncode`, `base64UrlDecode`); `ctx.session`; `app.listen()` on Deno. `server` targets Stable.
+- **1.15.0** — first-party `session` / `memoryStore`, `csrf` / `csrfToken`, `guard`, `basicAuth` / `bearerAuth`, and Web-Crypto signing utilities (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`, `base64UrlEncode`, `base64UrlDecode`); `ctx.session`; `app.listen()` on Deno; `mountFileRoutes` / `createFileRouteServerRoutes` for file-route actions. `server` targets Stable.
 - **1.14.0** — `ServerHttpError`, `ctx.body`, `ctx.cookies`, `ctx.setCookie`, `ctx.accepts`, `ctx.stream`, `ctx.sse`, `ctx.renderStream`, `ctx.renderResponse`, `app.listen()`.
 - **1.11.0** — `createServer`, runtime-agnostic WebSocket sessions, dependency-free routing.

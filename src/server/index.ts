@@ -14,6 +14,8 @@
  */
 
 export { createServer, isServerWebSocketSession, isWebSocketRequest } from './create-server';
+export { createFileRouteServerRoutes, mountFileRoutes } from './file-routes';
+export type { FileRouteServerOptions } from './file-routes';
 export { ServerHttpError, badRequest, conflict, forbidden, notFound, unauthorized } from './errors';
 export { memoryStore, session } from './session';
 export { csrf, csrfToken } from './csrf';

@@ -139,6 +139,7 @@
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
+    "check:stability": "bun scripts/check-stability-matrix.mjs",
     "check:doc-exports": "bun scripts/check-doc-exports.mjs",
     "docs:check": "bun scripts/check-doc-exports.mjs",
     "test": "bun test",

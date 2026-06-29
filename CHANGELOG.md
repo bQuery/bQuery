@@ -99,6 +99,8 @@ and this project adheres to Semantic Versioning.
 - **`@bquery/bquery/a11y`** — the runtime audit now stamps each `AuditFinding` with its WCAG 2.1 criterion (`wcag`), and the full rule catalog is exported as `auditRules` ([#142](https://github.com/bQuery/bQuery/issues/142)) — each rule documents its WCAG mapping, default severity, and a known limitation (what it cannot detect).
 - **`@bquery/bquery/plugin`** — new `definePlugin()` authoring helper ([#145](https://github.com/bQuery/bQuery/issues/145)): an identity helper that infers a plugin's install-options type and gives third-party authors a single, stable entry point.
 - **`@bquery/bquery/devtools`** — new stable, versioned bridge protocol for the DevTools browser extension ([#146](https://github.com/bQuery/bQuery/issues/146)): `connectDevtoolsBridge()` (over `window.postMessage`), the transport-agnostic `createBridgeServer()`, `serializeComponentTree()`, and `BRIDGE_PROTOCOL_VERSION` / `BRIDGE_SOURCE` / `BRIDGE_CAPABILITIES`. A reference Manifest V3 extension (component tree, signal/store inspection, live timeline) ships in `extension/`.
+- **`@bquery/bquery/router` + `@bquery/bquery/server`** — opt-in, bundler-agnostic file-route convention with typed `load` / `action` ([#149](https://github.com/bQuery/bQuery/issues/149)). New `createFileRoutes(manifest, options?)` turns a manifest (a bundler glob such as `import.meta.glob`, or a hand-written map) into the same `RouteDefinition`s `createRouter()` already consumes, with `parseFilePath` / `filePathToRoutePattern` (`routes/users/[id]/+page.ts` → `/users/:id`, `[...rest]` → `*`, `(group)` dropped) and specificity sorting (`sortEntriesBySpecificity`). Route modules export a typed `Load` (data into the view) and `Action` (mutation target). Loaders run on the server before render (the SSR router bridge now recognises `meta.load` alongside `meta.loader`) and on client navigation via `createRouteData(router)` / `useRouteData()`. The `server` module exposes `mountFileRoutes(app, entries, options?)` / `createFileRouteServerRoutes()` so a `<form>` (or `formAction()`) posts to a route's `action`, composing with `csrf()`. Programmatic routing stays fully supported and unchanged; no bundler is shipped. See the new [File-based Routing guide](https://bquery.js.org/guide/file-routing).
+- **Docs / Stability** — single-source [Stability Matrix](https://github.com/bQuery/bQuery/blob/main/STABILITY.md) plus a per-module stability changelog ([#150](https://github.com/bQuery/bQuery/issues/150)). A new canonical `STABILITY.md` (backed by `scripts/stability-matrix.mjs`) records each module's maturity and its status-transition history; the README "Modules at a glance" table and the docs `introduction.md` matrix are now validated against it by `bun run check:stability` (`scripts/check-stability-matrix.mjs`), so the three surfaces can no longer silently drift.
 
 ### Changed (Unreleased)
 
@@ -117,6 +119,18 @@ and this project adheres to Semantic Versioning.
 
 - **`@bquery/bquery/view`** — `bq-for` duplicate-key handling is resolved ([#136](https://github.com/bQuery/bQuery/issues/136)): colliding keys now fall back to a deterministic, referentially-stable composite key so duplicate rows reuse their DOM across re-renders, and the duplicate-key warning is dev-only and emitted once per offending key instead of on every reactive update.
 - **`@bquery/bquery/view`** — object-expression shorthand is resolved ([#136](https://github.com/bQuery/bQuery/issues/136)): `bq-class="{ active }"` (and `bq-style` / `bq-aria` object syntax) now behaves like JS object shorthand (`{ active: active }`) instead of silently dropping the property.
+
+### Module status (Unreleased)
+
+Canonical source: [STABILITY.md](https://github.com/bQuery/bQuery/blob/main/STABILITY.md) (enforced by `bun run check:stability`).
+
+- `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`: Beta (API frozen, targeting Stable in 1.15.0).
+- `concurrency`, `ssr`, `server`: Experimental (surface frozen, targeting Stable in 1.15.0).
+- `router`: Stable — file-route convention added as a strictly additive, opt-in surface ([#149](https://github.com/bQuery/bQuery/issues/149)); no status change.
+
+#### Breaking changes (Beta/Experimental, per policy)
+
+- None this cycle. The graduations above freeze each surface for one minor; no breaking changes are flagged.
 
 ## [1.14.2] - 2026-06-26
 

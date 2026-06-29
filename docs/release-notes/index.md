@@ -2,12 +2,13 @@
 
 Structured release notes for bQuery.js. Each minor version has its own page; older minors live in the [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md).
 
-The library follows [Semantic Versioning](https://semver.org/). The [Stability matrix](/introduction#stability-matrix) lists which modules are stable, beta, or experimental.
+The library follows [Semantic Versioning](https://semver.org/). The [Stability matrix](/introduction#stability-matrix) lists which modules are stable, beta, or experimental; the canonical source of truth (with per-module status history) is [`STABILITY.md`](https://github.com/bQuery/bQuery/blob/main/STABILITY.md).
 
 ## Versions
 
 | Version | Date | Highlights |
 | --- | --- | --- |
+| 1.14.2 | 2026-06-26 | Patch: dev-dependency maintenance (TypeScript-ESLint, ESLint, Vite, Bun 1.3.14); Dependabot added. No public API changes. |
 | [1.14.1](/release-notes/1.14) | 2026-05-28 | Patch: motion `prefersReducedMotion` / `reducedMotionSignal` refresh stale media-query cache on `matchMedia` change. |
 | [1.14.0](/release-notes/1.14) | 2026-05-26 | `media`, `plugin`, `devtools`, `testing` graduate into batteries-included tiers; additive expansions across router, view, a11y, i18n, dnd, storybook, concurrency, ssr, server. |
 | 1.13.0 | 2026-05-21 | Forms / component / motion / core-utils baseline expansion. See [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md#1130---2026-05-21). |
