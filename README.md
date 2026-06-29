@@ -208,7 +208,7 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **Reactive**    | Stable       | `signal`, `computed`, `effect`, `watchDebounce`, `watchThrottle`, async data, HTTP clients, polling, pagination, WebSocket / SSE, and REST helpers                          |
 | **Concurrency** | Experimental | Zero-build worker tasks, explicit RPC helpers, optional reactive state wrappers, bounded worker pools, high-level collection helpers, an optional fluent pipeline layer, CSP-safe module workers, and client UI-scheduling primitives (targeting Stable in 1.15.0) |
 | **Component**   | Stable       | Typed Web Components with scoped reactivity and configurable Shadow DOM                                                                                                     |
-| **Storybook**   | Beta         | Safe story template helpers with boolean-attribute shorthand                                                                                                                |
+| **Storybook**   | Beta         | Secure-by-default story template helpers with a pinned `unsafeHtml` contract (targeting Stable in 1.15.0)                                                                    |
 | **Motion**      | Stable       | View transitions, FLIP, morphing, parallax, typewriter, springs, and timelines                                                                                              |
 | **Security**    | Stable       | HTML sanitization, Trusted Types, CSP helpers, and trusted fragment composition                                                                                             |
 | **Platform**    | Stable       | Storage, cache, cookies, page metadata, announcers, and shared runtime config                                                                                               |
@@ -220,9 +220,9 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 | **A11y**        | Beta         | Focus traps, live-region announcements, roving tabindex, skip links, and audits with documented WCAG scope (targeting Stable in 1.15.0)                                     |
 | **DnD**         | Beta         | Draggable elements, droppable zones, and keyboard-accessible sortable lists (targeting Stable in 1.15.0)                                                                    |
 | **Media**       | Beta         | Reactive, SSR-safe browser/device signals for viewport, network, battery, geolocation, clipboard, and DOM observers (targeting Stable in 1.15.0)                            |
-| **Plugin**      | Beta         | Global plugin registration for custom directives and Web Components                                                                                                         |
-| **Devtools**    | Beta         | Runtime inspection helpers for signals, stores, components, and timelines                                                                                                   |
-| **Testing**     | Beta         | Component mounting, mock signals/router helpers, and async test utilities                                                                                                   |
+| **Plugin**      | Beta         | Global plugin registration (hook bus, DI, namespaced directives) with symmetric install/uninstall, plus `definePlugin` (targeting Stable in 1.15.0)                         |
+| **Devtools**    | Beta         | Runtime inspection helpers plus a stable bridge protocol and reference browser extension (component tree, signals/stores, timeline) (targeting Stable in 1.15.0)            |
+| **Testing**     | Beta         | Testing-Library-parity, shadow-DOM-aware queries, `userEvent`/`fireEvent`, mocks, runner-agnostic (Vitest/Jest/bun:test) (targeting Stable in 1.15.0)                       |
 | **SSR**         | Experimental | Runtime-agnostic server-side rendering (Node ≥ 24, Deno, Bun), streaming, async loaders, hydration islands, head/asset/CSP-nonce management, runtime adapters               |
 | **Server**      | Experimental | Express-inspired backend routing, middleware, safe responses, SSR-aware requests, sessions, CSRF, guards, auth, and WebSocket sessions (targeting Stable in 1.15.0)         |
 
