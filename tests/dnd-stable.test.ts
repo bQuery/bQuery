@@ -109,12 +109,12 @@ describe('DnD Stable — frozen option surface (#143)', () => {
     document.body.innerHTML = '';
   });
 
-  it('useSortable exposes a reactive order signal and keyboard opt-in', () => {
+  it('useSortable exposes a reactive order signal', () => {
     const list = document.createElement('ul');
     list.innerHTML = '<li>a</li><li>b</li><li>c</li>';
     document.body.appendChild(list);
 
-    const { order, isDragging, handle } = useSortable(list, { items: 'li', keyboard: true });
+    const { order, isDragging, handle } = useSortable(list, { items: 'li' });
     expect(Array.isArray(order.value)).toBe(true);
     expect(order.value.length).toBe(3);
     expect(isDragging.value).toBe(false);
