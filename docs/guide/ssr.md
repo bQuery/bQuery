@@ -81,9 +81,9 @@ import type {
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`ssr` is the last foundational module still marked **Experimental**. The work to graduate it is tracked in [#127](https://github.com/bQuery/bQuery/issues/127); its three substantive prerequisites — [#128](https://github.com/bQuery/bQuery/issues/128) directive parity, [#129](https://github.com/bQuery/bQuery/issues/129) resumability, [#130](https://github.com/bQuery/bQuery/issues/130) hydration correctness — are resolved (see the sections below). Promotion to **Stable** then follows one full minor cycle with the public surface frozen.
+`ssr` is the last foundational module still marked **Experimental**. The work to graduate it is tracked in [#127](https://github.com/bQuery/bQuery/issues/127); its three substantive prerequisites — [#128](https://github.com/bQuery/bQuery/issues/128) directive parity, [#129](https://github.com/bQuery/bQuery/issues/129) resumability, [#130](https://github.com/bQuery/bQuery/issues/130) hydration correctness — are resolved (see the sections below). It **graduated to Stable in 1.15.0**, with the public surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
@@ -91,7 +91,7 @@ import type {
 - [x] Resumability model finalized ([#129](https://github.com/bQuery/bQuery/issues/129)) — `createResumableBoundary` / `createResumableGraph` / `resume`.
 - [x] Hydration-mismatch handling productionized ([#130](https://github.com/bQuery/bQuery/issues/130)) — `hydrate()` + `detectHydrationMismatches()` with `warn`/`repair`/`error`.
 - [x] Per-runtime support matrix published (below).
-- [ ] Public exports frozen for one minor (no additive breaking changes) — demonstrated across the 1.15 cycle.
+- [x] Public exports frozen (no additive breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface
 
@@ -946,6 +946,6 @@ export default createEdgeHandler(async (request) => {
 
 ## Version history
 
-- **1.15.0 (targeting Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.
+- **1.15.0 (graduated to Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.
 - **1.14.0** — `flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`.
 - **1.11.0** — `createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions.

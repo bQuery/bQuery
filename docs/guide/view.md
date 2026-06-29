@@ -3,7 +3,7 @@ title: View
 ---
 
 ::: tip What's new in 1.15.0
-View is **targeting Stable in 1.15.0**: the directive contract is frozen, the documented `bq-for` duplicate-key and object-expression edge cases are resolved, declarative [enter/leave/move transitions](#transitions) bind the `motion` engine to `bq-if`/`bq-show`/`bq-for`, and an [optional compiler](#optional-compiler-build-step) precompiles `bq-*` expressions. See [Stability](#stability-targeting-stable-in-1150).
+View **graduated to Stable in 1.15.0**: the directive contract is frozen, the documented `bq-for` duplicate-key and object-expression edge cases are resolved, declarative [enter/leave/move transitions](#transitions) bind the `motion` engine to `bq-if`/`bq-show`/`bq-for`, and an [optional compiler](#optional-compiler-build-step) precompiles `bq-*` expressions. See [Stability](#stability).
 :::
 
 The view module provides declarative DOM bindings similar to Vue/Svelte templates, but without requiring a compiler. Bindings are evaluated at runtime using bQuery's reactive system. Internally, the view module is now split into focused submodules while the public API remains unchanged.
@@ -13,9 +13,9 @@ import { mount } from '@bquery/bquery/view';
 import { signal, computed } from '@bquery/bquery/reactive';
 ```
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`view` is the declarative rendering layer and has been **Beta**. Its directive contract grew materially in 1.14.0 (`bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system). The work to graduate it is tracked in [#136](https://github.com/bQuery/bQuery/issues/136): freeze the directive set and grammar for one minor cycle, resolve the documented parser edge cases, and publish a versioned directive reference with per-directive SSR support. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`view` is the declarative rendering layer and has been **Beta**. Its directive contract grew materially in 1.14.0 (`bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system). The work to graduate it is tracked in [#136](https://github.com/bQuery/bQuery/issues/136): freeze the directive set and grammar for one minor cycle, resolve the documented parser edge cases, and publish a versioned directive reference with per-directive SSR support. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
@@ -23,7 +23,7 @@ import { signal, computed } from '@bquery/bquery/reactive';
 - [x] **`bq-for` duplicate-key edge case resolved** ([#136](https://github.com/bQuery/bQuery/issues/136)) — a deterministic, referentially-stable composite key replaces the colliding key (so duplicate rows reuse their DOM), and the warning is dev-only and emitted once per offending key instead of on every re-render.
 - [x] **Object-expression parsing edge case resolved** — shorthand properties (`bq-class="{ active }"`) now behave like JS object shorthand (`{ active: active }`) instead of being silently dropped.
 - [x] **Per-directive SSR support documented** ([#128](https://github.com/bQuery/bQuery/issues/128)) — see the [matrix](#per-directive-ssr-support) below.
-- [ ] **Public surface frozen for one minor** (no breaking directive/grammar changes) — demonstrated across the 1.15 cycle.
+- [x] **Public surface frozen** (no breaking directive/grammar changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen directive reference (1.15.0)
 
@@ -801,5 +801,5 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: directive set + grammar frozen; `bq-for` duplicate-key and object-expression (`{ active }` shorthand) edge cases resolved; declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`); optional `@bquery/bquery/view/compiler` build step with `registerCompiledExpressions` / `clearCompiledExpressions` runtime hooks.
+- **1.15.0** — **graduated to Stable**: directive set + grammar frozen; `bq-for` duplicate-key and object-expression (`{ active }` shorthand) edge cases resolved; declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`); optional `@bquery/bquery/view/compiler` build step with `registerCompiledExpressions` / `clearCompiledExpressions` runtime hooks.
 - **1.14.0** — `parseDirective`, `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, full `bq-on` modifier system.

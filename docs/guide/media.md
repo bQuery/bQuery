@@ -23,16 +23,16 @@ import {
 } from '@bquery/bquery/media';
 ```
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`media` is **Beta**. It graduated to a "batteries-included tier" in 1.14.0 **with 25+ new composables added in that same release** — so essentially the entire usable surface is one minor old. The "batteries-included" label is a feature-completeness signal, not the semver stability bar. The work to graduate it is tracked in [#144](https://github.com/bQuery/bQuery/issues/144): freeze the composable surface for one minor cycle, document each composable's SSR-safe default and cleanup, and verify reactivity + teardown with no listener leaks. This is a **bake-and-verify** ticket — no new features. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`media` is **Beta**. It graduated to a "batteries-included tier" in 1.14.0 **with 25+ new composables added in that same release** — so essentially the entire usable surface is one minor old. The "batteries-included" label is a feature-completeness signal, not the semver stability bar. The work to graduate it is tracked in [#144](https://github.com/bQuery/bQuery/issues/144): freeze the composable surface for one minor cycle, document each composable's SSR-safe default and cleanup, and verify reactivity + teardown with no listener leaks. This is a **bake-and-verify** ticket — no new features. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
 - [x] **Composable surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below; no new composables or breaking changes during the freeze.
 - [x] **SSR-safe defaults documented per composable** ([#144](https://github.com/bQuery/bquery/issues/144)) — see [SSR behaviour and defaults](#ssr-behaviour-and-defaults).
 - [x] **Reactivity + cleanup tested (no listener leaks)** ([#144](https://github.com/bQuery/bQuery/issues/144)) — `destroy()` idempotency, listener detachment, and `AbortSignal` teardown are covered.
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -964,5 +964,5 @@ effect(() => {
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: composable surface frozen for one minor cycle ([#144](https://github.com/bQuery/bQuery/issues/144)). Per-composable SSR-safe defaults documented; reactivity, idempotent `destroy()`, listener detachment, and `AbortSignal` teardown covered by tests. No new features (bake-and-verify).
+- **1.15.0** — **graduated to Stable**: composable surface frozen for one minor cycle ([#144](https://github.com/bQuery/bQuery/issues/144)). Per-composable SSR-safe defaults documented; reactivity, idempotent `destroy()`, listener detachment, and `AbortSignal` teardown covered by tests. No new features (bake-and-verify).
 - **1.14.0** — 25+ new composables: preference signals, page state, element observers, pointer/scroll, platform integrations, clipboard upgrades. All accept `{ signal: AbortSignal }`.

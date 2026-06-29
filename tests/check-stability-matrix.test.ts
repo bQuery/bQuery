@@ -39,7 +39,10 @@ describe('stability matrix', () => {
     }
     expect(STABILITY_MATRIX.length).toBe(21);
     expect(modulesByStatus().Stable).toContain('router');
-    expect(modulesByStatus().Experimental).toContain('ssr');
+    // 1.15.0 graduated the final modules; every module is now Stable.
+    expect(modulesByStatus().Stable).toContain('ssr');
+    expect(modulesByStatus().Beta).toEqual([]);
+    expect(modulesByStatus().Experimental).toEqual([]);
   });
 
   it('is in sync across STABILITY.md, README, and docs introduction', async () => {

@@ -136,16 +136,16 @@ expect(result.passed).toBe(true);
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`testing` has been **Beta**, and its surface is one minor old (`screen`/`within`, `userEvent`, the `fireEvent.*` family, module mocks, and a11y helpers all landed in 1.14.0). It mirrors Testing Library well — including Shadow-DOM-aware queries that suit bQuery's Web Component model — but a test-utility API just one minor old, with no documented story beyond `bun:test`, isn't yet something teams can pin their suites to. The work to graduate it is tracked in [#147](https://github.com/bQuery/bQuery/issues/147): freeze the surface for one minor cycle, document runner integration beyond `bun:test`, and prove the query/`userEvent`/`fireEvent`/mock APIs across light **and** shadow DOM. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`testing` has been **Beta**, and its surface is one minor old (`screen`/`within`, `userEvent`, the `fireEvent.*` family, module mocks, and a11y helpers all landed in 1.14.0). It mirrors Testing Library well — including Shadow-DOM-aware queries that suit bQuery's Web Component model — but a test-utility API just one minor old, with no documented story beyond `bun:test`, isn't yet something teams can pin their suites to. The work to graduate it is tracked in [#147](https://github.com/bQuery/bQuery/issues/147): freeze the surface for one minor cycle, document runner integration beyond `bun:test`, and prove the query/`userEvent`/`fireEvent`/mock APIs across light **and** shadow DOM. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
 - [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below.
 - [x] **Runner integration documented beyond `bun:test`** ([#147](https://github.com/bQuery/bQuery/issues/147)) — see [Runner integration](#runner-integration).
 - [x] **Query / `userEvent` / `fireEvent` / mock APIs tested across light + shadow DOM** ([#147](https://github.com/bQuery/bQuery/issues/147)) — shadow-piercing `screen` queries, `within()` scoping, `userEvent.click`, and `fireEvent` are covered against real components.
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -751,5 +751,5 @@ describe('router', () => {
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: surface frozen for one minor cycle ([#147](https://github.com/bQuery/bQuery/issues/147)). Runner integration documented beyond `bun:test` (Vitest / Jest); shadow-DOM-aware queries, `userEvent` / `fireEvent`, and mocks covered by tests across light + shadow DOM; `expectAccessible` aligned with the `a11y` audit's rule definitions.
+- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#147](https://github.com/bQuery/bQuery/issues/147)). Runner integration documented beyond `bun:test` (Vitest / Jest); shadow-DOM-aware queries, `userEvent` / `fireEvent`, and mocks covered by tests across light + shadow DOM; `expectAccessible` aligned with the `a11y` audit's rule definitions.
 - **1.14.0** — auto cleanup, `fireEvent.*` shortcuts, `userEvent` namespace, shadow-DOM-aware `screen` / `within`, reactive harnesses (`mockComputed`, `mockEffect`), async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).

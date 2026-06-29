@@ -112,16 +112,16 @@ plugin-namespaced names like `tooltip:arrow`.
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`plugin` has been **Beta**, and it is the extensibility contract the whole ecosystem would build on — yet its surface is one minor old (the hook bus, DI container, async install, namespaced directives, and `unuse`/`uninstall` all arrived in 1.14.0). Third-party authors cannot target a moving extension API. The work to graduate it is tracked in [#145](https://github.com/bQuery/bQuery/issues/145): freeze the hook-bus / DI / install-lifecycle / directive-registration surface for one minor cycle, publish this plugin-author guide, and prove install/uninstall symmetry. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`plugin` has been **Beta**, and it is the extensibility contract the whole ecosystem would build on — yet its surface is one minor old (the hook bus, DI container, async install, namespaced directives, and `unuse`/`uninstall` all arrived in 1.14.0). Third-party authors cannot target a moving extension API. The work to graduate it is tracked in [#145](https://github.com/bQuery/bQuery/issues/145): freeze the hook-bus / DI / install-lifecycle / directive-registration surface for one minor cycle, publish this plugin-author guide, and prove install/uninstall symmetry. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
 - [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below. The new `definePlugin()` authoring helper is additive.
 - [x] **Plugin-author guide published** ([#145](https://github.com/bQuery/bQuery/issues/145)) — see [Plugin-author guide](#plugin-author-guide) (lifecycle, hook timing, DI resolution, directive namespacing).
 - [x] **Install/uninstall symmetry tested** ([#145](https://github.com/bQuery/bQuery/issues/145)) — `uninstall()` leaves **no** directives, filters, actions, or DI bindings behind; re-install is clean.
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -506,5 +506,5 @@ mount('#app', { message });
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: hook-bus / DI / install-lifecycle / directive-registration surface frozen for one minor cycle ([#145](https://github.com/bQuery/bQuery/issues/145)). New additive `definePlugin()` authoring helper; plugin-author guide published; install/uninstall symmetry (no leaked directives/filters/actions/DI) covered by tests.
+- **1.15.0** — **graduated to Stable**: hook-bus / DI / install-lifecycle / directive-registration surface frozen for one minor cycle ([#145](https://github.com/bQuery/bQuery/issues/145)). New additive `definePlugin()` authoring helper; plugin-author guide published; install/uninstall symmetry (no leaked directives/filters/actions/DI) covered by tests.
 - **1.14.0** — hook bus (`addFilter` / `applyFilters` / `addAction` / `doAction`), DI (`createInjectionKey` / `provide` / `inject` / `hasProvided`), `unuse` / `uninstall`, async `install`, plugin metadata, dependency mode, namespaced directive names, directive lifecycle objects.

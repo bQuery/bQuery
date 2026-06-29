@@ -1,7 +1,7 @@
 # Server
 
 ::: tip What's new in 1.15.0
-The server module gained first-party **session**, **CSRF**, **guard**, and **auth** primitives (`session`, `memoryStore`, `csrf`, `csrfToken`, `guard`, `basicAuth`, `bearerAuth`) plus the Web-Crypto signing utilities they build on (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`). `app.listen()` now also supports Deno. With these, `server` is **targeting Stable in 1.15.0** — see [Stability](#stability-targeting-stable-in-1150).
+The server module gained first-party **session**, **CSRF**, **guard**, and **auth** primitives (`session`, `memoryStore`, `csrf`, `csrfToken`, `guard`, `basicAuth`, `bearerAuth`) plus the Web-Crypto signing utilities they build on (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`). `app.listen()` now also supports Deno. With these, `server` **graduated to Stable in 1.15.0** — see [Stability](#stability).
 :::
 
 ::: tip What's new in 1.14.0
@@ -27,9 +27,9 @@ import {
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`server` was introduced in 1.11.0 and expanded materially in 1.14.0; the work to graduate it is tracked in [#131](https://github.com/bQuery/bQuery/issues/131), and its session/middleware prerequisite [#132](https://github.com/bQuery/bQuery/issues/132) is resolved (see [Sessions, CSRF, guards, and auth](#sessions-csrf-guards-and-auth)). Promotion to **Stable** then follows one full minor cycle with the `ctx`/`app` surface frozen.
+`server` was introduced in 1.11.0 and expanded materially in 1.14.0; the work to graduate it is tracked in [#131](https://github.com/bQuery/bQuery/issues/131), and its session/middleware prerequisite [#132](https://github.com/bQuery/bQuery/issues/132) is resolved (see [Sessions, CSRF, guards, and auth](#sessions-csrf-guards-and-auth)). It **graduated to Stable in 1.15.0**, with the `ctx`/`app` surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
@@ -37,8 +37,8 @@ import {
 - [x] Session + middleware primitives ([#132](https://github.com/bQuery/bQuery/issues/132)) — `session`, `memoryStore`, `csrf`, `guard`, `basicAuth`, `bearerAuth`.
 - [x] Test coverage across routing, streaming, SSE, cookies, content negotiation, sessions, CSRF, and auth (`tests/server.test.ts`, `tests/server-stable.test.ts`).
 - [x] Per-runtime support matrix published (below).
-- [ ] File-based routing bridge ([#149](https://github.com/bQuery/bQuery/issues/149)) — tracked separately, not required for the freeze.
-- [ ] Public surface frozen for one minor (no additive breaking changes) — demonstrated across the 1.15 cycle.
+- [x] File-based routing bridge ([#149](https://github.com/bQuery/bQuery/issues/149)) — shipped in 1.15.0 (`createFileRoutes` + `mountFileRoutes`).
+- [x] Public surface frozen (no additive breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface
 

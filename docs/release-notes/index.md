@@ -6,17 +6,18 @@ The library follows [Semantic Versioning](https://semver.org/). The [Stability m
 
 ## Versions
 
-| Version | Date | Highlights |
-| --- | --- | --- |
-| 1.14.2 | 2026-06-26 | Patch: dev-dependency maintenance (TypeScript-ESLint, ESLint, Vite, Bun 1.3.14); Dependabot added. No public API changes. |
-| [1.14.1](/release-notes/1.14) | 2026-05-28 | Patch: motion `prefersReducedMotion` / `reducedMotionSignal` refresh stale media-query cache on `matchMedia` change. |
-| [1.14.0](/release-notes/1.14) | 2026-05-26 | `media`, `plugin`, `devtools`, `testing` graduate into batteries-included tiers; additive expansions across router, view, a11y, i18n, dnd, storybook, concurrency, ssr, server. |
-| 1.13.0 | 2026-05-21 | Forms / component / motion / core-utils baseline expansion. See [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md#1130---2026-05-21). |
-| 1.12.0 | 2026-05-16 | `unregisterPlugin`, `clearPlugins`, `WebSocketSendData` public type, `/full` bundle type-export drift coverage. |
-| 1.11.x | 2026-04-30 / 2026-05-12 | SSR / server runtime: `createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions. |
-| 1.10.0 | 2026-04-15 | Concurrency module additions. |
-| 1.9.0 | 2026-04-05 | Watcher / view / media APIs. |
-| earlier | see CHANGELOG | Full history in [CHANGELOG.md](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md). |
+| Version                       | Date                    | Highlights                                                                                                                                                                                                                         |
+| ----------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [1.15.0](/release-notes/1.15) | 2026-06-29              | Thirteen modules graduate to **Stable** (every module is now Stable); view transitions + optional compiler, forms actions + `optimistic`, i18n ICU + extraction, opt-in file-based routing, devtools bridge + reference extension. |
+| 1.14.2                        | 2026-06-26              | Patch: dev-dependency maintenance (TypeScript-ESLint, ESLint, Vite, Bun 1.3.14); Dependabot added. No public API changes.                                                                                                          |
+| [1.14.1](/release-notes/1.14) | 2026-05-28              | Patch: motion `prefersReducedMotion` / `reducedMotionSignal` refresh stale media-query cache on `matchMedia` change.                                                                                                               |
+| [1.14.0](/release-notes/1.14) | 2026-05-26              | `media`, `plugin`, `devtools`, `testing` graduate into batteries-included tiers; additive expansions across router, view, a11y, i18n, dnd, storybook, concurrency, ssr, server.                                                    |
+| 1.13.0                        | 2026-05-21              | Forms / component / motion / core-utils baseline expansion. See [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md#1130---2026-05-21).                                                                            |
+| 1.12.0                        | 2026-05-16              | `unregisterPlugin`, `clearPlugins`, `WebSocketSendData` public type, `/full` bundle type-export drift coverage.                                                                                                                    |
+| 1.11.x                        | 2026-04-30 / 2026-05-12 | SSR / server runtime: `createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions.                                                                                            |
+| 1.10.0                        | 2026-04-15              | Concurrency module additions.                                                                                                                                                                                                      |
+| 1.9.0                         | 2026-04-05              | Watcher / view / media APIs.                                                                                                                                                                                                       |
+| earlier                       | see CHANGELOG           | Full history in [CHANGELOG.md](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md).                                                                                                                                           |
 
 ## How to read these notes
 

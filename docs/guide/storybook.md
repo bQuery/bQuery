@@ -12,16 +12,16 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`storybook` has been **Beta** — a helper-only entry point (`storyHtml`, `when`, plus the 1.14.0 additions `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, `storySvg`). Those template helpers are one minor old, and `unsafeHtml` in particular needs a pinned security contract given bQuery's secure-by-default stance. The work to graduate it is tracked in [#148](https://github.com/bQuery/bQuery/issues/148): freeze the helper surface for one minor cycle, document each helper (especially the `unsafeHtml` boundary and how it interacts with the security sanitizer), and cover the helpers' output. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`storybook` has been **Beta** — a helper-only entry point (`storyHtml`, `when`, plus the 1.14.0 additions `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, `storySvg`). Those template helpers are one minor old, and `unsafeHtml` in particular needs a pinned security contract given bQuery's secure-by-default stance. The work to graduate it is tracked in [#148](https://github.com/bQuery/bQuery/issues/148): freeze the helper surface for one minor cycle, document each helper (especially the `unsafeHtml` boundary and how it interacts with the security sanitizer), and cover the helpers' output. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
 - [x] **Helper surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below.
 - [x] **Helpers documented, with `unsafeHtml` security guidance** ([#148](https://github.com/bQuery/bQuery/issues/148)) — see [The security contract](#the-security-contract).
 - [x] **Rendering output tested** ([#148](https://github.com/bQuery/bQuery/issues/148)) — sanitization of interpolated values, the `unsafeHtml` bypass, brand-spoofing rejection, and each helper's output are covered.
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -408,5 +408,5 @@ export const Icon = {
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: helper surface frozen for one minor cycle ([#148](https://github.com/bQuery/bQuery/issues/148)). `unsafeHtml` security contract pinned and documented (verbatim only for trusted, brand-checked fragments; the surrounding template stays sanitized); helper output covered by tests.
+- **1.15.0** — **graduated to Stable**: helper surface frozen for one minor cycle ([#148](https://github.com/bQuery/bQuery/issues/148)). `unsafeHtml` security contract pinned and documented (verbatim only for trusted, brand-checked fragments; the surrounding template stays sanitized); helper output covered by tests.
 - **1.14.0** — `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, `storySvg`.

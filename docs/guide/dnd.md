@@ -12,16 +12,16 @@ import { draggable, droppable, sortable } from '@bquery/bquery/dnd';
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`dnd` has been **Beta**, and its most important capabilities are new: keyboard accessibility, `grid` mode, `delay`, `'viewport'` bounds, and the reactive `useDraggable` / `useDroppable` / `useSortable` composables all arrived in 1.14.0. Accessible DnD specifically needs rigorous validation, so a feature set one minor old has not yet proven itself. The work to graduate it is tracked in [#143](https://github.com/bQuery/bQuery/issues/143): freeze the surface for one minor cycle, harden the keyboard interaction model, and publish an accessibility statement. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`dnd` has been **Beta**, and its most important capabilities are new: keyboard accessibility, `grid` mode, `delay`, `'viewport'` bounds, and the reactive `useDraggable` / `useDroppable` / `useSortable` composables all arrived in 1.14.0. Accessible DnD specifically needs rigorous validation, so a feature set one minor old has not yet proven itself. The work to graduate it is tracked in [#143](https://github.com/bQuery/bQuery/issues/143): freeze the surface for one minor cycle, harden the keyboard interaction model, and publish an accessibility statement. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
 - [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below; no breaking changes land during the freeze.
 - [x] **Keyboard + pointer paths tested** ([#143](https://github.com/bQuery/bQuery/issues/143)) — keyboard pick up / move / drop / cancel, `aria-grabbed` transitions, and the `grid` / `delay` / `viewport` options are covered.
 - [x] **Accessibility behaviour documented** — see [Accessibility statement](#accessibility-statement) below.
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -577,5 +577,5 @@ const position = draggablePosition(box, handle);
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: surface frozen for one minor cycle ([#143](https://github.com/bQuery/bQuery/issues/143)). Keyboard pick up / move / drop / cancel, `aria-grabbed` transitions, and `grid` / `delay` / `viewport` options covered by tests; accessibility statement published; announcements confirmed to route through the shared `a11y` live-region announcer.
+- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#143](https://github.com/bQuery/bQuery/issues/143)). Keyboard pick up / move / drop / cancel, `aria-grabbed` transitions, and `grid` / `delay` / `viewport` options covered by tests; accessibility statement published; announcements confirmed to route through the shared `a11y` live-region announcer.
 - **1.14.0** — programmatic handle APIs, `grid`, `delay`, `touchStartThreshold`, `keyboard`, `keyboardStep`, `'viewport'` bounds, reactive `useDraggable` / `useDroppable` / `useSortable`.

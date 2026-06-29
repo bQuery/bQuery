@@ -9,6 +9,11 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+  - [\[1.15.0\] - 2026-06-29](#1150---2026-06-29)
+    - [Added (1.15.0)](#added-1150)
+    - [Changed (1.15.0)](#changed-1150)
+    - [Fixed (1.15.0)](#fixed-1150)
+    - [Module status (1.15.0)](#module-status-1150)
   - [\[1.14.2\] - 2026-06-26](#1142---2026-06-26)
     - [Fixed (1.14.2)](#fixed-1142)
   - [\[1.14.1\] - 2026-05-28](#1141---2026-05-28)
@@ -88,7 +93,13 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-### Added (Unreleased)
+_Nothing yet._
+
+## [1.15.0] - 2026-06-29
+
+This release graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, and `server`. With them, **every bQuery module is now Stable** and bound by the no-breaking-changes-between-minor-releases contract (see [STABILITY.md](https://github.com/bQuery/bQuery/blob/main/STABILITY.md)). All graduations are additive — there are no breaking changes this cycle.
+
+### Added (1.15.0)
 
 - **`@bquery/bquery/view`** — declarative enter/leave/move transitions ([#137](https://github.com/bQuery/bQuery/issues/137)). New companion attributes `bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing` drive enter/leave animations on `bq-if` / `bq-show`, and `bq-animate="flip"` drives FLIP move animations when `bq-for` items reorder. The layer delegates to the existing `motion` engine (Web Animations + FLIP), skips the initial paint, defers removal until the leave finishes, is race-safe on rapid toggles, and honours `prefers-reduced-motion`.
 - **`@bquery/bquery/view/compiler`** — optional, build-tool-agnostic compiler ([#138](https://github.com/bQuery/bQuery/issues/138)). `compileViews()`, `compileToModule()`, `compileExpression()`, `emitModule()`, and the dependency-free CLI (`runCompileCli` / `compileFiles`, `bquery-view-compile`) pre-parse `bq-*` expressions into optimized, `with`-free update functions. New runtime hooks `registerCompiledExpressions()` / `clearCompiledExpressions()` (exported from `@bquery/bquery/view`) let the runtime use the precompiled functions, skipping the `new Function()` evaluator (and its `'unsafe-eval'` requirement). The runtime evaluator stays the default; un-compilable expressions transparently fall back to it, so both paths are behaviourally identical.
@@ -102,35 +113,36 @@ and this project adheres to Semantic Versioning.
 - **`@bquery/bquery/router` + `@bquery/bquery/server`** — opt-in, bundler-agnostic file-route convention with typed `load` / `action` ([#149](https://github.com/bQuery/bQuery/issues/149)). New `createFileRoutes(manifest, options?)` turns a manifest (a bundler glob such as `import.meta.glob`, or a hand-written map) into the same `RouteDefinition`s `createRouter()` already consumes, with `parseFilePath` / `filePathToRoutePattern` (`routes/users/[id]/+page.ts` → `/users/:id`, `[...rest]` → `*`, `(group)` dropped) and specificity sorting (`sortEntriesBySpecificity`). Route modules export a typed `Load` (data into the view) and `Action` (mutation target). Loaders run on the server before render (the SSR router bridge now recognises `meta.load` alongside `meta.loader`) and on client navigation via `createRouteData(router)` / `useRouteData()`. The `server` module exposes `mountFileRoutes(app, entries, options?)` / `createFileRouteServerRoutes()` so a `<form>` (or `formAction()`) posts to a route's `action`, composing with `csrf()`. Programmatic routing stays fully supported and unchanged; no bundler is shipped. See the new [File-based Routing guide](https://bquery.js.org/guide/file-routing).
 - **Docs / Stability** — single-source [Stability Matrix](https://github.com/bQuery/bQuery/blob/main/STABILITY.md) plus a per-module stability changelog ([#150](https://github.com/bQuery/bQuery/issues/150)). A new canonical `STABILITY.md` (backed by `scripts/stability-matrix.mjs`) records each module's maturity and its status-transition history; the README "Modules at a glance" table and the docs `introduction.md` matrix are now validated against it by `bun run check:stability` (`scripts/check-stability-matrix.mjs`), so the three surfaces can no longer silently drift.
 
-### Changed (Unreleased)
+### Changed (1.15.0)
 
-- **`@bquery/bquery/view`** — `view` is now **targeting Stable in 1.15.0** ([#136](https://github.com/bQuery/bQuery/issues/136)). The directive set and expression grammar are frozen for one minor cycle, and a per-directive SSR support matrix is published in the [View guide](https://bquery.js.org/guide/view).
-- **`@bquery/bquery/forms`** — `forms` is now **targeting Stable in 1.15.0** ([#139](https://github.com/bQuery/bQuery/issues/139)). The 1.13 batteries-included surface is frozen for one minor cycle; the `'manual'` `validationStrategy` default is documented as a deliberate contract (`handleSubmit()` always runs the full validation pass; the strategy gates only *automatic* per-change/per-blur validation); the SSR serialization boundary is now a guaranteed contract (`serializeFormState()` deterministically drops functions, `File` / `Blob` / `FileList`, `bigint`, and `symbol`); and the `createFieldArray()` stable-key requirement is validated with clear errors. See the [Forms guide](https://bquery.js.org/guide/forms).
-- **`@bquery/bquery/i18n`** — `i18n` is now **targeting Stable in 1.15.0** ([#141](https://github.com/bQuery/bQuery/issues/141)). The formatting/locale surface is frozen for one minor cycle, ICU MessageFormat coverage is documented and tested, and lazy-loading of catalogs is documented. See the [i18n guide](https://bquery.js.org/guide/i18n).
-- **`@bquery/bquery/a11y`** — `a11y` is now **targeting Stable in 1.15.0** ([#142](https://github.com/bQuery/bQuery/issues/142)). The surface (focus management, live regions, `inert`/`scrollLock`, preference signals) is frozen for one minor cycle, and the audit's WCAG coverage is documented with its known limitations. See the [A11y guide](https://bquery.js.org/guide/a11y).
-- **`@bquery/bquery/dnd`** — `dnd` is now **targeting Stable in 1.15.0** ([#143](https://github.com/bQuery/bQuery/issues/143)). The surface is frozen for one minor cycle; the keyboard model (pick up / move / drop / cancel, `aria-grabbed`) is hardened and tested across `grid` / `delay` / `viewport`; and an accessibility statement is published. Drag announcements route through the shared `a11y` live-region announcer. See the [DnD guide](https://bquery.js.org/guide/dnd).
-- **`@bquery/bquery/media`** — `media` is now **targeting Stable in 1.15.0** ([#144](https://github.com/bQuery/bQuery/issues/144)). The 1.14 composable surface is frozen for one minor cycle; each composable's SSR-safe default and cleanup is documented; and reactivity, idempotent `destroy()`, listener detachment, and `AbortSignal` teardown are verified. Bake-and-verify — no new features. See the [Media guide](https://bquery.js.org/guide/media).
-- **`@bquery/bquery/plugin`** — `plugin` is now **targeting Stable in 1.15.0** ([#145](https://github.com/bQuery/bQuery/issues/145)). The hook-bus / DI / install-lifecycle / directive-registration surface is frozen for one minor cycle; install/uninstall symmetry (no leaked directives/filters/actions/DI bindings) is proven with tests; and a plugin-author guide (lifecycle, hook timing, DI resolution, directive namespacing) is published. See the [Plugin guide](https://bquery.js.org/guide/plugin).
-- **`@bquery/bquery/devtools`** — `devtools` is now **targeting Stable in 1.15.0** ([#146](https://github.com/bQuery/bQuery/issues/146)). The surface is frozen for one minor cycle; the bridge protocol is stabilized as the app↔extension contract; and a reference browser extension ships. See the [DevTools guide](https://bquery.js.org/guide/devtools).
-- **`@bquery/bquery/testing`** — `testing` is now **targeting Stable in 1.15.0** ([#147](https://github.com/bQuery/bQuery/issues/147)). The Testing-Library-parity surface is frozen for one minor cycle; runner integration beyond `bun:test` (Vitest / Jest) is documented; and the shadow-DOM-aware queries, `userEvent` / `fireEvent`, and mocks are tested across light + shadow DOM. See the [Testing guide](https://bquery.js.org/guide/testing).
-- **`@bquery/bquery/storybook`** — `storybook` is now **targeting Stable in 1.15.0** ([#148](https://github.com/bQuery/bQuery/issues/148)). The helper surface is frozen for one minor cycle, and the `unsafeHtml` security contract is pinned (sanitize-by-default; only brand-checked, author-controlled fragments inserted verbatim) and covered by tests. See the [Storybook guide](https://bquery.js.org/guide/storybook).
+- **`@bquery/bquery/view`** — `view` graduated to **Stable** in 1.15.0 ([#136](https://github.com/bQuery/bQuery/issues/136)). The directive set and expression grammar are frozen for one minor cycle, and a per-directive SSR support matrix is published in the [View guide](https://bquery.js.org/guide/view).
+- **`@bquery/bquery/forms`** — `forms` graduated to **Stable** in 1.15.0 ([#139](https://github.com/bQuery/bQuery/issues/139)). The 1.13 batteries-included surface is frozen for one minor cycle; the `'manual'` `validationStrategy` default is documented as a deliberate contract (`handleSubmit()` always runs the full validation pass; the strategy gates only _automatic_ per-change/per-blur validation); the SSR serialization boundary is now a guaranteed contract (`serializeFormState()` deterministically drops functions, `File` / `Blob` / `FileList`, `bigint`, and `symbol`); and the `createFieldArray()` stable-key requirement is validated with clear errors. See the [Forms guide](https://bquery.js.org/guide/forms).
+- **`@bquery/bquery/i18n`** — `i18n` graduated to **Stable** in 1.15.0 ([#141](https://github.com/bQuery/bQuery/issues/141)). The formatting/locale surface is frozen for one minor cycle, ICU MessageFormat coverage is documented and tested, and lazy-loading of catalogs is documented. See the [i18n guide](https://bquery.js.org/guide/i18n).
+- **`@bquery/bquery/a11y`** — `a11y` graduated to **Stable** in 1.15.0 ([#142](https://github.com/bQuery/bQuery/issues/142)). The surface (focus management, live regions, `inert`/`scrollLock`, preference signals) is frozen for one minor cycle, and the audit's WCAG coverage is documented with its known limitations. See the [A11y guide](https://bquery.js.org/guide/a11y).
+- **`@bquery/bquery/dnd`** — `dnd` graduated to **Stable** in 1.15.0 ([#143](https://github.com/bQuery/bQuery/issues/143)). The surface is frozen for one minor cycle; the keyboard model (pick up / move / drop / cancel, `aria-grabbed`) is hardened and tested across `grid` / `delay` / `viewport`; and an accessibility statement is published. Drag announcements route through the shared `a11y` live-region announcer. See the [DnD guide](https://bquery.js.org/guide/dnd).
+- **`@bquery/bquery/media`** — `media` graduated to **Stable** in 1.15.0 ([#144](https://github.com/bQuery/bQuery/issues/144)). The 1.14 composable surface is frozen for one minor cycle; each composable's SSR-safe default and cleanup is documented; and reactivity, idempotent `destroy()`, listener detachment, and `AbortSignal` teardown are verified. Bake-and-verify — no new features. See the [Media guide](https://bquery.js.org/guide/media).
+- **`@bquery/bquery/plugin`** — `plugin` graduated to **Stable** in 1.15.0 ([#145](https://github.com/bQuery/bQuery/issues/145)). The hook-bus / DI / install-lifecycle / directive-registration surface is frozen for one minor cycle; install/uninstall symmetry (no leaked directives/filters/actions/DI bindings) is proven with tests; and a plugin-author guide (lifecycle, hook timing, DI resolution, directive namespacing) is published. See the [Plugin guide](https://bquery.js.org/guide/plugin).
+- **`@bquery/bquery/devtools`** — `devtools` graduated to **Stable** in 1.15.0 ([#146](https://github.com/bQuery/bQuery/issues/146)). The surface is frozen for one minor cycle; the bridge protocol is stabilized as the app↔extension contract; and a reference browser extension ships. See the [DevTools guide](https://bquery.js.org/guide/devtools).
+- **`@bquery/bquery/testing`** — `testing` graduated to **Stable** in 1.15.0 ([#147](https://github.com/bQuery/bQuery/issues/147)). The Testing-Library-parity surface is frozen for one minor cycle; runner integration beyond `bun:test` (Vitest / Jest) is documented; and the shadow-DOM-aware queries, `userEvent` / `fireEvent`, and mocks are tested across light + shadow DOM. See the [Testing guide](https://bquery.js.org/guide/testing).
+- **`@bquery/bquery/storybook`** — `storybook` graduated to **Stable** in 1.15.0 ([#148](https://github.com/bQuery/bQuery/issues/148)). The helper surface is frozen for one minor cycle, and the `unsafeHtml` security contract is pinned (sanitize-by-default; only brand-checked, author-controlled fragments inserted verbatim) and covered by tests. See the [Storybook guide](https://bquery.js.org/guide/storybook).
 
-### Fixed (Unreleased)
+### Fixed (1.15.0)
 
 - **`@bquery/bquery/view`** — `bq-for` duplicate-key handling is resolved ([#136](https://github.com/bQuery/bQuery/issues/136)): colliding keys now fall back to a deterministic, referentially-stable composite key so duplicate rows reuse their DOM across re-renders, and the duplicate-key warning is dev-only and emitted once per offending key instead of on every reactive update.
 - **`@bquery/bquery/view`** — object-expression shorthand is resolved ([#136](https://github.com/bQuery/bQuery/issues/136)): `bq-class="{ active }"` (and `bq-style` / `bq-aria` object syntax) now behaves like JS object shorthand (`{ active: active }`) instead of silently dropping the property.
 
-### Module status (Unreleased)
+### Module status (1.15.0)
 
 Canonical source: [STABILITY.md](https://github.com/bQuery/bQuery/blob/main/STABILITY.md) (enforced by `bun run check:stability`).
 
-- `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`: Beta (API frozen, targeting Stable in 1.15.0).
-- `concurrency`, `ssr`, `server`: Experimental (surface frozen, targeting Stable in 1.15.0).
+- `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`: Beta → **Stable** (surfaces frozen, exit criteria met and tested).
+- `concurrency`, `ssr`, `server`: Experimental → **Stable** (CSP-safe module workers / resumable production hydration / first-party sessions resolved; `ctx`/`app` contract frozen).
 - `router`: Stable — file-route convention added as a strictly additive, opt-in surface ([#149](https://github.com/bQuery/bQuery/issues/149)); no status change.
+- With these graduations, all 21 modules are now Stable; the Beta and Experimental tiers are currently empty.
 
-#### Breaking changes (Beta/Experimental, per policy)
+#### Breaking changes
 
-- None this cycle. The graduations above freeze each surface for one minor; no breaking changes are flagged.
+- None this cycle. Every graduation is additive; no breaking changes are flagged.
 
 ## [1.14.2] - 2026-06-26
 

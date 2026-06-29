@@ -97,16 +97,16 @@ getPerformanceSummary(); // counts + averages per event type
 
 ---
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`devtools` has been **Beta**, and its biggest gap versus React/Vue/Svelte DevTools was the absence of a real **browser extension** — `installBrowserBridge()` only mirrored events to an in-page global. The work to graduate it is tracked in [#146](https://github.com/bQuery/bQuery/issues/146): stabilize the **bridge protocol** as the public contract between app and extension, ship a reference extension (component tree + signal/store inspection + timeline), and freeze the `devtools` API. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`devtools` has been **Beta**, and its biggest gap versus React/Vue/Svelte DevTools was the absence of a real **browser extension** — `installBrowserBridge()` only mirrored events to an in-page global. The work to graduate it is tracked in [#146](https://github.com/bQuery/bQuery/issues/146): stabilize the **bridge protocol** as the public contract between app and extension, ship a reference extension (component tree + signal/store inspection + timeline), and freeze the `devtools` API. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
 - [x] **Stabilized, versioned bridge protocol** ([#146](https://github.com/bQuery/bQuery/issues/146)) — `connectDevtoolsBridge()`, `createBridgeServer()`, `BRIDGE_PROTOCOL_VERSION`, and the message contract are the frozen app↔extension surface. See [Bridge protocol](#bridge-protocol-v1).
 - [x] **Reference browser extension shipped** — a Manifest V3 extension (component tree, signal/store inspection, live timeline) lives in [`extension/`](https://github.com/bQuery/bQuery/tree/main/extension) and connects over the protocol.
 - [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150). The bridge additions are additive; existing runtime helpers are unchanged.
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -578,5 +578,5 @@ clearTimeline();
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: surface frozen for one minor cycle ([#146](https://github.com/bQuery/bQuery/issues/146)). New stable, versioned bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `serializeComponentTree`, `BRIDGE_PROTOCOL_VERSION`) and a reference Manifest V3 browser extension (component tree + signal/store inspection + timeline) in `extension/`.
+- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#146](https://github.com/bQuery/bQuery/issues/146)). New stable, versioned bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `serializeComponentTree`, `BRIDGE_PROTOCOL_VERSION`) and a reference Manifest V3 browser extension (component tree + signal/store inspection + timeline) in `extension/`.
 - **1.14.0** — ring-buffered timeline, expanded `TimelineEntry`, new event types, `filterTimeline`, `subscribeTimeline`, privacy-aware `inspectSignals`, `diffSignals` / `diffStores`, `traceSignal` / `untraceSignal`, `inspectEffects`, snapshot import/export, `installBrowserBridge`, perf helpers.

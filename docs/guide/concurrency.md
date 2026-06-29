@@ -1,7 +1,7 @@
 # Concurrency
 
 ::: tip What's new in 1.15.0
-Concurrency adds **CSP-safe module workers** — `defineWorker()` / `defineRpcWorker()` on the main thread plus `exposeTask()` / `exposeRpc()` inside the worker — so worker offloading no longer requires `'unsafe-eval'`. It also adds client UI-scheduling primitives `suspense()`, `startTransition()`, and `deferred()`. The module is targeting **Stable** in 1.15.0 — see [Stability](#stability-targeting-stable-in-1-15-0).
+Concurrency adds **CSP-safe module workers** — `defineWorker()` / `defineRpcWorker()` on the main thread plus `exposeTask()` / `exposeRpc()` inside the worker — so worker offloading no longer requires `'unsafe-eval'`. It also adds client UI-scheduling primitives `suspense()`, `startTransition()`, and `deferred()`. The module **graduated to Stable in 1.15.0** — see [Stability](#stability).
 :::
 
 ::: tip What's new in 1.14.0
@@ -190,15 +190,14 @@ need reactive state monitoring.
 | Node / Deno / Bun adapters         | universal runtime adapters           | **Not adopted** in this browser-focused package                                                                  |
 | Worker execution mode              | eval-based revival                   | **CSP-safe by default** via `defineWorker()` module workers; dynamic eval mode kept as explicit opt-in           |
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
 `concurrency` was introduced as **Experimental** in 1.10.0 and expanded in
 1.14.0. The work to graduate it is tracked in
 [#133](https://github.com/bQuery/bQuery/issues/133); its adoption-blocking
 prerequisite — a CSP-safe default that needs no `'unsafe-eval'`
 ([#134](https://github.com/bQuery/bQuery/issues/134)) — is resolved by the
-[module workers](#execution-modes-module-csp-safe-vs-dynamic) above. Promotion to
-**Stable** then follows one minor cycle with the public surface frozen.
+[module workers](#execution-modes-module-csp-safe-vs-dynamic) above. It **graduated to Stable in 1.15.0**, with the public surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
@@ -206,7 +205,7 @@ prerequisite — a CSP-safe default that needs no `'unsafe-eval'`
 - [x] **Serializable-handler constraint documented and enforced** — dynamic-mode handlers fail fast with `TaskWorkerSerializationError`; module-mode handlers are exempt by design.
 - [x] **Coverage across task / pool / RPC / shared buffer** plus module mode and the client primitives (`tests/concurrency.test.ts`, `tests/concurrency-stable.test.ts`).
 - [x] **Runtime boundary stated** — browser-focused, consistent with the module's non-goals (below).
-- [ ] **Public surface frozen for one minor** (no additive breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Public surface frozen** (no additive breaking changes) — committed under the Stable contract from 1.15.0.
 - [ ] **A dedicated `bq-suspense` view directive** ([#135](https://github.com/bQuery/bQuery/issues/135)) — the programmatic `suspense()` boundary ships now; the compiler directive is tracked separately and not required for the freeze.
 
 ### Frozen surface

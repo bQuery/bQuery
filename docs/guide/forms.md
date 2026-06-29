@@ -6,9 +6,9 @@ The forms module provides reactive form state, sync/async validation, cross-fiel
 import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 ```
 
-## Stability: targeting Stable in 1.15.0
+## Stability
 
-`forms` has been **Beta**, and its surface expanded materially in 1.13.0 (validators + combinators, a schema builder, field arrays, `bindForm`/`bindField`, scope composables, and SSR helpers all arrived roughly one minor ago). A surface that large and that new — with defaults that surprise — is not yet a stable contract. The work to graduate it is tracked in [#139](https://github.com/bQuery/bQuery/issues/139): freeze the public surface for one minor cycle, settle the surprising defaults and serialization boundaries as documented guarantees, and validate the field-array key contract with clear errors. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+`forms` has been **Beta**, and its surface expanded materially in 1.13.0 (validators + combinators, a schema builder, field arrays, `bindForm`/`bindField`, scope composables, and SSR helpers all arrived roughly one minor ago). A surface that large and that new — with defaults that surprise — is not yet a stable contract. The work to graduate it is tracked in [#139](https://github.com/bQuery/bQuery/issues/139): freeze the public surface for one minor cycle, settle the surprising defaults and serialization boundaries as documented guarantees, and validate the field-array key contract with clear errors. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
 
 ### Exit criteria
 
@@ -16,7 +16,7 @@ import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 - [x] **`validationStrategy` default reviewed and clearly documented** ([#139](https://github.com/bQuery/bQuery/issues/139)) — the default stays `'manual'` (the least-surprising choice for "validate on submit"), and the contract is now explicit: **`handleSubmit()` always runs the full validation pass**, regardless of strategy. `validationStrategy` only controls *automatic* per-change / per-blur validation. See [Validation timing](#validation-timing-validationstrategy).
 - [x] **SSR serialization boundary documented as guaranteed** ([#139](https://github.com/bQuery/bQuery/issues/139)) — `serializeFormState()` deterministically drops functions, `File` / `Blob` / `FileList` handles, `bigint`, and `symbol`. This is a stable contract, not an incidental `JSON.stringify` side effect. See [SSR serialization boundary](#ssr-serialization-boundary).
 - [x] **`createFieldArray()` key contract validated with clear errors** ([#139](https://github.com/bQuery/bQuery/issues/139)) — supplying `getKey` enforces present, unique, stable keys on every structural mutation and throws a descriptive error naming the offending key. See [Field arrays and the stable-key contract](#field-arrays-and-the-stable-key-contract).
-- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
 ### Frozen surface reference (1.15.0)
 
@@ -598,5 +598,5 @@ only support `GET`/`POST`, so `PUT`/`PATCH`/`DELETE` degrade to a native `POST`
 
 ## Version history
 
-- **1.15.0** — **targeting Stable**: surface frozen for one minor cycle ([#139](https://github.com/bQuery/bQuery/issues/139)); `validationStrategy` default and SSR serialization boundary documented as guaranteed contracts; `createFieldArray()` `getKey` stable-key contract validated with clear errors (plus `keys()` / `keyAt()`). New progressive-enhancement actions ([#140](https://github.com/bQuery/bQuery/issues/140)): `formAction`, `useFormStatus`, `optimistic`.
+- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#139](https://github.com/bQuery/bQuery/issues/139)); `validationStrategy` default and SSR serialization boundary documented as guaranteed contracts; `createFieldArray()` `getKey` stable-key contract validated with clear errors (plus `keys()` / `keyAt()`). New progressive-enhancement actions ([#140](https://github.com/bQuery/bQuery/issues/140)): `formAction`, `useFormStatus`, `optimistic`.
 - **1.13.0** — new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`), combinators (`compose`, `all`, `not`, `withMessage`), field arrays, schema-style config, `bindField` / `bindForm`, scope-aware composables, SSR helpers.
