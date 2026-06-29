@@ -170,22 +170,24 @@ export const flatten = (catalog: ExtractedCatalog, prefix = ''): ExtractedMessag
 };
 
 /**
- * A path segment that, if written through, would walk into or overwrite the
- * prototype chain. Keys are scanned from untrusted source files, so an injected
- * `__proto__`/`constructor`/`prototype` segment must never reach an assignment.
+ * Reconstructs a nested catalog from sorted dot-delimited entries.
+ *
+ * Keys are scanned from untrusted source files, so a `__proto__`, `constructor`
+ * or `prototype` segment is rejected inline — right where each computed-property
+ * assignment happens — to stop a malicious key from walking into or overwriting
+ * the prototype chain.
  */
-const isUnsafeKey = (key: string): boolean =>
-  key === '__proto__' || key === 'constructor' || key === 'prototype';
-
-/** Reconstructs a nested catalog from sorted dot-delimited entries. */
 export const unflatten = (messages: ExtractedMessage[]): ExtractedCatalog => {
   const root: ExtractedCatalog = {};
   for (const { key, value } of [...messages].sort((a, b) => a.key.localeCompare(b.key))) {
     const parts = key.split('.');
-    if (parts.some(isUnsafeKey)) continue;
-    let node = root;
-    for (let p = 0; p < parts.length - 1; p += 1) {
+    let node: ExtractedCatalog | null = root;
+    for (let p = 0; p < parts.length - 1 && node !== null; p += 1) {
       const part = parts[p];
+      if (part === '__proto__' || part === 'constructor' || part === 'prototype') {
+        node = null;
+        break;
+      }
       const child = node[part];
       if (typeof child === 'object' && child !== null) {
         node = child as ExtractedCatalog;
@@ -195,7 +197,10 @@ export const unflatten = (messages: ExtractedMessage[]): ExtractedCatalog => {
         node = created;
       }
     }
-    node[parts[parts.length - 1]] = value;
+    if (node === null) continue;
+    const leaf = parts[parts.length - 1];
+    if (leaf === '__proto__' || leaf === 'constructor' || leaf === 'prototype') continue;
+    node[leaf] = value;
   }
   return root;
 };
