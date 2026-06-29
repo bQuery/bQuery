@@ -91,7 +91,7 @@ describe('A11y Stable — focus trapping (#142)', () => {
     const handle = trapFocus(dialog);
     expect(handle.active).toBe(true);
     // Initial focus moves inside the trap.
-    expect(['a', 'b']).toContain(document.activeElement?.id);
+    expect(['a', 'b']).toContain(document.activeElement?.id ?? '');
 
     handle.release();
     expect(handle.active).toBe(false);
