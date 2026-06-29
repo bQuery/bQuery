@@ -33,6 +33,7 @@ bun run build
 bun test
 bun run check:full-bundle
 bun run check:ai-guidance
+bun run check:stability
 ```
 
 CI runs the equivalent steps automatically on PRs and on `main`.
@@ -44,6 +45,10 @@ CI runs the equivalent steps automatically on PRs and on `main`.
 ### `check:ai-guidance`
 
 `bun run check:ai-guidance` verifies that the AI guidance files (`AGENT.md`, `llms.txt`, `.cursorrules`, `.clinerules`, `.github/copilot-instructions.md`, `README.md`, `CONTRIBUTING.md`) stay in sync with `package.json` (version, engines) and with each other. If you touch any of these, run this script before opening a PR.
+
+### `check:stability`
+
+`bun run check:stability` verifies that every place bQuery advertises module maturity agrees with the canonical matrix in `scripts/stability-matrix.mjs`: the [`STABILITY.md`](https://github.com/bQuery/bQuery/blob/main/STABILITY.md) table, the README "Modules at a glance" table, and the docs `introduction.md` "Stability matrix". When a module changes status, update `scripts/stability-matrix.mjs` and append a line to its history in `STABILITY.md`; the check tells you which surfaces to reconcile so they cannot silently drift.
 
 ## Commit messages
 
@@ -79,7 +84,7 @@ A maintainer runs `npm publish` (or the configured release action). The custom d
 
 ## See also
 
-- [Stability matrix](/introduction#stability-matrix)
+- [Stability matrix](/introduction#stability-matrix) — canonical source: [`STABILITY.md`](https://github.com/bQuery/bQuery/blob/main/STABILITY.md), validated by `check:stability`
 - [Bundle & Tree-shaking](/concepts/bundle-and-tree-shaking) — `check:full-bundle` details
 - [Contributing — Architecture](/contributing/architecture) — module-addition checklist
 - [Release Notes](/release-notes/)

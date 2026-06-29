@@ -34,6 +34,7 @@ const moduleItems = [
   { text: 'Security', link: '/guide/security' },
   { text: 'Platform', link: '/guide/platform' },
   { text: 'Router', link: '/guide/router' },
+  { text: 'File-based Routing', link: '/guide/file-routing' },
   { text: 'Store', link: '/guide/store' },
   { text: 'View', link: '/guide/view' },
   { text: 'Forms', link: '/guide/forms' },

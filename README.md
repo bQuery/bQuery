@@ -202,6 +202,9 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 
 ## Modules at a glance
 
+> Module status below is mirrored from the canonical [Stability Matrix](STABILITY.md)
+> (the single source of truth, enforced by `bun run check:stability`).
+
 | Module          | Status       | Description                                                                                                                                                                 |
 | --------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Core**        | Stable       | Selectors, DOM manipulation, events, traversal, and typed utilities                                                                                                         |

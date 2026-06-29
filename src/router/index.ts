@@ -57,3 +57,28 @@ export type {
 export { useNavigation, type UseNavigationReturn } from './use-navigation';
 export { useRoute, type UseRouteReturn } from './use-route';
 export { isActive, isActiveSignal, resolve } from './utils';
+
+// File-route convention (opt-in): typed `load`/`action`, bundler-agnostic.
+export { filePathToRoutePattern, parseFilePath } from './file-routes/path';
+export type { ParsedFilePath } from './file-routes/path';
+export { createFileRoutes, sortEntriesBySpecificity } from './file-routes/routes';
+export {
+  createRouteData,
+  getRouteAction,
+  getRouteLoad,
+  useRouteData,
+} from './file-routes/data';
+export type { RouteData, RouteDataOptions } from './file-routes/data';
+export type {
+  Action,
+  ActionArgs,
+  CreateFileRoutesOptions,
+  CreateFileRoutesResult,
+  FileRoute,
+  FileRouteKind,
+  Load,
+  LoadArgs,
+  RouteManifest,
+  RouteManifestEntry,
+  RouteModule,
+} from './file-routes/types';
