@@ -26,11 +26,24 @@ const stripExtension = (filename: string): string => {
   return filename;
 };
 
+/**
+ * Strip leading and trailing `/` with a single linear scan. A `\/+$` regex here
+ * backtracks super-linearly on strings of repeated slashes (ReDoS), so we trim
+ * by index instead.
+ */
+const trimSlashes = (value: string): string => {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value.charCodeAt(start) === 47 /* '/' */) start += 1;
+  while (end > start && value.charCodeAt(end - 1) === 47) end -= 1;
+  return value.slice(start, end);
+};
+
 /** Normalise a manifest key into clean, slash-separated parts. */
 const splitKey = (key: string, routesDir: string): string[] => {
   let normalized = key.replace(/\\/g, '/').replace(/^(?:\.\/|\.\.\/)+/, '');
   normalized = normalized.replace(/^\/+/, '');
-  const dir = routesDir.replace(/^\/+|\/+$/g, '');
+  const dir = trimSlashes(routesDir);
   if (dir) {
     if (normalized === dir) {
       normalized = '';

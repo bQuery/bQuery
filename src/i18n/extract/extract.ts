@@ -169,16 +169,31 @@ export const flatten = (catalog: ExtractedCatalog, prefix = ''): ExtractedMessag
   return out;
 };
 
+/**
+ * A path segment that, if written through, would walk into or overwrite the
+ * prototype chain. Keys are scanned from untrusted source files, so an injected
+ * `__proto__`/`constructor`/`prototype` segment must never reach an assignment.
+ */
+const isUnsafeKey = (key: string): boolean =>
+  key === '__proto__' || key === 'constructor' || key === 'prototype';
+
 /** Reconstructs a nested catalog from sorted dot-delimited entries. */
 export const unflatten = (messages: ExtractedMessage[]): ExtractedCatalog => {
   const root: ExtractedCatalog = {};
   for (const { key, value } of [...messages].sort((a, b) => a.key.localeCompare(b.key))) {
     const parts = key.split('.');
+    if (parts.some(isUnsafeKey)) continue;
     let node = root;
     for (let p = 0; p < parts.length - 1; p += 1) {
       const part = parts[p];
-      if (typeof node[part] !== 'object') node[part] = {};
-      node = node[part] as ExtractedCatalog;
+      const child = node[part];
+      if (typeof child === 'object' && child !== null) {
+        node = child as ExtractedCatalog;
+      } else {
+        const created: ExtractedCatalog = {};
+        node[part] = created;
+        node = created;
+      }
     }
     node[parts[parts.length - 1]] = value;
   }

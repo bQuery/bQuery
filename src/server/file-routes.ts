@@ -37,8 +37,18 @@ export interface FileRouteServerOptions {
   dataMiddlewares?: ServerMiddleware[];
 }
 
+/**
+ * Strip trailing `/` with a single linear scan. A `\/+$` regex backtracks
+ * super-linearly on strings of repeated slashes (ReDoS), so we trim by index.
+ */
+const stripTrailingSlashes = (value: string): string => {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47 /* '/' */) end -= 1;
+  return value.slice(0, end);
+};
+
 const joinPath = (base: string | undefined, pattern: string): string => {
-  const prefix = (base ?? '').replace(/\/+$/, '');
+  const prefix = stripTrailingSlashes(base ?? '');
   if (!prefix) return pattern;
   return pattern === '/' ? prefix || '/' : `${prefix}${pattern}`;
 };

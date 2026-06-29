@@ -1,0 +1,13 @@
+# CodeQL analysis configuration.
+#
+# Scope the scan to shipped source. Test files are never published to consumers,
+# yet they routinely feed the library's own trusted output (e.g. `renderToString`
+# results) straight into DOM sinks like `innerHTML` to assemble fixtures. CodeQL
+# reports those as `js/xss-through-dom`, but they are false positives for code
+# that never runs against attacker-controlled input. Excluding the test tree
+# keeps the signal focused on the code we actually ship.
+name: 'bQuery CodeQL config'
+
+paths-ignore:
+  - tests
+  - '**/*.test.ts'

@@ -98,6 +98,18 @@ describe('flatten / unflatten (#141)', () => {
     expect(new Map(flat.map((m) => [m.key, m.value])).get('a.c.d')).toBe('y');
     expect(unflatten(flat)).toEqual(catalog);
   });
+
+  it('drops prototype-polluting keys from malicious source instead of walking the prototype chain', () => {
+    const result = unflatten([
+      { key: '__proto__.polluted', value: 'evil' },
+      { key: 'constructor.prototype.polluted', value: 'evil' },
+      { key: 'safe.key', value: 'ok' },
+    ]);
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    expect((Object.prototype as Record<string, unknown>).polluted).toBeUndefined();
+    expect(Object.prototype.hasOwnProperty.call(result, '__proto__')).toBe(false);
+    expect((result.safe as Record<string, string>).key).toBe('ok');
+  });
 });
 
 describe('mergeCatalog (#141)', () => {
