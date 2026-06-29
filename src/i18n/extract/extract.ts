@@ -181,11 +181,12 @@ export const unflatten = (messages: ExtractedMessage[]): ExtractedCatalog => {
   const root: ExtractedCatalog = {};
   for (const { key, value } of [...messages].sort((a, b) => a.key.localeCompare(b.key))) {
     const parts = key.split('.');
-    let node: ExtractedCatalog | null = root;
-    for (let p = 0; p < parts.length - 1 && node !== null; p += 1) {
+    let node = root;
+    let unsafe = false;
+    for (let p = 0; p < parts.length - 1; p += 1) {
       const part = parts[p];
       if (part === '__proto__' || part === 'constructor' || part === 'prototype') {
-        node = null;
+        unsafe = true;
         break;
       }
       const child = node[part];
@@ -197,7 +198,7 @@ export const unflatten = (messages: ExtractedMessage[]): ExtractedCatalog => {
         node = created;
       }
     }
-    if (node === null) continue;
+    if (unsafe) continue;
     const leaf = parts[parts.length - 1];
     if (leaf === '__proto__' || leaf === 'constructor' || leaf === 'prototype') continue;
     node[leaf] = value;
