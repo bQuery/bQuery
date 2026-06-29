@@ -12,6 +12,54 @@ import { storyHtml, when } from '@bquery/bquery/storybook';
 
 ---
 
+## Stability: targeting Stable in 1.15.0
+
+`storybook` has been **Beta** — a helper-only entry point (`storyHtml`, `when`, plus the 1.14.0 additions `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, `storySvg`). Those template helpers are one minor old, and `unsafeHtml` in particular needs a pinned security contract given bQuery's secure-by-default stance. The work to graduate it is tracked in [#148](https://github.com/bQuery/bQuery/issues/148): freeze the helper surface for one minor cycle, document each helper (especially the `unsafeHtml` boundary and how it interacts with the security sanitizer), and cover the helpers' output. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+
+### Exit criteria
+
+- [x] **Helper surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below.
+- [x] **Helpers documented, with `unsafeHtml` security guidance** ([#148](https://github.com/bQuery/bQuery/issues/148)) — see [The security contract](#the-security-contract).
+- [x] **Rendering output tested** ([#148](https://github.com/bQuery/bQuery/issues/148)) — sanitization of interpolated values, the `unsafeHtml` bypass, brand-spoofing rejection, and each helper's output are covered.
+- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+
+### Frozen surface reference (1.15.0)
+
+The frozen public surface of `@bquery/bquery/storybook`:
+
+- **Templates:** `storyHtml`, `storySvg`, `when`.
+- **Helpers:** `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`.
+- **Escape hatch:** `unsafeHtml` (+ the `UnsafeHtmlMarker` / `StoryValue` types).
+
+### The security contract
+
+`storyHtml` (and `storySvg`) are **secure by default**: every interpolated value is run through the [security module's sanitizer](./security) (`sanitizeHtml`), and the template structure itself is sanitized. Dangerous markup — `<script>`, `onerror=`, `javascript:` URLs — is stripped, so interpolating untrusted data is safe.
+
+`unsafeHtml(value)` is the **single, explicit opt-out**: it marks an author-controlled fragment to be re-inserted **verbatim** after the surrounding template is sanitized. It:
+
+- only bypasses sanitization for the wrapped value — the rest of the template is still sanitized;
+- emits a one-time dev warning so accidental use is visible;
+- is **brand-checked** with a private symbol, so a plain object cannot spoof the marker to smuggle markup through;
+- must **never** wrap user-supplied input — only trusted, author-controlled markup (icons, pre-vetted SVG, etc.).
+
+```ts
+import { storyHtml, unsafeHtml } from '@bquery/bquery/storybook';
+
+// ✅ Safe: untrusted value is sanitized.
+storyHtml`<bq-card>${userInput}</bq-card>`;
+
+// ✅ Intentional: trusted, author-controlled markup inserted verbatim.
+const trustedIcon = '<svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/></svg>';
+storyHtml`<bq-icon>${unsafeHtml(trustedIcon)}</bq-icon>`;
+
+// ❌ Never do this — unsafeHtml around untrusted input defeats the sanitizer.
+// storyHtml`<bq-card>${unsafeHtml(userInput)}</bq-card>`;
+```
+
+> `repeat()` escapes plain-string per-item results by default for the same reason. To emit trusted per-item markup, wrap the rendered fragment in `unsafeHtml(...)`, as its examples show.
+
+---
+
 ## `storyHtml()`
 
 A tagged template literal for authoring Storybook stories safely. It sanitizes interpolated values, preserves custom elements, and supports boolean-attribute shorthand.
@@ -275,11 +323,18 @@ results are escaped as text; wrap trusted fragments with `unsafeHtml(...)`:
 ```ts
 import { repeat, storyHtml, unsafeHtml } from '@bquery/bquery/storybook';
 
-const items = [{ id: 'a', label: 'Apple' }, { id: 'b', label: 'Banana' }];
+const items = [
+  { id: 'a', label: 'Apple' },
+  { id: 'b', label: 'Banana' },
+];
 
 storyHtml`
   <ul>
-    ${repeat(items, (item) => unsafeHtml(storyHtml`<li>${item.label}</li>`), (item) => item.id)}
+    ${repeat(
+      items,
+      (item) => unsafeHtml(storyHtml`<li>${item.label}</li>`),
+      (item) => item.id
+    )}
   </ul>
 `;
 ```
@@ -353,4 +408,5 @@ export const Icon = {
 
 ## Version history
 
+- **1.15.0** — **targeting Stable**: helper surface frozen for one minor cycle ([#148](https://github.com/bQuery/bQuery/issues/148)). `unsafeHtml` security contract pinned and documented (verbatim only for trusted, brand-checked fragments; the surrounding template stays sanitized); helper output covered by tests.
 - **1.14.0** — `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`, `storySvg`.

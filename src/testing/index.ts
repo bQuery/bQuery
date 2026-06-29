@@ -4,6 +4,11 @@
  * Helpers for mounting components, controlling signals, mocking the router,
  * dispatching events, and asserting async conditions in tests.
  *
+ * Targeting **Stable** in 1.15.0: the Testing-Library-parity surface is frozen
+ * for one minor cycle. The helpers are runner-agnostic (DOM + standard timers
+ * only) and the `screen` / `within` queries are shadow-DOM-aware — see the
+ * Testing guide for Vitest / Jest integration.
+ *
  * @module bquery/testing
  *
  * @example

@@ -112,6 +112,85 @@ plugin-namespaced names like `tooltip:arrow`.
 
 ---
 
+## Stability: targeting Stable in 1.15.0
+
+`plugin` has been **Beta**, and it is the extensibility contract the whole ecosystem would build on — yet its surface is one minor old (the hook bus, DI container, async install, namespaced directives, and `unuse`/`uninstall` all arrived in 1.14.0). Third-party authors cannot target a moving extension API. The work to graduate it is tracked in [#145](https://github.com/bQuery/bQuery/issues/145): freeze the hook-bus / DI / install-lifecycle / directive-registration surface for one minor cycle, publish this plugin-author guide, and prove install/uninstall symmetry. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+
+### Exit criteria
+
+- [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below. The new `definePlugin()` authoring helper is additive.
+- [x] **Plugin-author guide published** ([#145](https://github.com/bQuery/bQuery/issues/145)) — see [Plugin-author guide](#plugin-author-guide) (lifecycle, hook timing, DI resolution, directive namespacing).
+- [x] **Install/uninstall symmetry tested** ([#145](https://github.com/bQuery/bQuery/issues/145)) — `uninstall()` leaves **no** directives, filters, actions, or DI bindings behind; re-install is clean.
+- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+
+### Frozen surface reference (1.15.0)
+
+The frozen public surface of `@bquery/bquery/plugin`:
+
+- **Lifecycle:** `use`, `unuse`, `uninstall`, `isInstalled`, `resetPlugins`, and the new (additive) `definePlugin`.
+- **Install context:** `directive`, `component`, `addFilter`, `applyFilters`, `addAction`, `doAction`, `provide`, `inject`, `onCleanup`.
+- **Free-standing hooks:** `addFilter`, `applyFilters`, `addAction`, `doAction`, `removeFilter`, `removeAction`, `listFilters`, `listActions`, `resetHooks`.
+- **DI:** `createInjectionKey`, `provide`, `inject`, `hasProvided`, `resetDi`.
+- **Introspection:** `getInstalledPlugins`, `getPluginInfo`, `getCustomDirective`, `getCustomDirectives`.
+
+## Plugin-author guide
+
+A plugin is a plain object with a `name` and an `install(ctx, options)` function. Wrap it in `definePlugin()` for type inference of `options` and a single, stable entry point:
+
+```ts
+import { definePlugin, use } from '@bquery/bquery/plugin';
+
+const myPlugin = definePlugin({
+  name: 'my-plugin',
+  version: '1.0.0',
+  async install(ctx, options: { prefix: string }) {
+    ctx.provide('logger', console); // DI binding
+    ctx.directive('my:thing', (el) => {
+      /* … */
+    }); // namespaced directive
+    ctx.addFilter('view:render', (html: string) => html); // hook
+    ctx.onCleanup(() => {
+      /* extra teardown */
+    });
+  },
+});
+
+await use(myPlugin, { prefix: 'app' });
+```
+
+### Lifecycle and hook timing
+
+- **Install** runs once per name on `use(plugin)`. A duplicate `use()` of the same `name` is a no-op. `install()` may be `async`; `await use(plugin)` resolves when it finishes, and concurrent `use()` calls for the same name share the in-flight promise.
+- **Atomic install:** if `install()` throws (or its returned promise rejects), every contribution made so far is rolled back — the directive registry is restored from a snapshot and filters/actions/DI bindings registered under the plugin are removed. A failed install leaves no partial state.
+- **Dependencies:** list prerequisite plugin names in `dependencies`. Missing dependencies throw by default (`dependencyMode: 'error'`) or warn (`'warn'`).
+- **Uninstall** runs on `unuse(name)` / `uninstall(name)`: it removes the plugin's directives, filters, actions, and DI bindings, then runs `onCleanup` callbacks. `resetPlugins()` uninstalls everything (so plugin cleanups run).
+
+### Install/uninstall symmetry (the contract)
+
+Everything registered through `ctx` is **owned** by the plugin and removed on uninstall — this symmetry is the stable guarantee third-party authors can rely on:
+
+| Registered via                              | Removed on uninstall?                                                                                   |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `ctx.directive()`                           | ✅ Yes                                                                                                  |
+| `ctx.addFilter()` / `ctx.addAction()`       | ✅ Yes (by owner)                                                                                       |
+| `ctx.provide()`                             | ✅ Yes (by owner)                                                                                       |
+| `ctx.onCleanup(fn)`                         | ✅ `fn` is invoked                                                                                      |
+| `ctx.component()` (`customElements.define`) | ⚠️ **No** — the browser cannot un-define a custom element; it stays registered but is no longer tracked |
+
+Use `ctx.onCleanup()` for anything you create outside the context (timers, global listeners, DOM nodes).
+
+### DI resolution rules
+
+- `ctx.provide(key, value)` registers under a string, `symbol`, or a typed `createInjectionKey<T>()`. `ctx.inject(key)` / the free-standing `inject(key)` returns the value or `undefined`.
+- Last write wins for the same key; the binding is owned by the providing plugin and removed on its uninstall. Prefer `createInjectionKey<T>()` for type-safe resolution and to avoid string collisions across plugins.
+
+### Directive-namespacing conventions
+
+- Names are given **without** the `bq-` prefix (`'tooltip'` → `bq-tooltip`); passing a `bq-`-prefixed name throws.
+- Use a `namespace:variant` form (e.g. `'tooltip:arrow'`) to group a plugin's directives and avoid collisions. Registering a name that already exists throws, so two plugins cannot silently clobber each other's directives.
+
+---
+
 ## Installing a Plugin
 
 ### `use()`
@@ -427,4 +506,5 @@ mount('#app', { message });
 
 ## Version history
 
+- **1.15.0** — **targeting Stable**: hook-bus / DI / install-lifecycle / directive-registration surface frozen for one minor cycle ([#145](https://github.com/bQuery/bQuery/issues/145)). New additive `definePlugin()` authoring helper; plugin-author guide published; install/uninstall symmetry (no leaked directives/filters/actions/DI) covered by tests.
 - **1.14.0** — hook bus (`addFilter` / `applyFilters` / `addAction` / `doAction`), DI (`createInjectionKey` / `provide` / `inject` / `hasProvided`), `unuse` / `uninstall`, async `install`, plugin metadata, dependency mode, namespaced directive names, directive lifecycle objects.

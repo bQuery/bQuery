@@ -136,6 +136,87 @@ expect(result.passed).toBe(true);
 
 ---
 
+## Stability: targeting Stable in 1.15.0
+
+`testing` has been **Beta**, and its surface is one minor old (`screen`/`within`, `userEvent`, the `fireEvent.*` family, module mocks, and a11y helpers all landed in 1.14.0). It mirrors Testing Library well — including Shadow-DOM-aware queries that suit bQuery's Web Component model — but a test-utility API just one minor old, with no documented story beyond `bun:test`, isn't yet something teams can pin their suites to. The work to graduate it is tracked in [#147](https://github.com/bQuery/bQuery/issues/147): freeze the surface for one minor cycle, document runner integration beyond `bun:test`, and prove the query/`userEvent`/`fireEvent`/mock APIs across light **and** shadow DOM. Promotion to **Stable** then follows one full minor cycle with the surface frozen.
+
+### Exit criteria
+
+- [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below.
+- [x] **Runner integration documented beyond `bun:test`** ([#147](https://github.com/bQuery/bQuery/issues/147)) — see [Runner integration](#runner-integration).
+- [x] **Query / `userEvent` / `fireEvent` / mock APIs tested across light + shadow DOM** ([#147](https://github.com/bQuery/bQuery/issues/147)) — shadow-piercing `screen` queries, `within()` scoping, `userEvent.click`, and `fireEvent` are covered against real components.
+- [ ] **Surface frozen for one full minor** (no breaking changes) — demonstrated across the 1.15 cycle.
+
+### Frozen surface reference (1.15.0)
+
+The frozen public surface of `@bquery/bquery/testing`:
+
+- **Mounting:** `renderComponent`, `cleanup`, `autoCleanup`.
+- **Queries:** `screen`, `within` (`getBy*` / `queryBy*` / `findBy*` for `role` / `text` / `labelText` / `placeholderText` / `testId`), all shadow-DOM-aware.
+- **Interaction:** `fireEvent` (+ shortcuts), `userEvent` (`click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`).
+- **Reactivity:** `mockSignal`, `mockComputed`, `mockEffect`, `flushEffects`, `tick`, `nextTick`, `flushPromises`, `runScheduled`, `getReactiveSummary`.
+- **Module mocks:** `mockRouter`, `mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`.
+- **Snapshots / a11y:** `prettyDOM`, `expectAccessible`, `waitFor`.
+
+### Runner integration
+
+The helpers are **runner-agnostic** — they depend only on a DOM (`window` / `document`) and standard timers, not on any `bun:test` global. Use them with any runner that provides a DOM environment.
+
+#### `bun:test` (default)
+
+DOM is provided by `happy-dom` via a preload. No extra wiring beyond importing the helpers.
+
+#### Vitest
+
+Set a DOM environment and (optionally) auto-cleanup after each test:
+
+```ts
+// vitest.config.ts
+export default { test: { environment: 'happy-dom' } }; // or 'jsdom'
+```
+
+```ts
+import { afterEach } from 'vitest';
+import { cleanup } from '@bquery/bquery/testing';
+
+afterEach(() => cleanup()); // or call autoCleanup() once if your runner exposes a global afterEach
+```
+
+```ts
+import { renderComponent, screen, userEvent } from '@bquery/bquery/testing';
+
+test('saves', async () => {
+  renderComponent('my-card');
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+});
+```
+
+#### Jest
+
+Use the `jsdom` test environment and the same `cleanup()` wiring:
+
+```js
+// jest.config.js
+module.exports = { testEnvironment: 'jsdom' };
+```
+
+```ts
+import { cleanup } from '@bquery/bquery/testing';
+afterEach(() => cleanup());
+```
+
+> `autoCleanup()` registers an `afterEach` hook when the runner exposes one globally; otherwise call `cleanup()` yourself in your runner's teardown. Async helpers (`tick`, `flushPromises`, `runScheduled`) use real/standard timers and work the same across runners.
+
+### Shadow-DOM-aware queries
+
+bQuery components render into a shadow root by default, so `screen` and `within(el)` **pierce shadow roots** — `getByRole('button')` finds a button rendered inside a component's shadow DOM, and `getByTestId` / `getByText` behave the same in light and shadow DOM. This is tested directly against real components for the stable surface.
+
+### Sharing the a11y definition
+
+`expectAccessible()` checks the same structural rules the [`a11y` runtime audit](./a11y#audit-scope-wcag-coverage) covers — missing image `alt` (`img-alt`), unnamed buttons (`button-name`), and unlabeled inputs (`input-label`) — so an assertion in a test and a runtime audit agree on what "accessible" means. For the full WCAG-mapped scope (and its limitations), run `auditA11y()` from `@bquery/bquery/a11y`.
+
+---
+
 ## Mounting Components
 
 ### `renderComponent()`
@@ -670,4 +751,5 @@ describe('router', () => {
 
 ## Version history
 
+- **1.15.0** — **targeting Stable**: surface frozen for one minor cycle ([#147](https://github.com/bQuery/bQuery/issues/147)). Runner integration documented beyond `bun:test` (Vitest / Jest); shadow-DOM-aware queries, `userEvent` / `fireEvent`, and mocks covered by tests across light + shadow DOM; `expectAccessible` aligned with the `a11y` audit's rule definitions.
 - **1.14.0** — auto cleanup, `fireEvent.*` shortcuts, `userEvent` namespace, shadow-DOM-aware `screen` / `within`, reactive harnesses (`mockComputed`, `mockEffect`), async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).

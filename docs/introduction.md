@@ -56,6 +56,14 @@ Stable modules will not introduce breaking changes between minor releases. Beta 
 
 `media` is also **targeting Stable in 1.15.0**: the 1.14 batteries-included composable surface (25+ device/browser signals) is frozen for one minor cycle, each composable's SSR-safe default and cleanup is documented, and reactivity, idempotent `destroy()`, listener detachment, and `AbortSignal` teardown are verified — a bake-and-verify graduation with no new features. See the [Media Stability section](/guide/media) for the exit-criteria checklist, frozen surface, and per-composable SSR defaults.
 
+`plugin` is also **targeting Stable in 1.15.0**: the hook-bus, DI container, install lifecycle, and namespaced-directive registration are frozen for one minor cycle, install/uninstall symmetry is proven (nothing a plugin registers leaks after `uninstall()`), and a plugin-author guide is published. It also gains an additive `definePlugin()` authoring helper. See the [Plugin Stability section](/guide/plugin) for the exit-criteria checklist, frozen surface, and author guide.
+
+`devtools` is also **targeting Stable in 1.15.0**: the surface is frozen for one minor cycle, and the single biggest gap versus React/Vue/Svelte DevTools is addressed — a stable, versioned bridge protocol (`connectDevtoolsBridge` / `createBridgeServer`) and a reference Manifest V3 browser extension (component tree, signal/store inspection, timeline) in `extension/`. See the [DevTools Stability section](/guide/devtools) for the exit-criteria checklist, frozen surface, and bridge protocol.
+
+`testing` is also **targeting Stable in 1.15.0**: the Testing-Library-parity surface (`screen`/`within`, `userEvent`, `fireEvent`, module mocks, a11y helpers) is frozen for one minor cycle, runner integration beyond `bun:test` (Vitest / Jest) is documented, and the shadow-DOM-aware queries are tested across light and shadow DOM. See the [Testing Stability section](/guide/testing) for the exit-criteria checklist, frozen surface, and runner integration.
+
+`storybook` is also **targeting Stable in 1.15.0**: the helper surface (`storyHtml`, `storySvg`, `when`, `classMap`, `styleMap`, `ifDefined`, `repeat`, `storyText`, `unsafeHtml`) is frozen for one minor cycle, and the `unsafeHtml` security contract is pinned — everything `storyHtml` interpolates is sanitized via the security module; only brand-checked, author-controlled fragments are inserted verbatim. See the [Storybook Stability section](/guide/storybook) for the exit-criteria checklist, frozen surface, and security contract.
+
 ## When to use bQuery
 
 bQuery is a good fit when you want:
