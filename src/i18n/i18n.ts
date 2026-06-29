@@ -130,7 +130,7 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
     const currentMessages = messages[currentLocale];
     const fallbackMessages = fallbackLocale ? messages[fallbackLocale] : undefined;
 
-    return translate(currentMessages, key, params, fallbackMessages);
+    return translate(currentMessages, key, params, currentLocale, fallbackMessages);
   };
 
   /**
@@ -143,7 +143,7 @@ export const createI18n = (config: I18nConfig): I18nInstance => {
       const currentMessages = messages[currentLocale];
       const fallbackMessages = fallbackLocale ? messages[fallbackLocale] : undefined;
 
-      return translate(currentMessages, key, params, fallbackMessages);
+      return translate(currentMessages, key, params, currentLocale, fallbackMessages);
     });
   };
 

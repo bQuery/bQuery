@@ -4,6 +4,11 @@
  * Enable devtools to inspect signals, stores, components, and view a
  * timeline of reactive events.
  *
+ * Targeting **Stable** in 1.15.0: the surface is frozen for one minor cycle.
+ * A versioned bridge protocol (`connectDevtoolsBridge` / `createBridgeServer`,
+ * `BRIDGE_PROTOCOL_VERSION`) is the stable contract the reference DevTools
+ * browser extension (in `extension/`) connects to.
+ *
  * @module bquery/devtools
  *
  * @example
@@ -72,3 +77,24 @@ export type {
   PerformanceSummary,
   TimelineFilter,
 } from './extensions';
+
+// 1.15+ — Stable bridge protocol for the DevTools browser extension
+export {
+  BRIDGE_CAPABILITIES,
+  BRIDGE_PROTOCOL_VERSION,
+  BRIDGE_SOURCE,
+  connectDevtoolsBridge,
+  createBridgeServer,
+  serializeComponentTree,
+} from './bridge';
+
+export type {
+  BridgeConnection,
+  BridgeInboundMessage,
+  BridgeMethod,
+  BridgeOutboundMessage,
+  BridgeServer,
+  BridgeServerOptions,
+  ComponentTreeNode,
+  ConnectBridgeOptions,
+} from './bridge';

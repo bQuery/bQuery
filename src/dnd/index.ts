@@ -3,7 +3,12 @@
  *
  * Provides pointer-event-based drag-and-drop, drop zones, and sortable
  * lists with built-in touch support, axis locking, bounds constraints,
- * and animated reordering.
+ * keyboard accessibility, and animated reordering.
+ *
+ * Targeting **Stable** in 1.15.0: the surface is frozen for one minor cycle.
+ * The keyboard model (pick up / move / drop / cancel via Space/Enter, arrows,
+ * and Escape) and `aria-grabbed` state are a documented contract, and drag
+ * announcements route through the shared `a11y` live-region announcer.
  *
  * @module bquery/dnd
  *

@@ -166,6 +166,30 @@ export interface AuditFinding {
   element: Element;
   /** The audit rule that triggered this finding. */
   rule: string;
+  /**
+   * The WCAG 2.1 success criterion this rule maps to (e.g. `'1.1.1'`), or
+   * `''` for findings without a single canonical criterion.
+   */
+  wcag: string;
+}
+
+/**
+ * Metadata describing one audit rule: its WCAG mapping, default severity, what
+ * it checks, and — importantly for compliance — what it cannot detect. Exposed
+ * via `auditRules` so the audit scope is inspectable (and can be surfaced in the
+ * devtools panel).
+ */
+export interface AuditRule {
+  /** Stable rule identifier (matches `AuditFinding.rule`). */
+  rule: string;
+  /** WCAG 2.1 success criterion (e.g. `'4.1.2'`), or `''` if not 1:1. */
+  wcag: string;
+  /** Default severity emitted by this rule. */
+  severity: AuditSeverity;
+  /** What the rule checks. */
+  description: string;
+  /** A known limitation — what this rule cannot determine at runtime. */
+  cannotDetect: string;
 }
 
 /**

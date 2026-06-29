@@ -6,6 +6,10 @@
  * keyboard navigation patterns, skip navigation, media preference
  * signals, and development-time auditing.
  *
+ * Targeting **Stable** in 1.15.0: the surface is frozen for one minor cycle,
+ * and the runtime audit's WCAG coverage is documented via the `auditRules`
+ * catalog (and a `wcag` field on every finding), with its known limitations.
+ *
  * @module bquery/a11y
  *
  * @example
@@ -45,7 +49,7 @@
  */
 
 export { announceToScreenReader, clearAnnouncements } from './announce';
-export { auditA11y } from './audit';
+export { auditA11y, auditRules } from './audit';
 export { autoFocus, inert, scrollLock, type DisposableHandle } from './dom-helpers';
 export { focusVisible, keyboardUserSignal } from './keyboard-signals';
 export {
@@ -68,6 +72,7 @@ export type {
   AnnouncePriority,
   AuditFinding,
   AuditResult,
+  AuditRule,
   AuditSeverity,
   ColorScheme,
   ContrastPreference,

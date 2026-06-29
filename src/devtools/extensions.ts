@@ -266,12 +266,17 @@ export const installBrowserBridge = (): (() => void) => {
       pushEvent?: (entry: TimelineEntry) => void;
       onStoreCreated?: (id: string, store: unknown) => void;
       onStateChange?: (id: string, state: unknown) => void;
+      // Protocol version advertised to the DevTools extension (1.15+). Kept as
+      // a literal here to avoid a cycle with ./bridge; mirrors
+      // BRIDGE_PROTOCOL_VERSION.
+      protocolVersion?: number;
     };
   };
   if (!w.__BQUERY_DEVTOOLS__) {
     w.__BQUERY_DEVTOOLS__ = { stores: new Map() };
   }
   const bridge = w.__BQUERY_DEVTOOLS__;
+  bridge.protocolVersion = 1;
   if (!bridge.events) bridge.events = [];
   if (!bridge.pushEvent) {
     bridge.pushEvent = (entry: TimelineEntry): void => {

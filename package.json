@@ -75,6 +75,10 @@
       "import": "./dist/i18n.es.mjs",
       "types": "./dist/i18n/index.d.ts"
     },
+    "./i18n/extract": {
+      "import": "./dist/i18n-extract.es.mjs",
+      "types": "./dist/i18n/extract/index.d.ts"
+    },
     "./a11y": {
       "import": "./dist/a11y.es.mjs",
       "types": "./dist/a11y/index.d.ts"
@@ -116,7 +120,8 @@
     "LICENSE.md"
   ],
   "bin": {
-    "bquery-view-compile": "bin/bquery-view-compile.mjs"
+    "bquery-view-compile": "bin/bquery-view-compile.mjs",
+    "bquery-i18n": "bin/bquery-i18n.mjs"
   },
   "sideEffects": false,
   "scripts": {

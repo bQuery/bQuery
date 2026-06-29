@@ -1,0 +1,44 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { font: 12px/1.5 system-ui, sans-serif; margin: 0; padding: 8px; }
+      header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      header h1 { font-size: 13px; margin: 0; }
+      #status { font-size: 11px; opacity: 0.7; }
+      button { font: inherit; cursor: pointer; }
+      .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      section h2 { font-size: 11px; text-transform: uppercase; opacity: 0.6; margin: 8px 0 4px; }
+      ul { list-style: none; margin: 0; padding-left: 12px; }
+      .tree li { position: relative; }
+      .tag { color: #905; }
+      .signals li, .stores li, .timeline li { padding: 1px 0; border-bottom: 1px solid rgba(128,128,128,0.15); }
+      code { font-family: ui-monospace, monospace; }
+      .empty { opacity: 0.5; font-style: italic; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>bQuery</h1>
+      <button id="refresh">Refresh</button>
+      <span id="status">connecting…</span>
+    </header>
+    <div class="cols">
+      <section>
+        <h2>Component tree</h2>
+        <div id="tree" class="tree"><span class="empty">—</span></div>
+        <h2>Timeline</h2>
+        <ul id="timeline" class="timeline"></ul>
+      </section>
+      <section>
+        <h2>Signals</h2>
+        <ul id="signals" class="signals"></ul>
+        <h2>Stores</h2>
+        <ul id="stores" class="stores"></ul>
+      </section>
+    </div>
+    <script src="panel.js"></script>
+  </body>
+</html>

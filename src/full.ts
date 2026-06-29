@@ -777,10 +777,12 @@ export type {
 // ============================================================================
 export {
   createI18n,
+  defineMessages,
   detectLocale,
   formatDate,
   formatDisplayName,
   formatList,
+  formatMessage,
   formatNumber,
   formatRelativeTime,
   isRTL,
@@ -811,6 +813,7 @@ export type {
 export {
   announceToScreenReader,
   auditA11y,
+  auditRules,
   autoFocus,
   clearAnnouncements,
   createLiveRegion,
@@ -833,6 +836,7 @@ export type {
   AnnouncePriority,
   AuditFinding,
   AuditResult,
+  AuditRule,
   AuditSeverity,
   ColorScheme,
   ContrastPreference,
@@ -978,6 +982,7 @@ export {
   createInjectionKey,
   doAction,
   getCustomDirective,
+  definePlugin,
   getCustomDirectives,
   getInstalledPlugins,
   getPluginInfo,
@@ -1008,7 +1013,12 @@ export type {
 // DevTools module
 // ---------------------------------------------------------------------------
 export {
+  BRIDGE_CAPABILITIES,
+  BRIDGE_PROTOCOL_VERSION,
+  BRIDGE_SOURCE,
   clearTimeline,
+  connectDevtoolsBridge,
+  createBridgeServer,
   diffSignals,
   diffStores,
   enableDevtools,
@@ -1025,6 +1035,7 @@ export {
   inspectStores,
   installBrowserBridge,
   isDevtoolsEnabled,
+  serializeComponentTree,
   logComponents,
   logSignals,
   logStores,
@@ -1039,7 +1050,15 @@ export {
   untrackSignal,
 } from './devtools/index';
 export type {
+  BridgeConnection,
+  BridgeInboundMessage,
+  BridgeMethod,
+  BridgeOutboundMessage,
+  BridgeServer,
+  BridgeServerOptions,
   ComponentSnapshot,
+  ComponentTreeNode,
+  ConnectBridgeOptions,
   DevtoolsOptions,
   DevtoolsSnapshot,
   DevtoolsState,
