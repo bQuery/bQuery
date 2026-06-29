@@ -254,6 +254,14 @@ const setHtml = (el: SSRElement, raw: string): void => {
   el.children = fragment.children;
 };
 
+/**
+ * Allowlist-sanitize a raw HTML string for safe server-side embedding.
+ *
+ * Parses `raw`, drops dangerous and non-allowlisted tags, strips disallowed
+ * attributes (including unsafe `id`/`name` and `javascript:`-style `href`/`src`
+ * URLs), and forces `rel="noopener noreferrer"` on `target="_blank"`/external
+ * links. Returns the serialized, sanitized HTML.
+ */
 export const sanitizeHtmlForSSR = (raw: string): string => {
   const sanitizeNode = (node: SSRNode): SSRNode | null => {
     if (node.type === 'fragment') {

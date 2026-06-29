@@ -14,6 +14,11 @@ import type { BindingContext, DirectiveHandler } from './types';
  */
 const PASSIVE_DIRECTIVES = new Set<string>(['key', ...TRANSITION_ATTRS]);
 
+/**
+ * Registry mapping each built-in directive name to its handler. `bind` and `on`
+ * are factories (they take the bound attribute/event name); the rest are plain
+ * handlers invoked when their `bq-*` attribute is processed.
+ */
 export type DirectiveHandlers = {
   text: DirectiveHandler;
   error: DirectiveHandler;

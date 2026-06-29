@@ -56,26 +56,33 @@ export interface ServerHtmlResponseInit extends ServerResponseInit {
   trusted?: boolean;
 }
 
+/** Attributes applied when serializing a `Set-Cookie` header. */
 export interface ServerCookieOptions {
   domain?: string;
   httpOnly?: boolean;
+  /** Lifetime in seconds; omit for a session cookie. */
   maxAge?: number;
   path?: string;
   sameSite?: 'lax' | 'none' | 'strict';
   secure?: boolean;
 }
 
+/** A single Server-Sent Events frame written to the response stream. */
 export interface ServerSseEvent {
   data: string;
   event?: string;
   id?: string;
+  /** Reconnection delay (ms) advertised to the client. */
   retry?: number;
 }
 
+/** Options for opening a Server-Sent Events stream. */
 export interface ServerSseOptions extends ServerResponseInit {
+  /** Default reconnection delay (ms) sent once when the stream opens. */
   retry?: number;
 }
 
+/** Maximum accepted request-body size, in bytes, per parsed content type. */
 export interface ServerLimits {
   form?: number;
   json?: number;
@@ -83,17 +90,25 @@ export interface ServerLimits {
   text?: number;
 }
 
+/** Options for {@link ServerApp.listen}. */
 export interface ServerListenOptions {
   hostname?: string;
   port?: number;
+  /** Target runtime; `auto` detects Bun, Deno, or Node at call time. */
   runtime?: 'auto' | 'bun' | 'deno' | 'node';
+  /** Abort signal that, once aborted, stops the server. */
   signal?: AbortSignal;
 }
 
+/** Handle to a running server returned by {@link ServerApp.listen}. */
 export interface ServerListenHandle {
+  /** Every URL the server is listening on. */
   addresses: string[];
+  /** Stop the server, resolving once it has fully shut down. */
   close(): Promise<void>;
+  /** Alias of {@link ServerListenHandle.close}. */
   stop(): Promise<void>;
+  /** Primary listen URL. */
   url: string;
 }
 
