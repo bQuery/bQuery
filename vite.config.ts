@@ -68,8 +68,9 @@ export default defineConfig({
     rollupOptions: {
       // Keep Node built-ins external so the optional CLI entries (view
       // compiler, i18n extractor) emit real `import('node:fs/promises')`
-      // calls instead of Vite's browser-external stub. Browser entries never
-      // import `node:*`, so this is a no-op for them.
+      // calls instead of Vite's browser-external stub. Without this, the
+      // bundled CLIs crash at runtime ("e is not a function"). Browser entries
+      // never import `node:*`, so this is a no-op for them.
       external: (id) => id.startsWith('node:'),
       output: {
         banner,
