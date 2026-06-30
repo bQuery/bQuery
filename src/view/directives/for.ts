@@ -1,6 +1,16 @@
 import { effect, signal, type CleanupFn, type Signal } from '../../reactive/index';
+import { detectDevEnvironment } from '../../core/env';
+import { capturePosition, flip } from '../../motion/flip';
+import { prefersReducedMotion } from '../../motion/reduced-motion';
+import type { ElementBounds } from '../../motion/types';
 import { evaluate } from '../evaluate';
 import type { BindingContext, DirectiveHandler } from '../types';
+import { resolveTransition, runTransition } from './transitions';
+
+/** Default FLIP-move duration (ms) when `bq-transition-duration` is absent. */
+const DEFAULT_FLIP_DURATION = 300;
+/** Default FLIP-move easing when `bq-transition-easing` is absent. */
+const DEFAULT_FLIP_EASING = 'ease-out';
 
 type ProcessElementFn = (
   el: Element,
@@ -90,6 +100,28 @@ export const createForHandler = (options: {
 
     const [, itemName, indexName, listExpression] = match;
 
+    // Resolve transition configuration once — the companion attributes are
+    // static on the template element (read before it is replaced below).
+    // `bq-animate="flip"` enables FLIP move transitions on reorder; `bq-in` /
+    // `bq-out` / `bq-transition` drive per-item enter/leave animations.
+    const flipEnabled = el.getAttribute(`${prefix}-animate`) === 'flip';
+    const itemTransition = resolveTransition(el, prefix);
+    const flipDurationAttr = el.getAttribute(`${prefix}-transition-duration`);
+    const parsedFlipDuration = flipDurationAttr != null ? Number(flipDurationAttr) : NaN;
+    const flipDuration =
+      Number.isFinite(parsedFlipDuration) && parsedFlipDuration >= 0
+        ? parsedFlipDuration
+        : DEFAULT_FLIP_DURATION;
+    const flipEasingAttr = el.getAttribute(`${prefix}-transition-easing`);
+    const flipEasing =
+      flipEasingAttr != null && flipEasingAttr.trim() !== ''
+        ? flipEasingAttr.trim()
+        : DEFAULT_FLIP_EASING;
+
+    // Skip enter/leave/move animations on the initial render so the first paint
+    // of a list is not animated en masse.
+    let firstRender = true;
+
     // Extract :key attribute if present
     const keyExpression = el.getAttribute(':key') || el.getAttribute(`${prefix}-key`);
 
@@ -105,6 +137,18 @@ export const createForHandler = (options: {
     // Track rendered items by key for reconciliation
     let renderedItemsMap = new Map<unknown, RenderedItem>();
     let renderedOrder: unknown[] = [];
+
+    // Elements whose leave animation is still running: their DOM removal is
+    // deferred, so they linger in the document untracked. Keyed so that if the
+    // same key is re-added before its leave finishes we can drop the stale node
+    // instead of rendering a duplicate. The value force-removes it immediately.
+    const leavingItemsMap = new Map<unknown, () => void>();
+
+    // Remember which duplicate keys we have already reported so the warning is
+    // emitted once per offending key for the lifetime of this binding rather
+    // than on every reactive re-render. Gated behind the dev environment so it
+    // never reaches production consoles.
+    const warnedDuplicateKeys = new Set<unknown>();
 
     /**
      * Creates a new DOM element for an item.
@@ -148,13 +192,32 @@ export const createForHandler = (options: {
     };
 
     /**
-     * Removes a rendered item and cleans up its effects.
+     * Removes a rendered item and cleans up its effects. When `animateLeave`
+     * is set and a leave transition is configured, reactivity is torn down
+     * immediately but DOM removal is deferred until the leave animation
+     * finishes (the item is already untracked, so it is never re-matched).
      */
-    const removeItem = (rendered: RenderedItem): void => {
+    const removeItem = (rendered: RenderedItem, animateLeave: boolean): void => {
       for (const cleanup of rendered.cleanups) {
         cleanup();
       }
-      rendered.element.remove();
+      if (animateLeave && itemTransition?.leave) {
+        let cancelled = false;
+        leavingItemsMap.set(rendered.key, () => {
+          cancelled = true;
+          leavingItemsMap.delete(rendered.key);
+          rendered.element.remove();
+        });
+        void runTransition(rendered.element, itemTransition.leave, itemTransition, 'forwards').then(
+          () => {
+            if (cancelled) return;
+            leavingItemsMap.delete(rendered.key);
+            rendered.element.remove();
+          }
+        );
+      } else {
+        rendered.element.remove();
+      }
     };
 
     /**
@@ -181,13 +244,26 @@ export const createForHandler = (options: {
       const list = evaluate<unknown[]>(listExpression, context);
 
       if (!Array.isArray(list)) {
-        // Clear all if list is invalid
+        // Clear all if list is invalid (no leave animation on teardown)
         for (const rendered of renderedItemsMap.values()) {
-          removeItem(rendered);
+          removeItem(rendered, false);
         }
         renderedItemsMap.clear();
+        for (const forceRemove of [...leavingItemsMap.values()]) forceRemove();
         renderedOrder = [];
         return;
+      }
+
+      // FLIP move: capture current positions of all rendered elements before
+      // any DOM mutation so surviving elements can animate from old → new.
+      // Skipped under reduced motion (the underlying motion `flip()` has no
+      // such guard, so we gate it here to honour the shared preference).
+      const flipPositions: Map<Element, ElementBounds> | null =
+        flipEnabled && !firstRender && !prefersReducedMotion() ? new Map() : null;
+      if (flipPositions) {
+        for (const rendered of renderedItemsMap.values()) {
+          flipPositions.set(rendered.element, capturePosition(rendered.element));
+        }
       }
 
       // Build new key order and detect changes
@@ -198,15 +274,27 @@ export const createForHandler = (options: {
       list.forEach((item, index) => {
         let key = getItemKey(item, index, keyExpression, itemName, indexName, context);
 
-        // Detect duplicate keys - warn developer and fall back to unique composite key
+        // Detect duplicate keys - warn developer (once per key, dev only) and
+        // fall back to a deterministic unique composite key so reconciliation
+        // never corrupts rendered output.
         if (seenKeys.has(key)) {
-          console.warn(
-            `bq-for: Duplicate key "${String(key)}" detected at index ${index}. ` +
-              `Falling back to index-based key for this item. ` +
-              `Ensure :key expressions produce unique values for each item.`
-          );
-          // Create a unique composite key to avoid corrupting rendered output
-          key = { __bqDuplicateKey: key, __bqIndex: index };
+          if (detectDevEnvironment() && !warnedDuplicateKeys.has(key)) {
+            warnedDuplicateKeys.add(key);
+            if (typeof console !== 'undefined' && typeof console.warn === 'function') {
+              console.warn(
+                `bq-for: Duplicate key "${String(key)}" detected at index ${index}. ` +
+                  `Falling back to a composite key for this item. ` +
+                  `Ensure :key expressions produce unique values for each item.`
+              );
+            }
+          }
+          // Create a deterministic, primitive composite key to avoid corrupting
+          // rendered output. Using a stable string (NUL-sentinel + index + the
+          // original key) — rather than a fresh object — keeps the fallback key
+          // referentially stable across re-renders, so a duplicated row reuses
+          // its DOM node instead of being recreated on every update. The
+          // sentinel prefix keeps it from colliding with author-provided keys.
+          key = ` bq-dup ${index} ${String(key)}`;
         }
         seenKeys.add(key);
 
@@ -222,11 +310,11 @@ export const createForHandler = (options: {
         }
       }
 
-      // Remove deleted items
+      // Remove deleted items (animate the leave unless this is the first render)
       for (const key of keysToRemove) {
         const rendered = renderedItemsMap.get(key);
         if (rendered) {
-          removeItem(rendered);
+          removeItem(rendered, !firstRender);
           renderedItemsMap.delete(key);
         }
       }
@@ -253,6 +341,12 @@ export const createForHandler = (options: {
           }
           lastInsertedElement = rendered.element;
         } else {
+          // If this key is still mid-leave (animating out but present in the
+          // DOM), drop that stale node now so the re-added item never appears
+          // twice.
+          const forceRemoveLeaving = leavingItemsMap.get(key);
+          if (forceRemoveLeaving) forceRemoveLeaving();
+
           // Create new element
           rendered = createItemElement(item, index, key);
           newRenderedMap.set(key, rendered);
@@ -260,12 +354,33 @@ export const createForHandler = (options: {
           // Insert at correct position
           lastInsertedElement.after(rendered.element);
           lastInsertedElement = rendered.element;
+
+          // Animate the item's entrance (skip on the initial render)
+          if (itemTransition?.enter && !firstRender) {
+            void runTransition(rendered.element, itemTransition.enter, itemTransition, 'none');
+          }
+        }
+      }
+
+      // FLIP move: now that the DOM has settled, animate surviving elements
+      // from their captured positions to their new ones. New elements are not
+      // in the captured set (they enter-animate instead).
+      if (flipPositions) {
+        for (const rendered of newRenderedMap.values()) {
+          const firstBounds = flipPositions.get(rendered.element);
+          if (firstBounds) {
+            void flip(rendered.element, firstBounds, {
+              duration: flipDuration,
+              easing: flipEasing,
+            });
+          }
         }
       }
 
       // Update tracking state
       renderedItemsMap = newRenderedMap;
       renderedOrder = newKeys;
+      firstRender = false;
     });
 
     // When the bq-for itself is cleaned up, also cleanup all rendered items
@@ -277,6 +392,7 @@ export const createForHandler = (options: {
         }
       }
       renderedItemsMap.clear();
+      for (const forceRemove of [...leavingItemsMap.values()]) forceRemove();
     });
   };
 };

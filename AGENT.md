@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.14.2                                                                                                                                                                                            |
+| Version     | 1.15.0                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -39,6 +39,18 @@ bun run dev           # VitePress docs server
 ## Workspace Prompt Pack
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.15.0 Highlights
+
+- Thirteen modules graduate to **Stable** — `@bquery/bquery/view`, `@bquery/bquery/forms`, `@bquery/bquery/i18n`, `@bquery/bquery/a11y`, `@bquery/bquery/dnd`, `@bquery/bquery/media`, `@bquery/bquery/plugin`, `@bquery/bquery/devtools`, `@bquery/bquery/testing`, `@bquery/bquery/storybook`, `@bquery/bquery/concurrency`, `@bquery/bquery/ssr`, and `@bquery/bquery/server`. Every bQuery module is now Stable (the Beta and Experimental tiers are empty); the canonical record is `STABILITY.md`, enforced by `bun run check:stability`.
+- `@bquery/bquery/view` — declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`) plus an optional `@bquery/bquery/view/compiler` (`compileViews`, `compileToModule`, `compileExpression`, `emitModule`, the `bquery-view-compile` CLI, and `registerCompiledExpressions`/`clearCompiledExpressions` runtime hooks) that precompiles `bq-*` expressions into `with`-free functions, so the runtime can skip the `new Function()` evaluator and run under a strict CSP without `'unsafe-eval'`. Un-compilable expressions fall back to the runtime evaluator.
+- `@bquery/bquery/forms` — progressive-enhancement actions (`formAction`, `useFormStatus`, `enhance`, `FormActionError`) and an `optimistic(base, reducer)` update primitive; `createFieldArray()` gains `getKey` plus `keys()`/`keyAt(index)`. Composes with the `server` module's `csrf()`.
+- `@bquery/bquery/i18n` — ICU MessageFormat (`plural`, `selectordinal`, `select`, nested arguments, `offset:`, `=N`, `#`) via `Intl.PluralRules`; new `defineMessages`/`formatMessage`; and an optional, dependency-free `@bquery/bquery/i18n/extract` toolkit + `bquery-i18n` CLI that scans source and merges catalogs without overwriting translations.
+- `@bquery/bquery/router` + `@bquery/bquery/server` — an opt-in, bundler-agnostic file-route convention with typed `load`/`action`: `createFileRoutes`, `parseFilePath`, `filePathToRoutePattern`, `sortEntriesBySpecificity`, `createRouteData`/`useRouteData`, plus `mountFileRoutes`/`createFileRouteServerRoutes`. `routes/users/[id]/+page.ts` → `/users/:id`, `[...rest]` → `*`, `(group)` dropped. Programmatic routing is unchanged; no bundler is shipped.
+- `@bquery/bquery/server` — first-party `session`/`memoryStore`, `csrf`/`csrfToken`, `guard`, `basicAuth`/`bearerAuth`, and the Web-Crypto signing utilities they build on (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`); `app.listen()` supports Node, Bun, and Deno.
+- `@bquery/bquery/ssr` — production hydration (`hydrate`, `detectHydrationMismatches`), interactive directive parity (`directives: 'full'`, `onUnsupportedDirective`), and resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). `renderToStringAsync()` and the rest of the SSR surface are unchanged.
+- `@bquery/bquery/devtools` — a stable, versioned bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `serializeComponentTree`, `BRIDGE_PROTOCOL_VERSION`/`BRIDGE_SOURCE`/`BRIDGE_CAPABILITIES`) and a reference Manifest V3 browser extension (component tree, signal/store inspection, timeline) in `extension/`. `@bquery/bquery/a11y` stamps each `AuditFinding` with a `wcag` criterion and exports the `auditRules` catalog; `@bquery/bquery/plugin` adds the `definePlugin()` authoring helper.
+- All graduations are additive — there are no breaking changes. Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ## Version 1.14.2 Highlights
 
@@ -86,8 +98,8 @@ bQuery.js does not compete with jQuery on simplicity — it competes with full-s
 ## Module Maturity
 
 - **Stable**: Core, Reactive, Security, Component, Motion, Platform, Router, Store
-- **Beta**: View, Forms, i18n, A11y, DnD, Media, Plugin, Devtools, Testing, Storybook
-- **Experimental**: SSR, Server, Concurrency
+- **Stable (graduated in 1.15.0)**: View, Forms, i18n, A11y, DnD, Media, Plugin, Devtools, Testing, Storybook, Concurrency, SSR, Server
+- **Beta / Experimental**: none — every module is Stable as of 1.15.0
 
 ---
 

@@ -27,9 +27,11 @@ const entries = {
   router: resolve(__dirname, 'src/router/index.ts'),
   store: resolve(__dirname, 'src/store/index.ts'),
   view: resolve(__dirname, 'src/view/index.ts'),
+  'view-compiler': resolve(__dirname, 'src/view/compiler/index.ts'),
   storybook: resolve(__dirname, 'src/storybook/index.ts'),
   forms: resolve(__dirname, 'src/forms/index.ts'),
   i18n: resolve(__dirname, 'src/i18n/index.ts'),
+  'i18n-extract': resolve(__dirname, 'src/i18n/extract/index.ts'),
   a11y: resolve(__dirname, 'src/a11y/index.ts'),
   dnd: resolve(__dirname, 'src/dnd/index.ts'),
   media: resolve(__dirname, 'src/media/index.ts'),
@@ -64,6 +66,12 @@ export default defineConfig({
     minify: 'esbuild',
     target: 'es2020',
     rollupOptions: {
+      // Keep Node built-ins external so the optional CLI entries (view
+      // compiler, i18n extractor) emit real `import('node:fs/promises')`
+      // calls instead of Vite's browser-external stub. Without this, the
+      // bundled CLIs crash at runtime ("e is not a function"). Browser entries
+      // never import `node:*`, so this is a no-op for them.
+      external: (id) => id.startsWith('node:'),
       output: {
         banner,
         // Ensure proper external handling
@@ -83,9 +91,11 @@ export default defineConfig({
       'bquery/platform': resolve(__dirname, 'src/platform/index.ts'),
       'bquery/router': resolve(__dirname, 'src/router/index.ts'),
       'bquery/store': resolve(__dirname, 'src/store/index.ts'),
+      'bquery/view/compiler': resolve(__dirname, 'src/view/compiler/index.ts'),
       'bquery/view': resolve(__dirname, 'src/view/index.ts'),
       'bquery/storybook': resolve(__dirname, 'src/storybook/index.ts'),
       'bquery/forms': resolve(__dirname, 'src/forms/index.ts'),
+      'bquery/i18n/extract': resolve(__dirname, 'src/i18n/extract/index.ts'),
       'bquery/i18n': resolve(__dirname, 'src/i18n/index.ts'),
       'bquery/a11y': resolve(__dirname, 'src/a11y/index.ts'),
       'bquery/dnd': resolve(__dirname, 'src/dnd/index.ts'),

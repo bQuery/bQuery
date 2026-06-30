@@ -61,6 +61,59 @@ const evaluateCache = new LRUCache(MAX_CACHE_SIZE);
 const evaluateRawCache = new LRUCache(MAX_CACHE_SIZE);
 
 /**
+ * Registry of ahead-of-time compiled expression functions, seeded by the
+ * optional `@bquery/bquery/view/compiler` build step. Entries here take
+ * precedence over the runtime `new Function()` path and are never evicted, so
+ * a build that precompiles every expression in a template avoids the runtime
+ * evaluator (and its `'unsafe-eval'` requirement) entirely. Expressions not
+ * present here transparently fall back to runtime compilation; for any
+ * well-formed expression the two paths produce the same value. (They differ
+ * only for an unresolved free identifier, which the `with`-based runtime path
+ * turns into a caught ReferenceError — i.e. `undefined` for the whole
+ * expression — whereas the compiled path reads it as `undefined` in place.)
+ * @internal
+ */
+const compiledRegistry = new Map<string, CompiledFn>();
+
+/**
+ * Registers ahead-of-time compiled expression functions produced by the
+ * optional view compiler ({@link https://bquery.js.org/guide/view | view guide}).
+ *
+ * Each function must accept the binding context (or its lazy proxy) and return
+ * the expression's value — exactly the calling convention the runtime evaluator
+ * uses — so the same function serves both {@link evaluate} (signals unwrapped)
+ * and {@link evaluateRaw} (raw signals). Registering an expression is purely an
+ * optimization: unregistered expressions still evaluate at runtime, unchanged.
+ *
+ * This is normally called by the module emitted from
+ * `@bquery/bquery/view/compiler`, not by hand.
+ *
+ * @example
+ * ```ts
+ * import { registerCompiledExpressions } from '@bquery/bquery/view';
+ *
+ * registerCompiledExpressions({
+ *   'count + 1': ($ctx) => $ctx.count + 1,
+ * });
+ * ```
+ */
+export const registerCompiledExpressions = (
+  entries: Record<string, (ctx: BindingContext) => unknown>
+): void => {
+  for (const key of Object.keys(entries)) {
+    compiledRegistry.set(key, entries[key] as CompiledFn);
+  }
+};
+
+/**
+ * Removes all registered ahead-of-time compiled expressions. Mainly useful for
+ * tests that want to assert the runtime fallback path.
+ */
+export const clearCompiledExpressions = (): void => {
+  compiledRegistry.clear();
+};
+
+/**
  * Clears all cached compiled expression functions.
  * Call this when unmounting views or to free memory after heavy template usage.
  *
@@ -124,6 +177,13 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
     // Create a proxy that lazily unwraps signals/computed on access
     const lazyContext = createLazyContext(context);
 
+    // Prefer an ahead-of-time compiled function when one was registered by the
+    // optional view compiler — this skips the runtime `new Function()` path.
+    const compiled = compiledRegistry.get(expression);
+    if (compiled) {
+      return compiled(lazyContext) as T;
+    }
+
     // Use cached function or compile and cache a new one
     let fn = evaluateCache.get(expression);
     if (!fn) {
@@ -149,6 +209,14 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
  */
 export const evaluateRaw = <T = unknown>(expression: string, context: BindingContext): T => {
   try {
+    // Prefer an ahead-of-time compiled function when one was registered. The
+    // raw context is passed directly (no signal unwrapping), so directives like
+    // bq-model still receive the underlying signal.
+    const compiled = compiledRegistry.get(expression);
+    if (compiled) {
+      return compiled(context) as T;
+    }
+
     // Use cached function or compile and cache a new one
     let fn = evaluateRawCache.get(expression);
     if (!fn) {
@@ -285,6 +353,13 @@ export const parseObjectExpression = (expression: string): Record<string, string
       if (isPrototypePollutionKey(key)) continue;
       const value = part.slice(colonIndex + 1).trim();
       result[key] = value;
+    } else if (/^[A-Za-z_$][\w$]*$/.test(part)) {
+      // Shorthand property: `{ active }` is equivalent to `{ active: active }`,
+      // matching JS object-literal shorthand. Previously a part with no
+      // top-level colon was silently dropped, so `bq-class="{ active }"` added
+      // no class even when `active` was truthy — a documented parsing edge case.
+      if (isPrototypePollutionKey(part)) continue;
+      result[part] = part;
     }
   }
 

@@ -7,6 +7,11 @@
  * {@link when}) that mirror `lit-html` conventions so existing community
  * examples translate one-to-one.
  *
+ * Targeting **Stable** in 1.15.0: the helper surface is frozen for one minor
+ * cycle. `storyHtml` / `storySvg` sanitize every interpolation via the security
+ * module; `unsafeHtml()` is the single, brand-checked opt-out for trusted,
+ * author-controlled markup.
+ *
  * @module bquery/storybook
  */
 

@@ -326,7 +326,8 @@ export const parseTemplate = (template: string): SSRDocumentFragment => {
   return root;
 };
 
-const escapeText = (value: string): string =>
+/** Escapes a string for use as HTML text content (escapable contexts). */
+export const escapeText = (value: string): string =>
   value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 const escapeAttr = (value: string): string =>

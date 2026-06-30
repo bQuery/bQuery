@@ -2,8 +2,14 @@
  * Internationalization (i18n) module for bQuery.js.
  *
  * Provides a reactive, TypeScript-first internationalization API
- * with interpolation, pluralization, lazy-loading, and locale-aware
- * formatting — all backed by bQuery's signal-based reactivity system.
+ * with interpolation, ICU MessageFormat pluralization (`plural`,
+ * `selectordinal`, `select` via `Intl.PluralRules`), lazy-loading, and
+ * locale-aware formatting — all backed by bQuery's signal-based reactivity
+ * system. Optional, build-tool-agnostic message extraction ships separately
+ * via `@bquery/bquery/i18n/extract`.
+ *
+ * Targeting **Stable** in 1.15.0: the formatting/locale surface is frozen for
+ * one minor cycle; ICU coverage and the extraction tooling are additive.
  *
  * @module bquery/i18n
  *
@@ -53,6 +59,7 @@
  */
 
 export { createI18n } from './i18n';
+export { defineMessages, formatMessage } from './define';
 export { formatDate, formatNumber } from './formatting';
 export {
   formatDisplayName,

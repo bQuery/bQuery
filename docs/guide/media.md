@@ -23,6 +23,68 @@ import {
 } from '@bquery/bquery/media';
 ```
 
+## Stability
+
+`media` is **Beta**. It graduated to a "batteries-included tier" in 1.14.0 **with 25+ new composables added in that same release** — so essentially the entire usable surface is one minor old. The "batteries-included" label is a feature-completeness signal, not the semver stability bar. The work to graduate it is tracked in [#144](https://github.com/bQuery/bQuery/issues/144): freeze the composable surface for one minor cycle, document each composable's SSR-safe default and cleanup, and verify reactivity + teardown with no listener leaks. This is a **bake-and-verify** ticket — no new features. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
+
+### Exit criteria
+
+- [x] **Composable surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below; no new composables or breaking changes during the freeze.
+- [x] **SSR-safe defaults documented per composable** ([#144](https://github.com/bQuery/bquery/issues/144)) — see [SSR behaviour and defaults](#ssr-behaviour-and-defaults).
+- [x] **Reactivity + cleanup tested (no listener leaks)** ([#144](https://github.com/bQuery/bQuery/issues/144)) — `destroy()` idempotency, listener detachment, and `AbortSignal` teardown are covered.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
+
+### Frozen surface reference (1.15.0)
+
+The frozen public surface of `@bquery/bquery/media` (no additions during the freeze):
+
+- **Core signals:** `mediaQuery`, `breakpoints`, `useViewport`, `useNetworkStatus`, `useBattery`, `useGeolocation`, `useDeviceMotion`, `useDeviceOrientation`, `clipboard`, `clipboardText`.
+- **Observers:** `useIntersectionObserver`, `useResizeObserver`, `useMutationObserver`.
+- **Preference signals:** `usePreferredColorScheme`, `usePreferredContrast`, `usePreferredReducedTransparency`.
+- **Browser/navigator state:** `useOnlineStatus`, `usePageVisibility`, `useDocumentFocus`, `useWindowFocus`, `useIdle`, `usePermission`, `useWakeLock`, `useShare`, `useShareSupported`, `useBroadcastChannel`, `useEventListener`, `useMediaDevices`, `useStorage`, `usePreferredLanguage`, `usePreferredLanguages`.
+- **DOM-target composables:** `useActiveElement`, `useElementBounding`, `useElementSize`, `useElementVisibility`, `useFocus`, `useFocusWithin`, `useHover`, `usePointer`, `useScroll`.
+
+### SSR behaviour and defaults
+
+Every composable is **SSR-safe**: it reads browser/device state only when a DOM is present (`typeof window !== 'undefined'`). On the server, the `setup` phase never runs, so the signal stays at its **documented fallback** and **no listeners are attached**. `destroy()` is always present and idempotent — calling it on the server, or twice, is a safe no-op. Setup errors are swallowed so server (and import-time) rendering never crashes.
+
+| Composable                                                                  | Server-render fallback                              |
+| --------------------------------------------------------------------------- | --------------------------------------------------- |
+| `mediaQuery(q)`                                                             | `false`                                             |
+| `breakpoints(map)`                                                          | all breakpoints `false`                             |
+| `useViewport()`                                                             | `{ width: 0, height: 0, orientation: 'landscape' }` |
+| `useNetworkStatus()`                                                        | `{ online: true }` (other fields undefined)         |
+| `useOnlineStatus()`                                                         | `true`                                              |
+| `usePageVisibility()`                                                       | `'visible'`                                         |
+| `useBattery()`                                                              | `{ supported: false, … }`                           |
+| `useGeolocation()`                                                          | last/loading state, no position                     |
+| `usePreferredColorScheme()`                                                 | `'no-preference'`                                   |
+| `usePreferredContrast()`                                                    | `'no-preference'`                                   |
+| `useIdle(ms)`                                                               | `false` (or `options.initial`)                      |
+| `useElementSize()` / `useElementBounding()`                                 | zeroed rect (`0` width/height)                      |
+| `useElementVisibility()` / `useHover()` / `useFocus()` / `useFocusWithin()` | `false`                                             |
+| `useActiveElement()`                                                        | `null`                                              |
+| `usePointer()`                                                              | zeroed pointer state                                |
+| `useScroll()`                                                               | `{ x: 0, y: 0, … }`                                 |
+| `useMediaDevices()`                                                         | `[]`                                                |
+| `usePermission()`                                                           | `'unsupported'`                                     |
+| `clipboard` / `clipboardText()`                                             | no-op / `''`; capability flags `false`              |
+
+**Cleanup contract:** the `MediaSignalHandle` returned by each composable carries a non-enumerable, idempotent `destroy()` that detaches every listener/observer it created and disposes the underlying signal. Every **1.14+** composable also accepts `{ signal: anAbortSignal }` to auto-destroy when that signal aborts (an already-aborted signal tears down immediately). The original core signals (`mediaQuery`, `useViewport`, `useNetworkStatus`, `useBattery`, `useGeolocation`, device sensors) are cleaned up via their `destroy()`. Always `destroy()` (or abort) on unmount to avoid listener leaks.
+
+```ts
+import { useViewport, usePageVisibility } from '@bquery/bquery/media';
+
+// Core signal — clean up with destroy():
+const vp = useViewport(); // SSR fallback: { width: 0, height: 0, orientation: 'landscape' }
+vp.destroy();
+
+// 1.14+ composable — also supports AbortSignal auto-teardown:
+const controller = new AbortController();
+const vis = usePageVisibility({ signal: controller.signal }); // SSR fallback: 'visible'
+controller.abort(); // detaches the listener; vis.destroy() afterwards is a safe no-op
+```
+
 ## What's new in 1.14
 
 Media graduates into a batteries-included tier. Every new composable accepts
@@ -902,4 +964,5 @@ effect(() => {
 
 ## Version history
 
+- **1.15.0** — **graduated to Stable**: composable surface frozen for one minor cycle ([#144](https://github.com/bQuery/bQuery/issues/144)). Per-composable SSR-safe defaults documented; reactivity, idempotent `destroy()`, listener detachment, and `AbortSignal` teardown covered by tests. No new features (bake-and-verify).
 - **1.14.0** — 25+ new composables: preference signals, page state, element observers, pointer/scroll, platform integrations, clipboard upgrades. All accept `{ signal: AbortSignal }`.

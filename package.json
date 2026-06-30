@@ -1,6 +1,6 @@
 {
   "name": "@bquery/bquery",
-  "version": "1.14.2",
+  "version": "1.15.0",
   "description": "bQuery.js — batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
   "type": "module",
   "main": "./dist/full.umd.js",
@@ -59,6 +59,10 @@
       "import": "./dist/view.es.mjs",
       "types": "./dist/view/index.d.ts"
     },
+    "./view/compiler": {
+      "import": "./dist/view-compiler.es.mjs",
+      "types": "./dist/view/compiler/index.d.ts"
+    },
     "./storybook": {
       "import": "./dist/storybook.es.mjs",
       "types": "./dist/storybook/index.d.ts"
@@ -70,6 +74,10 @@
     "./i18n": {
       "import": "./dist/i18n.es.mjs",
       "types": "./dist/i18n/index.d.ts"
+    },
+    "./i18n/extract": {
+      "import": "./dist/i18n-extract.es.mjs",
+      "types": "./dist/i18n/extract/index.d.ts"
     },
     "./a11y": {
       "import": "./dist/a11y.es.mjs",
@@ -107,9 +115,14 @@
   "files": [
     "dist",
     "src",
+    "bin",
     "README.md",
     "LICENSE.md"
   ],
+  "bin": {
+    "bquery-view-compile": "bin/bquery-view-compile.mjs",
+    "bquery-i18n": "bin/bquery-i18n.mjs"
+  },
   "sideEffects": false,
   "scripts": {
     "dev": "vitepress dev docs",
@@ -126,6 +139,7 @@
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
+    "check:stability": "bun scripts/check-stability-matrix.mjs",
     "check:doc-exports": "bun scripts/check-doc-exports.mjs",
     "docs:check": "bun scripts/check-doc-exports.mjs",
     "test": "bun test",

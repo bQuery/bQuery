@@ -16,7 +16,9 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.14.2**.
+Current release baseline: **1.15.0**.
+
+Version `1.15.0` graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, `server` — so every module is now Stable, with no Beta or Experimental tiers (canonical record: `STABILITY.md`, enforced by `bun run check:stability`). Additive APIs this cycle: `@bquery/bquery/view` enter/leave/move transitions + the optional `@bquery/bquery/view/compiler` (no `'unsafe-eval'`); `@bquery/bquery/forms` `formAction`/`useFormStatus`/`optimistic`; `@bquery/bquery/i18n` ICU MessageFormat + `@bquery/bquery/i18n/extract` (`bquery-i18n` CLI); an opt-in file-route convention (`createFileRoutes`, `mountFileRoutes`) with typed `load`/`action`; `@bquery/bquery/server` `session`/`csrf`/`guard`/`basicAuth`/`bearerAuth`; `@bquery/bquery/ssr` production `hydrate`/`detectHydrationMismatches` + resumable boundaries; a versioned `@bquery/bquery/devtools` bridge protocol + reference extension; and `definePlugin()`. No breaking changes.
 
 Start here before making assumptions:
 

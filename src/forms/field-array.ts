@@ -6,10 +6,56 @@
 
 import { isPromise } from '../core/utils/type-guards';
 import { computed, signal } from '../reactive/index';
-import type { FieldArrayConfig, FormField, FormFieldArray, ValidationResult, Validator } from './types';
+import type {
+  FieldArrayConfig,
+  FieldArrayKeyFn,
+  FormField,
+  FormFieldArray,
+  ValidationResult,
+  Validator,
+} from './types';
 
 const resolveResult = (result: ValidationResult): string | undefined =>
   result === true || result === undefined ? undefined : (result as string);
+
+/**
+ * Enforce the stable-key contract for a keyed field array. Throws a descriptive
+ * error naming the offending key on the first violation (missing or duplicate),
+ * so "stable item ids" failures surface where they happen instead of as silent
+ * DOM-reuse bugs downstream. No-op when `getKey` is not configured.
+ *
+ * @internal
+ */
+const assertStableKeys = <T>(
+  items: readonly FormField<T>[],
+  getKey: FieldArrayKeyFn<T> | undefined
+): void => {
+  if (!getKey) return;
+  const seen = new Map<string | number, number>();
+  for (let index = 0; index < items.length; index += 1) {
+    const key = getKey(items[index].value.peek(), index);
+    if (
+      (typeof key !== 'string' && typeof key !== 'number') ||
+      (typeof key === 'string' && key === '') ||
+      (typeof key === 'number' && !Number.isFinite(key))
+    ) {
+      throw new Error(
+        `bQuery forms: createFieldArray() getKey returned an invalid key (${String(
+          key
+        )}) for item at index ${index}. Keys must be a non-empty string or a finite number.`
+      );
+    }
+    const previous = seen.get(key);
+    if (previous !== undefined) {
+      throw new Error(
+        `bQuery forms: createFieldArray() requires stable, unique item keys, but getKey returned "${String(
+          key
+        )}" for both index ${previous} and index ${index}.`
+      );
+    }
+    seen.set(key, index);
+  }
+};
 
 const destroyItem = <T>(item: FormField<T>): void => {
   const destroyable = item as FormField<T> & {
@@ -47,10 +93,14 @@ const destroyItem = <T>(item: FormField<T>): void => {
  * ```
  */
 export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray<T> => {
+  const { getKey } = config;
   const initialItems: readonly T[] = config.initial ?? [];
-  const items = signal<readonly FormField<T>[]>(
-    initialItems.map((value) => config.factory(value))
-  );
+  const buildInitial = (): FormField<T>[] => {
+    const built = initialItems.map((value) => config.factory(value));
+    assertStableKeys(built, getKey);
+    return built;
+  };
+  const items = signal<readonly FormField<T>[]>(buildInitial());
   const length = computed(() => items.value.length);
   const error = signal('');
 
@@ -59,7 +109,9 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
       throw new TypeError('createFieldArray.add() requires a value.');
     }
     const next = config.factory(value as T);
-    items.value = [...items.peek(), next];
+    const updated = [...items.peek(), next];
+    assertStableKeys(updated, getKey);
+    items.value = updated;
     return next;
   };
 
@@ -68,6 +120,7 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
     const clamped = Math.max(0, Math.min(index, current.length));
     const next = config.factory(value);
     const updated = [...current.slice(0, clamped), next, ...current.slice(clamped)];
+    assertStableKeys(updated, getKey);
     items.value = updated;
     return next;
   };
@@ -105,8 +158,20 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
     for (const item of items.peek()) {
       destroyItem(item);
     }
-    items.value = initialItems.map((value) => config.factory(value));
+    items.value = buildInitial();
     error.value = '';
+  };
+
+  const keyAt = (index: number): string | number | undefined => {
+    if (!getKey) return undefined;
+    const current = items.peek();
+    if (index < 0 || index >= current.length) return undefined;
+    return getKey(current[index].value.peek(), index);
+  };
+
+  const keys = (): (string | number)[] => {
+    if (!getKey) return [];
+    return items.peek().map((item, index) => getKey(item.value.peek(), index));
   };
 
   const validate = async (): Promise<boolean> => {
@@ -165,6 +230,8 @@ export const createFieldArray = <T>(config: FieldArrayConfig<T>): FormFieldArray
     validate,
     reset,
     getValues,
+    keyAt,
+    keys,
     destroy,
   };
 };

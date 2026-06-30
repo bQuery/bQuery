@@ -36,6 +36,25 @@
 export { hydrateMount } from './hydrate';
 export type { HydrateMountOptions } from './hydrate';
 export { renderToString } from './render';
+
+// ---------------------------------------------------------------------------
+// Interactive directive parity (#128)
+// ---------------------------------------------------------------------------
+export { SSR_ON_MARKER_ATTR } from './directive-support';
+export type { SSRDirectiveMode, UnsupportedDirectiveStrategy } from './directive-support';
+
+// ---------------------------------------------------------------------------
+// Production hydration + content-level mismatch detection (#130)
+// ---------------------------------------------------------------------------
+export { detectHydrationMismatches, hydrate } from './hydration';
+export type {
+  DetectHydrationOptions,
+  HydrateOptions,
+  HydrateResult,
+  HydrationBoundaryMismatch,
+  HydrationMismatchKind,
+  MismatchStrategy,
+} from './hydration';
 export {
   deserializeStoreState,
   hydrateStore,
@@ -158,6 +177,31 @@ export type {
 // ---------------------------------------------------------------------------
 export { createResumableState, resumeState } from './resumability';
 export type { CreateResumableStateOptions, ResumableState, ResumeReader } from './resumability';
+
+// ---------------------------------------------------------------------------
+// Resumable boundaries — structured resume, not replay (#129)
+// ---------------------------------------------------------------------------
+export {
+  createResumableBoundary,
+  createResumableGraph,
+  RESUMABLE_BOUNDARY_ATTR,
+  RESUMABLE_EVENT_ATTR,
+  RESUMABLE_HANDLER_ATTR,
+  resume,
+} from './resumable-boundary';
+export type {
+  CreateResumableBoundaryOptions,
+  ResumableBoundary,
+  ResumableGraph,
+  ResumableHandler,
+  ResumableRenderOptions,
+  ResumableSlice,
+  ResumeOptions,
+  ResumeResult,
+  SerializedResumableBoundary,
+  SerializedResumableGraph,
+  StandaloneResumableBoundary,
+} from './resumable-boundary';
 
 // ---------------------------------------------------------------------------
 // Runtime adapters

@@ -12,6 +12,50 @@ import { draggable, droppable, sortable } from '@bquery/bquery/dnd';
 
 ---
 
+## Stability
+
+`dnd` has been **Beta**, and its most important capabilities are new: keyboard accessibility, `grid` mode, `delay`, `'viewport'` bounds, and the reactive `useDraggable` / `useDroppable` / `useSortable` composables all arrived in 1.14.0. Accessible DnD specifically needs rigorous validation, so a feature set one minor old has not yet proven itself. The work to graduate it is tracked in [#143](https://github.com/bQuery/bQuery/issues/143): freeze the surface for one minor cycle, harden the keyboard interaction model, and publish an accessibility statement. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
+
+### Exit criteria
+
+- [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below; no breaking changes land during the freeze.
+- [x] **Keyboard + pointer paths tested** ([#143](https://github.com/bQuery/bQuery/issues/143)) — keyboard pick up / move / drop / cancel, `aria-grabbed` transitions, and the `grid` / `delay` / `viewport` options are covered.
+- [x] **Accessibility behaviour documented** — see [Accessibility statement](#accessibility-statement) below.
+- [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
+
+### Frozen surface reference (1.15.0)
+
+The frozen public surface of `@bquery/bquery/dnd`:
+
+- **Imperative:** `draggable`, `droppable`, `sortable`.
+- **Reactive composables:** `useDraggable`, `useDroppable`, `useSortable`, plus `draggablePosition`, `sortableOrder`.
+- **`draggable` options (frozen):** `axis`, `bounds` (`'parent'` / `'viewport'` / selector / element / rect), `grid`, `delay`, `ghost`, `handle`, `disabled`, `touchStartThreshold`, `keyboard`, `keyboardStep`, and the `onDragStart` / `onDrag` / `onDragEnd` callbacks.
+
+### Accessibility statement
+
+First-party, keyboard-accessible drag-and-drop is the differentiator here, so the keyboard path is a first-class, documented contract — not an afterthought.
+
+**Keyboard model** (enable with `keyboard: true`):
+
+| Key               | Action                                            |
+| ----------------- | ------------------------------------------------- |
+| `Space` / `Enter` | Pick up the item (or drop it when already lifted) |
+| `Arrow` keys      | Move by `keyboardStep` pixels (default `10`)      |
+| `Escape`          | Cancel — return the item to its original position |
+
+**ARIA & announcements:**
+
+- The draggable element exposes `aria-grabbed` (`'false'` at rest, `'true'` while lifted) so assistive technology can convey grab state.
+- Pick up, drop, and cancel each emit a screen-reader announcement through the **shared `a11y` live-region announcer** (`announceToScreenReader`) — the same mechanism documented in the [A11y guide](./a11y#live-region-announcements) ([#142](https://github.com/bQuery/bQuery/issues/142)). DnD does not create a second announcement channel.
+- Apply a visible focus style to draggable/handle elements and give them a tab stop (`tabindex="0"`); keyboard dragging starts from the focused element.
+
+**Known limitations:**
+
+- Pointer dragging reports positions via `getBoundingClientRect`, which is unavailable in non-rendering environments (e.g. SSR / headless tests) — keyboard moves and callbacks still fire, but pixel geometry is not meaningful there.
+- Announcement text is currently English; wrap or post-process via your own `a11y`/`i18n` layer to localize.
+
+---
+
 ## `draggable()`
 
 Makes an element draggable using pointer events with optional axis locking, bounds constraints, drag handles, and ghost previews.
@@ -419,16 +463,16 @@ that you can drive imperatively without rebinding listeners.
 import { draggable, droppable, sortable } from '@bquery/bquery/dnd';
 
 const drag = draggable(el);
-drag.moveTo({ x: 100, y: 50 });       // move programmatically
-drag.setBounds('viewport');           // change constraints on the fly
-drag.setAxis('x');                    // lock to a single axis
-drag.reset();                         // return to origin
+drag.moveTo({ x: 100, y: 50 }); // move programmatically
+drag.setBounds('viewport'); // change constraints on the fly
+drag.setAxis('x'); // lock to a single axis
+drag.reset(); // return to origin
 const pos = drag.getPosition();
 
 const sort = sortable(list);
-sort.move(0, 3);                      // move item 0 to index 3
-sort.setOrder([2, 0, 1]);             // apply an arbitrary permutation
-const items = sort.getItems();        // current DOM order
+sort.move(0, 3); // move item 0 to index 3
+sort.setOrder([2, 0, 1]); // apply an arbitrary permutation
+const items = sort.getItems(); // current DOM order
 
 const drop = droppable(zone);
 drop.setAccept((el) => el.matches('.draggable')); // mutate the predicate
@@ -440,10 +484,10 @@ const active = drop.getActiveDragged();
 
 ```ts
 draggable(el, {
-  grid: 16,                  // square grid
+  grid: 16, // square grid
   // grid: [16, 24],         // separate horizontal/vertical steps
-  delay: 200,                // long-press before activating drag
-  touchStartThreshold: 8,    // pixels of pointer movement required first
+  delay: 200, // long-press before activating drag
+  touchStartThreshold: 8, // pixels of pointer movement required first
 });
 ```
 
@@ -533,4 +577,5 @@ const position = draggablePosition(box, handle);
 
 ## Version history
 
+- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#143](https://github.com/bQuery/bQuery/issues/143)). Keyboard pick up / move / drop / cancel, `aria-grabbed` transitions, and `grid` / `delay` / `viewport` options covered by tests; accessibility statement published; announcements confirmed to route through the shared `a11y` live-region announcer.
 - **1.14.0** — programmatic handle APIs, `grid`, `delay`, `touchStartThreshold`, `keyboard`, `keyboardStep`, `'viewport'` bounds, reactive `useDraggable` / `useDroppable` / `useSortable`.

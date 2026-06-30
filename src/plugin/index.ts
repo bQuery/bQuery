@@ -2,6 +2,12 @@
  * bQuery Plugin System — register plugins that extend bQuery with custom
  * directives, components, hooks (filters / actions), and DI bindings.
  *
+ * Targeting **Stable** in 1.15.0: the hook-bus, DI container, install
+ * lifecycle, and directive-registration surface are frozen for one minor
+ * cycle. Everything a plugin registers through the install context is tracked
+ * and removed symmetrically on `uninstall()`. Use `definePlugin()` to author
+ * plugins with inferred option types.
+ *
  * @module bquery/plugin
  *
  * @example
@@ -63,3 +69,6 @@ export {
 // 1.14+ — Dependency injection
 export { createInjectionKey, inject, provide, resetDi } from './di';
 export type { InjectionKey } from './di';
+
+// 1.15+ — Authoring helper (targeting Stable)
+export { definePlugin } from './define';

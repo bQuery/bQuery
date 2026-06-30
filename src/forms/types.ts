@@ -180,8 +180,24 @@ export type CrossFieldValidator<T extends Record<string, unknown>> = (
 export type SubmitHandler<T extends Record<string, unknown>> = (values: T) => void | Promise<void>;
 
 /**
- * Form-wide automatic validation strategy applied to fields that do not
+ * Form-wide **automatic** validation strategy applied to fields that do not
  * declare their own `validateOn`.
+ *
+ * This setting controls only *automatic* validation as the user interacts with
+ * the form. It does **not** gate submit: {@link Form.handleSubmit} always runs
+ * the full {@link Form.validate} pass (every field validator plus
+ * cross-validators) before invoking `onSubmit`, regardless of strategy.
+ *
+ * - `'manual'` (**default**): no automatic per-keystroke / per-blur validation;
+ *   errors surface on `handleSubmit()` or an explicit `validate()` /
+ *   `validateField()` / `setValue(v, { validate: true })`. This is the default
+ *   because it is the least surprising for the common "validate on submit" flow
+ *   and avoids flagging fields the user has not finished editing. Opt into live
+ *   validation with one of the modes below.
+ * - `'onChange'`: validate each field on every value change.
+ * - `'onBlur'`: validate each field when it is blurred / touched.
+ * - `'onSubmit'`: like `'manual'` for automatic feedback (submit still
+ *   validates) — provided as an explicit, self-documenting alias.
  */
 export type FormValidationStrategy = 'onChange' | 'onBlur' | 'onSubmit' | 'manual';
 
@@ -210,7 +226,11 @@ export type FormConfig<T extends Record<string, unknown>> = {
   onSubmitError?: (error: unknown, values: T) => void | Promise<void>;
   /** Callback invoked after a successful submit. */
   onSubmitSuccess?: (values: T) => void | Promise<void>;
-  /** Form-wide validation strategy. Defaults to `'manual'`. */
+  /**
+   * Form-wide automatic validation strategy. Defaults to `'manual'` — submit
+   * always validates; automatic per-change/per-blur validation is opt-in. See
+   * {@link FormValidationStrategy} for the full contract.
+   */
   validationStrategy?: FormValidationStrategy;
   /** Per-field validation mode. Defaults to `'first'`. */
   mode?: FormValidationMode;
@@ -264,6 +284,13 @@ export type Form<T extends Record<string, unknown>> = {
 // ---------------------------------------------------------------------------
 
 /**
+ * Stable key extractor for a field array. Receives an item value and its
+ * current index and must return a key that is **unique and stable** for the
+ * lifetime of that item. Used for keyed list reconciliation (e.g. `bq-for`).
+ */
+export type FieldArrayKeyFn<T> = (value: T, index: number) => string | number;
+
+/**
  * Configuration for {@link createFieldArray}.
  */
 export type FieldArrayConfig<T> = {
@@ -273,6 +300,17 @@ export type FieldArrayConfig<T> = {
   factory: (value: T) => FormField<T>;
   /** Validators applied to the entire array. */
   validators?: Validator<readonly T[]>[];
+  /**
+   * Optional stable-key extractor for keyed list reconciliation. When supplied,
+   * the array enforces the contract on every structural mutation: keys must be
+   * present (non-empty `string`/`number`) and unique. A violation throws a
+   * descriptive `Error` naming the offending key — surfacing the
+   * "stable item ids" requirement at the point of failure instead of as silent
+   * DOM-reuse bugs. When omitted, the array is positional (unchanged behaviour)
+   * and {@link FormFieldArray.keyAt} / {@link FormFieldArray.keys} return
+   * `undefined` / `[]`.
+   */
+  getKey?: FieldArrayKeyFn<T>;
 };
 
 /**
@@ -290,6 +328,17 @@ export type FormFieldArray<T = unknown> = {
   validate: () => Promise<boolean>;
   reset: () => void;
   getValues: () => T[];
+  /**
+   * Stable key for the item at `index`, computed via the configured
+   * `getKey`. Returns `undefined` when no `getKey` was supplied or the index is
+   * out of range.
+   */
+  keyAt: (index: number) => string | number | undefined;
+  /**
+   * The stable keys of all current items, in order. Returns `[]` when no
+   * `getKey` was supplied.
+   */
+  keys: () => (string | number)[];
   /**
    * Tear down the array: clears every item (calling `destroy()` / `dispose()`
    * on each if available) and disposes the internal reactive primitives

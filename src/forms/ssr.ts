@@ -20,11 +20,58 @@ const validateFormStateId = (id: string): string => {
 };
 
 /**
+ * `JSON.stringify` replacer that enforces the **guaranteed serialization
+ * boundary** for SSR form state. Values that cannot survive a JSON round-trip
+ * in a meaningful, hydration-safe form are deterministically dropped (the key
+ * is omitted) rather than serialized as `null`, `{}`, or `"[object File]"`:
+ *
+ * - **functions** — not transferable; intentionally dropped.
+ * - **`File` / `Blob` / `FileList`** — binary handles cannot cross the
+ *   server→HTML→client boundary; dropped. Re-attach large blobs on the client
+ *   after hydration.
+ * - **`bigint`** — would throw in `JSON.stringify`; dropped for safety.
+ * - **`symbol` / `undefined`** — already omitted by `JSON.stringify`; listed
+ *   here for completeness.
+ *
+ * This makes the boundary an explicit, tested contract instead of an incidental
+ * side effect of `JSON.stringify`.
+ *
+ * @internal
+ */
+const isNonSerializable = (value: unknown): boolean => {
+  if (typeof value === 'function' || typeof value === 'bigint' || typeof value === 'symbol') {
+    return true;
+  }
+  if (typeof Blob !== 'undefined' && value instanceof Blob) return true;
+  if (typeof File !== 'undefined' && value instanceof File) return true;
+  if (typeof FileList !== 'undefined' && value instanceof FileList) return true;
+  return false;
+};
+
+const stripNonSerializable = (_key: string, value: unknown): unknown => {
+  if (isNonSerializable(value)) return undefined;
+  // An array can't carry a hole, so a dropped element would serialize as
+  // `null` and break the "dropped, never null" contract. Remove the offending
+  // elements from the array instead; nested arrays are handled recursively as
+  // the replacer revisits them.
+  if (Array.isArray(value) && value.some(isNonSerializable)) {
+    return value.filter((element) => !isNonSerializable(element));
+  }
+  return value;
+};
+
+/**
  * Serialize a form snapshot to an inline `<script>` tag suitable for embedding
  * in SSR-rendered HTML. The snapshot is embedded in a
  * `<script type="application/json" data-bq-form="<id>">` tag and can be read
  * on the client by {@link readSerializedFormState} and applied via
  * {@link Form.restore}.
+ *
+ * **Serialization boundary (guaranteed):** values that cannot cross the
+ * server→HTML→client boundary as JSON are deterministically dropped — functions,
+ * `File` / `Blob` / `FileList` handles, `bigint`, and `symbol`. This is a stable
+ * contract, not an incidental `JSON.stringify` side effect: re-attach file
+ * inputs and other non-serializable state on the client after hydration.
  *
  * @param id - Stable identifier for this form. Must contain only letters,
  * numbers, underscores, or hyphens.
@@ -46,8 +93,8 @@ export const serializeFormState = <T extends Record<string, unknown>>(
   snapshot: FormSnapshot<T>
 ): string => {
   const safeId = validateFormStateId(id);
-  const json = JSON.stringify(snapshot);
-  const payload = escapeForScript(json);
+  const json = JSON.stringify(snapshot, stripNonSerializable);
+  const payload = escapeForScript(json ?? '{}');
   return `<script type="application/json" data-bq-form="${safeId}">${payload}</script>`;
 };
 

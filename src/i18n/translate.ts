@@ -5,6 +5,7 @@
  */
 
 import { isPlainObject, isPrototypePollutionKey, merge } from '../core/utils/object';
+import { formatICU, isICUMessage } from './icu';
 import type { LocaleMessages, TranslateParams } from './types';
 
 /**
@@ -108,9 +109,15 @@ export const pluralize = (template: string, params: TranslateParams): string => 
 /**
  * Full translation pipeline: resolve → pluralize → interpolate.
  *
+ * Messages using ICU MessageFormat typed arguments (`plural`,
+ * `selectordinal`, `select`) are routed through the ICU formatter, which is
+ * locale-aware via `Intl.PluralRules`. Plain `{name}` interpolation and
+ * pipe-delimited plurals keep using the legacy fast path.
+ *
  * @param messages - Locale messages
  * @param key - Dot-delimited key path
  * @param params - Interpolation + pluralization params
+ * @param locale - The active locale (used for ICU plural selection / `#`)
  * @param fallbackMessages - Optional fallback locale messages
  * @returns The translated string, or the key if not found
  *
@@ -120,6 +127,7 @@ export const translate = (
   messages: LocaleMessages | undefined,
   key: string,
   params: TranslateParams,
+  locale: string,
   fallbackMessages?: LocaleMessages
 ): string => {
   let template: string | undefined;
@@ -139,7 +147,18 @@ export const translate = (
     return key;
   }
 
-  // Pluralize first, then interpolate
+  // ICU MessageFormat (plural / selectordinal / select) — locale-aware path.
+  if (isICUMessage(template)) {
+    try {
+      return formatICU(template, params, locale);
+    } catch {
+      // A malformed ICU string in the catalog must not crash translation; fall
+      // back to simple `{name}` interpolation so the app keeps rendering.
+      return interpolate(template, params);
+    }
+  }
+
+  // Legacy path: pluralize first, then interpolate.
   const pluralized = pluralize(template, params);
   return interpolate(pluralized, params);
 };

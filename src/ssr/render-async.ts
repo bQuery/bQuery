@@ -170,6 +170,8 @@ const createBaseRenderOptions = (options: AsyncRenderOptions): RenderOptions => 
   stripDirectives: options.stripDirectives,
   includeStoreState: false,
   annotateHydration: options.annotateHydration,
+  directives: options.directives,
+  onUnsupportedDirective: options.onUnsupportedDirective,
 });
 
 const createRenderFragments = (
@@ -386,6 +388,7 @@ export interface RenderToResponseCacheOptions {
   vary?: string[];
 }
 
+/** Options for {@link renderToResponse} — async render plus HTTP shaping. */
 export interface RenderToResponseOptions extends AsyncRenderOptions {
   /** Override the response status code. */
   status?: number;

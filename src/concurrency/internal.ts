@@ -5,7 +5,30 @@
  */
 
 import { TaskWorkerError, TaskWorkerSerializationError, TaskWorkerTimeoutError } from './errors';
-import type { TaskWorkerErrorCode, WorkerTaskHandler } from './types';
+import type {
+  RpcWorkerModule,
+  TaskWorkerErrorCode,
+  WorkerExecutionMode,
+  WorkerModule,
+  WorkerTaskHandler,
+} from './types';
+
+/**
+ * Shared worker message protocol identifiers.
+ *
+ * These are duplicated verbatim inside the inline `Blob` worker scripts (which
+ * must be fully self-contained strings); the constants keep the main-thread and
+ * module-worker (`exposeTask` / `exposeRpc`) sides in sync with them.
+ *
+ * @internal
+ */
+export const WORKER_RUN_MESSAGE = 'bq:run';
+/** @internal */
+export const WORKER_RPC_MESSAGE = 'bq:rpc';
+/** @internal */
+export const WORKER_RESULT_MESSAGE = 'bq:result';
+/** @internal */
+export const WORKER_ERROR_MESSAGE = 'bq:error';
 
 /** @internal */
 export interface SerializedWorkerError {
@@ -83,6 +106,43 @@ export const createWorkerInstance = (scriptSource: string, name?: string): Worke
   } finally {
     URL.revokeObjectURL(scriptUrl);
   }
+};
+
+/** @internal Runtime brand marking a {@link WorkerModule} / {@link RpcWorkerModule}. */
+export const WORKER_MODULE_BRAND: unique symbol = Symbol('bquery.concurrency.workerModule');
+
+interface BrandedWorkerModule {
+  readonly [WORKER_MODULE_BRAND]: true;
+  readonly url: string | URL;
+  readonly type: WorkerExecutionMode;
+}
+
+/** @internal Detects a CSP-safe module descriptor produced by `defineWorker()`. */
+export const isWorkerModuleDescriptor = (
+  value: unknown
+): value is WorkerModule<unknown, unknown> | RpcWorkerModule => {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Partial<BrandedWorkerModule>)[WORKER_MODULE_BRAND] === true
+  );
+};
+
+/** @internal Instantiates a CSP-safe module worker addressed by URL (no eval/blob). */
+export const createModuleWorkerInstance = (
+  module: WorkerModule<unknown, unknown> | RpcWorkerModule,
+  name?: string
+): Worker => {
+  if (typeof Worker !== 'function') {
+    throw new TaskWorkerError('The Worker constructor is unavailable in this environment.', 'UNSUPPORTED');
+  }
+
+  const options: WorkerOptions = { type: module.type };
+  if (name) {
+    options.name = name;
+  }
+
+  return new Worker(module.url, options);
 };
 
 /** @internal */

@@ -3,8 +3,18 @@
  *
  * Provides a reactive, TypeScript-first form API with field-level and
  * cross-field validation, dirty/touched/focus tracking, dynamic field
- * arrays, schema-style declaration, DOM bindings, and SSR hydration —
- * all backed by bQuery's signal-based reactivity system.
+ * arrays, schema-style declaration, DOM bindings, progressive-enhancement
+ * form actions with optimistic updates, and SSR hydration — all backed by
+ * bQuery's signal-based reactivity system.
+ *
+ * Stability: **targeting Stable in 1.15.0**. The 1.13 surface (validators +
+ * combinators, schema builder, field arrays, `bindForm`/`bindField`, scope
+ * composables, SSR helpers) is frozen for one minor cycle; the `'manual'`
+ * `validationStrategy` default and the SSR serialization boundary
+ * (functions / `File` are dropped) are documented as guaranteed contracts, and
+ * `createFieldArray()`'s stable-key requirement is validated with clear errors.
+ * See the {@link https://bquery.js.org/guide/forms | Forms guide} for the
+ * exit-criteria checklist and the frozen surface reference.
  *
  * @module bquery/forms
  *
@@ -35,6 +45,8 @@ export { field, schema } from './schema';
 export { bindField, bindForm } from './bind';
 export { hydrateForm, readSerializedFormState, serializeFormState } from './ssr';
 export { useField, useFieldArray, useForm } from './composables';
+export { optimistic } from './optimistic';
+export { FormActionError, formAction, useFormStatus } from './action';
 
 export {
   all,
@@ -74,6 +86,7 @@ export type {
   BindFormOptions,
   CrossFieldValidator,
   FieldArrayConfig,
+  FieldArrayKeyFn,
   FieldConfig,
   Form,
   FormChangeListener,
@@ -97,3 +110,16 @@ export type {
 } from './types';
 
 export type { FieldSchema, SchemaEntry } from './schema';
+export type {
+  OptimisticController,
+  OptimisticHandle,
+  OptimisticReducer,
+} from './optimistic';
+export type {
+  EnhanceOptions,
+  FormAction,
+  FormActionContext,
+  FormActionOptions,
+  FormActionTarget,
+  FormStatus,
+} from './action';

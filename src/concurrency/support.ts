@@ -62,6 +62,7 @@ export function getConcurrencySupport(): ConcurrencySupport {
     worker,
     blob,
     objectUrl,
+    moduleWorker: worker,
     abortController,
     sharedArrayBuffer,
     crossOriginIsolated,
@@ -70,9 +71,19 @@ export function getConcurrencySupport(): ConcurrencySupport {
 }
 
 /**
- * Returns `true` when bQuery can create inline worker tasks in the current
- * environment.
+ * Returns `true` when bQuery can create inline worker tasks (dynamic mode) in
+ * the current environment. Dynamic workers need `Worker`, `Blob`, and
+ * `URL.createObjectURL` and therefore a relaxed CSP allowing `'unsafe-eval'`.
  */
 export function isConcurrencySupported(): boolean {
   return getConcurrencySupport().supported;
+}
+
+/**
+ * Returns `true` when bQuery can create CSP-safe module workers in the current
+ * environment. Module workers only require the `Worker` constructor, so they
+ * run under a strict CSP without `'unsafe-eval'` or `blob:` worker sources.
+ */
+export function isModuleWorkerSupported(): boolean {
+  return getConcurrencySupport().moduleWorker;
 }

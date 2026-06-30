@@ -56,44 +56,65 @@ export interface ServerHtmlResponseInit extends ServerResponseInit {
   trusted?: boolean;
 }
 
+/** Attributes applied when serializing a `Set-Cookie` header. */
 export interface ServerCookieOptions {
   domain?: string;
   httpOnly?: boolean;
+  /** Lifetime in seconds; omit for a session cookie. */
   maxAge?: number;
   path?: string;
   sameSite?: 'lax' | 'none' | 'strict';
   secure?: boolean;
 }
 
+/** A single Server-Sent Events frame written to the response stream. */
 export interface ServerSseEvent {
   data: string;
   event?: string;
   id?: string;
+  /** Reconnection delay (ms) advertised to the client. */
   retry?: number;
 }
 
+/** Options for opening a Server-Sent Events stream. */
 export interface ServerSseOptions extends ServerResponseInit {
+  /** Default reconnection delay (ms) sent once when the stream opens. */
   retry?: number;
 }
 
+/** Maximum accepted request-body size, in bytes, per parsed content type. */
 export interface ServerLimits {
   form?: number;
   json?: number;
   multipart?: number;
   text?: number;
+  /**
+   * Cap for any other (unrecognized) content type read as a raw `ArrayBuffer`
+   * via `ctx.body()`. Unset means unbounded, so set this when accepting
+   * arbitrary binary uploads to avoid buffering an unbounded body in memory.
+   */
+  raw?: number;
 }
 
+/** Options for {@link ServerApp.listen}. */
 export interface ServerListenOptions {
   hostname?: string;
   port?: number;
+  /** Target runtime; `auto` detects Bun, Deno, or Node at call time. */
   runtime?: 'auto' | 'bun' | 'deno' | 'node';
+  /** Abort signal that, once aborted, stops the server. */
   signal?: AbortSignal;
 }
 
+/** Handle to a running server returned by {@link ServerApp.listen}. */
 export interface ServerListenHandle {
+  /** Every URL the server is listening on. */
   addresses: string[];
+  /** Stop the server, resolving once it has fully shut down. */
   close(): Promise<void>;
+  /** Alias of {@link ServerListenHandle.close}. */
   stop(): Promise<void>;
+  /** Primary listen URL. */
   url: string;
 }
 
@@ -161,6 +182,47 @@ export interface ServerWebSocketConnection extends ServerWebSocketPeer {
 }
 
 /**
+ * Request-scoped session surface attached to `ctx.session` by the
+ * {@link ServerMiddleware} returned from `session()`.
+ *
+ * Session payload is read and written as plain properties — `ctx.session.userId`
+ * — while lifecycle operations live behind `$`-prefixed members so they never
+ * collide with arbitrary data keys.
+ *
+ * @example
+ * ```ts
+ * ctx.session.userId = user.id; // marks the session dirty and persists it
+ * if (ctx.session.$isNew) ctx.session.role = 'guest';
+ * ctx.session.$destroy(); // clears data and expires the cookie
+ * ```
+ */
+export interface ServerSession {
+  /** Current session id, or `null` until the session is first written to. */
+  readonly $id: string | null;
+
+  /** `true` when no existing session was loaded from the incoming cookie. */
+  readonly $isNew: boolean;
+
+  /** Shallow snapshot of the current session payload. */
+  readonly $data: Readonly<Record<string, unknown>>;
+
+  /**
+   * Rotate the session id while keeping the current payload. The previous id is
+   * removed from the store on the next response (mitigates session fixation).
+   */
+  $regenerate(): void;
+
+  /** Clear the payload and expire the session cookie on the next response. */
+  $destroy(): void;
+
+  /** Remove every key from the payload without destroying the session. */
+  $clear(): void;
+
+  /** Arbitrary request-scoped session payload. */
+  [key: string]: unknown;
+}
+
+/**
  * Request/response context passed through the server pipeline.
  */
 export interface ServerContext {
@@ -200,6 +262,13 @@ export interface ServerContext {
    * Per-request mutable state bag for middleware communication.
    */
   state: Record<string, unknown>;
+
+  /**
+   * Request-scoped session, present only after the `session()` middleware runs.
+   *
+   * @see {@link ServerSession}
+   */
+  session?: ServerSession;
   /** Parse the request body based on the request content-type. */
   body(): Promise<unknown>;
 

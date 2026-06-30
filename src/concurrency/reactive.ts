@@ -25,7 +25,8 @@ import type {
   TaskWorker,
   TaskWorkerState,
   WorkerRpcHandlers,
-  WorkerTaskHandler,
+  WorkerRpcSource,
+  WorkerTaskSource,
 } from './types';
 
 interface WorkerSignalMirror {
@@ -127,10 +128,10 @@ const attachRunSync = <TResult>(run: Promise<TResult>, sync: () => void): Promis
  * ```
  */
 export function createReactiveTaskWorker<TInput = void, TResult = unknown>(
-  handler: WorkerTaskHandler<TInput, TResult>,
+  source: WorkerTaskSource<TInput, TResult>,
   options: CreateTaskWorkerOptions = {}
 ): ReactiveTaskWorker<TInput, TResult> {
-  const worker = createTaskWorker(handler, options);
+  const worker = createTaskWorker(source, options);
   const mirror = createWorkerSignalMirror(worker as WorkerStateSource);
   const sync = (): void => {
     syncWorkerSignals(worker as WorkerStateSource, mirror);
@@ -179,10 +180,10 @@ export function createReactiveTaskWorker<TInput = void, TResult = unknown>(
  * ```
  */
 export function createReactiveRpcWorker<TRoutes extends WorkerRpcHandlers>(
-  handlers: TRoutes,
+  source: WorkerRpcSource<TRoutes>,
   options: CreateRpcWorkerOptions = {}
 ): ReactiveRpcWorker<TRoutes> {
-  const worker = createRpcWorker(handlers, options);
+  const worker = createRpcWorker(source, options);
   const mirror = createWorkerSignalMirror(worker as WorkerStateSource);
   const sync = (): void => {
     syncWorkerSignals(worker as WorkerStateSource, mirror);
@@ -233,10 +234,10 @@ export function createReactiveRpcWorker<TRoutes extends WorkerRpcHandlers>(
  * ```
  */
 export function createReactiveTaskPool<TInput = void, TResult = unknown>(
-  handler: WorkerTaskHandler<TInput, TResult>,
+  source: WorkerTaskSource<TInput, TResult>,
   options: CreateTaskPoolOptions = {}
 ): ReactiveTaskPool<TInput, TResult> {
-  const pool = createTaskPool(handler, options);
+  const pool = createTaskPool(source, options);
   const mirror = createPoolSignalMirror(pool as PoolStateSource);
   const sync = (): void => {
     syncPoolSignals(pool as PoolStateSource, mirror);
@@ -328,10 +329,10 @@ export function createReactiveTaskPool<TInput = void, TResult = unknown>(
  * ```
  */
 export function createReactiveRpcPool<TRoutes extends WorkerRpcHandlers>(
-  handlers: TRoutes,
+  source: WorkerRpcSource<TRoutes>,
   options: CreateRpcPoolOptions = {}
 ): ReactiveRpcPool<TRoutes> {
-  const pool = createRpcPool(handlers, options);
+  const pool = createRpcPool(source, options);
   const mirror = createPoolSignalMirror(pool as PoolStateSource);
   const sync = (): void => {
     syncPoolSignals(pool as PoolStateSource, mirror);
