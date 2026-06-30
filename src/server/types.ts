@@ -88,6 +88,12 @@ export interface ServerLimits {
   json?: number;
   multipart?: number;
   text?: number;
+  /**
+   * Cap for any other (unrecognized) content type read as a raw `ArrayBuffer`
+   * via `ctx.body()`. Unset means unbounded, so set this when accepting
+   * arbitrary binary uploads to avoid buffering an unbounded body in memory.
+   */
+  raw?: number;
 }
 
 /** Options for {@link ServerApp.listen}. */

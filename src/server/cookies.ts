@@ -59,6 +59,7 @@ export const serializeCookie = (
   if (typeof options.maxAge === 'number' && Number.isFinite(options.maxAge)) {
     parts.push(`Max-Age=${Math.trunc(options.maxAge)}`);
   }
+  let isSameSiteNone = false;
   if (options.sameSite) {
     if (typeof options.sameSite !== 'string') {
       throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
@@ -71,9 +72,12 @@ export const serializeCookie = (
       throw new TypeError('Cookie sameSite must be one of "lax", "none", or "strict".');
     }
     parts.push(`SameSite=${sameSite}`);
+    isSameSiteNone = sameSite === 'None';
   }
   if (options.httpOnly) parts.push('HttpOnly');
-  if (options.secure) parts.push('Secure');
+  // `SameSite=None` cookies are rejected by browsers unless `Secure` is set, so
+  // force it rather than silently emitting a cookie the browser will drop.
+  if (options.secure || isSameSiteNone) parts.push('Secure');
   return parts.join('; ');
 };
 

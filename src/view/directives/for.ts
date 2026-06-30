@@ -138,6 +138,12 @@ export const createForHandler = (options: {
     let renderedItemsMap = new Map<unknown, RenderedItem>();
     let renderedOrder: unknown[] = [];
 
+    // Elements whose leave animation is still running: their DOM removal is
+    // deferred, so they linger in the document untracked. Keyed so that if the
+    // same key is re-added before its leave finishes we can drop the stale node
+    // instead of rendering a duplicate. The value force-removes it immediately.
+    const leavingItemsMap = new Map<unknown, () => void>();
+
     // Remember which duplicate keys we have already reported so the warning is
     // emitted once per offending key for the lifetime of this binding rather
     // than on every reactive re-render. Gated behind the dev environment so it
@@ -196,8 +202,16 @@ export const createForHandler = (options: {
         cleanup();
       }
       if (animateLeave && itemTransition?.leave) {
+        let cancelled = false;
+        leavingItemsMap.set(rendered.key, () => {
+          cancelled = true;
+          leavingItemsMap.delete(rendered.key);
+          rendered.element.remove();
+        });
         void runTransition(rendered.element, itemTransition.leave, itemTransition, 'forwards').then(
           () => {
+            if (cancelled) return;
+            leavingItemsMap.delete(rendered.key);
             rendered.element.remove();
           }
         );
@@ -235,6 +249,7 @@ export const createForHandler = (options: {
           removeItem(rendered, false);
         }
         renderedItemsMap.clear();
+        for (const forceRemove of [...leavingItemsMap.values()]) forceRemove();
         renderedOrder = [];
         return;
       }
@@ -326,6 +341,12 @@ export const createForHandler = (options: {
           }
           lastInsertedElement = rendered.element;
         } else {
+          // If this key is still mid-leave (animating out but present in the
+          // DOM), drop that stale node now so the re-added item never appears
+          // twice.
+          const forceRemoveLeaving = leavingItemsMap.get(key);
+          if (forceRemoveLeaving) forceRemoveLeaving();
+
           // Create new element
           rendered = createItemElement(item, index, key);
           newRenderedMap.set(key, rendered);
@@ -371,6 +392,7 @@ export const createForHandler = (options: {
         }
       }
       renderedItemsMap.clear();
+      for (const forceRemove of [...leavingItemsMap.values()]) forceRemove();
     });
   };
 };

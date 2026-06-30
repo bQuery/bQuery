@@ -34,6 +34,7 @@ import { evaluateExpression } from './expression';
 import { cheapHash, collectDirectiveSignatureFromAttrs, HYDRATION_HASH_ATTR } from './hash';
 import {
   cloneNode,
+  escapeText,
   parseTemplate,
   serializeTree,
   type SSRElement,
@@ -231,7 +232,10 @@ const applyModelToPureElement = (el: SSRElement, value: unknown): void => {
       else removeAttr(el, reflection.name);
       break;
     case 'text':
-      setText(el, reflection.value);
+      // textarea is a raw-text element, so serializeTree emits its text
+      // children verbatim. Escape the reflected value here or a model value
+      // like `</textarea><script>…` would break out of the element (XSS).
+      setText(el, el.raw ? escapeText(reflection.value) : reflection.value);
       break;
     case 'select': {
       const options: SSRElement[] = [];

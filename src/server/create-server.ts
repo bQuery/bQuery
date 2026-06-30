@@ -905,7 +905,12 @@ const createBodyReader = (
         return textBody;
       }
 
-      return request.clone().arrayBuffer();
+      const rawBody = await readRequestBodyBuffer(
+        request,
+        limits?.raw,
+        'Request body exceeds the configured limit.'
+      );
+      return rawBody.buffer.slice(rawBody.byteOffset, rawBody.byteOffset + rawBody.byteLength);
     })();
 
     return cached;

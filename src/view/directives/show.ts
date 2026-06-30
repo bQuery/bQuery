@@ -28,19 +28,28 @@ export const createShowHandler = (prefix = 'bq'): DirectiveHandler => {
 
     let first = true;
     let token = 0;
+    let wasShown = false;
 
     const cleanup = effect(() => {
-      const condition = evaluate<boolean>(expression, context);
+      const shown = Boolean(evaluate<boolean>(expression, context));
       const config = resolveTransition(el, prefix);
 
       // No transition, or the initial paint: apply display synchronously.
       if (!config || first) {
-        htmlEl.style.display = condition ? originalDisplay : 'none';
+        htmlEl.style.display = shown ? originalDisplay : 'none';
         first = false;
+        wasShown = shown;
         return;
       }
 
-      if (condition) {
+      // Only animate on an actual visibility flip. The effect also re-runs when
+      // unrelated dependencies of the expression change; without this guard the
+      // enter transition would replay while visible and the leave would restart
+      // (never committing `display: none`) while the condition stays falsy.
+      if (shown === wasShown) return;
+      wasShown = shown;
+
+      if (shown) {
         token++;
         htmlEl.style.display = originalDisplay;
         cancelTransitions(el);

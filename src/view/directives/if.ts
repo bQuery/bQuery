@@ -25,15 +25,26 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
     // is not animated (parity with Vue/Svelte, which do not animate on mount
     // unless an explicit appear transition is requested).
     let first = true;
+    // Previous truthiness of the condition, used to act only on a real flip.
+    let prevShown = false;
     // Monotonic token identifying the latest state transition. A deferred leave
     // only commits its removal when its token is still current.
     let token = 0;
 
     const cleanup = effect(() => {
-      const condition = evaluate<boolean>(expression, context);
+      const shown = Boolean(evaluate<boolean>(expression, context));
       const config = resolveTransition(el, prefix);
 
-      if (condition) {
+      // The effect also re-runs when unrelated dependencies of the expression
+      // change. Only react to an actual flip, otherwise the enter would replay
+      // while inserted and the leave would restart (never committing removal)
+      // while the condition stays falsy.
+      if (!first && shown === prevShown) return;
+      const isFirst = first;
+      first = false;
+      prevShown = shown;
+
+      if (shown) {
         // Bump the token so any pending leave is superseded and won't remove
         // the element after it has been re-shown.
         token++;
@@ -45,12 +56,12 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
         // Clear any leftover forwards-fill from an interrupted leave so the
         // element is visible again before the enter animation runs.
         cancelTransitions(el);
-        if (config && !first) {
+        if (config && !isFirst) {
           void runTransition(el, config.enter, config, 'none');
         }
       } else if (isInserted) {
         const myToken = ++token;
-        if (config && config.leave && !first) {
+        if (config && config.leave && !isFirst) {
           // Clear any in-flight leave before starting a new one so repeated
           // falsy re-evaluations don't stack forwards-filled animations.
           cancelTransitions(el);
@@ -67,8 +78,6 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
           isInserted = false;
         }
       }
-
-      first = false;
     });
 
     cleanups.push(cleanup);

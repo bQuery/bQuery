@@ -41,6 +41,12 @@ interface IdleScheduler {
  * `setTimeout`; otherwise it prefers `requestIdleCallback` and falls back to a
  * macrotask so non-urgent updates never block the current input frame.
  */
+// Upper bound (ms) on how long an idle callback may be deferred. Without it,
+// `requestIdleCallback` offers no liveness guarantee, so a perpetually busy
+// main thread could starve a deferred scope forever (e.g. `isPending` stuck
+// true). The timeout forces the callback to run by the deadline at the latest.
+const IDLE_CALLBACK_TIMEOUT_MS = 100;
+
 const scheduleDeferred = (callback: () => void, timeout?: number): ScheduledHandle => {
   if (typeof timeout === 'number' && Number.isFinite(timeout) && timeout > 0) {
     const id = setTimeout(callback, timeout);
@@ -52,7 +58,7 @@ const scheduleDeferred = (callback: () => void, timeout?: number): ScheduledHand
     typeof scheduler.requestIdleCallback === 'function' &&
     typeof scheduler.cancelIdleCallback === 'function'
   ) {
-    const id = scheduler.requestIdleCallback(callback);
+    const id = scheduler.requestIdleCallback(callback, { timeout: IDLE_CALLBACK_TIMEOUT_MS });
     const cancel = scheduler.cancelIdleCallback;
     return { cancel: () => cancel(id) };
   }

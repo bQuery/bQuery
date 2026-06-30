@@ -13,6 +13,15 @@ const V = 1;
 const $ = (id) => document.getElementById(id);
 const status = $('status');
 
+// The inspected page is untrusted and the page→panel relay is unauthenticated,
+// so every value taken from a bridge message must be HTML-escaped before it is
+// interpolated into innerHTML, or the page can inject markup into this panel.
+const esc = (value) =>
+  String(value).replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]
+  );
+
 const port = chrome.runtime.connect({ name: 'bquery-devtools-panel' });
 port.postMessage({ type: 'init', tabId: chrome.devtools.inspectedWindow.tabId });
 
@@ -66,7 +75,7 @@ function renderTree(nodes, into) {
   const ul = document.createElement('ul');
   for (const node of nodes) {
     const li = document.createElement('li');
-    li.innerHTML = `<code class="tag">&lt;${node.tag}&gt;</code>`;
+    li.innerHTML = `<code class="tag">&lt;${esc(node.tag)}&gt;</code>`;
     if (node.children && node.children.length) renderTree(node.children, li);
     ul.appendChild(li);
   }
@@ -90,7 +99,7 @@ function appendTimeline(entries) {
   const ul = $('timeline');
   for (const e of entries) {
     const li = document.createElement('li');
-    li.innerHTML = `<code>${e.type}</code> ${e.label ?? ''}`;
+    li.innerHTML = `<code>${esc(e.type)}</code> ${esc(e.label ?? '')}`;
     ul.insertBefore(li, ul.firstChild);
   }
   while (ul.children.length > 50) ul.removeChild(ul.lastChild);
@@ -104,9 +113,9 @@ async function refresh() {
     renderList(
       snap.signals,
       $('signals'),
-      (s) => `<code>${s.label ?? s.id}</code> = <code>${JSON.stringify(s.value)}</code>`
+      (s) => `<code>${esc(s.label ?? s.id)}</code> = <code>${esc(JSON.stringify(s.value))}</code>`
     );
-    renderList(snap.stores, $('stores'), (s) => `<code>${s.id}</code>`);
+    renderList(snap.stores, $('stores'), (s) => `<code>${esc(s.id)}</code>`);
   }
   const timeline = await send('getTimeline', { limit: 30 });
   $('timeline').innerHTML = '';
