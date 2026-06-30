@@ -9,7 +9,7 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
-  - [\[1.15.0\] - 2026-06-29](#1150---2026-06-29)
+  - [\[1.15.0\] - 2026-06-29](#1150---2026-06-30)
     - [Added (1.15.0)](#added-1150)
     - [Changed (1.15.0)](#changed-1150)
     - [Fixed (1.15.0)](#fixed-1150)
@@ -95,7 +95,7 @@ and this project adheres to Semantic Versioning.
 
 _Nothing yet._
 
-## [1.15.0] - 2026-06-29
+## [1.15.0] - 2026-06-30
 
 This release graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, and `server`. With them, **every bQuery module is now Stable** and bound by the no-breaking-changes-between-minor-releases contract (see [STABILITY.md](https://github.com/bQuery/bQuery/blob/main/STABILITY.md)). All graduations are additive — there are no breaking changes this cycle.
 
