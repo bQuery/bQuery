@@ -200,7 +200,25 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
     // Numbers (incl. hex/float/exponent — copied verbatim).
     if (isDigit(c) || (c === '.' && isDigit(src[i + 1]))) {
       const start = i;
-      while (i < n && /[0-9a-fA-FxXoObBeE._]/.test(src[i])) i++;
+      let seenDot = false;
+      while (i < n) {
+        const ch = src[i];
+        if (ch === '.') {
+          // A dot belongs to the number only as a single decimal point with a
+          // following digit. A second dot, or a dot that starts a member access
+          // (e.g. `1.5.toFixed`), ends the literal so the property is not
+          // mis-prefixed as a free identifier.
+          if (seenDot || !isDigit(src[i + 1])) break;
+          seenDot = true;
+          i++;
+          continue;
+        }
+        if (/[0-9a-fA-FxXoObBeE_]/.test(ch)) {
+          i++;
+          continue;
+        }
+        break;
+      }
       out += src.slice(start, i);
       prev = '0';
       continue;
