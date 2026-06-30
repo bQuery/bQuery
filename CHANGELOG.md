@@ -9,7 +9,7 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
-  - [\[1.15.0\] - 2026-06-29](#1150---2026-06-30)
+  - [\[1.15.0\] - 2026-06-30](#1150---2026-06-30)
     - [Added (1.15.0)](#added-1150)
     - [Changed (1.15.0)](#changed-1150)
     - [Fixed (1.15.0)](#fixed-1150)
