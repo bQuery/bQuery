@@ -139,6 +139,16 @@ const extractToken = async (
  */
 export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
   const secrets = normalizeSecrets(options.secret);
+  // Fail loud on a provided-but-empty secret (e.g. an unset `CSRF_SECRET` env
+  // resolving to '') instead of silently downgrading to unsigned double-submit,
+  // which would leave the app weaker than the author intended. Omitting
+  // `secret` entirely is still the supported way to opt into unsigned mode.
+  if (options.secret !== undefined && secrets.length === 0) {
+    throw new Error(
+      'bQuery server: csrf() received a `secret` with no usable non-empty string value. ' +
+        'Omit `secret` for unsigned double-submit, or pass a non-empty secret.'
+    );
+  }
   const signed = secrets.length > 0;
   const cookieName = options.cookieName ?? DEFAULT_CSRF_COOKIE;
   const headerName = options.headerName ?? DEFAULT_HEADER;

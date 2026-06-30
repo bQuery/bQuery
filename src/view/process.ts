@@ -75,8 +75,10 @@ export const processElement = (
     const { directive, arg, modifiers } = parseDirective(rawDirective);
 
     // Skip companion attributes (bq-key, bq-transition, bq-in, bq-out, …) that
-    // are read by their owning directive rather than processed here.
-    if (PASSIVE_DIRECTIVES.has(directive)) continue;
+    // are read by their owning directive rather than processed here — unless a
+    // plugin has explicitly registered a custom directive under that name, in
+    // which case the registration wins instead of being silently shadowed.
+    if (PASSIVE_DIRECTIVES.has(directive) && !getCustomDirective(directive)) continue;
 
     // Handle bq-for specially (creates new scope)
     if (directive === 'for') {

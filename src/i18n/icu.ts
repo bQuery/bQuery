@@ -89,9 +89,19 @@ const parsePattern = (
         continue;
       }
       if (next === '{' || next === '}' || next === '#' || next === '|') {
-        // Quoted literal: copy verbatim until the closing apostrophe.
+        // Quoted literal: copy verbatim until a lone closing apostrophe. A
+        // doubled '' inside the quote is an escaped literal apostrophe per ICU
+        // and does not terminate the span.
         pos += 1;
-        while (pos < input.length && input[pos] !== "'") {
+        while (pos < input.length) {
+          if (input[pos] === "'") {
+            if (input[pos + 1] === "'") {
+              text += "'";
+              pos += 2;
+              continue;
+            }
+            break;
+          }
           text += input[pos];
           pos += 1;
         }

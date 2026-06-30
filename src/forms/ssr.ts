@@ -38,13 +38,25 @@ const validateFormStateId = (id: string): string => {
  *
  * @internal
  */
-const stripNonSerializable = (_key: string, value: unknown): unknown => {
+const isNonSerializable = (value: unknown): boolean => {
   if (typeof value === 'function' || typeof value === 'bigint' || typeof value === 'symbol') {
-    return undefined;
+    return true;
   }
-  if (typeof Blob !== 'undefined' && value instanceof Blob) return undefined;
-  if (typeof File !== 'undefined' && value instanceof File) return undefined;
-  if (typeof FileList !== 'undefined' && value instanceof FileList) return undefined;
+  if (typeof Blob !== 'undefined' && value instanceof Blob) return true;
+  if (typeof File !== 'undefined' && value instanceof File) return true;
+  if (typeof FileList !== 'undefined' && value instanceof FileList) return true;
+  return false;
+};
+
+const stripNonSerializable = (_key: string, value: unknown): unknown => {
+  if (isNonSerializable(value)) return undefined;
+  // An array can't carry a hole, so a dropped element would serialize as
+  // `null` and break the "dropped, never null" contract. Remove the offending
+  // elements from the array instead; nested arrays are handled recursively as
+  // the replacer revisits them.
+  if (Array.isArray(value) && value.some(isNonSerializable)) {
+    return value.filter((element) => !isNonSerializable(element));
+  }
   return value;
 };
 

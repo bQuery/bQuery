@@ -149,7 +149,13 @@ export const translate = (
 
   // ICU MessageFormat (plural / selectordinal / select) — locale-aware path.
   if (isICUMessage(template)) {
-    return formatICU(template, params, locale);
+    try {
+      return formatICU(template, params, locale);
+    } catch {
+      // A malformed ICU string in the catalog must not crash translation; fall
+      // back to simple `{name}` interpolation so the app keeps rendering.
+      return interpolate(template, params);
+    }
   }
 
   // Legacy path: pluralize first, then interpolate.

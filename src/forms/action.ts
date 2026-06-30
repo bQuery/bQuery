@@ -231,27 +231,38 @@ export const formAction = <R = unknown>(
       }
     }
 
-    let injectedCsrf: HTMLInputElement | undefined;
-    const token = resolveToken(options.csrf);
-    if (token) {
-      const fieldName = options.csrfField ?? '_csrf';
-      const existing = Array.from(form.querySelectorAll('input')).find(
-        (input) => input.getAttribute('name') === fieldName
-      );
-      if (existing) {
-        existing.setAttribute('value', token);
-      } else {
-        const input = form.ownerDocument.createElement('input');
-        input.type = 'hidden';
-        input.name = fieldName;
-        input.value = token;
-        form.appendChild(input);
-        injectedCsrf = input;
+    // Keep the native-fallback CSRF field in sync with the (possibly rotating)
+    // token: resolved on enhance and refreshed before every submit so the form
+    // body carries the same fresh token as the enhanced fetch header.
+    const csrfFieldName = options.csrfField ?? '_csrf';
+    let csrfInput: HTMLInputElement | undefined;
+    let csrfInjected = false;
+
+    const syncCsrfField = (): void => {
+      const token = resolveToken(options.csrf);
+      if (!token) return;
+      if (!csrfInput) {
+        csrfInput = Array.from(form.querySelectorAll('input')).find(
+          (input) => input.getAttribute('name') === csrfFieldName
+        );
+        if (!csrfInput) {
+          const input = form.ownerDocument.createElement('input');
+          input.type = 'hidden';
+          input.name = csrfFieldName;
+          form.appendChild(input);
+          csrfInput = input;
+          csrfInjected = true;
+        }
       }
-    }
+      csrfInput.value = token;
+      csrfInput.setAttribute('value', token);
+    };
+
+    syncCsrfField();
 
     const onSubmit = (event: Event): void => {
       event.preventDefault();
+      syncCsrfField();
       const reset = enhanceOptions.resetOnSuccess ?? options.resetOnSuccess ?? false;
       void submit(buildFormData(form), { form }).then(() => {
         if (reset && error.peek() === null) form.reset();
@@ -261,7 +272,7 @@ export const formAction = <R = unknown>(
     form.addEventListener('submit', onSubmit);
     return () => {
       form.removeEventListener('submit', onSubmit);
-      if (injectedCsrf?.parentNode) injectedCsrf.parentNode.removeChild(injectedCsrf);
+      if (csrfInjected && csrfInput?.parentNode) csrfInput.parentNode.removeChild(csrfInput);
     };
   };
 

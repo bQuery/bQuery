@@ -54,11 +54,23 @@ const globBase = (glob: string): string => {
  * (already expanded by the shell, or with no magic characters) pass through.
  */
 export const expandGlobs = async (patterns: string[]): Promise<string[]> => {
-  const { readdir, stat } = await import('node:fs/promises');
+  const { readdir, stat, realpath } = await import('node:fs/promises');
   const path = await import('node:path');
   const found = new Set<string>();
+  // Canonical directory paths already walked, so a symlink cycle (e.g. a link
+  // pointing at an ancestor) cannot drive `walk` into infinite recursion.
+  const visited = new Set<string>();
 
   const walk = async (dir: string, matcher: RegExp): Promise<void> => {
+    let canonical: string;
+    try {
+      canonical = await realpath(dir);
+    } catch {
+      return;
+    }
+    if (visited.has(canonical)) return;
+    visited.add(canonical);
+
     let entries: string[];
     try {
       entries = await readdir(dir);
@@ -104,7 +116,7 @@ export type ExtractRunOptions = {
 export type ExtractFilesResult = MergeResult & {
   /** Number of source files scanned. */
   files: number;
-  /** Total distinct keys in the merged catalog. */
+  /** Number of distinct keys extracted from the scanned sources (added + kept). */
   total: number;
 };
 

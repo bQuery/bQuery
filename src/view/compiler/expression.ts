@@ -233,7 +233,12 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
       continue;
     }
     if (c === ')' || c === ']' || c === '}') {
-      stack.pop();
+      const open = stack.pop();
+      const expected = c === ')' ? '(' : c === ']' ? '[' : '{';
+      // Bail on a closing bracket that has no matching opener (or the wrong
+      // one) rather than emitting unbalanced — and therefore unparsable — code
+      // that would break the whole generated module.
+      if (open !== expected) throw new Bail('unbalanced brackets');
       out += c;
       i++;
       prev = c;
@@ -324,6 +329,9 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
     // Anything else is unrecognised — bail rather than risk a wrong rewrite.
     throw new Bail(`unrecognised character "${c}"`);
   }
+
+  // Unclosed brackets would emit unbalanced, unparsable code — bail instead.
+  if (stack.length > 0) throw new Bail('unbalanced brackets');
 
   return out;
 };

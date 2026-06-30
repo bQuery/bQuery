@@ -66,8 +66,11 @@ const evaluateRawCache = new LRUCache(MAX_CACHE_SIZE);
  * precedence over the runtime `new Function()` path and are never evicted, so
  * a build that precompiles every expression in a template avoids the runtime
  * evaluator (and its `'unsafe-eval'` requirement) entirely. Expressions not
- * present here transparently fall back to runtime compilation, so the two
- * paths are behaviourally identical.
+ * present here transparently fall back to runtime compilation; for any
+ * well-formed expression the two paths produce the same value. (They differ
+ * only for an unresolved free identifier, which the `with`-based runtime path
+ * turns into a caught ReferenceError — i.e. `undefined` for the whole
+ * expression — whereas the compiled path reads it as `undefined` in place.)
  * @internal
  */
 const compiledRegistry = new Map<string, CompiledFn>();

@@ -168,7 +168,12 @@ const auditFormInputs = (container: Element): AuditFinding[] => {
     }
 
     const id = input.getAttribute('id');
-    const hasLabel = id ? !!container.querySelector(`label[for="${id}"]`) : false;
+    // Compare `for` attributes directly rather than interpolating the id into a
+    // selector — an id with a quote or selector metacharacter would otherwise
+    // throw a SyntaxError and crash the whole audit.
+    const hasLabel = id
+      ? Array.from(container.querySelectorAll('label')).some((l) => l.getAttribute('for') === id)
+      : false;
     const hasAriaLabel = input.hasAttribute('aria-label') || input.hasAttribute('aria-labelledby');
     const hasTitle = input.hasAttribute('title');
     const isWrappedInLabel = input.closest('label') !== null;
