@@ -113,6 +113,46 @@ const isOpChar = (c: string): boolean => '-+*%<>=!&|^~'.includes(c);
 class Bail extends Error {}
 
 /**
+ * Scans a single/double-quoted string literal starting at `start` (the opening
+ * quote), respecting backslash escapes. Returns the index past the closing
+ * quote (or end of input).
+ */
+const scanStringLiteral = (src: string, start: number): number => {
+  const quote = src[start];
+  let i = start + 1;
+  while (i < src.length && src[i] !== quote) {
+    if (src[i] === '\\') i += 1;
+    i += 1;
+  }
+  return i + 1;
+};
+
+/**
+ * Scans a numeric literal (hex/float/exponent/separators) starting at `start`,
+ * returning the end index. A `.` is consumed only as a single decimal point
+ * followed by a digit, so a member-access dot (`1.5.toFixed`) ends the literal.
+ */
+const scanNumericLiteral = (src: string, start: number): number => {
+  let i = start;
+  let seenDot = false;
+  while (i < src.length) {
+    const ch = src[i];
+    if (ch === '.') {
+      if (seenDot || !isDigit(src[i + 1])) break;
+      seenDot = true;
+      i += 1;
+      continue;
+    }
+    if (/[0-9a-fA-FxXoObBeE_]/.test(ch)) {
+      i += 1;
+      continue;
+    }
+    break;
+  }
+  return i;
+};
+
+/**
  * Rewrites an expression into a `with`-free body string (no arrow wrapper).
  * Throws {@link Bail} with a reason when the expression cannot be compiled.
  */
@@ -143,12 +183,7 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
     // Single/double-quoted strings: copy verbatim (respecting escapes).
     if (c === '"' || c === "'") {
       const start = i;
-      i++;
-      while (i < n && src[i] !== c) {
-        if (src[i] === '\\') i++;
-        i++;
-      }
-      i++; // closing quote (or EOF)
+      i = scanStringLiteral(src, i);
       out += src.slice(start, i);
       prev = '"';
       continue;
@@ -197,28 +232,11 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
       continue;
     }
 
-    // Numbers (incl. hex/float/exponent — copied verbatim).
+    // Numbers (incl. hex/float/exponent). A member-access dot ends the literal
+    // (see {@link scanNumericLiteral}) so the property is not mis-prefixed.
     if (isDigit(c) || (c === '.' && isDigit(src[i + 1]))) {
       const start = i;
-      let seenDot = false;
-      while (i < n) {
-        const ch = src[i];
-        if (ch === '.') {
-          // A dot belongs to the number only as a single decimal point with a
-          // following digit. A second dot, or a dot that starts a member access
-          // (e.g. `1.5.toFixed`), ends the literal so the property is not
-          // mis-prefixed as a free identifier.
-          if (seenDot || !isDigit(src[i + 1])) break;
-          seenDot = true;
-          i++;
-          continue;
-        }
-        if (/[0-9a-fA-FxXoObBeE_]/.test(ch)) {
-          i++;
-          continue;
-        }
-        break;
-      }
+      i = scanNumericLiteral(src, i);
       out += src.slice(start, i);
       prev = '0';
       continue;
