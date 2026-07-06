@@ -254,6 +254,10 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
   const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT);
 
   const toRemove: Element[] = [];
+  // Track ids already emitted so duplicate ids within the fragment are dropped:
+  // two elements sharing an id turn `document.getElementById`/named access into
+  // a clobberable HTMLCollection (the classic `<a id=x><a id=x name=y>` vector).
+  const seenIds = new Set<string>();
 
   while (walker.nextNode()) {
     const el = walker.currentNode as Element;
@@ -286,6 +290,17 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
       if ((attrName === 'id' || attrName === 'name') && !isSafeIdOrName(attr.value)) {
         attrsToRemove.push(attr.name);
         continue;
+      }
+
+      // Drop duplicate ids (HTMLCollection clobbering). The first occurrence is
+      // kept; later ones are stripped so named access resolves to a single node.
+      if (attrName === 'id') {
+        const idValue = attr.value.trim();
+        if (seenIds.has(idValue)) {
+          attrsToRemove.push(attr.name);
+          continue;
+        }
+        seenIds.add(idValue);
       }
 
       // Validate URL attributes
