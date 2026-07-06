@@ -638,6 +638,41 @@ describe('View', () => {
       isDisabled.value = false;
       expect(button.hasAttribute('disabled')).toBe(false);
     });
+
+    it('drops javascript: URLs bound to href (#164)', () => {
+      container.innerHTML = '<a bq-bind:href="link">Link</a>';
+      const link = signal('javascript:alert(document.cookie)');
+
+      view = mount(container, { link });
+
+      const a = container.querySelector('a')!;
+      expect(a.hasAttribute('href')).toBe(false);
+
+      link.value = '/safe';
+      expect(a.getAttribute('href')).toBe('/safe');
+    });
+
+    it('never writes on* attributes via bq-bind (#164)', () => {
+      container.innerHTML = '<div bq-bind:onclick="handler">x</div>';
+      const handler = signal('alert(1)');
+
+      view = mount(container, { handler });
+
+      const div = container.querySelector('div')!;
+      expect(div.hasAttribute('onclick')).toBe(false);
+    });
+
+    it('sanitizes srcdoc bound to an iframe (#164)', () => {
+      container.innerHTML = '<iframe bq-bind:srcdoc="doc"></iframe>';
+      const doc = signal('<script>alert(1)</script><p>ok</p>');
+
+      view = mount(container, { doc });
+
+      const iframe = container.querySelector('iframe')!;
+      const srcdoc = iframe.getAttribute('srcdoc') ?? '';
+      expect(srcdoc).not.toContain('<script');
+      expect(srcdoc).toContain('ok');
+    });
   });
 
   describe('bq-on', () => {

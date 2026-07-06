@@ -8,6 +8,7 @@
  * @module bquery/ssr
  */
 
+import { checkBoundAttribute } from '../security/bind-guard';
 import { DANGEROUS_PROTOCOLS } from '../security/constants';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
@@ -355,7 +356,8 @@ const processSSRElement = (
     }
   }
 
-  // Handle bq-bind:attr — set arbitrary attributes
+  // Handle bq-bind:attr — set arbitrary attributes. Bound values are runtime
+  // data; guard handler/URL/srcdoc sinks before writing.
   const attrs = Array.from(el.attributes);
   for (const attr of attrs) {
     if (attr.name.startsWith(`${prefix}-bind:`)) {
@@ -363,11 +365,18 @@ const processSSRElement = (
       const value = evaluateSSR(attr.value, context);
       if (value === false || value === null || value === undefined) {
         el.removeAttribute(attrName);
-      } else if (value === true) {
-        el.setAttribute(attrName, '');
-      } else {
-        el.setAttribute(attrName, String(value));
+        continue;
       }
+      const stringValue = value === true ? '' : String(value);
+      const verdict = checkBoundAttribute(attrName, stringValue);
+      if (verdict === 'drop') {
+        el.removeAttribute(attrName);
+        continue;
+      }
+      el.setAttribute(
+        attrName,
+        verdict === 'sanitize-html' ? sanitizeHtmlForSSR(stringValue) : stringValue
+      );
     }
   }
 

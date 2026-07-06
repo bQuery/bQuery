@@ -478,6 +478,52 @@ describe('#129 resumable boundaries — client resume', () => {
   });
 });
 
+describe('#164 bq-bind attribute guarding', () => {
+  for (const backend of BACKENDS) {
+    describe(`backend: ${backend}`, () => {
+      it('drops javascript: URLs bound to href', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<a bq-bind:href="link">x</a>', {
+            link: 'javascript:alert(document.cookie)',
+          }).html;
+          expect(html).not.toContain('javascript:');
+        });
+      });
+
+      it('never emits on* attributes via bq-bind', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<div bq-bind:onclick="h">x</div>', {
+            h: 'alert(1)',
+          }).html;
+          // The bq-bind:onclick directive attribute may remain for hydration,
+          // but a live onclick attribute must never be emitted.
+          expect(html).not.toMatch(/ onclick=/);
+          expect(html).not.toContain('alert(1)');
+        });
+      });
+
+      it('sanitizes srcdoc bound to an iframe', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<iframe bq-bind:srcdoc="msg"></iframe>', {
+            msg: '<script>alert(1)</script><p>ok</p>',
+          }).html;
+          expect(html).not.toContain('alert(1)');
+          expect(html).toContain('ok');
+        });
+      });
+
+      it('keeps safe bound URLs intact', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<a bq-bind:href="link">x</a>', {
+            link: 'https://example.com/page',
+          }).html;
+          expect(html).toContain('href="https://example.com/page"');
+        });
+      });
+    });
+  }
+});
+
 describe('#176 bq-style CSS injection guard', () => {
   for (const backend of BACKENDS) {
     describe(`backend: ${backend}`, () => {

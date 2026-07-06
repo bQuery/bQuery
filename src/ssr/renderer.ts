@@ -11,6 +11,7 @@
  * @internal
  */
 
+import { checkBoundAttribute } from '../security/bind-guard';
 import {
   DANGEROUS_ATTR_PREFIXES,
   DANGEROUS_PROTOCOLS,
@@ -479,18 +480,22 @@ const evaluateElement = (
     }
   }
 
-  // bq-bind:*
+  // bq-bind:* — bound values are runtime data; guard handler/URL/srcdoc sinks.
   for (const name of [...el.attributeOrder]) {
     if (!name.startsWith(`${prefix}-bind:`)) continue;
     const attrName = name.slice(`${prefix}-bind:`.length);
     const value = evaluateExpression<unknown>(el.attributes[name], context);
     if (value === false || value == null) {
       removeAttr(el, attrName);
-    } else if (value === true) {
-      setAttr(el, attrName, '');
-    } else {
-      setAttr(el, attrName, String(value));
+      continue;
     }
+    const stringValue = value === true ? '' : String(value);
+    const verdict = checkBoundAttribute(attrName, stringValue);
+    if (verdict === 'drop') {
+      removeAttr(el, attrName);
+      continue;
+    }
+    setAttr(el, attrName, verdict === 'sanitize-html' ? sanitizeHtmlForSSR(stringValue) : stringValue);
   }
 
   // bq-model / bq-on — interactive directive parity (#128).
