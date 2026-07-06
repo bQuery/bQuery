@@ -92,6 +92,19 @@ describe('security/sanitizeHtml', () => {
     });
     expect(result).not.toContain('data-secret');
   });
+
+  it('escapes the mXSS-detection text fallback (entity-smuggled markup stays inert)', () => {
+    // Foster-parenting makes serialize→re-parse unstable, forcing the mXSS
+    // fallback branch; the entity-encoded payload decodes to live markup in
+    // textContent and must not survive as executable HTML.
+    const payload = '<a><table><a>&lt;img src=x onerror=alert(1)&gt;';
+    const result = String(sanitizeHtml(payload));
+    expect(result).not.toContain('<img');
+
+    const host = document.createElement('div');
+    host.innerHTML = result;
+    expect(host.querySelectorAll('img').length).toBe(0);
+  });
 });
 
 describe('security/escapeHtml', () => {
