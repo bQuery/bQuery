@@ -295,6 +295,20 @@ describe('security/enhanced protections', () => {
     expect(result).not.toContain('<script>');
   });
 
+  it('strips duplicate ids to prevent HTMLCollection clobbering (#179)', () => {
+    const result = String(sanitizeHtml('<a id="x"></a><a id="x" name="y">link</a>'));
+    // Only the first id="x" survives; the duplicate is stripped.
+    expect(result.match(/id="x"/g)?.length ?? 0).toBe(1);
+    expect(result).toContain('link');
+  });
+
+  it('blocks the expanded reserved-id denylist (#179)', () => {
+    for (const id of ['attributes', 'getElementById', 'defaultView', 'implementation']) {
+      const result = String(sanitizeHtml(`<div id="${id}">x</div>`));
+      expect(result).not.toContain(`id="${id}"`);
+    }
+  });
+
   it('blocks iframe tags', () => {
     const result = sanitizeHtml('<iframe src="evil.com"></iframe>');
     expect(result).not.toContain('<iframe');
