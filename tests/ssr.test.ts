@@ -244,6 +244,34 @@ describe('renderToString', () => {
     }
   });
 
+  it('does not reach the Function constructor via the DOM backend evaluator (#167)', () => {
+    const previousConfig = getSSRConfig();
+    try {
+      configureSSR({ backend: 'dom' });
+      const result = renderToString('<div bq-text="constructor.constructor"></div>', {});
+      expect(result.html).not.toContain('function');
+      expect(result.html).not.toContain('Function');
+      // The guarded evaluator yields undefined → no text content injected.
+      expect(result.html).toMatch(/<div[^>]*><\/div>/);
+    } finally {
+      configureSSR(previousConfig);
+    }
+  });
+
+  it('does not eval arbitrary JS on the DOM backend (#167)', () => {
+    const previousConfig = getSSRConfig();
+    try {
+      configureSSR({ backend: 'dom' });
+      // A complex expression that only worked via the removed new Function()
+      // fallback now evaluates through the CSP-safe parser (arithmetic is
+      // supported; side-effecting JS is not reachable).
+      const result = renderToString('<div bq-text="a + b"></div>', { a: 2, b: 3 });
+      expect(result.html).toContain('>5</div>');
+    } finally {
+      configureSSR(previousConfig);
+    }
+  });
+
   it('renders nested elements correctly', () => {
     const result = renderToString(
       '<div><section bq-if="show"><h2 bq-text="title"></h2><p bq-text="body"></p></section></div>',

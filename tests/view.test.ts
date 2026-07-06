@@ -715,6 +715,29 @@ describe('View', () => {
       expect(count.value).toBe(6);
       expect(span.textContent).toBe('6');
     });
+
+    it('invokes a handler resolved from an expression containing inner parens (#180)', () => {
+      container.innerHTML = '<button bq-on:click="items.find(matcher).handler">Go</button>';
+      let called = false;
+      const items = [{ id: 1, handler: () => { called = true; } }];
+
+      view = mount(container, {
+        items,
+        matcher: (x: { id: number }) => x.id === 1,
+      });
+
+      container.querySelector('button')!.click();
+      expect(called).toBe(true);
+    });
+
+    it('invokes a bare handler reference with the event (#180)', () => {
+      container.innerHTML = '<button bq-on:click="onClick">Go</button>';
+      let receivedType = '';
+      view = mount(container, { onClick: (e: Event) => { receivedType = e.type; } });
+
+      container.querySelector('button')!.click();
+      expect(receivedType).toBe('click');
+    });
   });
 
   describe('bq-for', () => {

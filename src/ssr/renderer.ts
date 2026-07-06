@@ -205,7 +205,10 @@ const stripDirectiveAttributes = (node: SSRNode, prefix: string): void => {
 };
 
 const setText = (el: SSRElement, value: string): void => {
-  el.children = [{ type: 'text', value }];
+  // Raw-text elements (script/style/textarea/title) are serialized verbatim
+  // by serializeTree, so escape here or a value like `</textarea><script>…`
+  // would break out of the element (XSS).
+  el.children = [{ type: 'text', value: el.raw ? escapeText(value) : value }];
 };
 
 /** Recursively collects `<option>` descendants of a virtual `<select>`. */
@@ -244,10 +247,7 @@ const applyModelToPureElement = (el: SSRElement, value: unknown): void => {
       else removeAttr(el, reflection.name);
       break;
     case 'text':
-      // textarea is a raw-text element, so serializeTree emits its text
-      // children verbatim. Escape the reflected value here or a model value
-      // like `</textarea><script>…` would break out of the element (XSS).
-      setText(el, el.raw ? escapeText(reflection.value) : reflection.value);
+      setText(el, reflection.value);
       break;
     case 'select': {
       const options: SSRElement[] = [];

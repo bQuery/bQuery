@@ -16,7 +16,13 @@ export type { SanitizedHtml, TrustedHtml } from './trusted-html';
 
 /**
  * Sanitize HTML string, removing dangerous elements and attributes.
- * Uses Trusted Types when available for CSP compliance.
+ *
+ * Returns a branded sanitized string. The framework's own DOM-write sinks
+ * (`$el.html()`, `.append()`/`.before()`/`.after()`, `bq-html`, …) route
+ * through {@link trustedHtmlForSink}, so they produce a Trusted Types value
+ * under an enforced `require-trusted-types-for 'script'` CSP. If you assign
+ * this string to a sink yourself, wrap it with `trustedHtmlForSink` (or your
+ * own policy) to satisfy enforced Trusted Types.
  *
  * @param html - The HTML string to sanitize
  * @param options - Sanitization options

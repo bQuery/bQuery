@@ -425,6 +425,23 @@ describe('concurrency/deferred (#135)', () => {
     await wait(30);
     expect(total.value).toBe(12);
   });
+
+  it('stops tracking its source after dispose() (#173)', async () => {
+    const query = signal('a');
+    const deferredQuery = deferred(query, { timeout: 10 });
+    expect(typeof deferredQuery.dispose).toBe('function');
+
+    query.value = 'b';
+    await wait(30);
+    expect(deferredQuery.value).toBe('b');
+
+    deferredQuery.dispose();
+
+    // After disposal, source changes no longer flow through.
+    query.value = 'c';
+    await wait(30);
+    expect(deferredQuery.value).toBe('b');
+  });
 });
 
 describe('concurrency/suspense (#135)', () => {

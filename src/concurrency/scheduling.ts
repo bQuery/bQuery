@@ -141,10 +141,14 @@ const readDeferredSource = <T>(source: DeferredSource<T>): T =>
 export function deferred<T>(
   source: DeferredSource<T>,
   options: DeferredOptions = {}
-): ReadonlySignalHandle<T> {
+): ReadonlySignalHandle<T> & { dispose: () => void } {
   const mirror = signal<T>(untrack(() => readDeferredSource(source)));
 
-  effect(() => {
+  // The effect auto-registers with an active effectScope (so `scope.stop()`
+  // disposes it), but outside a scope there was no way to stop it — the effect
+  // and its scheduled timer/idle callback leaked for the source's lifetime.
+  // Expose an explicit `dispose()` so unscoped callers can clean up.
+  const disposeEffect = effect(() => {
     const next = readDeferredSource(source);
     const scheduled = scheduleDeferred(() => {
       untrack(() => {
@@ -157,7 +161,16 @@ export function deferred<T>(
     return () => scheduled.cancel();
   });
 
-  return readonly(mirror);
+  const handle = readonly(mirror) as ReadonlySignalHandle<T> & { dispose: () => void };
+  Object.defineProperty(handle, 'dispose', {
+    value: (): void => {
+      // Stops the effect and runs its cleanup (cancelling any pending timer).
+      disposeEffect();
+      mirror.dispose();
+    },
+    enumerable: false,
+  });
+  return handle;
 }
 
 const isPromiseLike = (value: unknown): value is PromiseLike<unknown> =>

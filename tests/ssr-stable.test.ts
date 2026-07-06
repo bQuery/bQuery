@@ -498,6 +498,35 @@ describe('#176 bq-style CSS injection guard', () => {
           }).html;
           expect(html).toContain('color: red');
           expect(html).toContain('margin-top: 4px');
+describe('#163 bq-text escaping on raw-text elements', () => {
+  for (const backend of BACKENDS) {
+    describe(`backend: ${backend}`, () => {
+      it('escapes bq-text values inside <textarea>', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<textarea bq-text="msg"></textarea>', {
+            msg: '</textarea><img src=x onerror=alert(1)>',
+          }).html;
+          expect(html).not.toContain('<img');
+          expect(html).toContain('&lt;/textarea&gt;');
+        });
+      });
+
+      it('escapes bq-text values inside <title>', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<title bq-text="msg"></title>', {
+            msg: '</title><script>alert(1)</script>',
+          }).html;
+          expect(html).not.toContain('<script>');
+        });
+      });
+
+      it('leaves bq-text on normal elements escaped exactly once', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<p bq-text="msg"></p>', {
+            msg: '<b>&amp;</b>',
+          }).html;
+          expect(html).toContain('&lt;b&gt;');
+          expect(html).not.toContain('&amp;amp;amp;');
         });
       });
     });

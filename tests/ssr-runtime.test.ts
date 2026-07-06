@@ -857,6 +857,15 @@ describe('head manager', () => {
     head.add({ title: 'Home', titleTemplate: '%s | Acme' });
     expect(head.render()).toContain('<title>Home | Acme</title>');
   });
+
+  it('inserts a title with special replacement patterns literally (#177)', () => {
+    const head = createHeadManager();
+    head.add({ title: 'Q&A $& more', titleTemplate: '%s | Acme' });
+    // `$&` in the title must not be interpreted as a replacement pattern.
+    // escapeText encodes the ampersands, so assert the literal `$&` survives.
+    expect(head.render()).toContain('$&amp; more');
+    expect(head.render()).toContain('| Acme');
+  });
 });
 
 describe('asset manager', () => {

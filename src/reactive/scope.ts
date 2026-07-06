@@ -186,6 +186,9 @@ class EffectScopeImpl implements ScopeInternal {
  * needed, but keep the callback itself synchronous so cleanup registration
  * stays deterministic.
  *
+ * @param detached - When `true`, the scope is NOT auto-collected by an
+ *   enclosing scope; its lifetime is fully independent (tie it to something
+ *   else and call `stop()` yourself). Defaults to `false`.
  * @returns A new {@link EffectScope}
  *
  * @example
@@ -207,13 +210,18 @@ class EffectScopeImpl implements ScopeInternal {
  * scope.stop(); // logs "Custom cleanup", all effects stopped
  * ```
  */
-export const effectScope = (): EffectScope => {
+export const effectScope = (detached = false): EffectScope => {
   const scope = new EffectScopeImpl();
 
-  // If created inside another scope, auto-collect as a nested scope
-  const parent = getActiveScope();
-  if (hasScopeDisposer(parent)) {
-    parent._addDisposer(() => scope.stop());
+  // If created inside another scope, auto-collect as a nested scope — unless
+  // `detached` is requested, in which case the scope's lifetime is fully
+  // independent of any parent (e.g. a resource whose disposal is tied to
+  // something other than the ambient scope).
+  if (!detached) {
+    const parent = getActiveScope();
+    if (hasScopeDisposer(parent)) {
+      parent._addDisposer(() => scope.stop());
+    }
   }
 
   return scope;
