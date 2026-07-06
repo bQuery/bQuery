@@ -72,4 +72,42 @@ describe('createFileRouteServerRoutes', () => {
     const routes = createFileRouteServerRoutes(entries, { basePath: '/app' });
     expect(routes[0].path).toBe('/app/users/:id');
   });
+
+  it('defaults loader middleware to the action middleware chain (#181)', () => {
+    const auth: import('../src/server/index').ServerMiddleware = (_ctx, next) => next();
+    const { entries } = createFileRoutes({
+      'routes/users/[id]/+page.ts': {
+        default: 'User',
+        action: (() => ({})) as Action,
+        load: (() => ({})) as Load,
+      },
+    });
+
+    const routes = createFileRouteServerRoutes(entries, {
+      dataPath: '/__data',
+      middlewares: [auth],
+    });
+    const loaderRoute = routes.find((r) => r.method === 'GET');
+    // The loader inherits the action middleware chain when dataMiddlewares is unset.
+    expect(loaderRoute?.middlewares).toEqual([auth]);
+  });
+
+  it('allows opting the loader out with an explicit empty dataMiddlewares (#181)', () => {
+    const auth: import('../src/server/index').ServerMiddleware = (_ctx, next) => next();
+    const { entries } = createFileRoutes({
+      'routes/users/[id]/+page.ts': {
+        default: 'User',
+        action: (() => ({})) as Action,
+        load: (() => ({})) as Load,
+      },
+    });
+
+    const routes = createFileRouteServerRoutes(entries, {
+      dataPath: '/__data',
+      middlewares: [auth],
+      dataMiddlewares: [],
+    });
+    const loaderRoute = routes.find((r) => r.method === 'GET');
+    expect(loaderRoute?.middlewares).toEqual([]);
+  });
 });
