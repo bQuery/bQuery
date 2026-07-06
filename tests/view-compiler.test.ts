@@ -100,6 +100,26 @@ describe('compileExpression — conservative bail-outs (#138)', () => {
     bail('a /* c */ + b');
     bail('');
   });
+
+  it('bails on unterminated string literals instead of emitting broken code (#170)', () => {
+    bail("'oops");
+    bail('"unclosed');
+    bail("greeting + 'tail");
+    // A valid closing quote after escapes still compiles.
+    const r = compileExpression("'a\\'b'");
+    expect(r.ok).toBe(true);
+  });
+
+  it('bails on invalid numeric literals (#170)', () => {
+    bail('1ex');
+    bail('1e');
+    bail('0xG1');
+    // Valid numerics still compile.
+    for (const n of ['1', '1.5', '0xFF', '1e3', '1_000', '.5', '0b1010']) {
+      const r = compileExpression(n);
+      expect(r.ok).toBe(true);
+    }
+  });
 });
 
 describe('compileViews — template walking (#138)', () => {
