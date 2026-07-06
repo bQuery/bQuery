@@ -1,4 +1,4 @@
-import { evaluateRaw } from '../evaluate';
+import { runOnExpression } from './on-shared';
 import type { BindingContext } from '../types';
 
 const KEY_ALIASES: Record<string, string[]> = {
@@ -155,16 +155,7 @@ export const handleOnWithModifiers = (
         removeListener();
       }
 
-      const eventContext = { ...context, $event: event, $el: el };
-      const containsCall = expression.includes('(');
-      if (!containsCall) {
-        const result = evaluateRaw<unknown>(expression, eventContext);
-        if (typeof result === 'function') {
-          (result as (e: Event) => void)(event);
-        }
-        return;
-      }
-      evaluateRaw(expression, eventContext);
+      runOnExpression(expression, { ...context, $event: event, $el: el }, event);
     };
 
     el.addEventListener(eventName, handler, listenerOptions);
