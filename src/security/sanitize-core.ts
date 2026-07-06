@@ -42,6 +42,23 @@ const isAllowedAttribute = (
 };
 
 /**
+ * Escape HTML entities so text is inert when assigned to an HTML sink.
+ * Local copy to avoid a circular import with `sanitize.ts`.
+ * @internal
+ */
+const escapeHtmlText = (text: string): string => {
+  const escapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '`': '&#x60;',
+  };
+  return text.replace(/[&<>"'`]/g, (char) => escapeMap[char]);
+};
+
+/**
  * Check if an ID/name value could cause DOM clobbering.
  * @internal
  */
@@ -356,8 +373,10 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
   // Verify stability: if content mutates between parses, it indicates mXSS attempt
   if (firstPass !== secondPass) {
     // Content mutated during re-parse - potential mXSS detected.
-    // Return safely escaped text content as fallback.
-    return fragment.textContent ?? '';
+    // Callers assign this return value to HTML sinks (innerHTML etc.), so the
+    // text fallback must be HTML-escaped: entity-decoded text nodes can contain
+    // live markup (e.g. `&lt;img onerror=...&gt;` decoded to `<img onerror=...>`).
+    return escapeHtmlText(fragment.textContent ?? '');
   }
 
   return secondPass;
