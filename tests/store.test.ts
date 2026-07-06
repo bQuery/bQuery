@@ -266,6 +266,23 @@ describe('Store', () => {
       expect(states).toEqual([1]);
     });
 
+    it('does not skip later subscribers when one unsubscribes during notify (#165)', () => {
+      const store = createStore({
+        id: 'counter-unsub-during-notify',
+        state: () => ({ n: 0 }),
+      });
+
+      const unsubA = store.$subscribe(() => unsubA());
+      const seen: string[] = [];
+      store.$subscribe(() => seen.push('B'));
+
+      store.n = 1;
+      expect(seen).toEqual(['B']);
+
+      store.n = 2;
+      expect(seen).toEqual(['B', 'B']);
+    });
+
     it('should not create reactive dependencies when $state is accessed inside effect', () => {
       const store = createStore({
         id: 'counter',
