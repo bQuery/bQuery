@@ -16,6 +16,7 @@ import {
   sanitizeHtml,
   stripTags,
   trusted,
+  trustedHtmlForSink,
 } from '@bquery/bquery/security';
 ```
 
@@ -322,6 +323,23 @@ function createTrustedHtml(html: string): TrustedHTML | string;
 const trusted = createTrustedHtml('<div>Safe content</div>');
 element.innerHTML = trusted.toString();
 ```
+
+### `trustedHtmlForSink()`
+
+Returns the value to assign to an HTML sink (`innerHTML` / `insertAdjacentHTML`). When a Trusted Types policy is active the return value is a `TrustedHTML` object — so the write satisfies an enforced `require-trusted-types-for 'script'` CSP instead of throwing — and the sanitized string otherwise. The input is sanitized exactly once.
+
+The framework's own DOM-write sinks (`$el.html()`, `.append()` / `.before()` / `.after()`, the default-sanitized `bq-html`, and `bq-html-safe`) route through this helper. Call it yourself when you assign sanitized HTML to a sink under an enforced Trusted Types policy.
+
+```ts
+function trustedHtmlForSink(rawHtml: string): string;
+```
+
+```ts
+// Safe under an enforced `require-trusted-types-for 'script'` CSP.
+element.innerHTML = trustedHtmlForSink('<div>Safe content</div>');
+```
+
+The declared return type is `string` for ergonomic assignment to DOM sink setters (whose lib types expect `string`); at runtime under enforced Trusted Types the value is the `TrustedHTML` object the browser accepts.
 
 ### `generateNonce()`
 
