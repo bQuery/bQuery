@@ -178,12 +178,6 @@ Walk through both end-to-end in the **[Tutorial](/guide/tutorial)** and the **[F
 | Move work off the main thread               | [Concurrency](/guide/concurrency)                                                   |
 | Migrate from jQuery                         | [Migration Guide](/guide/migration)                                                 |
 
-## What's new in 1.14.0
-
-The 1.14.0 release graduates **media, plugin, devtools, and testing** into batteries-included tiers, with additive expansions across router, view, a11y, i18n, dnd, storybook, concurrency, ssr, and server.
-
-Read the structured release notes at **[Release Notes — 1.14.0](/release-notes/1.14)** or the full [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md).
-
 ## Learn more
 
 - **New to the project?** Start with **[Getting Started](/guide/getting-started)** and follow the **[Tutorial](/guide/tutorial)**.
