@@ -176,6 +176,19 @@ describe('server/session', () => {
     expect(attributes).toContain('HttpOnly');
     expect(attributes).toContain('SameSite=Lax');
     expect(attributes).toContain('Path=/');
+    expect(attributes).toContain('Secure');
+  });
+
+  it('allows opting out of Secure for local HTTP dev (#169)', async () => {
+    const store = memoryStore();
+    const app = createServer();
+    app.use(session({ secret: SECRET, store, cookie: { secure: false } }));
+    app.post('/login', (ctx) => {
+      ctx.session!.userId = 'u_1';
+      return ctx.json({ ok: true });
+    });
+    const login = await app.handle({ url: '/login', method: 'POST' });
+    expect(setCookieAttributes(login, 'bq.sid')).not.toContain('Secure');
   });
 
   it('ignores a tampered session cookie', async () => {
@@ -345,6 +358,24 @@ describe('server/csrf', () => {
     expect(typeof body.token).toBe('string');
     expect(body.token.length).toBeGreaterThan(0);
     expect(() => cookiePair(res, 'bq.csrf')).not.toThrow();
+  });
+
+  it('marks the CSRF secret cookie Secure by default (#169)', async () => {
+    const app = createServer();
+    app.use(csrf({ secret: SECRET }));
+    app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+
+    const res = await app.handle('/token');
+    expect(setCookieAttributes(res, 'bq.csrf')).toContain('Secure');
+  });
+
+  it('allows opting out of Secure on the CSRF cookie (#169)', async () => {
+    const app = createServer();
+    app.use(csrf({ secret: SECRET, cookie: { secure: false } }));
+    app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+
+    const res = await app.handle('/token');
+    expect(setCookieAttributes(res, 'bq.csrf')).not.toContain('Secure');
   });
 
   it('rejects unsafe requests without a token', async () => {

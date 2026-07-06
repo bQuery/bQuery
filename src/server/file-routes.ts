@@ -33,7 +33,14 @@ export interface FileRouteServerOptions {
   basePath?: string;
   /** Middleware applied to generated action routes (e.g. `csrf()`). */
   middlewares?: ServerMiddleware[];
-  /** Middleware applied to generated loader routes. */
+  /**
+   * Middleware applied to generated loader (JSON) routes. Defaults to
+   * {@link middlewares} when unset — a loader mirrors the same data an
+   * authenticated page renders, so protecting only actions with
+   * `middlewares: [auth]` would otherwise leave every route's `load()` output
+   * exposed as unauthenticated JSON. Pass `dataMiddlewares: []` to explicitly
+   * opt the loader routes out of the action middleware chain.
+   */
   dataMiddlewares?: ServerMiddleware[];
 }
 
@@ -111,6 +118,10 @@ export const createFileRouteServerRoutes = (
 ): ServerRoute[] => {
   const routes: ServerRoute[] = [];
   const actionMethod = options.actionMethod ?? 'POST';
+  // Default loader middleware to the action chain so `load()` output is not
+  // accidentally exposed as unauthenticated JSON (opt out with an explicit
+  // empty array).
+  const dataMiddlewares = options.dataMiddlewares ?? options.middlewares;
 
   for (const route of entries) {
     if (route.hasAction !== false) {
@@ -126,7 +137,7 @@ export const createFileRouteServerRoutes = (
       routes.push({
         path: joinPath(options.dataPath, joinPath(options.basePath, route.pattern)),
         method: 'GET',
-        middlewares: options.dataMiddlewares,
+        middlewares: dataMiddlewares,
         handler: loaderHandler(route),
       });
     }

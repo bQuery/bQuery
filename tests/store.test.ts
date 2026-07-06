@@ -266,6 +266,23 @@ describe('Store', () => {
       expect(states).toEqual([1]);
     });
 
+    it('does not skip later subscribers when one unsubscribes during notify (#165)', () => {
+      const store = createStore({
+        id: 'counter-unsub-during-notify',
+        state: () => ({ n: 0 }),
+      });
+
+      const unsubA = store.$subscribe(() => unsubA());
+      const seen: string[] = [];
+      store.$subscribe(() => seen.push('B'));
+
+      store.n = 1;
+      expect(seen).toEqual(['B']);
+
+      store.n = 2;
+      expect(seen).toEqual(['B', 'B']);
+    });
+
     it('should not create reactive dependencies when $state is accessed inside effect', () => {
       const store = createStore({
         id: 'counter',
@@ -629,6 +646,23 @@ describe('Store', () => {
       });
 
       expect(states).toEqual([42]);
+    });
+  });
+
+  describe('deepClone prototype-pollution guard (#175)', () => {
+    it('does not reassign the clone prototype for an own __proto__ key', async () => {
+      const { deepClone } = await import('../src/store/utils');
+      // JSON.parse produces an own, enumerable `__proto__` data property.
+      const malicious = JSON.parse('{"__proto__":{"polluted":true},"safe":1}') as Record<
+        string,
+        unknown
+      >;
+
+      const cloned = deepClone(malicious);
+
+      expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype);
+      expect((cloned as { safe: number }).safe).toBe(1);
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
     });
   });
 

@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, type Mock } from 'bun:test';
 import { createForm, required } from '../src/forms/index';
 import { computed, signal } from '../src/reactive/index';
-import { parseObjectExpression } from '../src/view/evaluate';
+import { evaluate, evaluateRaw, parseObjectExpression } from '../src/view/evaluate';
 import { clearExpressionCache, createTemplate, mount, type View } from '../src/view/index';
 import { getCustomDirective, registerCustomDirectiveResolver } from '../src/view/custom-directives';
 
@@ -750,6 +750,29 @@ describe('View', () => {
       expect(count.value).toBe(6);
       expect(span.textContent).toBe('6');
     });
+
+    it('invokes a handler resolved from an expression containing inner parens (#180)', () => {
+      container.innerHTML = '<button bq-on:click="items.find(matcher).handler">Go</button>';
+      let called = false;
+      const items = [{ id: 1, handler: () => { called = true; } }];
+
+      view = mount(container, {
+        items,
+        matcher: (x: { id: number }) => x.id === 1,
+      });
+
+      container.querySelector('button')!.click();
+      expect(called).toBe(true);
+    });
+
+    it('invokes a bare handler reference with the event (#180)', () => {
+      container.innerHTML = '<button bq-on:click="onClick">Go</button>';
+      let receivedType = '';
+      view = mount(container, { onClick: (e: Event) => { receivedType = e.type; } });
+
+      container.querySelector('button')!.click();
+      expect(receivedType).toBe('click');
+    });
   });
 
   describe('bq-for', () => {
@@ -1434,5 +1457,46 @@ describe('parseObjectExpression', () => {
     expect(Object.prototype.hasOwnProperty.call(result, 'constructor')).toBe(false);
     expect(Object.prototype.hasOwnProperty.call(result, 'prototype')).toBe(false);
     expect(Object.keys(result)).toEqual(['safe']);
+  });
+});
+
+describe('evaluate — prototype-chain hardening (#168)', () => {
+  const originalError = console.error;
+  afterEach(() => {
+    console.error = originalError;
+  });
+
+  it('does not resolve inherited constructor via the with-scoped proxy', () => {
+    console.error = () => {};
+    const result = evaluate("constructor.constructor('return 1')()", {});
+    expect(result).toBeUndefined();
+  });
+
+  it('does not reach Function through evaluateRaw either', () => {
+    console.error = () => {};
+    const result = evaluateRaw("constructor.constructor('return 1')()", {});
+    expect(result).toBeUndefined();
+  });
+
+  it('shadows the bare Function and eval globals', () => {
+    console.error = () => {};
+    expect(evaluate("Function('return 1')()", {})).toBeUndefined();
+    expect(evaluate("eval('1')", {})).toBeUndefined();
+  });
+
+  it('lets an own context property shadow a dangerous global name', () => {
+    expect(evaluate<string>('constructor', { constructor: 'mine' })).toBe('mine');
+  });
+
+  it('still resolves own context properties', () => {
+    expect(evaluate<number>('a + b', { a: 2, b: 3 })).toBe(5);
+  });
+
+  it('still allows method calls on context values (inherited on the value, not the context)', () => {
+    expect(evaluate<string>('name.toUpperCase()', { name: 'ada' })).toBe('ADA');
+  });
+
+  it('resolves own properties that shadow prototype names', () => {
+    expect(evaluate<number>('hasOwnProperty', { hasOwnProperty: 42 })).toBe(42);
   });
 });

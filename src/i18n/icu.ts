@@ -51,6 +51,14 @@ export const isICUMessage = (template: string): boolean =>
 const isNameChar = (ch: string): boolean => /[A-Za-z0-9_]/.test(ch);
 
 /**
+ * Own-property check for argument lookup, so a placeholder name colliding with
+ * an inherited `Object.prototype` member (`toString`, `constructor`, …) is not
+ * treated as present.
+ */
+const hasParam = (params: TranslateParams, name: string): boolean =>
+  Object.prototype.hasOwnProperty.call(params, name);
+
+/**
  * Parses a message pattern starting at `pos`, stopping at the first
  * unbalanced `}` (when nested inside an argument) or end of input.
  *
@@ -277,18 +285,18 @@ const render = (
         break;
 
       case 'arg':
-        out += node.name in params ? String(params[node.name]) : `{${node.name}}`;
+        out += hasParam(params, node.name) ? String(params[node.name]) : `{${node.name}}`;
         break;
 
       case 'select': {
-        const value = node.name in params ? String(params[node.name]) : 'other';
+        const value = hasParam(params, node.name) ? String(params[node.name]) : 'other';
         const chosen = node.cases.get(value) ?? node.cases.get('other') ?? [];
         out += render(chosen, params, locale, poundValue);
         break;
       }
 
       case 'plural': {
-        const raw = Number(params[node.name]);
+        const raw = hasParam(params, node.name) ? Number(params[node.name]) : NaN;
         const value = Number.isFinite(raw) ? raw : 0;
         const adjusted = value - node.offset;
 

@@ -42,6 +42,23 @@ const isAllowedAttribute = (
 };
 
 /**
+ * Escape HTML entities so text is inert when assigned to an HTML sink.
+ * Local copy to avoid a circular import with `sanitize.ts`.
+ * @internal
+ */
+const escapeHtmlText = (text: string): string => {
+  const escapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#x27;',
+    '`': '&#x60;',
+  };
+  return text.replace(/[&<>"'`]/g, (char) => escapeMap[char]);
+};
+
+/**
  * Check if an ID/name value could cause DOM clobbering.
  * @internal
  */
@@ -254,6 +271,10 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
   const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT);
 
   const toRemove: Element[] = [];
+  // Track ids already emitted so duplicate ids within the fragment are dropped:
+  // two elements sharing an id turn `document.getElementById`/named access into
+  // a clobberable HTMLCollection (the classic `<a id=x><a id=x name=y>` vector).
+  const seenIds = new Set<string>();
 
   while (walker.nextNode()) {
     const el = walker.currentNode as Element;
@@ -286,6 +307,17 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
       if ((attrName === 'id' || attrName === 'name') && !isSafeIdOrName(attr.value)) {
         attrsToRemove.push(attr.name);
         continue;
+      }
+
+      // Drop duplicate ids (HTMLCollection clobbering). The first occurrence is
+      // kept; later ones are stripped so named access resolves to a single node.
+      if (attrName === 'id') {
+        const idValue = attr.value.trim();
+        if (seenIds.has(idValue)) {
+          attrsToRemove.push(attr.name);
+          continue;
+        }
+        seenIds.add(idValue);
       }
 
       // Validate URL attributes
@@ -356,8 +388,10 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
   // Verify stability: if content mutates between parses, it indicates mXSS attempt
   if (firstPass !== secondPass) {
     // Content mutated during re-parse - potential mXSS detected.
-    // Return safely escaped text content as fallback.
-    return fragment.textContent ?? '';
+    // Callers assign this return value to HTML sinks (innerHTML etc.), so the
+    // text fallback must be HTML-escaped: entity-decoded text nodes can contain
+    // live markup (e.g. `&lt;img onerror=...&gt;` decoded to `<img onerror=...>`).
+    return escapeHtmlText(fragment.textContent ?? '');
   }
 
   return secondPass;

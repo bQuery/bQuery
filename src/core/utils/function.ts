@@ -112,7 +112,11 @@ export function debounce<TArgs extends unknown[]>(
     const now = Date.now();
     if (leading && !leadingDone) {
       leadingDone = true;
-      invoke(args, trailing, now);
+      // Clear pendingArgs on the leading invoke so a SINGLE call does not also
+      // fire the trailing edge. A subsequent call within the window re-sets
+      // pendingArgs (the leading branch is skipped), so the trailing edge still
+      // fires when the function was called more than once (lodash semantics).
+      invoke(args, false, now);
     }
     clearTrailing();
     timeoutId = setTimeout(trailingTrigger, delayMs);

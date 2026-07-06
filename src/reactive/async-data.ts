@@ -508,7 +508,12 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
     const retryConfig = normalizeRetryConfig(options.retry);
     const maxAttempts = (retryConfig?.count ?? 0) + 1;
 
-    // Abort controller: compose timeout + external signal + manual abort
+    // Abort controller: compose timeout + external signal + manual abort.
+    // Abort any still-in-flight controller from a superseded execution first —
+    // overlapping executes (e.g. a watch refresh racing a manual refresh())
+    // would otherwise leave the earlier fetch running, un-cancellable, until it
+    // resolves (only its result is discarded by the executionId guard).
+    currentAbortController?.abort();
     const abortController = new AbortController();
     currentAbortController = abortController;
     let timeoutId: ReturnType<typeof setTimeout> | undefined;

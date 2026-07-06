@@ -138,13 +138,25 @@ const setClass = (el: SSRElement, cls: string): void => {
   el.attributes['class'] = merged;
 };
 
+// A CSS property name: standard kebab-case identifiers or `--custom-props`.
+const SAFE_STYLE_PROP = /^(?:--[\w-]+|-?[a-z][a-z0-9-]*)$/;
+// Characters that would let an untrusted value break out of its declaration and
+// inject additional declarations or rules.
+const UNSAFE_STYLE_VALUE = /[;{}<]/;
+
 const setStyle = (el: SSRElement, declarations: Record<string, unknown>): void => {
   let css = el.attributes['style'] ?? '';
   for (const [prop, val] of Object.entries(declarations)) {
     if (val === undefined || val === null || val === false) continue;
     const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+    const value = String(val);
+    // Drop declarations whose property or value could inject extra CSS
+    // (e.g. a value like `x;} body{display:none`). The value is only
+    // attribute-escaped on serialize, which stops HTML breakout but not the
+    // injection of sibling declarations/rules within the style attribute.
+    if (!SAFE_STYLE_PROP.test(cssProp) || UNSAFE_STYLE_VALUE.test(value)) continue;
     if (css && !css.endsWith(';')) css += '; ';
-    css += `${cssProp}: ${String(val)};`;
+    css += `${cssProp}: ${value};`;
   }
   if (!('style' in el.attributes)) el.attributeOrder.push('style');
   el.attributes['style'] = css;
@@ -194,7 +206,10 @@ const stripDirectiveAttributes = (node: SSRNode, prefix: string): void => {
 };
 
 const setText = (el: SSRElement, value: string): void => {
-  el.children = [{ type: 'text', value }];
+  // Raw-text elements (script/style/textarea/title) are serialized verbatim
+  // by serializeTree, so escape here or a value like `</textarea><script>…`
+  // would break out of the element (XSS).
+  el.children = [{ type: 'text', value: el.raw ? escapeText(value) : value }];
 };
 
 /** Recursively collects `<option>` descendants of a virtual `<select>`. */
@@ -233,10 +248,7 @@ const applyModelToPureElement = (el: SSRElement, value: unknown): void => {
       else removeAttr(el, reflection.name);
       break;
     case 'text':
-      // textarea is a raw-text element, so serializeTree emits its text
-      // children verbatim. Escape the reflected value here or a model value
-      // like `</textarea><script>…` would break out of the element (XSS).
-      setText(el, el.raw ? escapeText(reflection.value) : reflection.value);
+      setText(el, reflection.value);
       break;
     case 'select': {
       const options: SSRElement[] = [];

@@ -135,12 +135,69 @@ export const clearExpressionCache = (): void => {
  * This avoids subscribing to signals that aren't referenced in the expression.
  * @internal
  */
+/**
+ * Identifiers that must never resolve during `with`-scoped evaluation.
+ *
+ * `with` resolves a free identifier via `[[HasProperty]]`, walking the
+ * prototype chain. If the context proxy declines an inherited name, resolution
+ * falls through to the function's enclosing scope — and the global object
+ * itself inherits `constructor` from `Object.prototype` and exposes `Function`,
+ * `eval`, `globalThis`, `window`, etc. So `constructor.constructor('…')()` (or
+ * a bare `Function('…')()`) would still reach arbitrary code execution.
+ *
+ * These names are therefore *shadowed*: the proxy claims to own them (`has`
+ * returns true) but resolves them to `undefined` (`get` returns undefined),
+ * unless the context legitimately defines its own property of that name. Any
+ * member access on the resulting `undefined` throws and evaluates to
+ * `undefined`.
+ * @internal
+ */
+const SHADOWED_GLOBALS = new Set([
+  'constructor',
+  '__proto__',
+  'prototype',
+  'Function',
+  'eval',
+  'globalThis',
+  'global',
+  'window',
+  'self',
+  'top',
+  'parent',
+]);
+
+/**
+ * `has` trap for `with`-scoped evaluation proxies. Reports own string keys and
+ * the shadowed dangerous globals as present so neither resolves from an
+ * inherited prototype member or the enclosing (global) scope.
+ *
+ * Symbol keys keep default behaviour so `with`'s internal `Symbol.unscopables`
+ * probe still works.
+ * @internal
+ */
+const hardenedHas = (target: BindingContext, prop: string | symbol): boolean => {
+  if (typeof prop !== 'string') {
+    return Reflect.has(target, prop);
+  }
+  return Object.prototype.hasOwnProperty.call(target, prop) || SHADOWED_GLOBALS.has(prop);
+};
+
+/**
+ * Returns true when `prop` is a shadowed global the context does not itself own.
+ * @internal
+ */
+const isShadowedGlobal = (target: BindingContext, prop: string): boolean =>
+  SHADOWED_GLOBALS.has(prop) && !Object.prototype.hasOwnProperty.call(target, prop);
+
 const createLazyContext = (context: BindingContext): BindingContext =>
   new Proxy(context, {
     get(target, prop: string | symbol) {
       // Only handle string keys for BindingContext indexing
       if (typeof prop !== 'string') {
         return Reflect.get(target, prop);
+      }
+      if (isShadowedGlobal(target, prop)) {
+        return undefined;
       }
       const value = target[prop];
       // Auto-unwrap signals/computed only when actually accessed
@@ -149,13 +206,24 @@ const createLazyContext = (context: BindingContext): BindingContext =>
       }
       return value;
     },
-    has(target, prop: string | symbol) {
-      // Required for `with` statement to resolve identifiers correctly
-      if (typeof prop !== 'string') {
-        return Reflect.has(target, prop);
+    has: hardenedHas,
+  });
+
+/**
+ * Wraps a raw context so `with`-based evaluation cannot resolve inherited
+ * prototype members or dangerous globals, without unwrapping signals
+ * (unlike {@link createLazyContext}).
+ * @internal
+ */
+const createHardenedContext = (context: BindingContext): BindingContext =>
+  new Proxy(context, {
+    get(target, prop: string | symbol) {
+      if (typeof prop === 'string' && isShadowedGlobal(target, prop)) {
+        return undefined;
       }
-      return prop in target;
+      return Reflect.get(target, prop);
     },
+    has: hardenedHas,
   });
 
 /**
@@ -221,13 +289,15 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
     let fn = evaluateRawCache.get(expression);
     if (!fn) {
       // Use `with` to enable direct property access from context scope.
-      // Unlike `evaluate`, we don't use a lazy proxy - values are accessed directly.
+      // Unlike `evaluate`, we don't unwrap signals — but we still wrap the
+      // context in a hardened proxy so `with` cannot resolve inherited
+      // prototype members (e.g. `constructor.constructor`).
       fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
         ctx: BindingContext
       ) => unknown;
       evaluateRawCache.set(expression, fn);
     }
-    return fn(context) as T;
+    return fn(createHardenedContext(context)) as T;
   } catch (error) {
     console.error(`bQuery view: Error evaluating "${expression}"`, error);
     return undefined as T;
