@@ -121,15 +121,17 @@ describe('utils/function extras', () => {
     expect(calls).toEqual([1, 3]);
   });
 
-  it('debounce(leading: true, trailing: true) keeps a single call for the trailing edge', async () => {
+  it('debounce(leading: true, trailing: true) does not double-invoke a single call (#178)', async () => {
     const calls: number[] = [];
     const fn = debounce((n: number) => calls.push(n), 30, { leading: true, trailing: true });
 
     fn(1);
 
+    // Leading fires immediately; the trailing edge must NOT fire for a single
+    // call (lodash semantics: trailing only when called more than once).
     expect(calls).toEqual([1]);
     await wait(60);
-    expect(calls).toEqual([1, 1]);
+    expect(calls).toEqual([1]);
   });
 
   it('debounce maxWait forces invocation', async () => {
