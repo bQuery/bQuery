@@ -1,9 +1,5 @@
-import {
-  createElementFromHtml,
-  insertContent,
-  sanitizeContent,
-  type InsertableContent,
-} from './dom';
+import { trustedHtmlForSink } from '../security/trusted-types';
+import { createElementFromHtml, insertContent, type InsertableContent } from './dom';
 import { BQueryElement } from './element';
 import { applyAll, getInnerSize, getOuterSize, isHTMLElement, toElementList } from './shared';
 
@@ -226,7 +222,7 @@ export class BQueryCollection {
     if (value === undefined) {
       return this.first()?.innerHTML ?? '';
     }
-    const sanitized = sanitizeContent(value);
+    const sanitized = trustedHtmlForSink(value);
     applyAll(this.elements, (el) => {
       el.innerHTML = sanitized;
     });
@@ -859,7 +855,7 @@ export class BQueryCollection {
   private insertAll(content: InsertableContent, position: InsertPosition): void {
     if (typeof content === 'string') {
       // Sanitize once and reuse for all elements
-      const sanitized = sanitizeContent(content);
+      const sanitized = trustedHtmlForSink(content);
       applyAll(this.elements, (el) => {
         el.insertAdjacentHTML(position, sanitized);
       });
