@@ -14,6 +14,13 @@ export interface EffectInspectionSnapshot {
 const trackedEffects = new Map<symbol, EffectInspectionSnapshot>();
 let effectInspectionEnabled = false;
 
+/**
+ * Upper bound on synchronous self-triggered re-runs of a single effect.
+ * Effects that legitimately write their own dependencies settle within a few
+ * iterations; anything hitting this bound is a cyclic update.
+ */
+const MAX_SYNC_RERUNS = 100;
+
 /** @internal */
 export const __inspectTrackedEffects = (): EffectInspectionSnapshot[] => {
   return [...trackedEffects.values()];
@@ -78,9 +85,7 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     scope._addDisposer(dispose);
   }
 
-  const observer: Observer = () => {
-    if (isDisposed) return;
-
+  const runEffect = (): void => {
     if (effectInspectionEnabled) {
       const snapshot = trackedEffects.get(effectId);
       trackedEffects.set(
@@ -99,9 +104,41 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     } catch (error) {
       console.error('bQuery reactive: Error in effect', error);
     }
+  };
 
-    if (isDisposed) {
-      clearEffectState();
+  let isRunning = false;
+  let reRunRequested = false;
+
+  const observer: Observer = () => {
+    if (isDisposed) return;
+
+    // An effect that writes a signal it also reads re-triggers itself while
+    // still executing. Recursing synchronously would overflow the stack, so
+    // defer the re-run to a bounded loop and warn if it never settles.
+    if (isRunning) {
+      reRunRequested = true;
+      return;
+    }
+
+    isRunning = true;
+    try {
+      let runs = 0;
+      do {
+        reRunRequested = false;
+        runEffect();
+        runs += 1;
+      } while (reRunRequested && !isDisposed && runs < MAX_SYNC_RERUNS);
+
+      if (reRunRequested && !isDisposed) {
+        console.warn(
+          'bQuery reactive: cyclic effect update detected (effect keeps re-triggering itself); further re-runs were skipped'
+        );
+      }
+    } finally {
+      isRunning = false;
+      if (isDisposed) {
+        clearEffectState();
+      }
     }
   };
 

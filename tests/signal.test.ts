@@ -258,6 +258,61 @@ describe('effect', () => {
     expect(latest).toBe(5);
   });
 
+  it('does not overflow the stack when an effect writes a signal it reads (#166)', () => {
+    const count = signal(0);
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => warnings.push(args.map(String).join(' '));
+
+    try {
+      expect(() => {
+        effect(() => {
+          count.value = count.value + 1;
+        });
+      }).not.toThrow();
+      expect(warnings.some((w) => w.includes('cyclic effect update'))).toBe(true);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('lets a self-writing effect settle without warning (#166)', () => {
+    const count = signal(0);
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => warnings.push(args.map(String).join(' '));
+
+    try {
+      effect(() => {
+        if (count.value < 5) {
+          count.value = count.value + 1;
+        }
+      });
+      expect(count.value).toBe(5);
+      expect(warnings).toEqual([]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('guards self-triggering effects inside batch() too (#166)', () => {
+    const count = signal(0);
+    const originalWarn = console.warn;
+    console.warn = () => {};
+
+    try {
+      expect(() => {
+        batch(() => {
+          effect(() => {
+            count.value = count.value + 1;
+          });
+        });
+      }).not.toThrow();
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
   it('returns cleanup function', () => {
     const count = signal(0);
     let runCount = 0;
