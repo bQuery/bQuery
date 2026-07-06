@@ -632,6 +632,23 @@ describe('Store', () => {
     });
   });
 
+  describe('deepClone prototype-pollution guard (#175)', () => {
+    it('does not reassign the clone prototype for an own __proto__ key', async () => {
+      const { deepClone } = await import('../src/store/utils');
+      // JSON.parse produces an own, enumerable `__proto__` data property.
+      const malicious = JSON.parse('{"__proto__":{"polluted":true},"safe":1}') as Record<
+        string,
+        unknown
+      >;
+
+      const cloned = deepClone(malicious);
+
+      expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype);
+      expect((cloned as { safe: number }).safe).toBe(1);
+      expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+    });
+  });
+
   describe('$onAction', () => {
     it('should call the listener before each action', () => {
       const store = createStore<
