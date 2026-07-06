@@ -518,6 +518,12 @@ describe('#164 bq-bind attribute guarding', () => {
             link: 'https://example.com/page',
           }).html;
           expect(html).toContain('href="https://example.com/page"');
+        });
+      });
+    });
+  }
+});
+
 describe('#176 bq-style CSS injection guard', () => {
   for (const backend of BACKENDS) {
     describe(`backend: ${backend}`, () => {
