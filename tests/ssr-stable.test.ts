@@ -477,3 +477,29 @@ describe('#129 resumable boundaries — client resume', () => {
     expect(result.wiredHandlers).toBe(0);
   });
 });
+
+describe('#176 bq-style CSS injection guard', () => {
+  for (const backend of BACKENDS) {
+    describe(`backend: ${backend}`, () => {
+      it('drops style values that try to inject extra declarations', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<div bq-style="styles"></div>', {
+            styles: { width: 'x;} body{display:none' },
+          }).html;
+          expect(html).not.toContain('display:none');
+          expect(html).not.toContain('body{');
+        });
+      });
+
+      it('keeps safe style declarations', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<div bq-style="styles"></div>', {
+            styles: { color: 'red', marginTop: '4px' },
+          }).html;
+          expect(html).toContain('color: red');
+          expect(html).toContain('margin-top: 4px');
+        });
+      });
+    });
+  }
+});

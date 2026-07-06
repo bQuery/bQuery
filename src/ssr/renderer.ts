@@ -137,13 +137,25 @@ const setClass = (el: SSRElement, cls: string): void => {
   el.attributes['class'] = merged;
 };
 
+// A CSS property name: standard kebab-case identifiers or `--custom-props`.
+const SAFE_STYLE_PROP = /^(?:--[\w-]+|-?[a-z][a-z0-9-]*)$/;
+// Characters that would let an untrusted value break out of its declaration and
+// inject additional declarations or rules.
+const UNSAFE_STYLE_VALUE = /[;{}<]/;
+
 const setStyle = (el: SSRElement, declarations: Record<string, unknown>): void => {
   let css = el.attributes['style'] ?? '';
   for (const [prop, val] of Object.entries(declarations)) {
     if (val === undefined || val === null || val === false) continue;
     const cssProp = prop.replace(/([A-Z])/g, '-$1').toLowerCase();
+    const value = String(val);
+    // Drop declarations whose property or value could inject extra CSS
+    // (e.g. a value like `x;} body{display:none`). The value is only
+    // attribute-escaped on serialize, which stops HTML breakout but not the
+    // injection of sibling declarations/rules within the style attribute.
+    if (!SAFE_STYLE_PROP.test(cssProp) || UNSAFE_STYLE_VALUE.test(value)) continue;
     if (css && !css.endsWith(';')) css += '; ';
-    css += `${cssProp}: ${String(val)};`;
+    css += `${cssProp}: ${value};`;
   }
   if (!('style' in el.attributes)) el.attributeOrder.push('style');
   el.attributes['style'] = css;
