@@ -1427,18 +1427,18 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
   });
 
   it('lets an own context property shadow a dangerous global name', () => {
-    expect(evaluate('constructor', { constructor: 'mine' })).toBe('mine');
+    expect(evaluate<string>('constructor', { constructor: 'mine' })).toBe('mine');
   });
 
   it('still resolves own context properties', () => {
-    expect(evaluate('a + b', { a: 2, b: 3 })).toBe(5);
+    expect(evaluate<number>('a + b', { a: 2, b: 3 })).toBe(5);
   });
 
   it('still allows method calls on context values (inherited on the value, not the context)', () => {
-    expect(evaluate('name.toUpperCase()', { name: 'ada' })).toBe('ADA');
+    expect(evaluate<string>('name.toUpperCase()', { name: 'ada' })).toBe('ADA');
   });
 
   it('resolves own properties that shadow prototype names', () => {
-    expect(evaluate('hasOwnProperty', { hasOwnProperty: 42 })).toBe(42);
+    expect(evaluate<number>('hasOwnProperty', { hasOwnProperty: 42 })).toBe(42);
   });
 });
