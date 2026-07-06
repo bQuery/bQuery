@@ -1,6 +1,10 @@
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { isComputed, isSignal, type Signal } from '../reactive/index';
+import { hasDangerousMemberAccess } from './dangerous-access';
 import type { BindingContext } from './types';
+
+/** A cached compiled function that always evaluates to `undefined`. */
+const BLOCKED_FN: (ctx: BindingContext) => unknown = () => undefined;
 
 /** Maximum number of cached expression functions before LRU eviction */
 const MAX_CACHE_SIZE = 500;
@@ -255,11 +259,21 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
     // Use cached function or compile and cache a new one
     let fn = evaluateCache.get(expression);
     if (!fn) {
-      // Use `with` to enable direct property access from proxy scope.
-      // Note: `new Function()` runs in non-strict mode, so `with` is allowed.
-      fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
-        ctx: BindingContext
-      ) => unknown;
+      // Block member access to constructor/prototype/__proto__: identifier
+      // shadowing alone does not stop `foo.constructor.constructor('…')()`
+      // reaching the Function constructor through any reachable object.
+      if (hasDangerousMemberAccess(expression)) {
+        console.error(
+          `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
+        );
+        fn = BLOCKED_FN;
+      } else {
+        // Use `with` to enable direct property access from proxy scope.
+        // Note: `new Function()` runs in non-strict mode, so `with` is allowed.
+        fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
+          ctx: BindingContext
+        ) => unknown;
+      }
       evaluateCache.set(expression, fn);
     }
     return fn(lazyContext) as T;
@@ -288,13 +302,21 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
     // Use cached function or compile and cache a new one
     let fn = evaluateRawCache.get(expression);
     if (!fn) {
-      // Use `with` to enable direct property access from context scope.
-      // Unlike `evaluate`, we don't unwrap signals — but we still wrap the
-      // context in a hardened proxy so `with` cannot resolve inherited
-      // prototype members (e.g. `constructor.constructor`).
-      fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
-        ctx: BindingContext
-      ) => unknown;
+      // Block member access to constructor/prototype/__proto__ — see evaluate().
+      if (hasDangerousMemberAccess(expression)) {
+        console.error(
+          `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
+        );
+        fn = BLOCKED_FN;
+      } else {
+        // Use `with` to enable direct property access from context scope.
+        // Unlike `evaluate`, we don't unwrap signals — but we still wrap the
+        // context in a hardened proxy so `with` cannot resolve inherited
+        // prototype members (e.g. `constructor.constructor`).
+        fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
+          ctx: BindingContext
+        ) => unknown;
+      }
       evaluateRawCache.set(expression, fn);
     }
     return fn(createHardenedContext(context)) as T;

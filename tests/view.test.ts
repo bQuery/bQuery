@@ -1499,4 +1499,25 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
   it('resolves own properties that shadow prototype names', () => {
     expect(evaluate<number>('hasOwnProperty', { hasOwnProperty: 42 })).toBe(42);
   });
+
+  it('blocks the object-member escape via a reachable context value (#202)', () => {
+    console.error = () => {};
+    // `foo` is a legit own context value, but `foo.constructor.constructor`
+    // reaches Function without resolving a bare identifier — must be blocked.
+    expect(evaluate("items.constructor.constructor('return 2')()", { items: [] })).toBeUndefined();
+    expect(evaluateRaw("items.constructor.constructor('return 2')()", { items: [] })).toBeUndefined();
+    expect(evaluate("name.constructor('return 2')()", { name: 'x' })).toBeUndefined();
+  });
+
+  it('blocks optional-chaining and bracket member escapes (#202)', () => {
+    console.error = () => {};
+    expect(evaluate("items?.constructor?.constructor('x')()", { items: [] })).toBeUndefined();
+    expect(evaluate("items['constructor']['constructor']('x')()", { items: [] })).toBeUndefined();
+    expect(evaluate('items.__proto__', { items: [] })).toBeUndefined();
+  });
+
+  it('still allows non-dangerous member chains on context values (#202)', () => {
+    expect(evaluate<number>('user.profile.age', { user: { profile: { age: 30 } } })).toBe(30);
+    expect(evaluate<string>('items[0].name', { items: [{ name: 'ada' }] })).toBe('ada');
+  });
 });

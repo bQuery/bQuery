@@ -78,6 +78,12 @@ export const createTrustedHtml = (html: string): TrustedHTML | string => {
  * The declared return type is `string` for ergonomic assignment to DOM sink
  * setters (whose lib types expect `string`); at runtime under enforced Trusted
  * Types the returned value is the `TrustedHTML` object the browser accepts.
+ *
+ * @example
+ * ```ts
+ * // Safe under an enforced `require-trusted-types-for 'script'` CSP.
+ * element.innerHTML = trustedHtmlForSink('<strong>Hello</strong>');
+ * ```
  */
 export const trustedHtmlForSink = (rawHtml: string): string =>
   createTrustedHtml(rawHtml) as unknown as string;

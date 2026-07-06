@@ -4,7 +4,6 @@
  */
 
 import { detectDevEnvironment } from '../core/env';
-import { isPrototypePollutionKey } from '../core/utils/object';
 
 /**
  * Check if a value is a plain object (not array, null, Date, etc.).
@@ -43,11 +42,23 @@ export const deepClone = <T>(obj: T): T => {
 
   const cloned = {} as T;
   for (const key of Object.keys(obj)) {
-    // Skip prototype-pollution keys: an own enumerable `__proto__` (e.g. from
-    // JSON.parse('{"__proto__":{…}}')) would otherwise trigger the setter and
-    // reassign the clone's prototype instead of copying a data property.
-    if (isPrototypePollutionKey(key)) continue;
-    (cloned as Record<string, unknown>)[key] = deepClone((obj as Record<string, unknown>)[key]);
+    const value = deepClone((obj as Record<string, unknown>)[key]);
+    if (key === '__proto__') {
+      // Only `__proto__` is dangerous here: plain assignment triggers the
+      // accessor and reassigns the clone's prototype (e.g. from
+      // JSON.parse('{"__proto__":{…}}')). Define it as a real own data property
+      // instead, preserving the value without polluting the prototype.
+      // `constructor` / `prototype` are ordinary own data keys and are copied
+      // normally below — they do not reassign anything.
+      Object.defineProperty(cloned, key, {
+        value,
+        enumerable: true,
+        writable: true,
+        configurable: true,
+      });
+    } else {
+      (cloned as Record<string, unknown>)[key] = value;
+    }
   }
   return cloned;
 };

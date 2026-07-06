@@ -16,6 +16,7 @@
  * @module bquery/view/compiler
  */
 
+import { hasDangerousMemberAccess } from '../dangerous-access';
 import type { CompiledExpression } from './types';
 
 /** Default context parameter name — unlikely to collide with author vars. */
@@ -141,9 +142,13 @@ const scanStringLiteral = (src: string, start: number): number => {
  * fraction/exponent), hex, octal, or binary, each allowing `_` separators
  * between digits. Used to reject runs like `1ex` that {@link scanNumericLiteral}
  * would otherwise consume and emit as invalid code.
+ *
+ * The decimal integer part is `0` or a non-zero-leading run, so legacy
+ * leading-zero forms (`007`, `01.5`) are rejected — they are SyntaxErrors in
+ * strict/module code and the emitted module is an ES module.
  */
 const NUMERIC_LITERAL_RE =
-  /^(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|0[oO][0-7](?:_?[0-7])*|0[bB][01](?:_?[01])*|(?:\d(?:_?\d)*)(?:\.(?:\d(?:_?\d)*)?)?(?:[eE][+-]?\d(?:_?\d)*)?|\.\d(?:_?\d)*(?:[eE][+-]?\d(?:_?\d)*)?)$/;
+  /^(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|0[oO][0-7](?:_?[0-7])*|0[bB][01](?:_?[01])*|(?:0|[1-9](?:_?\d)*)(?:\.(?:\d(?:_?\d)*)?)?(?:[eE][+-]?\d(?:_?\d)*)?|\.\d(?:_?\d)*(?:[eE][+-]?\d(?:_?\d)*)?)$/;
 
 /**
  * Scans a numeric literal (hex/float/exponent/separators) starting at `start`,
@@ -398,6 +403,13 @@ export const compileExpression = (
   const trimmed = expression.trim();
   if (trimmed === '') {
     return { ok: false, expression, reason: 'empty expression' };
+  }
+
+  // Refuse member access to constructor/prototype/__proto__ so the emitted
+  // module can never carry a `foo.constructor.constructor('…')()` escape. Such
+  // expressions fall back to the runtime evaluator, which blocks them too.
+  if (hasDangerousMemberAccess(trimmed)) {
+    return { ok: false, expression, reason: 'dangerous member access' };
   }
 
   try {

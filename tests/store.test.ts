@@ -663,6 +663,23 @@ describe('Store', () => {
       expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype);
       expect((cloned as { safe: number }).safe).toBe(1);
       expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+      // `__proto__` is preserved as an own data property (not dropped, not
+      // applied to the prototype).
+      expect(Object.prototype.hasOwnProperty.call(cloned, '__proto__')).toBe(true);
+    });
+
+    it('preserves own data properties named constructor / prototype', async () => {
+      const { deepClone } = await import('../src/store/utils');
+      const source = { constructor: 'ctor', prototype: { a: 1 }, other: 2 };
+
+      const cloned = deepClone(source);
+
+      expect(cloned.constructor).toBe('ctor');
+      expect(cloned.prototype).toEqual({ a: 1 });
+      expect(cloned.prototype).not.toBe(source.prototype); // deep-cloned
+      expect(cloned.other).toBe(2);
+      // A genuine constructor field must not corrupt the clone's real prototype.
+      expect(Object.getPrototypeOf(cloned)).toBe(Object.prototype);
     });
   });
 

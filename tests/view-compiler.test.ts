@@ -101,6 +101,15 @@ describe('compileExpression — conservative bail-outs (#138)', () => {
     bail('');
   });
 
+  it('bails on member access to constructor/prototype/__proto__ (#202)', () => {
+    bail("foo.constructor.constructor('return 2')()");
+    bail('foo?.constructor');
+    bail("foo['prototype']");
+    bail('foo.__proto__');
+    // Non-dangerous member chains still compile.
+    expect(compileExpression('user.profile.name').ok).toBe(true);
+  });
+
   it('bails on unterminated string literals instead of emitting broken code (#170)', () => {
     bail("'oops");
     bail('"unclosed');
@@ -114,8 +123,12 @@ describe('compileExpression — conservative bail-outs (#138)', () => {
     bail('1ex');
     bail('1e');
     bail('0xG1');
+    // Legacy leading-zero forms are SyntaxErrors in strict/module code.
+    bail('007');
+    bail('01.5');
+    bail('00');
     // Valid numerics still compile.
-    for (const n of ['1', '1.5', '0xFF', '1e3', '1_000', '.5', '0b1010']) {
+    for (const n of ['0', '1', '1.5', '0.5', '0xFF', '1e3', '1_000', '.5', '0b1010', '5.']) {
       const r = compileExpression(n);
       expect(r.ok).toBe(true);
     }
