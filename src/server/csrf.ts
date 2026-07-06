@@ -33,9 +33,11 @@ export interface CsrfOptions {
   /** Form/JSON body field carrying the token when no header is present. Default `'_csrf'`. */
   fieldName?: string;
   /**
-   * Cookie attributes. Defaults to `{ sameSite: 'lax', path: '/' }`. The cookie
-   * is readable by client JS by default (plain double-submit); set
+   * Cookie attributes. Defaults to `{ sameSite: 'lax', path: '/', secure: true }`.
+   * The cookie is readable by client JS by default (plain double-submit); set
    * `httpOnly: true` only when you deliver the token out-of-band (signed mode).
+   * `secure` defaults to `true` (in signed mode the token embeds the raw
+   * secret); set `secure: false` for local HTTP dev.
    */
   cookie?: ServerCookieOptions;
   /** HTTP methods that skip verification. Default `['GET', 'HEAD', 'OPTIONS']`. */
@@ -160,6 +162,9 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
     sameSite: 'lax',
     path: '/',
     ...options.cookie,
+    // In signed mode the token embeds the raw secret, so default `Secure` to
+    // keep it off plaintext HTTP. Opt out explicitly for local HTTP dev.
+    secure: options.cookie?.secure ?? true,
   };
 
   const tokenFor = async (secret: string): Promise<string> =>
