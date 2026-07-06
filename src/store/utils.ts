@@ -4,6 +4,7 @@
  */
 
 import { detectDevEnvironment } from '../core/env';
+import { isPrototypePollutionKey } from '../core/utils/object';
 
 /**
  * Check if a value is a plain object (not array, null, Date, etc.).
@@ -42,6 +43,10 @@ export const deepClone = <T>(obj: T): T => {
 
   const cloned = {} as T;
   for (const key of Object.keys(obj)) {
+    // Skip prototype-pollution keys: an own enumerable `__proto__` (e.g. from
+    // JSON.parse('{"__proto__":{…}}')) would otherwise trigger the setter and
+    // reassign the clone's prototype instead of copying a data property.
+    if (isPrototypePollutionKey(key)) continue;
     (cloned as Record<string, unknown>)[key] = deepClone((obj as Record<string, unknown>)[key]);
   }
   return cloned;
