@@ -1,4 +1,5 @@
 import { sanitizeHtml } from '../security/sanitize';
+import { trustedHtmlForSink } from '../security/trusted-types';
 import { applyAll, toElementList } from './shared';
 
 export type InsertableContent = string | Element | Element[];
@@ -6,12 +7,12 @@ export type InsertableContent = string | Element | Element[];
 export const sanitizeContent = (html: string): string => sanitizeHtml(html);
 
 export const setHtml = (element: Element, html: string): void => {
-  element.innerHTML = sanitizeHtml(html);
+  element.innerHTML = trustedHtmlForSink(html);
 };
 
 export const createElementFromHtml = (html: string): Element => {
   const template = document.createElement('template');
-  template.innerHTML = sanitizeHtml(html);
+  template.innerHTML = trustedHtmlForSink(html);
   return template.content.firstElementChild ?? document.createElement('div');
 };
 
@@ -21,7 +22,7 @@ export const insertContent = (
   position: InsertPosition
 ): void => {
   if (typeof content === 'string') {
-    target.insertAdjacentHTML(position, sanitizeHtml(content));
+    target.insertAdjacentHTML(position, trustedHtmlForSink(content));
     return;
   }
 

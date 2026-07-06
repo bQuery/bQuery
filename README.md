@@ -16,8 +16,6 @@
 
 ---
 
-> **New in 1.14.2:** Dev-dependency maintenance — TypeScript-ESLint, ESLint, Vite, and related toolchain packages updated; Bun bumped to 1.3.14; Dependabot added for automated future updates. No public API changes.
-
 ## Highlights
 
 - **Full-stack by default**: signals, SSR, routing, server middleware, Web Components, and 15+ modules ship together — use only what you need, or bring everything.
@@ -919,10 +917,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full |
-| Firefox | 90+     | ✅ Full |
-| Safari  | 15+     | ✅ Full |
-| Edge    | 90+     | ✅ Full |
+| Chrome  | 90+     | ✅ Full  |
+| Firefox | 90+     | ✅ Full  |
+| Safari  | 15+     | ✅ Full  |
+| Edge    | 90+     | ✅ Full  |
 
 > **No IE support** by design.
 >

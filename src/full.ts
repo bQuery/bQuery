@@ -561,6 +561,7 @@ export {
   sanitizeHtml,
   stripTags,
   trusted,
+  trustedHtmlForSink,
 } from './security/index';
 export type { SanitizedHtml, SanitizeOptions, TrustedHtml } from './security/index';
 

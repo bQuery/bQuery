@@ -477,3 +477,110 @@ describe('#129 resumable boundaries — client resume', () => {
     expect(result.wiredHandlers).toBe(0);
   });
 });
+
+describe('#164 bq-bind attribute guarding', () => {
+  for (const backend of BACKENDS) {
+    describe(`backend: ${backend}`, () => {
+      it('drops javascript: URLs bound to href', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<a bq-bind:href="link">x</a>', {
+            link: 'javascript:alert(document.cookie)',
+          }).html;
+          expect(html).not.toContain('javascript:');
+        });
+      });
+
+      it('never emits on* attributes via bq-bind', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<div bq-bind:onclick="h">x</div>', {
+            h: 'alert(1)',
+          }).html;
+          // The bq-bind:onclick directive attribute may remain for hydration,
+          // but a live onclick attribute must never be emitted.
+          expect(html).not.toMatch(/ onclick=/);
+          expect(html).not.toContain('alert(1)');
+        });
+      });
+
+      it('sanitizes srcdoc bound to an iframe', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<iframe bq-bind:srcdoc="msg"></iframe>', {
+            msg: '<script>alert(1)</script><p>ok</p>',
+          }).html;
+          expect(html).not.toContain('alert(1)');
+          expect(html).toContain('ok');
+        });
+      });
+
+      it('keeps safe bound URLs intact', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<a bq-bind:href="link">x</a>', {
+            link: 'https://example.com/page',
+          }).html;
+          expect(html).toContain('href="https://example.com/page"');
+        });
+      });
+    });
+  }
+});
+
+describe('#176 bq-style CSS injection guard', () => {
+  for (const backend of BACKENDS) {
+    describe(`backend: ${backend}`, () => {
+      it('drops style values that try to inject extra declarations', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<div bq-style="styles"></div>', {
+            styles: { width: 'x;} body{display:none' },
+          }).html;
+          expect(html).not.toContain('display:none');
+          expect(html).not.toContain('body{');
+        });
+      });
+
+      it('keeps safe style declarations', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<div bq-style="styles"></div>', {
+            styles: { color: 'red', marginTop: '4px' },
+          }).html;
+          expect(html).toContain('color: red');
+          expect(html).toContain('margin-top: 4px');
+        });
+      });
+    });
+  }
+});
+
+describe('#163 bq-text escaping on raw-text elements', () => {
+  for (const backend of BACKENDS) {
+    describe(`backend: ${backend}`, () => {
+      it('escapes bq-text values inside <textarea>', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<textarea bq-text="msg"></textarea>', {
+            msg: '</textarea><img src=x onerror=alert(1)>',
+          }).html;
+          expect(html).not.toContain('<img');
+          expect(html).toContain('&lt;/textarea&gt;');
+        });
+      });
+
+      it('escapes bq-text values inside <title>', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<title bq-text="msg"></title>', {
+            msg: '</title><script>alert(1)</script>',
+          }).html;
+          expect(html).not.toContain('<script>');
+        });
+      });
+
+      it('leaves bq-text on normal elements escaped exactly once', () => {
+        withBackend(backend, () => {
+          const html = renderToString('<p bq-text="msg"></p>', {
+            msg: '<b>&amp;</b>',
+          }).html;
+          expect(html).toContain('&lt;b&gt;');
+          expect(html).not.toContain('&amp;amp;amp;');
+        });
+      });
+    });
+  }
+});

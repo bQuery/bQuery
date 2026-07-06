@@ -154,7 +154,10 @@ export const createStore = <
     }
 
     const currentState = getCurrentState();
-    for (const callback of subscribers) {
+    // Iterate a snapshot: a callback may unsubscribe (splice) during
+    // notification, which would shift indices under a live iterator and
+    // silently skip the next subscriber. Mirrors the $onAction guard.
+    for (const callback of [...subscribers]) {
       callback(currentState);
     }
 

@@ -128,6 +128,13 @@ export const DANGEROUS_TAGS = new Set([
 /**
  * Reserved IDs that could cause DOM clobbering attacks.
  * These are prevented to avoid overwriting global browser objects.
+ *
+ * This is defense-in-depth, not a complete guarantee: named-property access
+ * on `window`/`document`/`HTMLFormElement` can be clobbered by arbitrary
+ * `id`/`name` values, so this denylist only blocks the highest-value targets.
+ * For fully untrusted content prefer dropping `id`/`name` entirely (or
+ * namespacing them). Duplicate-`id` HTMLCollection clobbering is additionally
+ * mitigated in `sanitize-core.ts`.
  */
 export const RESERVED_IDS = new Set([
   // Global objects
@@ -141,31 +148,73 @@ export const RESERVED_IDS = new Set([
   'history',
   'navigator',
   'screen',
+  'globalthis',
+  'defaultview',
+  'opener',
+  'length',
+  'origin',
+  'name',
   // Dangerous functions
   'alert',
   'confirm',
   'prompt',
   'eval',
   'function',
-  // Document properties
+  // Document properties / methods
   'cookie',
   'domain',
   'referrer',
   'body',
   'head',
+  'title',
   'forms',
   'images',
   'links',
   'scripts',
+  'anchors',
+  'embeds',
+  'plugins',
+  'implementation',
+  'documentelement',
+  'activeelement',
+  'getelementbyid',
+  'getelementsbyname',
+  'getelementsbytagname',
+  'getelementsbyclassname',
+  'queryselector',
+  'queryselectorall',
+  'createelement',
+  'write',
+  'writeln',
+  // Node / Element properties
+  'attributes',
+  'nodename',
+  'nodetype',
+  'nodevalue',
+  'ownerdocument',
+  'classlist',
+  'dataset',
+  'style',
+  'id',
   // DOM traversal properties
   'children',
+  'childnodes',
   'parentnode',
+  'parentelement',
   'firstchild',
   'lastchild',
+  'firstelementchild',
+  'lastelementchild',
+  'nextsibling',
+  'previoussibling',
+  'nextelementsibling',
+  'previouselementsibling',
   // Content manipulation
   'innerhtml',
   'outerhtml',
+  'innertext',
   'textcontent',
+  'insertadjacenthtml',
 ]);
 
 /**

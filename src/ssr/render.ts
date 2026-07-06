@@ -8,10 +8,11 @@
  * @module bquery/ssr
  */
 
-import { isComputed, isSignal, type Signal } from '../reactive/index';
+import { checkBoundAttribute } from '../security/bind-guard';
 import { DANGEROUS_PROTOCOLS } from '../security/constants';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
+import { evaluateExpression } from './expression';
 import {
   classifyUnsupportedDirective,
   collectOnEvents,
@@ -123,79 +124,17 @@ const serializeSSRNode = (node: Node): string => {
 };
 
 /**
- * Unwraps a value — if it's a signal/computed, returns `.value`, otherwise returns as-is.
- * @internal
- */
-const unwrap = (value: unknown): unknown => {
-  if (isSignal(value) || isComputed(value)) {
-    return (value as Signal<unknown>).value;
-  }
-  return value;
-};
-
-/**
- * Evaluates a simple expression against a context.
- * Supports dot-notation property access, negation, ternary, and basic comparisons.
- * Unlike the view module's `evaluate()`, this does NOT use `new Function()` —
- * it uses a safe subset for SSR to avoid `unsafe-eval` in server environments.
+ * Evaluates a template expression against a context.
  *
- * Falls back to `new Function()` for complex expressions.
+ * Delegates to the CSP-safe Pratt-parser evaluator shared with the pure
+ * renderer (`expression.ts`): no `eval`/`new Function()` fallback, and member
+ * access is guarded against prototype-chain lookups (`constructor`,
+ * `__proto__`, …). Unsupported expressions evaluate to `undefined`.
  *
  * @internal
  */
-const evaluateSSR = <T = unknown>(expression: string, context: BindingContext): T => {
-  const trimmed = expression.trim();
-
-  // Handle negation: !expr
-  if (trimmed.startsWith('!')) {
-    return !evaluateSSR(trimmed.slice(1).trim(), context) as T;
-  }
-
-  // Handle string literals
-  if (
-    (trimmed.startsWith("'") && trimmed.endsWith("'")) ||
-    (trimmed.startsWith('"') && trimmed.endsWith('"'))
-  ) {
-    return trimmed.slice(1, -1) as T;
-  }
-
-  // Handle numeric literals
-  if (/^-?\d+(\.\d+)?$/.test(trimmed)) {
-    return Number(trimmed) as T;
-  }
-
-  // Handle boolean literals
-  if (trimmed === 'true') return true as T;
-  if (trimmed === 'false') return false as T;
-  if (trimmed === 'null') return null as T;
-  if (trimmed === 'undefined') return undefined as T;
-
-  // Handle dot-notation property access: a.b.c
-  if (/^[\w$]+(?:\.[\w$]+)*$/.test(trimmed)) {
-    const parts = trimmed.split('.');
-    let current: unknown = context;
-    for (const part of parts) {
-      if (current == null) return undefined as T;
-      // First level: unwrap signals
-      if (current === context) {
-        current = unwrap((current as Record<string, unknown>)[part]);
-      } else {
-        current = (current as Record<string, unknown>)[part];
-      }
-    }
-    return current as T;
-  }
-
-  // For complex expressions, fall back to Function-based evaluation
-  try {
-    const keys = Object.keys(context);
-    const values = keys.map((k) => unwrap(context[k]));
-    const fn = new Function(...keys, `return (${trimmed});`);
-    return fn(...values) as T;
-  } catch {
-    return undefined as T;
-  }
-};
+const evaluateSSR = <T = unknown>(expression: string, context: BindingContext): T =>
+  evaluateExpression<T>(expression, context);
 
 /**
  * Parses a `bq-for` expression like `item in items` or `(item, index) in items`.
@@ -417,7 +356,8 @@ const processSSRElement = (
     }
   }
 
-  // Handle bq-bind:attr — set arbitrary attributes
+  // Handle bq-bind:attr — set arbitrary attributes. Bound values are runtime
+  // data; guard handler/URL/srcdoc sinks before writing.
   const attrs = Array.from(el.attributes);
   for (const attr of attrs) {
     if (attr.name.startsWith(`${prefix}-bind:`)) {
@@ -425,11 +365,18 @@ const processSSRElement = (
       const value = evaluateSSR(attr.value, context);
       if (value === false || value === null || value === undefined) {
         el.removeAttribute(attrName);
-      } else if (value === true) {
-        el.setAttribute(attrName, '');
-      } else {
-        el.setAttribute(attrName, String(value));
+        continue;
       }
+      const stringValue = value === true ? '' : String(value);
+      const verdict = checkBoundAttribute(attrName, stringValue);
+      if (verdict === 'drop') {
+        el.removeAttribute(attrName);
+        continue;
+      }
+      el.setAttribute(
+        attrName,
+        verdict === 'sanitize-html' ? sanitizeHtmlForSSR(stringValue) : stringValue
+      );
     }
   }
 

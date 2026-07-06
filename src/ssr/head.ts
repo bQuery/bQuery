@@ -112,7 +112,10 @@ export const createHeadManager = (): HeadManager => {
     let html = '';
     if (state.title !== null) {
       const formatted = state.titleTemplate
-        ? state.titleTemplate.replace(/%s/g, state.title)
+        ? // Use a replacer function so the title is inserted literally — a bare
+          // replacement string would interpret `$&`/`$1`/`` $` ``/`$'` in the
+          // title as special replacement patterns and mangle the output.
+          state.titleTemplate.replace(/%s/g, () => state.title as string)
         : state.title;
       html += `<title>${escapeText(formatted)}</title>`;
     }

@@ -16,6 +16,7 @@
  * @module bquery/view/compiler
  */
 
+import { hasDangerousMemberAccess } from '../dangerous-access';
 import type { CompiledExpression } from './types';
 
 /** Default context parameter name — unlikely to collide with author vars. */
@@ -115,7 +116,12 @@ class Bail extends Error {}
 /**
  * Scans a single/double-quoted string literal starting at `start` (the opening
  * quote), respecting backslash escapes. Returns the index past the closing
- * quote (or end of input).
+ * quote.
+ *
+ * Bails (falls back to the runtime evaluator) on an unterminated literal so a
+ * malformed expression is never copied verbatim into the emitted module — one
+ * broken entry would otherwise throw at import and take down every precompiled
+ * expression in the file.
  */
 const scanStringLiteral = (src: string, start: number): number => {
   const quote = src[start];
@@ -124,8 +130,25 @@ const scanStringLiteral = (src: string, start: number): number => {
     if (src[i] === '\\') i += 1;
     i += 1;
   }
+  // Reaching end-of-input without the matching quote means it was never closed.
+  if (i >= src.length || src[i] !== quote) {
+    throw new Bail('unterminated string literal');
+  }
   return i + 1;
 };
+
+/**
+ * A valid JS numeric literal in the supported subset: decimal (with optional
+ * fraction/exponent), hex, octal, or binary, each allowing `_` separators
+ * between digits. Used to reject runs like `1ex` that {@link scanNumericLiteral}
+ * would otherwise consume and emit as invalid code.
+ *
+ * The decimal integer part is `0` or a non-zero-leading run, so legacy
+ * leading-zero forms (`007`, `01.5`) are rejected — they are SyntaxErrors in
+ * strict/module code and the emitted module is an ES module.
+ */
+const NUMERIC_LITERAL_RE =
+  /^(?:0[xX][0-9a-fA-F](?:_?[0-9a-fA-F])*|0[oO][0-7](?:_?[0-7])*|0[bB][01](?:_?[01])*|(?:0|[1-9](?:_?\d)*)(?:\.(?:\d(?:_?\d)*)?)?(?:[eE][+-]?\d(?:_?\d)*)?|\.\d(?:_?\d)*(?:[eE][+-]?\d(?:_?\d)*)?)$/;
 
 /**
  * Scans a numeric literal (hex/float/exponent/separators) starting at `start`,
@@ -237,7 +260,12 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
     if (isDigit(c) || (c === '.' && isDigit(src[i + 1]))) {
       const start = i;
       i = scanNumericLiteral(src, i);
-      out += src.slice(start, i);
+      const literal = src.slice(start, i);
+      // Reject invalid runs (e.g. `1ex`) rather than emitting unparsable code.
+      if (!NUMERIC_LITERAL_RE.test(literal)) {
+        throw new Bail('invalid numeric literal');
+      }
+      out += literal;
       prev = '0';
       continue;
     }
@@ -375,6 +403,13 @@ export const compileExpression = (
   const trimmed = expression.trim();
   if (trimmed === '') {
     return { ok: false, expression, reason: 'empty expression' };
+  }
+
+  // Refuse member access to constructor/prototype/__proto__ so the emitted
+  // module can never carry a `foo.constructor.constructor('…')()` escape. Such
+  // expressions fall back to the runtime evaluator, which blocks them too.
+  if (hasDangerousMemberAccess(trimmed)) {
+    return { ok: false, expression, reason: 'dangerous member access' };
   }
 
   try {

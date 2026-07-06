@@ -9,6 +9,9 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+  - [\[1.15.1\] - 2026-07-06](#1151---2026-07-06)
+    - [Security (1.15.1)](#security-1151)
+    - [Fixed (1.15.1)](#fixed-1151)
   - [\[1.15.0\] - 2026-06-30](#1150---2026-06-30)
     - [Added (1.15.0)](#added-1150)
     - [Changed (1.15.0)](#changed-1150)
@@ -94,6 +97,36 @@ and this project adheres to Semantic Versioning.
 ## [Unreleased]
 
 _Nothing yet._
+
+## [1.15.1] - 2026-07-06
+
+A security-and-correctness patch closing the findings of a full-codebase audit. No breaking changes and no module status transitions — every entry is a fix on the 1.15.0 surface. Three small, backwards-compatible additions are noted inline with the fixes that introduced them (the `trustedHtmlForSink` helper, the `effectScope(detached)` parameter, and a `dispose()` method on `deferred()`'s handle).
+
+### Security (1.15.1)
+
+- **`@bquery/bquery/security`** — the anti-mutation-XSS fallback in `sanitizeHtml` returned raw, un-escaped `textContent` when the serialize→re-parse stability check failed. Because every HTML sink (`$el.html()`, `.append()`/`.before()`/`.after()`, the default-sanitized `bq-html`) assigns that result to `innerHTML`, an entity-encoded payload combined with a foster-parenting construct could smuggle live markup through the defense meant to stop it. The fallback is now HTML-escaped ([#162](https://github.com/bQuery/bQuery/issues/162)).
+- **`@bquery/bquery/ssr`** — `bq-text` on raw-text elements (`textarea`, `title`) is now escaped in the default DOM-free renderer. Raw-text children are serialized verbatim, so an untrusted value such as `</textarea><img onerror=…>` could break out of the element (stored XSS) — the escaping now mirrors the existing `bq-model` handling ([#163](https://github.com/bQuery/bQuery/issues/163)).
+- **`@bquery/bquery/view` + `@bquery/bquery/ssr`** — `bq-bind` now guards runtime-bound attribute values via a shared `src/security/bind-guard.ts`: inline `on*` handlers are never written, URL attributes (`href`, `src`, `xlink:href`, `formaction`, `action`, `poster`, `background`, `cite`, `data`) and `srcset` reject dangerous protocols, and `srcdoc` is treated as an HTML sink (sanitized). Applied consistently to the client directive and both SSR backends ([#164](https://github.com/bQuery/bQuery/issues/164)).
+- **`@bquery/bquery/view`** — the `with`-scoped runtime evaluator no longer resolves inherited members or globals, closing a `constructor.constructor('…')()` (and bare `Function('…')()`) code-execution path. The proxy now shadows a denylist (`constructor`, `__proto__`, `prototype`, `Function`, `eval`, `globalThis`, `window`, `self`, …) for both `evaluate` and `evaluateRaw`; own context properties, arithmetic, and method calls on values are unaffected ([#168](https://github.com/bQuery/bQuery/issues/168)).
+- **`@bquery/bquery/ssr`** — the DOM-backed evaluator now routes through the CSP-safe Pratt parser shared with the pure renderer, removing the `new Function()` fallback (`'unsafe-eval'`) and a prototype-lookup gap (`constructor.constructor` reachability). Evaluator behaviour is now unified across both SSR backends ([#167](https://github.com/bQuery/bQuery/issues/167)).
+- **`@bquery/bquery/server`** — the session-id cookie and the CSRF secret cookie now default to `Secure`, keeping these bearer credentials off plaintext HTTP. Opt out explicitly with `cookie: { secure: false }` for local HTTP dev ([#169](https://github.com/bQuery/bQuery/issues/169)).
+- **`@bquery/bquery/security`** — Trusted Types are now wired into the framework's HTML sinks. The new `trustedHtmlForSink()` helper (also re-exported from `/full`) returns a `TrustedHTML` object when a policy is active — so writes satisfy an enforced `require-trusted-types-for 'script'` CSP instead of throwing — and the sanitized string otherwise. `setHtml`, `Collection.html()`/insert paths, `bq-html`, and `bq-html-safe` route through it ([#171](https://github.com/bQuery/bQuery/issues/171)).
+- **`@bquery/bquery/ssr`** — `bq-style` declarations are validated in the pure renderer before concatenation: property names must be valid CSS identifiers and values containing `;`, `{`, `}`, or `<` are dropped, preventing injection of extra declarations/rules (UI-redress, exfiltration) from untrusted style objects ([#176](https://github.com/bQuery/bQuery/issues/176)).
+- **`@bquery/bquery/security`** — DOM-clobbering defenses strengthened: the reserved-`id`/`name` denylist is expanded with the many missing high-value targets (`attributes`, `nodeName`, `getElementById`, `defaultView`, `implementation`, DOM-traversal properties, …) and duplicate `id`s within a sanitized fragment are now stripped, mitigating the classic HTMLCollection-clobbering vector. Documented as defense-in-depth ([#179](https://github.com/bQuery/bQuery/issues/179)).
+- **`@bquery/bquery/i18n`** — placeholder and message-key resolution now use own-property checks, so a placeholder or key colliding with an `Object.prototype` member (`toString`, `constructor`, …) is left intact rather than substituted with the inherited value ([#174](https://github.com/bQuery/bQuery/issues/174)).
+- **`@bquery/bquery/store`** — `deepClone` (used by `$patchDeep`) now skips prototype-pollution keys, so an own enumerable `__proto__` (e.g. from `JSON.parse`) no longer triggers the setter and reassigns the clone's prototype ([#175](https://github.com/bQuery/bQuery/issues/175)).
+- **`@bquery/bquery/server`** — file-route loader (JSON) endpoints now default their middleware to the action middleware chain. Protecting mutations with `middlewares: [auth]` no longer accidentally exposes every route's `load()` output as unauthenticated JSON; opt out with an explicit `dataMiddlewares: []` ([#181](https://github.com/bQuery/bQuery/issues/181)).
+
+### Fixed (1.15.1)
+
+- **`@bquery/bquery/store`** — `$subscribe` notifications iterate a snapshot of the subscriber list, so a callback that unsubscribes during notification no longer causes the next subscriber to be silently skipped (mirrors the existing `$onAction` guard) ([#165](https://github.com/bQuery/bQuery/issues/165)).
+- **`@bquery/bquery/reactive`** — an effect that writes a signal it also reads no longer recurses synchronously into a stack overflow. Self-triggered re-runs are drained in a bounded loop and a `cyclic effect update detected` warning is logged instead of crashing the page; effects that legitimately settle still converge silently ([#166](https://github.com/bQuery/bQuery/issues/166)).
+- **`@bquery/bquery/view/compiler`** — the compiler bails to the runtime evaluator on an unterminated string literal or an invalid numeric literal instead of emitting a syntactically broken module (one bad expression previously took down every precompiled expression in the emitted file) ([#170](https://github.com/bQuery/bQuery/issues/170)).
+- **`@bquery/bquery/reactive`** — overlapping `useFetch` / `useAsyncData` executions (e.g. a `watch` refresh racing a manual `refresh()`) now abort the superseded in-flight request instead of leaving it running un-cancellable ([#172](https://github.com/bQuery/bQuery/issues/172)).
+- **`@bquery/bquery/reactive` + `@bquery/bquery/concurrency`** — composables that created long-lived reactive primitives now have disposal paths. `deferred()` returns a handle with a `dispose()`; `persistedSignal()` runs its persistence effect in a detached scope tied to the signal's own `dispose()` (so an ambient `scope.stop()` no longer silently stops persistence). Adds an optional `effectScope(detached?)` parameter ([#173](https://github.com/bQuery/bQuery/issues/173)).
+- **`@bquery/bquery/ssr`** — `titleTemplate` inserts the page title literally, so special `String.prototype.replace` patterns (`$&`, `$1`, `` $` ``, `$'`) in a title no longer mangle the rendered `<title>` ([#177](https://github.com/bQuery/bQuery/issues/177)).
+- **`@bquery/bquery/core`** — `debounce({ leading: true, trailing: true })` no longer double-invokes on a single call; the trailing edge fires only when the function was called more than once during the wait window (lodash semantics) ([#178](https://github.com/bQuery/bQuery/issues/178)).
+- **`@bquery/bquery/view`** — `bq-on` decides bare-reference vs. call by evaluating the expression rather than string-scanning for `(`. Handlers resolved through an expression containing an inner paren (e.g. `items.find(fn).handler`) are now invoked instead of silently doing nothing ([#180](https://github.com/bQuery/bQuery/issues/180)).
 
 ## [1.15.0] - 2026-06-30
 

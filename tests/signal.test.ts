@@ -258,6 +258,61 @@ describe('effect', () => {
     expect(latest).toBe(5);
   });
 
+  it('does not overflow the stack when an effect writes a signal it reads (#166)', () => {
+    const count = signal(0);
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => warnings.push(args.map(String).join(' '));
+
+    try {
+      expect(() => {
+        effect(() => {
+          count.value = count.value + 1;
+        });
+      }).not.toThrow();
+      expect(warnings.some((w) => w.includes('cyclic effect update'))).toBe(true);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('lets a self-writing effect settle without warning (#166)', () => {
+    const count = signal(0);
+    const originalWarn = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => warnings.push(args.map(String).join(' '));
+
+    try {
+      effect(() => {
+        if (count.value < 5) {
+          count.value = count.value + 1;
+        }
+      });
+      expect(count.value).toBe(5);
+      expect(warnings).toEqual([]);
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
+  it('guards self-triggering effects inside batch() too (#166)', () => {
+    const count = signal(0);
+    const originalWarn = console.warn;
+    console.warn = () => {};
+
+    try {
+      expect(() => {
+        batch(() => {
+          effect(() => {
+            count.value = count.value + 1;
+          });
+        });
+      }).not.toThrow();
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
   it('returns cleanup function', () => {
     const count = signal(0);
     let runCount = 0;
@@ -940,6 +995,42 @@ describe('persistedSignal', () => {
     localStorage.removeItem(key);
   });
 
+  it('keeps persisting after an ambient scope stops (#173)', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-persisted-scope';
+    localStorage.removeItem(key);
+
+    let count!: ReturnType<typeof persistedSignal<number>>;
+    const scope = effectScope();
+    scope.run(() => {
+      count = persistedSignal(key, 0);
+    });
+
+    // Stopping the ambient scope must NOT silently stop persistence.
+    scope.stop();
+    count.value = 7;
+    expect(localStorage.getItem(key)).toBe('7');
+
+    localStorage.removeItem(key);
+  });
+
+  it('stops persisting after the signal is disposed (#173)', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-persisted-dispose';
+    localStorage.removeItem(key);
+
+    const count = persistedSignal(key, 0);
+    count.value = 1;
+    expect(localStorage.getItem(key)).toBe('1');
+
+    count.dispose();
+    count.value = 2;
+    // No further writes after dispose.
+    expect(localStorage.getItem(key)).toBe('1');
+
+    localStorage.removeItem(key);
+  });
+
   it('falls back to in-memory signal when localStorage is unavailable', async () => {
     // Capture original property descriptor to restore properly
     const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -1221,6 +1312,42 @@ describe('useFetch', () => {
     expect(result?.search).toContain('tags=a');
     expect(result?.search).toContain('tags=b');
     expect(requests).toHaveLength(1);
+  });
+
+  it('aborts a superseded in-flight request when a new execution starts (#172)', async () => {
+    const signals: AbortSignal[] = [];
+    let releaseFirst: (() => void) | undefined;
+
+    const state = useFetch<{ ok: boolean }>('/api/slow', {
+      immediate: false,
+      fetcher: asMockFetch((_input, init) => {
+        const signal = init?.signal as AbortSignal | undefined;
+        if (signal) signals.push(signal);
+        return new Promise<Response>((resolve, reject) => {
+          if (signal) {
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          }
+          // The first request hangs until released; the second resolves.
+          if (!releaseFirst) {
+            releaseFirst = () => resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+          } else {
+            resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+          }
+        });
+      }),
+    });
+
+    // Start two overlapping executions; the second must abort the first.
+    const first = state.execute().catch(() => undefined);
+    const second = state.execute();
+
+    await second;
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+
+    releaseFirst?.();
+    await first;
   });
 
   it('serializes plain object bodies as JSON', async () => {

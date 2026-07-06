@@ -4,6 +4,7 @@
 
 import { signal, Signal } from './core';
 import { effect } from './effect';
+import { effectScope } from './scope';
 
 /**
  * Creates a signal that persists to localStorage.
@@ -61,13 +62,27 @@ export const persistedSignal = <T>(key: string, initialValue: T): Signal<T> => {
 
   // Only set up persistence effect if localStorage is available
   if (hasLocalStorage && storage) {
-    effect(() => {
-      try {
-        storage!.setItem(key, JSON.stringify(sig.value));
-      } catch {
-        // Ignore storage errors (quota exceeded, sandboxed iframes, etc.)
-      }
+    // Run the persistence effect in its own detached scope rather than letting
+    // it auto-register with the ambient effectScope. Otherwise `scope.stop()`
+    // would silently stop persistence while the returned signal keeps living.
+    // Persistence is instead tied to the signal's own lifetime: disposing the
+    // signal stops persistence and vice versa.
+    const persistenceScope = effectScope(true);
+    persistenceScope.run(() => {
+      effect(() => {
+        try {
+          storage!.setItem(key, JSON.stringify(sig.value));
+        } catch {
+          // Ignore storage errors (quota exceeded, sandboxed iframes, etc.)
+        }
+      });
     });
+
+    const originalDispose = sig.dispose.bind(sig);
+    sig.dispose = (): void => {
+      persistenceScope.stop();
+      originalDispose();
+    };
   }
 
   return sig;

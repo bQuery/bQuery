@@ -60,8 +60,11 @@ export interface SessionOptions {
   /** Cookie name. Default `'bq.sid'`. */
   cookieName?: string;
   /**
-   * Cookie attributes. Defaults to `{ httpOnly: true, sameSite: 'lax', path: '/' }`.
-   * Set `secure: true` in production (HTTPS). `maxAge` is derived from `ttlMs`.
+   * Cookie attributes. Defaults to
+   * `{ httpOnly: true, sameSite: 'lax', path: '/', secure: true }`.
+   * `secure` defaults to `true` (session credential must not travel over
+   * plaintext HTTP); set `secure: false` for local HTTP dev. `maxAge` is
+   * derived from `ttlMs`.
    */
   cookie?: ServerCookieOptions;
   /** Session lifetime in milliseconds. Default `86_400_000` (1 day). */
@@ -303,6 +306,10 @@ export const session = (options: SessionOptions): ServerMiddleware => {
     sameSite: 'lax',
     path: '/',
     ...options.cookie,
+    // The session cookie is the sole bearer credential, so default `Secure`
+    // to keep it off plaintext HTTP. Opt out explicitly (`secure: false`) for
+    // local HTTP dev.
+    secure: options.cookie?.secure ?? true,
   };
   const maxAge = Number.isFinite(ttlMs) && ttlMs > 0 ? Math.floor(ttlMs / 1000) : undefined;
 
