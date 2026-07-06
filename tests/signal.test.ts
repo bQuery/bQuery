@@ -1223,6 +1223,42 @@ describe('useFetch', () => {
     expect(requests).toHaveLength(1);
   });
 
+  it('aborts a superseded in-flight request when a new execution starts (#172)', async () => {
+    const signals: AbortSignal[] = [];
+    let releaseFirst: (() => void) | undefined;
+
+    const state = useFetch<{ ok: boolean }>('/api/slow', {
+      immediate: false,
+      fetcher: asMockFetch((_input, init) => {
+        const signal = init?.signal as AbortSignal | undefined;
+        if (signal) signals.push(signal);
+        return new Promise<Response>((resolve, reject) => {
+          if (signal) {
+            signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+          }
+          // The first request hangs until released; the second resolves.
+          if (!releaseFirst) {
+            releaseFirst = () => resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+          } else {
+            resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+          }
+        });
+      }),
+    });
+
+    // Start two overlapping executions; the second must abort the first.
+    const first = state.execute().catch(() => undefined);
+    const second = state.execute();
+
+    await second;
+    expect(signals).toHaveLength(2);
+    expect(signals[0].aborted).toBe(true);
+    expect(signals[1].aborted).toBe(false);
+
+    releaseFirst?.();
+    await first;
+  });
+
   it('serializes plain object bodies as JSON', async () => {
     let body = '';
     let contentType = '';
