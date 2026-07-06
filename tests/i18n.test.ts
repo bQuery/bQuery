@@ -666,3 +666,25 @@ describe('i18n/module exports', () => {
     expect(typeof mod.formatDate).toBe('function');
   });
 });
+
+describe('i18n prototype-chain hardening (#174)', () => {
+  it('leaves a placeholder colliding with an Object.prototype member intact', async () => {
+    const { interpolate } = await import('../src/i18n/translate');
+    expect(interpolate('Hello {toString}', {})).toBe('Hello {toString}');
+    expect(interpolate('X {constructor} Y', {})).toBe('X {constructor} Y');
+    // A real param still substitutes.
+    expect(interpolate('Hello {toString}', { toString: 'ok' })).toBe('Hello ok');
+  });
+
+  it('does not resolve inherited members as message key segments', async () => {
+    const { resolveKey } = await import('../src/i18n/translate');
+    expect(resolveKey({ greeting: 'hi' }, 'toString')).toBeUndefined();
+    expect(resolveKey({ greeting: 'hi' }, 'constructor.name')).toBeUndefined();
+  });
+
+  it('leaves ICU arg/select placeholders intact for inherited names', async () => {
+    const { formatMessage } = await import('../src/i18n/define');
+    expect(formatMessage('{toString}', {})).toBe('{toString}');
+    expect(formatMessage('{hasOwnProperty, select, other {none}}', {})).toBe('none');
+  });
+});

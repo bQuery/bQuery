@@ -23,6 +23,9 @@ export const resolveKey = (messages: LocaleMessages, key: string): string | unde
 
   for (const part of parts) {
     if (typeof current === 'string') return undefined;
+    // Own-property check: never resolve inherited prototype members
+    // (`toString`, `constructor`, `__proto__`, …) as message segments.
+    if (!Object.prototype.hasOwnProperty.call(current, part)) return undefined;
     if (current[part] === undefined) return undefined;
     current = current[part];
   }
@@ -47,7 +50,10 @@ export const resolveKey = (messages: LocaleMessages, key: string): string | unde
  */
 export const interpolate = (template: string, params: TranslateParams): string => {
   return template.replace(/\{(\w+)\}/g, (match, key: string) => {
-    if (key in params) {
+    // Own-property check so a placeholder colliding with an inherited member
+    // (`toString`, `valueOf`, …) is left intact rather than substituted with
+    // the inherited value.
+    if (Object.prototype.hasOwnProperty.call(params, key)) {
       return String(params[key]);
     }
     return match; // Leave unmatched placeholders as-is
