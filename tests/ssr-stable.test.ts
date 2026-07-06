@@ -498,6 +498,12 @@ describe('#176 bq-style CSS injection guard', () => {
           }).html;
           expect(html).toContain('color: red');
           expect(html).toContain('margin-top: 4px');
+        });
+      });
+    });
+  }
+});
+
 describe('#163 bq-text escaping on raw-text elements', () => {
   for (const backend of BACKENDS) {
     describe(`backend: ${backend}`, () => {
