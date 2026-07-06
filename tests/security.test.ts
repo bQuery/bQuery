@@ -211,6 +211,50 @@ describe('security/trusted-types policy', () => {
     expect(String(result)).toContain('ok');
   });
 
+  it('trustedHtmlForSink sanitizes and returns a sink-assignable value (#171)', async () => {
+    const { trustedHtmlForSink } = await import('../src/security/trusted-types');
+    const result = trustedHtmlForSink('<img src=x onerror=alert(1)><b>ok</b>');
+    // Fallback path (no Trusted Types in happy-dom): a sanitized string that is
+    // safe to assign to an HTML sink.
+    expect(String(result)).not.toContain('onerror');
+    expect(String(result)).toContain('<b>ok</b>');
+
+    const host = document.createElement('div');
+    host.innerHTML = result;
+    expect(host.querySelectorAll('img[onerror]').length).toBe(0);
+  });
+
+  it('routes trustedHtmlForSink through the policy when Trusted Types is active (#171)', async () => {
+    // Fresh module instance so the cached policy state does not leak between
+    // tests; install a mock Trusted Types policy that brands its output.
+    const mod = await import(`../src/security/trusted-types?tt=${'active'}`);
+    const original = (window as unknown as { trustedTypes?: unknown }).trustedTypes;
+    const created: string[] = [];
+    (window as unknown as { trustedTypes: unknown }).trustedTypes = {
+      createPolicy: (_name: string, rules: { createHTML: (s: string) => string }) => ({
+        createHTML: (input: string) => {
+          const out = rules.createHTML(input);
+          created.push(out);
+          return { __brand: 'TrustedHTML', toString: () => out };
+        },
+      }),
+    };
+    try {
+      const value = mod.trustedHtmlForSink('<img src=x onerror=alert(1)>ok');
+      // The policy's createHTML ran (its sanitizer stripped the handler) and
+      // produced a branded value rather than a bare string.
+      expect(created.length).toBe(1);
+      expect(String(value)).not.toContain('onerror');
+      expect((value as unknown as { __brand?: string }).__brand).toBe('TrustedHTML');
+    } finally {
+      if (original === undefined) {
+        delete (window as unknown as { trustedTypes?: unknown }).trustedTypes;
+      } else {
+        (window as unknown as { trustedTypes: unknown }).trustedTypes = original;
+      }
+    }
+  });
+
   it('logs a warning when createPolicy throws and returns null', async () => {
     const { getTrustedTypesPolicy } = await import('../src/security/trusted-types');
     const originalTrustedTypes = (window as unknown as { trustedTypes?: unknown }).trustedTypes;

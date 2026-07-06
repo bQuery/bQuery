@@ -67,3 +67,17 @@ export const createTrustedHtml = (html: string): TrustedHTML | string => {
   }
   return sanitizeHtmlCore(html);
 };
+
+/**
+ * Returns the value to assign to an HTML sink (`innerHTML` /
+ * `insertAdjacentHTML`). When a Trusted Types policy is active the value is a
+ * `TrustedHTML` object, so the write satisfies an enforced
+ * `require-trusted-types-for 'script'` CSP instead of throwing; otherwise it is
+ * the sanitized string. Sanitizes exactly once.
+ *
+ * The declared return type is `string` for ergonomic assignment to DOM sink
+ * setters (whose lib types expect `string`); at runtime under enforced Trusted
+ * Types the returned value is the `TrustedHTML` object the browser accepts.
+ */
+export const trustedHtmlForSink = (rawHtml: string): string =>
+  createTrustedHtml(rawHtml) as unknown as string;

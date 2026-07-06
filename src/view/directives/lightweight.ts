@@ -1,5 +1,5 @@
 import { evaluate, evaluateRaw } from '../evaluate';
-import { sanitizeHtml } from '../../security/index';
+import { trustedHtmlForSink } from '../../security/index';
 import { effect } from '../../reactive/index';
 import type { DirectiveHandler } from '../types';
 
@@ -39,7 +39,7 @@ export const handleInit: DirectiveHandler = (el, expression, context) => {
 export const handleHtmlSafe: DirectiveHandler = (el, expression, context, cleanups) => {
   const cleanup = effect(() => {
     const value = evaluate<string>(expression, context);
-    el.innerHTML = sanitizeHtml(String(value ?? ''));
+    el.innerHTML = trustedHtmlForSink(String(value ?? ''));
   });
   cleanups.push(cleanup);
 };
