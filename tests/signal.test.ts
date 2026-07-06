@@ -940,6 +940,42 @@ describe('persistedSignal', () => {
     localStorage.removeItem(key);
   });
 
+  it('keeps persisting after an ambient scope stops (#173)', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-persisted-scope';
+    localStorage.removeItem(key);
+
+    let count!: ReturnType<typeof persistedSignal<number>>;
+    const scope = effectScope();
+    scope.run(() => {
+      count = persistedSignal(key, 0);
+    });
+
+    // Stopping the ambient scope must NOT silently stop persistence.
+    scope.stop();
+    count.value = 7;
+    expect(localStorage.getItem(key)).toBe('7');
+
+    localStorage.removeItem(key);
+  });
+
+  it('stops persisting after the signal is disposed (#173)', async () => {
+    const { persistedSignal } = await import('../src/reactive/signal');
+    const key = 'test-persisted-dispose';
+    localStorage.removeItem(key);
+
+    const count = persistedSignal(key, 0);
+    count.value = 1;
+    expect(localStorage.getItem(key)).toBe('1');
+
+    count.dispose();
+    count.value = 2;
+    // No further writes after dispose.
+    expect(localStorage.getItem(key)).toBe('1');
+
+    localStorage.removeItem(key);
+  });
+
   it('falls back to in-memory signal when localStorage is unavailable', async () => {
     // Capture original property descriptor to restore properly
     const originalDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
