@@ -1,6 +1,6 @@
 name: Feature request
 description: Suggest an improvement to the framework, docs, or developer experience.
-title: "[Feature]: "
+title: '[Feature]: '
 body:
   - type: markdown
     attributes:

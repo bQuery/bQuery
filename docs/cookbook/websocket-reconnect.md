@@ -2,7 +2,7 @@
 
 **Problem.** Keep a WebSocket connection alive across network blips with exponential backoff.
 
-**Solution.** [`useWebSocket`](/guide/reactive#websocket-helpers) handles reconnect and heartbeats; combine it with [`useWebSocketChannel`](/guide/reactive#websocket-helpers) for typed framing.
+**Solution.** [`useWebSocket`](/guide/reactive#websocket) handles reconnect and heartbeats; combine it with [`useWebSocketChannel`](/guide/reactive#websocket) for typed framing.
 
 ```ts
 import { effect, useWebSocketChannel } from '@bquery/bquery/reactive';
@@ -35,6 +35,6 @@ channel.publish('orders', { type: 'subscribe', topic: 'orders' });
 
 ## Related
 
-- [Reactive — WebSocket helpers](/guide/reactive#websocket-helpers)
+- [Reactive — WebSocket helpers](/guide/reactive#websocket)
 - [Workflow — Backend API + WebSocket](/workflows/backend-api)
 - Longer worked example: [Examples & Recipes — Real-time communication](/guide/examples#real-time-communication)

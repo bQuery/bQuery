@@ -170,7 +170,11 @@ async function main() {
   }
 
   const issueSummary =
-    hasGaps && hasErrors ? 'coverage gaps and audit errors' : hasErrors ? 'audit errors' : 'coverage gaps';
+    hasGaps && hasErrors
+      ? 'coverage gaps and audit errors'
+      : hasErrors
+        ? 'audit errors'
+        : 'coverage gaps';
 
   if (strict) {
     console.log(`Strict mode: the documentation export audit reported ${issueSummary}.`);

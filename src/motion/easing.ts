@@ -52,9 +52,7 @@ export const easeOutExpo: EasingFunction = (t) => clamp(t === 1 ? 1 : 1 - Math.p
 export const easeInOutExpo: EasingFunction = (t) => {
   if (t === 0) return 0;
   if (t === 1) return 1;
-  return clamp(
-    t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2
-  );
+  return clamp(t < 0.5 ? Math.pow(2, 20 * t - 10) / 2 : (2 - Math.pow(2, -20 * t + 10)) / 2);
 };
 
 // ── Circular ────────────────────────────────────────────────────────────────
@@ -122,9 +120,7 @@ export const easeOutBounce: EasingFunction = (t) => {
 };
 export const easeInBounce: EasingFunction = (t) => clamp(1 - easeOutBounce(1 - t));
 export const easeInOutBounce: EasingFunction = (t) =>
-  clamp(
-    t < 0.5 ? (1 - easeOutBounce(1 - 2 * t)) / 2 : (1 + easeOutBounce(2 * t - 1)) / 2
-  );
+  clamp(t < 0.5 ? (1 - easeOutBounce(1 - 2 * t)) / 2 : (1 + easeOutBounce(2 * t - 1)) / 2);
 
 /**
  * Create a CSS `cubic-bezier()` compatible easing function.

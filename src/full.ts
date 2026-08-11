@@ -271,6 +271,7 @@ export type {
   UseWebSocketOptions,
   UseWebSocketReturn,
   WatchOptions,
+  WatchThrottleOptions,
   WebSocketHeartbeatConfig,
   WebSocketReconnectConfig,
   WebSocketSendData,

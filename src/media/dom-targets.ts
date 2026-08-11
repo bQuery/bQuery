@@ -23,7 +23,9 @@ const getScrollY = (target: ScrollTarget): number => {
   if (target === window) return window.scrollY;
   return (target as Element).scrollTop ?? 0;
 };
-const getScrollSize = (target: ScrollTarget): { sw: number; sh: number; cw: number; ch: number } => {
+const getScrollSize = (
+  target: ScrollTarget
+): { sw: number; sh: number; cw: number; ch: number } => {
   if (!target) return { sw: 0, sh: 0, cw: 0, ch: 0 };
   if (target === window) {
     return {
@@ -364,9 +366,7 @@ export const useFocusWithin = (
 /**
  * Reactive `document.activeElement` reference.
  */
-export const useActiveElement = (
-  options?: AbortableOptions
-): MediaSignalHandle<Element | null> => {
+export const useActiveElement = (options?: AbortableOptions): MediaSignalHandle<Element | null> => {
   return createMediaSignal<Element | null>(
     typeof document !== 'undefined' ? document.activeElement : null,
     (set) => {

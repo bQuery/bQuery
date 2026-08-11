@@ -462,11 +462,7 @@ interface ComponentSnapshot {
 
 ```ts
 type TimelineEventType =
-  | 'signal:update'
-  | 'effect:run'
-  | 'store:patch'
-  | 'store:action'
-  | 'route:change';
+  'signal:update' | 'effect:run' | 'store:patch' | 'store:action' | 'route:change';
 ```
 
 ### `TimelineEntry`

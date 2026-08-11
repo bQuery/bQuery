@@ -49,9 +49,13 @@ describe('#128 interactive directive parity — bq-model', () => {
     describe(`backend: ${backend}`, () => {
       it('renders text input value in full mode and omits it in static mode', () => {
         withBackend(backend, () => {
-          const full = renderToString('<input bq-model="name">', { name: 'Ada' }, {
-            directives: 'full',
-          }).html;
+          const full = renderToString(
+            '<input bq-model="name">',
+            { name: 'Ada' },
+            {
+              directives: 'full',
+            }
+          ).html;
           expect(full).toContain('value="Ada"');
 
           const staticHtml = renderToString('<input bq-model="name">', { name: 'Ada' }).html;
@@ -61,14 +65,22 @@ describe('#128 interactive directive parity — bq-model', () => {
 
       it('reflects checkbox checked state from the bound value', () => {
         withBackend(backend, () => {
-          const on = renderToString('<input type="checkbox" bq-model="agree">', { agree: true }, {
-            directives: 'full',
-          }).html;
+          const on = renderToString(
+            '<input type="checkbox" bq-model="agree">',
+            { agree: true },
+            {
+              directives: 'full',
+            }
+          ).html;
           expect(on).toContain('checked');
 
-          const off = renderToString('<input type="checkbox" bq-model="agree">', { agree: false }, {
-            directives: 'full',
-          }).html;
+          const off = renderToString(
+            '<input type="checkbox" bq-model="agree">',
+            { agree: false },
+            {
+              directives: 'full',
+            }
+          ).html;
           expect(off).not.toContain('checked');
         });
       });
@@ -93,9 +105,13 @@ describe('#128 interactive directive parity — bq-model', () => {
 
       it('writes the textarea body from the model', () => {
         withBackend(backend, () => {
-          const html = renderToString('<textarea bq-model="bio"></textarea>', { bio: 'hello' }, {
-            directives: 'full',
-          }).html;
+          const html = renderToString(
+            '<textarea bq-model="bio"></textarea>',
+            { bio: 'hello' },
+            {
+              directives: 'full',
+            }
+          ).html;
           expect(html).toContain('>hello</textarea>');
         });
       });
@@ -120,9 +136,13 @@ describe('#128 interactive directive parity — bq-on', () => {
     describe(`backend: ${backend}`, () => {
       it('emits a data-bq-on hydration marker in full mode only', () => {
         withBackend(backend, () => {
-          const full = renderToString('<button bq-on:click="inc">+</button>', {}, {
-            directives: 'full',
-          }).html;
+          const full = renderToString(
+            '<button bq-on:click="inc">+</button>',
+            {},
+            {
+              directives: 'full',
+            }
+          ).html;
           expect(full).toContain(`${SSR_ON_MARKER_ATTR}="click"`);
 
           const staticHtml = renderToString('<button bq-on:click="inc">+</button>', {}).html;
@@ -143,9 +163,13 @@ describe('#128 interactive directive parity — bq-on', () => {
 
       it('never executes handlers or emits inline on* attributes', () => {
         withBackend(backend, () => {
-          const html = renderToString('<button bq-on:click="alert(1)">x</button>', {}, {
-            directives: 'full',
-          }).html;
+          const html = renderToString(
+            '<button bq-on:click="alert(1)">x</button>',
+            {},
+            {
+              directives: 'full',
+            }
+          ).html;
           expect(html).not.toContain('onclick');
         });
       });
@@ -159,9 +183,13 @@ describe('#128 unsupported-directive boundary', () => {
       it('warns about bq-model/bq-on in static mode', () => {
         withBackend(backend, () => {
           const warnings = captureWarnings(() => {
-            renderToString('<input bq-model="x"><button bq-on:click="y">z</button>', { x: 'a' }, {
-              onUnsupportedDirective: 'warn',
-            });
+            renderToString(
+              '<input bq-model="x"><button bq-on:click="y">z</button>',
+              { x: 'a' },
+              {
+                onUnsupportedDirective: 'warn',
+              }
+            );
           });
           expect(warnings.some((w) => w.includes('bq-model'))).toBe(true);
           expect(warnings.some((w) => w.includes('bq-on:click'))).toBe(true);
@@ -171,10 +199,14 @@ describe('#128 unsupported-directive boundary', () => {
       it('warns about client-only directives (bq-ref) in any mode', () => {
         withBackend(backend, () => {
           const warnings = captureWarnings(() => {
-            renderToString('<div bq-ref="el"></div>', {}, {
-              directives: 'full',
-              onUnsupportedDirective: 'warn',
-            });
+            renderToString(
+              '<div bq-ref="el"></div>',
+              {},
+              {
+                directives: 'full',
+                onUnsupportedDirective: 'warn',
+              }
+            );
           });
           expect(warnings.some((w) => w.includes('bq-ref'))).toBe(true);
         });
@@ -183,9 +215,13 @@ describe('#128 unsupported-directive boundary', () => {
       it('throws when configured to throw', () => {
         withBackend(backend, () => {
           expect(() =>
-            renderToString('<button bq-on:click="y">z</button>', {}, {
-              onUnsupportedDirective: 'throw',
-            })
+            renderToString(
+              '<button bq-on:click="y">z</button>',
+              {},
+              {
+                onUnsupportedDirective: 'throw',
+              }
+            )
           ).toThrow(/bq-on:click/);
         });
       });
@@ -193,10 +229,14 @@ describe('#128 unsupported-directive boundary', () => {
       it('stays silent by default and in full mode for handled directives', () => {
         withBackend(backend, () => {
           const warnings = captureWarnings(() => {
-            renderToString('<input bq-model="x"><button bq-on:click="y">z</button>', { x: 'a' }, {
-              directives: 'full',
-              onUnsupportedDirective: 'warn',
-            });
+            renderToString(
+              '<input bq-model="x"><button bq-on:click="y">z</button>',
+              { x: 'a' },
+              {
+                directives: 'full',
+                onUnsupportedDirective: 'warn',
+              }
+            );
           });
           expect(warnings).toHaveLength(0);
         });
@@ -264,9 +304,13 @@ describe('#130 detectHydrationMismatches', () => {
   });
 
   it('flags a structural signature divergence from annotateHydration', () => {
-    const { html } = renderToString('<p bq-text="msg"></p>', { msg: 'hi' }, {
-      annotateHydration: true,
-    });
+    const { html } = renderToString(
+      '<p bq-text="msg"></p>',
+      { msg: 'hi' },
+      {
+        annotateHydration: true,
+      }
+    );
     const root = mountServer(html);
     const p = root.querySelector('p')!;
     p.setAttribute('bq-text', 'tampered');
@@ -311,10 +355,14 @@ describe('#130 hydrate', () => {
     const { html } = renderToString('<p bq-text="msg"></p>', { msg: 'server' });
     const root = place(html);
     const seen: Element[] = [];
-    const { mismatches } = hydrate(root, { msg: 'client' }, {
-      onMismatch: 'error',
-      onError: (_err, boundary) => seen.push(boundary),
-    });
+    const { mismatches } = hydrate(
+      root,
+      { msg: 'client' },
+      {
+        onMismatch: 'error',
+        onError: (_err, boundary) => seen.push(boundary),
+      }
+    );
     expect(mismatches).toHaveLength(1);
     expect(seen).toHaveLength(1);
     expect(seen[0].tagName).toBe('P');
@@ -433,7 +481,12 @@ describe('#129 resumable boundaries — client resume', () => {
 
     publish({
       boundaries: [
-        { id: 'cart', signals: { count: 42 }, handlers: ['addItem'], stores: { cart: { items: 5 } } },
+        {
+          id: 'cart',
+          signals: { count: 42 },
+          handlers: ['addItem'],
+          stores: { cart: { items: 5 } },
+        },
       ],
     });
 

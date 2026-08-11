@@ -101,12 +101,18 @@ const ensureMediaQuerySubscription = (
   mediaQueryHandler = () => dispatchIfChanged();
   if (typeof mediaQueryList.addEventListener === 'function') {
     mediaQueryList.addEventListener('change', mediaQueryHandler);
-  } else if (typeof (mediaQueryList as MediaQueryList & {
-    addListener?: (cb: (event: MediaQueryListEvent) => void) => void;
-  }).addListener === 'function') {
-    (mediaQueryList as MediaQueryList & {
-      addListener: (cb: (event: MediaQueryListEvent) => void) => void;
-    }).addListener(mediaQueryHandler);
+  } else if (
+    typeof (
+      mediaQueryList as MediaQueryList & {
+        addListener?: (cb: (event: MediaQueryListEvent) => void) => void;
+      }
+    ).addListener === 'function'
+  ) {
+    (
+      mediaQueryList as MediaQueryList & {
+        addListener: (cb: (event: MediaQueryListEvent) => void) => void;
+      }
+    ).addListener(mediaQueryHandler);
   }
 };
 
@@ -114,12 +120,18 @@ const teardownMediaQuerySubscription = (): void => {
   if (!mediaQueryList || !mediaQueryHandler) return;
   if (typeof mediaQueryList.removeEventListener === 'function') {
     mediaQueryList.removeEventListener('change', mediaQueryHandler);
-  } else if (typeof (mediaQueryList as MediaQueryList & {
-    removeListener?: (cb: (event: MediaQueryListEvent) => void) => void;
-  }).removeListener === 'function') {
-    (mediaQueryList as MediaQueryList & {
-      removeListener: (cb: (event: MediaQueryListEvent) => void) => void;
-    }).removeListener(mediaQueryHandler);
+  } else if (
+    typeof (
+      mediaQueryList as MediaQueryList & {
+        removeListener?: (cb: (event: MediaQueryListEvent) => void) => void;
+      }
+    ).removeListener === 'function'
+  ) {
+    (
+      mediaQueryList as MediaQueryList & {
+        removeListener: (cb: (event: MediaQueryListEvent) => void) => void;
+      }
+    ).removeListener(mediaQueryHandler);
   }
   mediaQueryList = null;
   mediaQueryHandler = null;
@@ -192,9 +204,16 @@ export const setReducedMotion = (override: boolean | null): void => {
  * ```
  */
 export const onReducedMotionChange = (callback: (reduced: boolean) => void): (() => void) => {
-  reducedMotionListeners.add(callback);
-  if (lastDispatchedValue === null) lastDispatchedValue = evaluateCurrent();
+  // Re-bind to the current matchMedia source in case it was replaced since the
+  // subscription was created, and flush value changes that happened without a
+  // change event so existing listeners and the new baseline stay accurate.
+  // The subscription is (re-)established before flushing so evaluation reads
+  // the cached media query instead of issuing a one-off matchMedia call.
+  syncMediaQuerySubscription(resolveMatchMedia());
   ensureMediaQuerySubscription();
+  if (lastDispatchedValue === null) lastDispatchedValue = evaluateCurrent();
+  else dispatchIfChanged();
+  reducedMotionListeners.add(callback);
   return () => {
     reducedMotionListeners.delete(callback);
     if (reducedMotionListeners.size === 0) teardownMediaQuerySubscription();

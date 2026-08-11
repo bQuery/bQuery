@@ -42,6 +42,11 @@ type RenderedItem = {
 
 /**
  * Extracts a key from an item using the key expression or falls back to index.
+ *
+ * `keyContext` is a per-binding reusable context object: evaluation is
+ * synchronous and does not retain the context, so mutating the item/index
+ * slots per call avoids spreading the whole context for every item on every
+ * reconcile.
  * @internal
  */
 const getItemKey = (
@@ -50,16 +55,13 @@ const getItemKey = (
   keyExpression: string | null,
   itemName: string,
   indexName: string | undefined,
-  context: BindingContext
+  keyContext: BindingContext | null
 ): unknown => {
-  if (!keyExpression) {
+  if (!keyExpression || !keyContext) {
     return index; // Fallback to index-based keying
   }
 
-  const keyContext: BindingContext = {
-    ...context,
-    [itemName]: item,
-  };
+  keyContext[itemName] = item;
   if (indexName) {
     keyContext[indexName] = index;
   }
@@ -125,6 +127,10 @@ export const createForHandler = (options: {
     // Extract :key attribute if present
     const keyExpression = el.getAttribute(':key') || el.getAttribute(`${prefix}-key`);
 
+    // Reusable context for key extraction — one copy of the outer context per
+    // binding instead of one spread per item per reconcile (see getItemKey).
+    const keyContext: BindingContext | null = keyExpression ? { ...context } : null;
+
     const template = el.cloneNode(true) as Element;
     template.removeAttribute(`${prefix}-for`);
     template.removeAttribute(':key');
@@ -170,12 +176,7 @@ export const createForHandler = (options: {
       }
 
       // Process bindings on the clone
-      const shouldProcessChildren = processElement(
-        clone,
-        childContext,
-        prefix,
-        itemCleanups
-      );
+      const shouldProcessChildren = processElement(clone, childContext, prefix, itemCleanups);
       if (shouldProcessChildren) {
         processChildren(clone, childContext, prefix, itemCleanups);
       }
@@ -271,8 +272,14 @@ export const createForHandler = (options: {
       const newItemsByKey = new Map<unknown, { item: unknown; index: number }>();
       const seenKeys = new Set<unknown>();
 
+      // Refresh the reusable key context once per reconcile so key expressions
+      // referencing outer context values (updated via view.update) stay fresh.
+      if (keyContext) {
+        Object.assign(keyContext, context);
+      }
+
       list.forEach((item, index) => {
-        let key = getItemKey(item, index, keyExpression, itemName, indexName, context);
+        let key = getItemKey(item, index, keyExpression, itemName, indexName, keyContext);
 
         // Detect duplicate keys - warn developer (once per key, dev only) and
         // fall back to a deterministic unique composite key so reconciliation
@@ -301,6 +308,11 @@ export const createForHandler = (options: {
         newKeys.push(key);
         newItemsByKey.set(key, { item, index });
       });
+
+      // Drop the last item reference so the reusable context does not retain it.
+      if (keyContext) {
+        keyContext[itemName] = undefined;
+      }
 
       // Identify items to remove (in old but not in new)
       const keysToRemove: unknown[] = [];

@@ -50,7 +50,10 @@ describe('utils/array extras', () => {
   });
 
   it('partition splits items by predicate', () => {
-    expect(partition([1, 2, 3, 4], (n) => n % 2 === 0)).toEqual([[2, 4], [1, 3]]);
+    expect(partition([1, 2, 3, 4], (n) => n % 2 === 0)).toEqual([
+      [2, 4],
+      [1, 3],
+    ]);
   });
 
   it('zip truncates to the shortest input', () => {
@@ -92,11 +95,18 @@ describe('utils/array extras', () => {
   });
 
   it('uniqueBy keeps first occurrence per key', () => {
-    expect(uniqueBy([{ id: 1 }, { id: 2 }, { id: 1 }], (o) => o.id)).toEqual([{ id: 1 }, { id: 2 }]);
+    expect(uniqueBy([{ id: 1 }, { id: 2 }, { id: 1 }], (o) => o.id)).toEqual([
+      { id: 1 },
+      { id: 2 },
+    ]);
   });
 
   it('sortBy accepts single and multiple selectors', () => {
-    const items = [{ k: 'b', n: 2 }, { k: 'a', n: 3 }, { k: 'a', n: 1 }];
+    const items = [
+      { k: 'b', n: 2 },
+      { k: 'a', n: 3 },
+      { k: 'a', n: 1 },
+    ];
     expect(sortBy(items, (i) => i.k).map((i) => i.k)).toEqual(['a', 'a', 'b']);
     expect(
       sortBy(items, [(i): string | number => i.k, (i): string | number => i.n]).map((i) => i.n)

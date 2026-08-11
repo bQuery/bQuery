@@ -25,8 +25,7 @@ export interface FormActionContext {
  * that receives the submitted `FormData` and returns the result.
  */
 export type FormActionTarget<R> =
-  | string
-  | ((formData: FormData, context: FormActionContext) => Promise<R> | R);
+  string | ((formData: FormData, context: FormActionContext) => Promise<R> | R);
 
 /**
  * Error thrown by {@link formAction} when a string target responds with a

@@ -32,9 +32,7 @@ describe('motion/effects', () => {
   it('magnetic translates toward the pointer within the radius', async () => {
     const el = createElement();
     const cleanup = magnetic(el, { strength: 0.5, radius: 200, respectReducedMotion: false });
-    window.dispatchEvent(
-      new MouseEvent('pointermove', { clientX: 60, clientY: 60 })
-    );
+    window.dispatchEvent(new MouseEvent('pointermove', { clientX: 60, clientY: 60 }));
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
     expect(el.style.transform).toContain('translate3d');
     cleanup();

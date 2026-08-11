@@ -1,6 +1,6 @@
 import { evaluate, evaluateRaw } from '../evaluate';
 import { trustedHtmlForSink } from '../../security/index';
-import { effect } from '../../reactive/index';
+import { effect, untrack } from '../../reactive/index';
 import type { DirectiveHandler } from '../types';
 
 /**
@@ -12,7 +12,9 @@ import type { DirectiveHandler } from '../types';
  * @since 1.14.0
  */
 export const handleOnce: DirectiveHandler = (el, expression, context) => {
-  const value = evaluate<unknown>(expression, context);
+  // untrack: inside bq-for this runs within the reconciler's effect, and the
+  // one-time read must not subscribe that effect to the expression's signals.
+  const value = untrack(() => evaluate<unknown>(expression, context));
   el.textContent = String(value ?? '');
 };
 
@@ -24,7 +26,9 @@ export const handleOnce: DirectiveHandler = (el, expression, context) => {
  * @since 1.14.0
  */
 export const handleInit: DirectiveHandler = (el, expression, context) => {
-  evaluateRaw(expression, { ...context, $el: el });
+  // untrack: a mount-time side effect must not become a dependency of an
+  // enclosing effect (e.g. the bq-for reconciler processing a new row).
+  untrack(() => evaluateRaw(expression, { ...context, $el: el }));
 };
 
 /**
@@ -37,9 +41,14 @@ export const handleInit: DirectiveHandler = (el, expression, context) => {
  * @since 1.14.0
  */
 export const handleHtmlSafe: DirectiveHandler = (el, expression, context, cleanups) => {
+  let previousHtml: string | undefined;
   const cleanup = effect(() => {
     const value = evaluate<string>(expression, context);
-    el.innerHTML = trustedHtmlForSink(String(value ?? ''));
+    const html = String(value ?? '');
+    // Skip the sanitizer and HTML parser when the markup is unchanged.
+    if (html === previousHtml) return;
+    previousHtml = html;
+    el.innerHTML = trustedHtmlForSink(html);
   });
   cleanups.push(cleanup);
 };
@@ -58,6 +67,7 @@ export const handleHtmlSafe: DirectiveHandler = (el, expression, context, cleanu
  */
 export const handleMemo: DirectiveHandler = (_el, expression, context) => {
   // Evaluate once so malformed expressions surface a logged runtime error
-  // during mount, but do not subscribe to future updates.
-  evaluate(expression, context);
+  // during mount, but do not subscribe to future updates — untracked so an
+  // enclosing effect (e.g. the bq-for reconciler) is not subscribed either.
+  untrack(() => evaluate(expression, context));
 };

@@ -131,13 +131,7 @@ const isAccepted = (dragged: HTMLElement, accept: DroppableOptions['accept']): b
  * ```
  */
 export const droppable = (el: HTMLElement, options: DroppableOptions = {}): DroppableHandle => {
-  const {
-    overClass = 'bq-drop-over',
-    onDragEnter,
-    onDragOver,
-    onDragLeave,
-    onDrop,
-  } = options;
+  const { overClass = 'bq-drop-over', onDragEnter, onDragOver, onDragLeave, onDrop } = options;
 
   let currentAccept: DroppableOptions['accept'] = options.accept;
 

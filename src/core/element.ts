@@ -1,5 +1,11 @@
 import { createElementFromHtml, insertContent, setHtml } from './dom';
-import { getInnerSize, getOuterSize, isHTMLElement } from './shared';
+import {
+  addDelegatedListener,
+  getInnerSize,
+  getOuterSize,
+  isHTMLElement,
+  removeDelegatedListener,
+} from './shared';
 import { isPrototypePollutionKey } from './utils/object';
 
 /**
@@ -24,31 +30,41 @@ import { isPrototypePollutionKey } from './utils/object';
  *   .on('click', () => console.log('clicked'));
  * ```
  */
-/** Handler signature for delegated events */
-type DelegatedHandler = (event: Event, target: Element) => void;
-
 type SerializableFormControl = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
-const isSerializableFormControl = (element: Element): element is SerializableFormControl => {
+type SerializableControlKind = 'input' | 'textarea' | 'select';
+
+/** Resolves the control kind once so callers don't re-lowercase tagName. */
+const serializableControlKind = (element: Element): SerializableControlKind | null => {
   const tagName = element.tagName.toLowerCase();
-  return tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+  return tagName === 'input' || tagName === 'textarea' || tagName === 'select'
+    ? (tagName as SerializableControlKind)
+    : null;
 };
+
+const CAMEL_TO_KEBAB_RE = /[A-Z]/g;
+const camelToKebabChar = (match: string): string => `-${match.toLowerCase()}`;
 
 const collectFormEntries = (form: HTMLFormElement): Array<[string, string]> => {
   const entries: Array<[string, string]> = [];
   const elementCtor = form.ownerDocument.defaultView?.Element ?? Element;
 
   for (const control of Array.from(form.elements)) {
-    if (!(control instanceof elementCtor) || !isSerializableFormControl(control)) {
+    if (!(control instanceof elementCtor)) {
+      continue;
+    }
+    const kind = serializableControlKind(control);
+    if (kind === null) {
       continue;
     }
 
-    const name = control.name;
-    if (!name || control.disabled || isPrototypePollutionKey(name)) {
+    const typedControl = control as SerializableFormControl;
+    const name = typedControl.name;
+    if (!name || typedControl.disabled || isPrototypePollutionKey(name)) {
       continue;
     }
 
-    if (control.tagName.toLowerCase() === 'input') {
+    if (kind === 'input') {
       const input = control as HTMLInputElement;
       const type = input.type.toLowerCase();
 
@@ -73,7 +89,7 @@ const collectFormEntries = (form: HTMLFormElement): Array<[string, string]> => {
       continue;
     }
 
-    if (control.tagName.toLowerCase() === 'select') {
+    if (kind === 'select') {
       const select = control as HTMLSelectElement;
 
       if (select.multiple) {
@@ -117,13 +133,6 @@ const getFormEntries = (form: HTMLFormElement): Array<[string, string]> => {
 };
 
 export class BQueryElement {
-  /**
-   * Stores delegated event handlers for cleanup via undelegate().
-   * Key format: `${event}:${selector}`
-   * @internal
-   */
-  private readonly delegatedHandlers = new Map<string, Map<DelegatedHandler, EventListener>>();
-
   /**
    * Creates a new BQueryElement wrapper.
    * @param element - The DOM element to wrap
@@ -202,7 +211,7 @@ export class BQueryElement {
 
   /** Read or write data attributes in camelCase. */
   data(name: string, value?: string): string | this {
-    const key = name.replace(/[A-Z]/g, (match) => `-${match.toLowerCase()}`);
+    const key = name.replace(CAMEL_TO_KEBAB_RE, camelToKebabChar);
     if (value === undefined) {
       return this.element.getAttribute(`data-${key}`) ?? '';
     }
@@ -425,11 +434,14 @@ export class BQueryElement {
    * ```
    */
   index(): number {
-    const parent = this.element.parentElement;
-    if (!parent) {
+    if (!this.element.parentElement) {
       return -1;
     }
-    return Array.from(parent.children).indexOf(this.element);
+    let index = 0;
+    for (let node = this.element.previousElementSibling; node; node = node.previousElementSibling) {
+      index++;
+    }
+    return index;
   }
 
   /**
@@ -581,7 +593,8 @@ export class BQueryElement {
    * @returns The instance for method chaining
    */
   empty(): this {
-    this.element.innerHTML = '';
+    // replaceChildren skips the HTML parser and needs no Trusted Types sink.
+    this.element.replaceChildren();
     return this;
   }
 
@@ -651,7 +664,14 @@ export class BQueryElement {
   siblings(): Element[] {
     const parent = this.element.parentElement;
     if (!parent) return [];
-    return Array.from(parent.children).filter((child) => child !== this.element);
+    const results: Element[] = [];
+    const kids = parent.children;
+    for (let i = 0; i < kids.length; i++) {
+      if (kids[i] !== this.element) {
+        results.push(kids[i]);
+      }
+    }
+    return results;
   }
 
   /**
@@ -746,21 +766,7 @@ export class BQueryElement {
     selector: string,
     handler: (event: Event, target: Element) => void
   ): this {
-    const key = `${event}:${selector}`;
-    const wrapper: EventListener = (e: Event) => {
-      const target = (e.target as Element).closest(selector);
-      if (target && this.element.contains(target)) {
-        handler(e, target);
-      }
-    };
-
-    // Store the wrapper so it can be removed later
-    if (!this.delegatedHandlers.has(key)) {
-      this.delegatedHandlers.set(key, new Map());
-    }
-    this.delegatedHandlers.get(key)!.set(handler, wrapper);
-
-    this.element.addEventListener(event, wrapper);
+    addDelegatedListener(this.element, event, selector, handler);
     return this;
   }
 
@@ -786,22 +792,7 @@ export class BQueryElement {
     selector: string,
     handler: (event: Event, target: Element) => void
   ): this {
-    const key = `${event}:${selector}`;
-    const handlers = this.delegatedHandlers.get(key);
-
-    if (handlers) {
-      const wrapper = handlers.get(handler);
-      if (wrapper) {
-        this.element.removeEventListener(event, wrapper);
-        handlers.delete(handler);
-
-        // Clean up empty maps
-        if (handlers.size === 0) {
-          this.delegatedHandlers.delete(key);
-        }
-      }
-    }
-
+    removeDelegatedListener(this.element, event, selector, handler);
     return this;
   }
 

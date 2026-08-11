@@ -25,9 +25,7 @@ import type {
 let renderComponentTracker: ((result: RenderResult) => void) | undefined;
 
 /** @internal */
-export const __setRenderComponentTracker = (
-  tracker?: (result: RenderResult) => void
-): void => {
+export const __setRenderComponentTracker = (tracker?: (result: RenderResult) => void): void => {
   renderComponentTracker = tracker;
 };
 
@@ -531,11 +529,7 @@ const assertFireEventElement = (el: Element): void => {
   }
 };
 
-const baseFireEvent = (
-  el: Element,
-  eventName: string,
-  options: FireEventOptions = {}
-): boolean => {
+const baseFireEvent = (el: Element, eventName: string, options: FireEventOptions = {}): boolean => {
   assertFireEventElement(el);
   if (!eventName) {
     throw new Error('bQuery testing: fireEvent requires an event name');
@@ -630,11 +624,7 @@ const shortcuts: FireEventShortcuts = {
   keyUp: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keyup', init)),
 };
 
-type FireEventFn = ((
-  el: Element,
-  eventName: string,
-  options?: FireEventOptions
-) => boolean) &
+type FireEventFn = ((el: Element, eventName: string, options?: FireEventOptions) => boolean) &
   FireEventShortcuts;
 
 export const fireEvent: FireEventFn = Object.assign(baseFireEvent, shortcuts);

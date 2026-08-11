@@ -4,16 +4,16 @@ bQuery.js targets multiple JavaScript runtimes from a single codebase. This page
 
 ## Engines
 
-| Runtime    | Minimum version | Status   | Notes                                                                                  |
-| ---------- | --------------- | -------- | -------------------------------------------------------------------------------------- |
-| Node.js    | **24.0.0**      | Primary  | Used for the canonical `examples/ssr-node` and CI baseline.                            |
-| Bun        | **1.3.13**      | Primary  | Used for repo workflows (`bun run lint`, `bun test`, `bun run build`).                 |
-| Deno       | latest stable   | Supported | `examples/ssr-deno` demonstrates the SSR adapter.                                       |
-| Chrome     | 90+             | Browser  | Baseline for all browser-facing features.                                              |
-| Firefox    | 90+             | Browser  | Same baseline.                                                                         |
-| Safari     | 15+             | Browser  | Same baseline.                                                                         |
-| Edge       | 90+             | Browser  | Same baseline.                                                                         |
-| Edge runtimes | Workers / Vercel / Netlify Edge | Supported | Use the SSR module's edge adapter (`createEdgeHandler`).                |
+| Runtime       | Minimum version                 | Status    | Notes                                                                  |
+| ------------- | ------------------------------- | --------- | ---------------------------------------------------------------------- |
+| Node.js       | **24.0.0**                      | Primary   | Used for the canonical `examples/ssr-node` and CI baseline.            |
+| Bun           | **1.3.13**                      | Primary   | Used for repo workflows (`bun run lint`, `bun test`, `bun run build`). |
+| Deno          | latest stable                   | Supported | `examples/ssr-deno` demonstrates the SSR adapter.                      |
+| Chrome        | 90+                             | Browser   | Baseline for all browser-facing features.                              |
+| Firefox       | 90+                             | Browser   | Same baseline.                                                         |
+| Safari        | 15+                             | Browser   | Same baseline.                                                         |
+| Edge          | 90+                             | Browser   | Same baseline.                                                         |
+| Edge runtimes | Workers / Vercel / Netlify Edge | Supported | Use the SSR module's edge adapter (`createEdgeHandler`).               |
 
 The engine ranges are enforced in `package.json` under `engines`.
 
@@ -23,27 +23,27 @@ Most modules are runtime-agnostic. The ones with runtime-specific behaviour:
 
 | Module        | Browser | Node | Bun | Deno | Edge | Notes                                                                          |
 | ------------- | :-----: | :--: | :-: | :--: | :--: | ------------------------------------------------------------------------------ |
-| `core`        | ✅      |  -   |  -  |  -   |  -   | DOM-only; in non-browser contexts use only its non-DOM utilities.              |
-| `reactive`    | ✅      | ✅   | ✅  | ✅   | ✅   | Pure logic. HTTP / WebSocket helpers use the runtime's `fetch` / `WebSocket`.  |
-| `concurrency` | ✅      | ✅   | ✅  | ✅   | -    | Uses `Worker` / `MessagePort`. Feature-detect with `isConcurrencySupported()`. |
-| `component`   | ✅      |  -   |  -  |  -   |  -   | Custom elements (browser-only).                                                |
-| `motion`      | ✅      |  -   |  -  |  -   |  -   | DOM and `requestAnimationFrame`.                                               |
-| `view`        | ✅      |  -   |  -  |  -   |  -   | DOM directive compilation.                                                     |
-| `router`      | ✅      |  -   |  -  |  -   |  -   | Uses `history` and `URL`.                                                      |
-| `store`       | ✅      | ✅   | ✅  | ✅   | ✅   | Pure; persistence plugins are browser-only.                                    |
-| `forms`       | ✅      | ✅   | ✅  | ✅   | ✅   | Validation is pure; `bindField` / `bindForm` are browser-only.                 |
-| `security`    | ✅      | ✅   | ✅  | ✅   | ✅   | Trusted Types integration is browser-only.                                     |
-| `platform`    | ✅      |  -   |  -  |  -   |  -   | Storage, cookies, page meta are browser APIs.                                  |
-| `i18n`        | ✅      | ✅   | ✅  | ✅   | ✅   | Uses `Intl.*` everywhere.                                                      |
-| `a11y`        | ✅      |  -   |  -  |  -   |  -   | Focus management is browser-only.                                              |
-| `dnd`         | ✅      |  -   |  -  |  -   |  -   | Pointer / keyboard events; browser-only.                                       |
-| `media`       | ✅      |  -   |  -  |  -   |  -   | Media queries, clipboard, network info — browser-only.                         |
-| `plugin`      | ✅      | ✅   | ✅  | ✅   | ✅   | Pure registry; directives need a browser.                                      |
-| `devtools`    | ✅      | ✅   | ✅  | ✅   | ✅   | Inspection is pure; browser bridge uses `postMessage`.                         |
-| `testing`     | ✅      | ✅   | ✅  | ✅   | -    | Runs under `happy-dom` in test environments.                                   |
-| `ssr`         | -       | ✅   | ✅  | ✅   | ✅   | DOM-free; runtime-agnostic; adapters per runtime.                              |
-| `server`      | -       | ✅   | ✅  | ✅   | ✅   | Dependency-free routing; SSR responses; WebSocket sessions.                    |
-| `storybook`   | ✅      |  -   |  -  |  -   |  -   | Browser-only (Storybook host).                                                 |
+| `core`        |   ✅    |  -   |  -  |  -   |  -   | DOM-only; in non-browser contexts use only its non-DOM utilities.              |
+| `reactive`    |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Pure logic. HTTP / WebSocket helpers use the runtime's `fetch` / `WebSocket`.  |
+| `concurrency` |   ✅    |  ✅  | ✅  |  ✅  |  -   | Uses `Worker` / `MessagePort`. Feature-detect with `isConcurrencySupported()`. |
+| `component`   |   ✅    |  -   |  -  |  -   |  -   | Custom elements (browser-only).                                                |
+| `motion`      |   ✅    |  -   |  -  |  -   |  -   | DOM and `requestAnimationFrame`.                                               |
+| `view`        |   ✅    |  -   |  -  |  -   |  -   | DOM directive compilation.                                                     |
+| `router`      |   ✅    |  -   |  -  |  -   |  -   | Uses `history` and `URL`.                                                      |
+| `store`       |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Pure; persistence plugins are browser-only.                                    |
+| `forms`       |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Validation is pure; `bindField` / `bindForm` are browser-only.                 |
+| `security`    |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Trusted Types integration is browser-only.                                     |
+| `platform`    |   ✅    |  -   |  -  |  -   |  -   | Storage, cookies, page meta are browser APIs.                                  |
+| `i18n`        |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Uses `Intl.*` everywhere.                                                      |
+| `a11y`        |   ✅    |  -   |  -  |  -   |  -   | Focus management is browser-only.                                              |
+| `dnd`         |   ✅    |  -   |  -  |  -   |  -   | Pointer / keyboard events; browser-only.                                       |
+| `media`       |   ✅    |  -   |  -  |  -   |  -   | Media queries, clipboard, network info — browser-only.                         |
+| `plugin`      |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Pure registry; directives need a browser.                                      |
+| `devtools`    |   ✅    |  ✅  | ✅  |  ✅  |  ✅  | Inspection is pure; browser bridge uses `postMessage`.                         |
+| `testing`     |   ✅    |  ✅  | ✅  |  ✅  |  -   | Runs under `happy-dom` in test environments.                                   |
+| `ssr`         |    -    |  ✅  | ✅  |  ✅  |  ✅  | DOM-free; runtime-agnostic; adapters per runtime.                              |
+| `server`      |    -    |  ✅  | ✅  |  ✅  |  ✅  | Dependency-free routing; SSR responses; WebSocket sessions.                    |
+| `storybook`   |   ✅    |  -   |  -  |  -   |  -   | Browser-only (Storybook host).                                                 |
 
 A blank cell means "not applicable" — not "broken".
 

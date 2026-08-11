@@ -264,7 +264,9 @@ describe('server/createServer', () => {
         HeadersWithoutGetSetCookie as typeof Headers;
 
       const response = await app.handle('/cookies');
-      const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
+      const setCookieEntries = [...response.headers.entries()].filter(
+        ([name]) => name === 'set-cookie'
+      );
       const setCookie = response.headers.get('set-cookie');
 
       expect(setCookie).toContain('session=abc123');
@@ -299,7 +301,9 @@ describe('server/createServer', () => {
     });
 
     const response = await app.handle('/response-cookies');
-    const setCookieEntries = [...response.headers.entries()].filter(([name]) => name === 'set-cookie');
+    const setCookieEntries = [...response.headers.entries()].filter(
+      ([name]) => name === 'set-cookie'
+    );
 
     expect(response.headers.get('set-cookie')).toContain('session=abc123');
     expect(response.headers.get('set-cookie')).toContain('theme=dark');
@@ -346,7 +350,9 @@ describe('server/createServer', () => {
     const response = await app.handle('/cookie-same-site');
 
     expect(response.status).toBe(400);
-    expect(await response.text()).toBe('Cookie sameSite must be one of "lax", "none", or "strict".');
+    expect(await response.text()).toBe(
+      'Cookie sameSite must be one of "lax", "none", or "strict".'
+    );
   });
 
   it('enforces multipart body limits', async () => {

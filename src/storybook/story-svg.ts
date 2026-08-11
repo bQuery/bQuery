@@ -52,4 +52,3 @@ export const storySvg = (strings: TemplateStringsArray, ...values: StoryValue[])
     return `${acc}${part}${resolveSvgValue(values[index])}`;
   }, '');
 };
-

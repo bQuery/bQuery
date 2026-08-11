@@ -29,10 +29,12 @@ export const handleBind = (attrName: string): DirectiveHandler => {
         );
         return;
       }
-      el.setAttribute(
-        attrName,
-        verdict === 'sanitize-html' ? String(sanitizeHtml(stringValue)) : stringValue
-      );
+      const finalValue =
+        verdict === 'sanitize-html' ? String(sanitizeHtml(stringValue)) : stringValue;
+      // Skip the write (and its attribute-mutation side effects) when unchanged.
+      if (el.getAttribute(attrName) !== finalValue) {
+        el.setAttribute(attrName, finalValue);
+      }
     });
     cleanups.push(cleanup);
   };

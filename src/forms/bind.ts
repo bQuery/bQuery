@@ -10,14 +10,10 @@
 import { effect } from '../reactive/index';
 import type { BindFieldOptions, BindFormOptions, Form, FormField } from './types';
 
-const isInput = (el: Element): el is HTMLInputElement =>
-  el.tagName === 'INPUT';
-const isTextarea = (el: Element): el is HTMLTextAreaElement =>
-  el.tagName === 'TEXTAREA';
-const isSelect = (el: Element): el is HTMLSelectElement =>
-  el.tagName === 'SELECT';
-const isButton = (el: Element): el is HTMLButtonElement =>
-  el.tagName === 'BUTTON';
+const isInput = (el: Element): el is HTMLInputElement => el.tagName === 'INPUT';
+const isTextarea = (el: Element): el is HTMLTextAreaElement => el.tagName === 'TEXTAREA';
+const isSelect = (el: Element): el is HTMLSelectElement => el.tagName === 'SELECT';
+const isButton = (el: Element): el is HTMLButtonElement => el.tagName === 'BUTTON';
 
 const defaultGetValue = (element: Element): unknown => {
   if (isInput(element)) {
@@ -167,7 +163,9 @@ export const bindField = <T>(
   const stopDisabledEffect = effect(() => {
     const disabled = field.disabled.value;
     if (isInput(element) || isTextarea(element) || isSelect(element) || isButton(element)) {
-      (element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement).disabled = disabled;
+      (
+        element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLButtonElement
+      ).disabled = disabled;
     } else {
       if (disabled) element.setAttribute('aria-disabled', 'true');
       else element.removeAttribute('aria-disabled');

@@ -85,7 +85,9 @@ const lastNavigation = computed<NavigationResult | null>(() => {
 const to = computed<Route | null>(() => lastNavigation.value?.to ?? null);
 const from = computed<Route | null>(() => lastNavigation.value?.from ?? null);
 const error = computed<unknown | null>(() => lastNavigation.value?.error ?? null);
-const status = computed<NavigationResult['status'] | null>(() => lastNavigation.value?.status ?? null);
+const status = computed<NavigationResult['status'] | null>(
+  () => lastNavigation.value?.status ?? null
+);
 
 const navigationHandle: UseNavigationReturn = {
   isNavigating,

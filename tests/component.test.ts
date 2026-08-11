@@ -148,8 +148,9 @@ describe('component/component', () => {
       },
       render: ({ props }) =>
         html`<div>
-          ${typeof props.count}:${props.count}|${props.active}|${(props.meta as { role?: string })
-            .role ?? ''}
+          ${typeof props.count}:${props.count}|${props.active}|${
+            (props.meta as { role?: string }).role ?? ''
+          }
         </div>`,
     });
 

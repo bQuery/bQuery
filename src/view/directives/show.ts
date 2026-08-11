@@ -32,6 +32,9 @@ export const createShowHandler = (prefix = 'bq'): DirectiveHandler => {
 
     const cleanup = effect(() => {
       const shown = Boolean(evaluate<boolean>(expression, context));
+      // Resolved per run rather than once at bind time: the transition
+      // companion attributes may be added or rewritten after mount, and a
+      // cached config would pin the element to the values it was born with.
       const config = resolveTransition(el, prefix);
 
       // No transition, or the initial paint: apply display synchronously.

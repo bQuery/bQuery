@@ -5,11 +5,7 @@
 
 import { describe, expect, it } from 'bun:test';
 import { createFileRoutes, type Action, type Load } from '../src/router/index';
-import {
-  createFileRouteServerRoutes,
-  createServer,
-  mountFileRoutes,
-} from '../src/server/index';
+import { createFileRouteServerRoutes, createServer, mountFileRoutes } from '../src/server/index';
 
 const formBody = (fields: Record<string, string>): URLSearchParams => new URLSearchParams(fields);
 

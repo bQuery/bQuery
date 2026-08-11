@@ -192,13 +192,10 @@ describe('plugin/use + unuse', () => {
     const plugin: BQueryPlugin = {
       name: 'with-updated',
       install(ctx) {
-        ctx.directive(
-          'life',
-          {
-            mounted: () => undefined,
-            updated: () => undefined,
-          } as unknown as CustomDirectiveValue
-        );
+        ctx.directive('life', {
+          mounted: () => undefined,
+          updated: () => undefined,
+        } as unknown as CustomDirectiveValue);
       },
     };
     expect(() => use(plugin)).toThrow(/does not support an "updated" hook/);

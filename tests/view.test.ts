@@ -103,6 +103,39 @@ describe('View', () => {
       name.value = 'bQuery';
       expect(container.querySelector('p')?.textContent).toBe('Hello, bQuery!');
     });
+
+    it('flattens pre-rendered markup whose text already matches', () => {
+      // Server-rendered markup: the concatenated text equals the bound value,
+      // but the element children must still be replaced by a plain text node.
+      container.innerHTML = '<p bq-text="content"><b>Hel</b>lo</p>';
+      const content = signal('Hello');
+
+      view = mount(container, { content });
+
+      const target = container.querySelector('p')!;
+      expect(target.querySelector('b')).toBeNull();
+      expect(target.childNodes.length).toBe(1);
+      expect(target.textContent).toBe('Hello');
+    });
+
+    it('keeps the existing text node when the rendered string is unchanged', () => {
+      container.innerHTML = '<p bq-text="user.name"></p>';
+      const user = signal({ name: 'Ada' });
+
+      view = mount(container, { user });
+
+      const target = container.querySelector('p')!;
+      const textNode = target.firstChild;
+      expect(textNode).not.toBeNull();
+
+      // New object, same rendered string: the effect re-runs but must not
+      // recreate the text node.
+      user.value = { name: 'Ada' };
+      expect(target.firstChild).toBe(textNode);
+
+      user.value = { name: 'Grace' };
+      expect(target.textContent).toBe('Grace');
+    });
   });
 
   describe('bq-html', () => {
@@ -754,7 +787,14 @@ describe('View', () => {
     it('invokes a handler resolved from an expression containing inner parens (#180)', () => {
       container.innerHTML = '<button bq-on:click="items.find(matcher).handler">Go</button>';
       let called = false;
-      const items = [{ id: 1, handler: () => { called = true; } }];
+      const items = [
+        {
+          id: 1,
+          handler: () => {
+            called = true;
+          },
+        },
+      ];
 
       view = mount(container, {
         items,
@@ -768,7 +808,11 @@ describe('View', () => {
     it('invokes a bare handler reference with the event (#180)', () => {
       container.innerHTML = '<button bq-on:click="onClick">Go</button>';
       let receivedType = '';
-      view = mount(container, { onClick: (e: Event) => { receivedType = e.type; } });
+      view = mount(container, {
+        onClick: (e: Event) => {
+          receivedType = e.type;
+        },
+      });
 
       container.querySelector('button')!.click();
       expect(receivedType).toBe('click');
@@ -1505,7 +1549,9 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
     // `foo` is a legit own context value, but `foo.constructor.constructor`
     // reaches Function without resolving a bare identifier — must be blocked.
     expect(evaluate("items.constructor.constructor('return 2')()", { items: [] })).toBeUndefined();
-    expect(evaluateRaw("items.constructor.constructor('return 2')()", { items: [] })).toBeUndefined();
+    expect(
+      evaluateRaw("items.constructor.constructor('return 2')()", { items: [] })
+    ).toBeUndefined();
     expect(evaluate("name.constructor('return 2')()", { name: 'x' })).toBeUndefined();
   });
 

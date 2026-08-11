@@ -150,9 +150,9 @@ describe('devtools/traceSignal', () => {
       enableDevtools(true);
       traceSignal('counter');
       recordEvent('signal:update', 'changed', { source: 'counter' });
-      expect(seen.some((message) => message.includes('[bq:trace] counter signal:update changed'))).toBe(
-        true
-      );
+      expect(
+        seen.some((message) => message.includes('[bq:trace] counter signal:update changed'))
+      ).toBe(true);
     } finally {
       console.log = originalLog;
       untraceSignal('counter');
@@ -166,7 +166,11 @@ describe('devtools/traceSignal', () => {
 
 describe('devtools/inspectSignals', () => {
   it('omits values when includeValues=false', () => {
-    trackSignal('private', () => 'secret', () => 0);
+    trackSignal(
+      'private',
+      () => 'secret',
+      () => 0
+    );
     const open = inspectSignals();
     expect(open.find((s) => s.label === 'private')?.value).toBe('secret');
     const closed = inspectSignals({ includeValues: false });

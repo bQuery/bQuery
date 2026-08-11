@@ -83,9 +83,7 @@ const escapeCssValue = (value: unknown): string => {
 
 const sheetCache = new WeakMap<typeof globalThis, Map<string, CSSStyleSheet>>();
 
-const supportsConstructableStylesheets = (
-  ctor: unknown
-): ctor is typeof CSSStyleSheet => {
+const supportsConstructableStylesheets = (ctor: unknown): ctor is typeof CSSStyleSheet => {
   if (typeof ctor !== 'function') return false;
   const proto = (ctor as { prototype?: { replaceSync?: unknown } }).prototype;
   return typeof proto?.replaceSync === 'function';
@@ -140,10 +138,7 @@ export const css = (strings: TemplateStringsArray, ...values: unknown[]): Compon
  * `adoptedStyleSheets`. Returns `true` on success; on failure (no support, or
  * sheet construction failed) callers should fall back to a `<style>` element.
  */
-export const applyAdoptedStyles = (
-  root: ShadowRoot,
-  styles: ComponentStyles
-): boolean => {
+export const applyAdoptedStyles = (root: ShadowRoot, styles: ComponentStyles): boolean => {
   const sheet = styles.toAdoptableSheet();
   if (!sheet) return false;
   try {

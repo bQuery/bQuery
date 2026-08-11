@@ -24,7 +24,12 @@ const installAnimateMock = (): { calls: AnimateCall[]; restore: () => void } => 
   const calls: AnimateCall[] = [];
   proto.animate = function (keyframes: unknown, options: Record<string, unknown>) {
     calls.push({ keyframes, options });
-    const anim: { onfinish: null | (() => void); oncancel: null | (() => void); finished: Promise<void>; cancel: () => void } = {
+    const anim: {
+      onfinish: null | (() => void);
+      oncancel: null | (() => void);
+      finished: Promise<void>;
+      cancel: () => void;
+    } = {
       onfinish: null,
       oncancel: null,
       finished: Promise.resolve(),
@@ -33,7 +38,12 @@ const installAnimateMock = (): { calls: AnimateCall[]; restore: () => void } => 
     queueMicrotask(() => anim.onfinish?.());
     return anim;
   };
-  return { calls, restore: () => { proto.animate = original; } };
+  return {
+    calls,
+    restore: () => {
+      proto.animate = original;
+    },
+  };
 };
 
 afterEach(() => setReducedMotion(null));
@@ -99,7 +109,9 @@ describe('passive transition attributes do not warn (#137)', () => {
         '</div>';
       document.body.appendChild(root);
       const view = mount(root, { open: signal(true), items: signal([1, 2]) });
-      const unknownWarnings = warn.mock.calls.filter((c) => String(c[0]).includes('Unknown directive'));
+      const unknownWarnings = warn.mock.calls.filter((c) =>
+        String(c[0]).includes('Unknown directive')
+      );
       expect(unknownWarnings.length).toBe(0);
       view.destroy();
     } finally {
@@ -218,19 +230,29 @@ describe('bq-show transitions (#137)', () => {
 describe('bq-for move + item transitions (#137)', () => {
   it('reorders correctly with bq-animate="flip"', () => {
     const root = document.createElement('div');
-    root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
+    root.innerHTML =
+      '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
     document.body.appendChild(root);
     const nums = signal([1, 2, 3]);
     mount(root, { nums });
-    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['1', '2', '3']);
+    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
 
     nums.value = [3, 1, 2];
-    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['3', '1', '2']);
+    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual([
+      '3',
+      '1',
+      '2',
+    ]);
   });
 
   it('skips FLIP capture under reduced motion (honours the preference)', () => {
-    const proto = (globalThis as unknown as { Element: { prototype: { getBoundingClientRect: () => DOMRect } } })
-      .Element.prototype;
+    const proto = (
+      globalThis as unknown as { Element: { prototype: { getBoundingClientRect: () => DOMRect } } }
+    ).Element.prototype;
     const original = proto.getBoundingClientRect;
     let calls = 0;
     proto.getBoundingClientRect = function (this: Element) {
@@ -239,7 +261,8 @@ describe('bq-for move + item transitions (#137)', () => {
     };
     try {
       const root = document.createElement('div');
-      root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
+      root.innerHTML =
+        '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
       document.body.appendChild(root);
       const nums = signal([1, 2, 3]);
       mount(root, { nums });
@@ -260,16 +283,63 @@ describe('bq-for move + item transitions (#137)', () => {
 
   it('adds and removes items with enter/leave without corrupting the list', async () => {
     const root = document.createElement('div');
-    root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-in="slide-up" bq-out="fade" bq-text="n"></li></ul>';
+    root.innerHTML =
+      '<ul><li bq-for="n in nums" bq-key="n" bq-in="slide-up" bq-out="fade" bq-text="n"></li></ul>';
     document.body.appendChild(root);
     const nums = signal([1, 2]);
     mount(root, { nums });
 
     nums.value = [1, 2, 3]; // add
-    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['1', '2', '3']);
+    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
 
     nums.value = [2, 3]; // remove the first
     await flush();
     expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['2', '3']);
+  });
+});
+
+describe('transition attributes are read per flip, not pinned at bind time', () => {
+  it('picks up a bq-transition added to a bq-if element after mount', () => {
+    const mock = installAnimateMock();
+    try {
+      const root = document.createElement('div');
+      root.innerHTML = '<p bq-if="open" bq-text="msg"></p>';
+      document.body.appendChild(root);
+      const open = signal(true);
+      mount(root, { open, msg: signal('hi') });
+
+      root.querySelector('p')!.setAttribute('bq-transition', 'fade');
+      open.value = false;
+      open.value = true;
+
+      expect(mock.calls.length).toBeGreaterThan(0);
+      root.remove();
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it('picks up a changed duration on a bq-show element after mount', () => {
+    const mock = installAnimateMock();
+    try {
+      const root = document.createElement('div');
+      root.innerHTML = '<p bq-show="open" bq-transition="fade" bq-transition-duration="100"></p>';
+      document.body.appendChild(root);
+      const open = signal(true);
+      mount(root, { open });
+
+      root.querySelector('p')!.setAttribute('bq-transition-duration', '400');
+      open.value = false;
+
+      expect(mock.calls.length).toBe(1);
+      expect(mock.calls[0].options.duration).toBe(400);
+      root.remove();
+    } finally {
+      mock.restore();
+    }
   });
 });

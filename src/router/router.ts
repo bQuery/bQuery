@@ -555,10 +555,7 @@ export const createRouter = (options: RouterOptions): Router => {
 
   // Build a path string with optional query and hash (used by resolveRoute).
   const buildSearchString = (
-    query: Record<
-      string,
-      string | number | boolean | Array<string | number | boolean>
-    > | undefined
+    query: Record<string, string | number | boolean | Array<string | number | boolean>> | undefined
   ): string => {
     if (!query) return '';
     const params = new URLSearchParams();

@@ -46,7 +46,7 @@ describe('utils/function extras', () => {
     const inc = (n: number) => n + 1;
     const double = (n: number) => n * 2;
     expect(compose(inc, double)(3)).toBe(7); // double then inc
-    expect(pipe(inc, double)(3)).toBe(8);    // inc then double
+    expect(pipe(inc, double)(3)).toBe(8); // inc then double
     expect(compose<number>()(3)).toBe(3);
     expect(pipe<number>()(3)).toBe(3);
   });

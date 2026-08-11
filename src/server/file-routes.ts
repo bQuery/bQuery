@@ -14,7 +14,13 @@
  */
 
 import type { FileRoute } from '../router/file-routes/types';
-import type { ServerApp, ServerContext, ServerHandler, ServerMiddleware, ServerRoute } from './types';
+import type {
+  ServerApp,
+  ServerContext,
+  ServerHandler,
+  ServerMiddleware,
+  ServerRoute,
+} from './types';
 
 /** Options for {@link createFileRouteServerRoutes} / {@link mountFileRoutes}. */
 export interface FileRouteServerOptions {
@@ -63,36 +69,40 @@ const joinPath = (base: string | undefined, pattern: string): string => {
 const toResponse = (ctx: ServerContext, value: unknown): Response =>
   value instanceof Response ? value : ctx.json(value ?? null);
 
-const actionHandler = (route: FileRoute): ServerHandler => async (ctx) => {
-  // Resolve the module directly so lazily-imported routes that turn out to have
-  // no `action` reply 405 rather than running a throwing convenience wrapper.
-  const { action } = await route.resolve();
-  if (typeof action !== 'function') {
-    return ctx.json({ error: 'Method Not Allowed' }, { status: 405 });
-  }
-  const result = await action({
-    request: ctx.request,
-    params: ctx.params,
-    url: ctx.url,
-    ctx,
-  });
-  return toResponse(ctx, result);
-};
+const actionHandler =
+  (route: FileRoute): ServerHandler =>
+  async (ctx) => {
+    // Resolve the module directly so lazily-imported routes that turn out to have
+    // no `action` reply 405 rather than running a throwing convenience wrapper.
+    const { action } = await route.resolve();
+    if (typeof action !== 'function') {
+      return ctx.json({ error: 'Method Not Allowed' }, { status: 405 });
+    }
+    const result = await action({
+      request: ctx.request,
+      params: ctx.params,
+      url: ctx.url,
+      ctx,
+    });
+    return toResponse(ctx, result);
+  };
 
-const loaderHandler = (route: FileRoute): ServerHandler => async (ctx) => {
-  const { load } = await route.resolve();
-  if (typeof load !== 'function') {
-    return ctx.json({ error: 'Not Found' }, { status: 404 });
-  }
-  const result = await load({
-    params: ctx.params,
-    url: ctx.url,
-    request: ctx.request,
-    ctx,
-    signal: ctx.request.signal,
-  });
-  return toResponse(ctx, result);
-};
+const loaderHandler =
+  (route: FileRoute): ServerHandler =>
+  async (ctx) => {
+    const { load } = await route.resolve();
+    if (typeof load !== 'function') {
+      return ctx.json({ error: 'Not Found' }, { status: 404 });
+    }
+    const result = await load({
+      params: ctx.params,
+      url: ctx.url,
+      request: ctx.request,
+      ctx,
+      signal: ctx.request.signal,
+    });
+    return toResponse(ctx, result);
+  };
 
 /**
  * Build `server` route definitions from file-route entries. Routes whose module

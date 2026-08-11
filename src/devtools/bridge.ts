@@ -165,7 +165,13 @@ const builtinMethods = (): Record<string, BridgeMethod> => ({
 
 const isInbound = (data: unknown): data is BridgeInboundMessage => {
   if (typeof data !== 'object' || data === null) return false;
-  const msg = data as { source?: unknown; channel?: unknown; kind?: unknown; id?: unknown; method?: unknown };
+  const msg = data as {
+    source?: unknown;
+    channel?: unknown;
+    kind?: unknown;
+    id?: unknown;
+    method?: unknown;
+  };
   if (msg.source !== BRIDGE_SOURCE || msg.channel !== 'panel') return false;
   if (msg.kind === 'hello') return true;
   // Only dispatch fully-formed requests; a malformed message must not reach

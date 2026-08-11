@@ -19,7 +19,9 @@ registerPlugin(persist);
 export const useSettings = defineStore('settings', {
   state: () => ({ theme: 'light' }),
   actions: {
-    setTheme(theme: 'light' | 'dark') { this.theme = theme; },
+    setTheme(theme: 'light' | 'dark') {
+      this.theme = theme;
+    },
   },
 });
 

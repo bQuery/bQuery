@@ -58,13 +58,7 @@ export {
 } from './registry';
 
 // 1.14+ — Free-standing hooks API for non-plugin code
-export {
-  listActions,
-  listFilters,
-  removeAction,
-  removeFilter,
-  resetHooks,
-} from './hooks';
+export { listActions, listFilters, removeAction, removeFilter, resetHooks } from './hooks';
 
 // 1.14+ — Dependency injection
 export { createInjectionKey, inject, provide, resetDi } from './di';

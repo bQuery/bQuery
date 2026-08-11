@@ -388,10 +388,7 @@ export interface RetryOptions {
  * });
  * ```
  */
-export async function retry<T>(
-  fn: () => T | Promise<T>,
-  options: RetryOptions = {}
-): Promise<T> {
+export async function retry<T>(fn: () => T | Promise<T>, options: RetryOptions = {}): Promise<T> {
   const {
     attempts = 3,
     baseDelay = 100,

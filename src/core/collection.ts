@@ -1,10 +1,15 @@
 import { trustedHtmlForSink } from '../security/trusted-types';
 import { createElementFromHtml, insertContent, type InsertableContent } from './dom';
 import { BQueryElement } from './element';
-import { applyAll, getInnerSize, getOuterSize, isHTMLElement, toElementList } from './shared';
-
-/** Handler signature for delegated events */
-type DelegatedHandler = (event: Event, target: Element) => void;
+import {
+  addDelegatedListener,
+  applyAll,
+  getInnerSize,
+  getOuterSize,
+  isHTMLElement,
+  removeDelegatedListener,
+  toElementList,
+} from './shared';
 
 /**
  * Wrapper for multiple DOM elements.
@@ -24,17 +29,6 @@ type DelegatedHandler = (event: Event, target: Element) => void;
  * ```
  */
 export class BQueryCollection {
-  /**
-   * Stores delegated event handlers for cleanup via undelegate().
-   * Outer map: element -> (key -> (handler -> wrapper))
-   * Key format: `${event}:${selector}`
-   * @internal
-   */
-  private readonly delegatedHandlers = new WeakMap<
-    Element,
-    Map<string, Map<DelegatedHandler, EventListener>>
-  >();
-
   /**
    * Creates a new collection wrapper.
    * @param elements - Array of DOM elements to wrap
@@ -297,8 +291,9 @@ export class BQueryCollection {
       return view.getComputedStyle(first).getPropertyValue(property);
     }
 
+    const entries = Object.entries(property);
     applyAll(this.elements, (el) => {
-      for (const [key, val] of Object.entries(property)) {
+      for (const [key, val] of entries) {
         (el as HTMLElement).style.setProperty(key, val);
       }
     });
@@ -307,13 +302,16 @@ export class BQueryCollection {
 
   /** Wrap each element with a wrapper element or tag. */
   wrap(wrapper: string | Element): this {
+    // Snapshot the pristine wrapper before index 0 mutates it by appending
+    // the first element; later clones must not include that content.
+    const template = typeof wrapper === 'string' ? null : (wrapper.cloneNode(true) as Element);
     this.elements.forEach((el, index) => {
       const wrapperEl =
         typeof wrapper === 'string'
           ? document.createElement(wrapper)
           : index === 0
             ? wrapper
-            : (wrapper.cloneNode(true) as Element);
+            : (template!.cloneNode(true) as Element);
       el.parentNode?.insertBefore(wrapperEl, el);
       wrapperEl.appendChild(el);
     });
@@ -349,28 +347,21 @@ export class BQueryCollection {
 
     // Unwrap each parent once: move all children out, then remove the wrapper.
     parents.forEach((parent) => {
-      const grandParent = parent.parentNode;
-      if (!grandParent) return;
+      if (!parent.parentNode) return;
 
-      while (parent.firstChild) {
-        grandParent.insertBefore(parent.firstChild, parent);
-      }
-
-      parent.remove();
+      // Single tree mutation: moves all children out and removes the wrapper.
+      parent.replaceWith(...parent.childNodes);
     });
     return this;
   }
 
   /** Replace each element with provided content. */
   replaceWith(content: string | Element): BQueryCollection {
+    // Sanitize and parse string content once; clone for subsequent elements.
+    const proto = typeof content === 'string' ? createElementFromHtml(content) : content;
     const replacements: Element[] = [];
     this.elements.forEach((el, index) => {
-      const replacement =
-        typeof content === 'string'
-          ? createElementFromHtml(content)
-          : index === 0
-            ? content
-            : (content.cloneNode(true) as Element);
+      const replacement = index === 0 ? proto : (proto.cloneNode(true) as Element);
       el.replaceWith(replacement);
       replacements.push(replacement);
     });
@@ -397,7 +388,11 @@ export class BQueryCollection {
     if (!first?.parentElement) {
       return -1;
     }
-    return Array.from(first.parentElement.children).indexOf(first);
+    let index = 0;
+    for (let node = first.previousElementSibling; node; node = node.previousElementSibling) {
+      index++;
+    }
+    return index;
   }
 
   /**
@@ -575,30 +570,7 @@ export class BQueryCollection {
     selector: string,
     handler: (event: Event, target: Element) => void
   ): this {
-    const key = `${event}:${selector}`;
-
-    applyAll(this.elements, (el) => {
-      const wrapper: EventListener = (e: Event) => {
-        const target = (e.target as Element).closest(selector);
-        if (target && el.contains(target)) {
-          handler(e, target);
-        }
-      };
-
-      // Get or create the handler maps for this element
-      if (!this.delegatedHandlers.has(el)) {
-        this.delegatedHandlers.set(el, new Map());
-      }
-      const elementHandlers = this.delegatedHandlers.get(el)!;
-
-      if (!elementHandlers.has(key)) {
-        elementHandlers.set(key, new Map());
-      }
-      elementHandlers.get(key)!.set(handler, wrapper);
-
-      el.addEventListener(event, wrapper);
-    });
-
+    applyAll(this.elements, (el) => addDelegatedListener(el, event, selector, handler));
     return this;
   }
 
@@ -624,30 +596,7 @@ export class BQueryCollection {
     selector: string,
     handler: (event: Event, target: Element) => void
   ): this {
-    const key = `${event}:${selector}`;
-
-    applyAll(this.elements, (el) => {
-      const elementHandlers = this.delegatedHandlers.get(el);
-      if (!elementHandlers) return;
-
-      const handlers = elementHandlers.get(key);
-      if (!handlers) return;
-
-      const wrapper = handlers.get(handler);
-      if (wrapper) {
-        el.removeEventListener(event, wrapper);
-        handlers.delete(handler);
-
-        // Clean up empty maps
-        if (handlers.size === 0) {
-          elementHandlers.delete(key);
-        }
-        if (elementHandlers.size === 0) {
-          this.delegatedHandlers.delete(el);
-        }
-      }
-    });
-
+    applyAll(this.elements, (el) => removeDelegatedListener(el, event, selector, handler));
     return this;
   }
 
@@ -743,7 +692,9 @@ export class BQueryCollection {
     const seen = new Set<Element>();
     const results: Element[] = [];
     for (const el of this.elements) {
-      for (const child of Array.from(el.children)) {
+      const kids = el.children;
+      for (let i = 0; i < kids.length; i++) {
+        const child = kids[i];
         if (!seen.has(child)) {
           seen.add(child);
           results.push(child);
@@ -766,14 +717,18 @@ export class BQueryCollection {
    */
   siblings(): BQueryCollection {
     const selfSet = new Set(this.elements);
-    const seen = new Set<Element>();
+    // Elements sharing a parent yield the same sibling set, so scan each
+    // parent's children only once.
+    const visitedParents = new Set<Element>();
     const results: Element[] = [];
     for (const el of this.elements) {
       const parent = el.parentElement;
-      if (!parent) continue;
-      for (const sibling of Array.from(parent.children)) {
-        if (!selfSet.has(sibling) && !seen.has(sibling)) {
-          seen.add(sibling);
+      if (!parent || visitedParents.has(parent)) continue;
+      visitedParents.add(parent);
+      const kids = parent.children;
+      for (let i = 0; i < kids.length; i++) {
+        const sibling = kids[i];
+        if (!selfSet.has(sibling)) {
           results.push(sibling);
         }
       }
@@ -845,9 +800,8 @@ export class BQueryCollection {
    * @returns The instance for method chaining
    */
   empty(): this {
-    applyAll(this.elements, (el) => {
-      el.innerHTML = '';
-    });
+    // replaceChildren skips the HTML parser and needs no Trusted Types sink.
+    applyAll(this.elements, (el) => el.replaceChildren());
     return this;
   }
 

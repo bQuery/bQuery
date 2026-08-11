@@ -27,7 +27,8 @@ describe('View Stable — bq-for duplicate keys (#136)', () => {
   it('renders every row even when keys collide', () => {
     setDev(false);
     const root = document.createElement('div');
-    root.innerHTML = '<ul><li bq-for="item in items" bq-key="item.id" bq-text="item.label"></li></ul>';
+    root.innerHTML =
+      '<ul><li bq-for="item in items" bq-key="item.id" bq-text="item.label"></li></ul>';
     document.body.appendChild(root);
 
     const items = signal([
@@ -47,7 +48,8 @@ describe('View Stable — bq-for duplicate keys (#136)', () => {
     const warn = spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const root = document.createElement('div');
-      root.innerHTML = '<ul><li bq-for="item in items" bq-key="item.id" bq-text="item.id"></li></ul>';
+      root.innerHTML =
+        '<ul><li bq-for="item in items" bq-key="item.id" bq-text="item.id"></li></ul>';
       document.body.appendChild(root);
 
       const items = signal([{ id: 1 }, { id: 1 }]);
@@ -72,7 +74,8 @@ describe('View Stable — bq-for duplicate keys (#136)', () => {
     const warn = spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const root = document.createElement('div');
-      root.innerHTML = '<ul><li bq-for="item in items" bq-key="item.id" bq-text="item.id"></li></ul>';
+      root.innerHTML =
+        '<ul><li bq-for="item in items" bq-key="item.id" bq-text="item.id"></li></ul>';
       document.body.appendChild(root);
       const items = signal([{ id: 7 }, { id: 7 }]);
       const view = mount(root, { items });

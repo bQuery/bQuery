@@ -13,9 +13,19 @@ defineComponent('ds-toast', {
   props: { duration: { type: Number, default: 3000 }, message: { type: String, default: '' } },
   state: { open: true },
   styles: css`
-    :host { position: fixed; bottom: 1rem; right: 1rem; background: #222; color: white;
-            padding: .75rem 1rem; border-radius: 6px; display: none; }
-    :host([open]) { display: block; }
+    :host {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      background: #222;
+      color: white;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      display: none;
+    }
+    :host([open]) {
+      display: block;
+    }
   `,
   connected() {
     this.toggleAttribute('open', true);

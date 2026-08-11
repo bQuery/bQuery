@@ -337,6 +337,8 @@ registerBqLink();
 
 `<bq-link>` applies `aria-current="page"` when active and respects modifier-key clicks so users can still open destinations in a new tab when appropriate.
 
+The element class itself is exported as `BqLinkElement` — useful for `instanceof` checks, typed DOM queries, or registering it under a custom tag name. Its observed attributes are `to`, `replace`, `exact`, and `active-class` (default active class: `active`).
+
 ## Hash Mode
 
 Use hash-based routing for static hosting:
@@ -529,7 +531,12 @@ guide for the full story. The surface lives in this module:
   attached to a matched route's `meta`.
 
 ```ts
-import { createFileRoutes, createRouter, createRouteData, useRouteData } from '@bquery/bquery/router';
+import {
+  createFileRoutes,
+  createRouter,
+  createRouteData,
+  useRouteData,
+} from '@bquery/bquery/router';
 
 const { routes } = createFileRoutes(import.meta.glob('./routes/**/+page.ts'));
 const router = createRouter({ routes });

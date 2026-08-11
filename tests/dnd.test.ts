@@ -1303,7 +1303,10 @@ describe('dnd/draggable bounds variants', () => {
   });
 
   it('does not throw for element bounds when HTMLElement is unavailable', () => {
-    const originalHTMLElementDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'HTMLElement');
+    const originalHTMLElementDescriptor = Object.getOwnPropertyDescriptor(
+      globalThis,
+      'HTMLElement'
+    );
 
     try {
       Object.defineProperty(globalThis, 'HTMLElement', {

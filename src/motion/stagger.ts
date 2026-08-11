@@ -32,15 +32,7 @@ import type { StaggerFunction, StaggerOptions } from './types';
  * ```
  */
 export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunction => {
-  const {
-    start = 0,
-    from = 'start',
-    easing,
-    grid,
-    axis,
-    random = false,
-    randomSeed,
-  } = options;
+  const { start = 0, from = 'start', easing, grid, axis, random = false, randomSeed } = options;
 
   // Pseudo-random helper — stable for the same `(index, total)` within a
   // stagger function, while still allowing a per-instance random seed when one
@@ -110,11 +102,7 @@ export const stagger = (step: number, options: StaggerOptions = {}): StaggerFunc
       const maxDx = Math.max(originX, cols - 1 - originX);
       const maxDy = Math.max(originY, rows - 1 - originY);
       const maxDistance =
-        axis === 'x'
-          ? maxDx
-          : axis === 'y'
-            ? maxDy
-            : Math.sqrt(maxDx * maxDx + maxDy * maxDy);
+        axis === 'x' ? maxDx : axis === 'y' ? maxDy : Math.sqrt(maxDx * maxDx + maxDy * maxDy);
 
       const normalized = maxDistance === 0 ? 0 : distance / maxDistance;
       const eased = easing ? easing(normalized) * maxDistance : distance;

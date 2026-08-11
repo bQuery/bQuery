@@ -300,9 +300,7 @@ describe('storybook/repeat', () => {
 
 describe('storybook/storyText', () => {
   it('escapes HTML special characters', () => {
-    expect(storyText('<script>alert(1)</script>')).toBe(
-      '&lt;script&gt;alert(1)&lt;/script&gt;'
-    );
+    expect(storyText('<script>alert(1)</script>')).toBe('&lt;script&gt;alert(1)&lt;/script&gt;');
   });
 
   it('returns empty string for null and undefined', () => {

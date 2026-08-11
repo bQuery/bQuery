@@ -4,9 +4,9 @@ The core module provides selectors, DOM manipulation, events, and utilities. The
 
 - **`$(selector)`** — wraps a single element in a `BQueryElement` and **throws** if the selector matches nothing. Use it when the absence of the element is a bug.
 - **`$$(selector)`** — wraps any number of elements (including zero) in a `BQueryCollection`. Use it for lists, optional matches, or iteration.
-- **Utilities** — pure helpers (`debounce`, `throttle`, `merge`, `uid`, `template`, type guards, …) exposed both as named exports *and* via the `utils` namespace for IntelliSense-friendly destructuring.
+- **Utilities** — pure helpers (`debounce`, `throttle`, `merge`, `uid`, `template`, type guards, …) exposed both as named exports _and_ via the `utils` namespace for IntelliSense-friendly destructuring.
 
-All mutating methods return `this` so they chain. Read-only getters (`text()`, `attr(name)`, `css(prop)`, `val()`, etc.) return the underlying value. HTML insertion methods such as `html()`, `append()`, `prepend()`, `before()`, and `after()` sanitize string content by default, while setters like `attr()`, `data()`, and `css()` write directly; the [Security guide](./security.md) covers how to opt in to raw HTML when you genuinely need it.
+Mutating methods return `this` so they chain — with two exceptions: `replaceWith()` and `clone()` return a **new** wrapper around the replacement/copy, so the chain continues on the new node rather than the original. Read-only getters (`text()`, `attr(name)`, `css(prop)`, `val()`, etc.) return the underlying value. HTML insertion methods such as `html()`, `append()`, `prepend()`, `before()`, and `after()` sanitize string content by default, while setters like `attr()`, `data()`, and `css()` write directly; the [Security guide](./security.md) covers how to opt in to raw HTML when you genuinely need it.
 
 > `BQueryElement` always wraps exactly one element. `BQueryCollection` wraps zero or more — its mutating methods apply to every element, and its getters read from the first element. Convert between them with `$$(...).eq(0)` or `collection.firstEl()`, both of which return `BQueryElement | undefined` when the collection is empty.
 
@@ -43,7 +43,7 @@ const fromArray = $$([document.body]);
 
 ## BQueryElement (single element wrapper)
 
-`BQueryElement` is the single-element wrapper returned by `$()`. Every method that *changes* the element returns `this` so calls can be chained fluently; every method that *reads* state returns a primitive (`string`, `number`, `boolean`, `DOMRect`, …). The underlying DOM node is always available via the `.raw` (alias `.node`) getter when you need to drop down to raw browser APIs.
+`BQueryElement` is the single-element wrapper returned by `$()`. Methods that _change_ the element return `this` so calls can be chained fluently (except `replaceWith()`/`clone()`, which return a new wrapper — see above). Methods that _read_ state return the underlying value: primitives for `text()`/`attr()`/`css()`, raw elements or arrays for traversal helpers (`find()`, `closest()`, `contents()`), and plain objects for measurements (`offset()`, `position()`). The underlying DOM node is always available via the `.raw` (alias `.node`) getter when you need to drop down to raw browser APIs.
 
 ### Class & attribute helpers
 
@@ -76,14 +76,14 @@ These helpers mirror standard `classList` / `setAttribute` semantics but stay ch
 
 ### Style & visibility
 
-`css()` is overloaded: with a single property name it acts as a **getter** that returns the resolved value from `getComputedStyle()` (always a `string`); with a property + value (or an object) it acts as a **setter** that writes to `element.style` and stays chainable. `show()` / `hide()` toggle the inline `display` style, and `show(display)` lets you opt into a specific display value (e.g. `'flex'`) instead of the browser default. `toggle()` flips visibility, or accepts a boolean `force` to set it explicitly.
+`css()` is overloaded: with a single property name it acts as a **getter** that returns the resolved value from `getComputedStyle()` (always a `string`); with a property + value (or an object) it acts as a **setter** that writes to `element.style` and stays chainable. `show()` clears the inline `display` style (or sets the value you pass, e.g. `show('flex')`) **and removes the `hidden` attribute**; `hide()` only sets the inline `display: none` — it does not add `hidden`. `toggle()` decides based on the **inline** `display` value only, so an element hidden by a stylesheet rule, a class, or the `hidden` attribute counts as visible and gets hidden; pass a boolean `force` to set the state explicitly. `toggle()` exists on `BQueryElement` only — collections have `show()`/`hide()` but no `toggle()`.
 
 - `css(property)` – getter: returns computed style value via `getComputedStyle()`
 - `css(property, value)` – setter: sets a single CSS property
 - `css(properties)` – setter: sets multiple CSS properties from an object
-- `show(display?)`
-- `hide()`
-- `toggle(force?)`
+- `show(display?)` – clears/sets inline `display` and removes the `hidden` attribute
+- `hide()` – sets inline `display: none` (does not add `hidden`)
+- `toggle(force?)` – flips based on the inline `display` value (`BQueryElement` only)
 
 ### Events (Element)
 
@@ -134,7 +134,7 @@ $('#el').matches('.active');
 
 Traversal methods follow the DOM tree without mutating the receiver, but their return types mirror the underlying DOM operation. On `BQueryElement`, `find()` returns **all** matching descendants as `Element[]`, `findOne()` returns the first match as `Element | null`, and helpers like `closest()`, `parent()`, `next()`, and `prev()` return raw `Element | null` values. On `BQueryCollection`, traversal helpers return new `BQueryCollection` wrappers so you can keep chaining across multiple matches. `closest()` walks **up** the tree (including the element itself when it matches), which is the canonical pattern for resolving the target of a `delegate('click', selector, …)` callback to a known ancestor.
 
-Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the content + padding box (matching `clientWidth`/`clientHeight`), while `outerWidth`/`outerHeight` measure the border box and accept an optional `includeMargin` boolean. `rect()` returns a live `DOMRect`, `offset()` returns `offsetWidth`/`offsetHeight` plus `offsetTop`/`offsetLeft` (relative to the offset parent), and `position()` returns coordinates relative to the offset parent.
+Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the content + padding box (matching `clientWidth`/`clientHeight`), while `outerWidth`/`outerHeight` measure the border box and accept an optional `includeMargin` boolean. `rect()` returns a static `DOMRect` snapshot from `getBoundingClientRect()` (it does not update as layout changes), `offset()` returns `offsetWidth`/`offsetHeight` plus `offsetTop`/`offsetLeft` (relative to the offset parent), and `position()` returns coordinates relative to the offset parent.
 
 - `find(selector)`
 - `findOne(selector)`
@@ -146,7 +146,7 @@ Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the cont
 - `prev()`
 - `matches(selector)`
 - `is(selector)` – alias for `matches()`
-- `clone(deep?)`
+- `clone(deep?)` – returns a new `BQueryElement` wrapping the copy
 - `val(newValue?)`
 - `rect()`
 - `offset()`
@@ -164,8 +164,8 @@ Layout getters come in two flavours: `innerWidth`/`innerHeight` measure the cont
 ### DOM Manipulation
 
 - `wrap(wrapper)` – wrap element with new parent (accepts tag name or Element)
-- `unwrap()` – remove parent, keeping element
-- `replaceWith(content)` – replace element with new content
+- `unwrap()` – remove parent, keeping **only this element**; sibling nodes are discarded with the parent (use `$$(…).unwrap()` to keep all children)
+- `replaceWith(content)` – replace element with new content; returns a **new** `BQueryElement` wrapping the replacement
 - `detach()` – remove element from DOM without discarding the wrapper
 - `scrollTo(options?)` – scroll element into view
 
@@ -178,7 +178,7 @@ const wrapper = document.createElement('section');
 wrapper.className = 'wrapper';
 $('#content').wrap(wrapper);
 
-// Unwrap (remove parent)
+// Unwrap (remove parent — siblings inside the parent are removed too)
 $('#content').unwrap();
 
 // Replace element
@@ -194,7 +194,7 @@ $('#section').scrollTo({ behavior: 'smooth', block: 'center' });
 
 ### Form Serialization
 
-`serialize()` collects every named, non-disabled control inside the wrapped `<form>` into a plain object — input values, selected option(s), checked checkboxes, radio groups, multi-select arrays, and `<textarea>` content are all supported. `serializeString()` returns the same data already URL-encoded so it can be appended to a query string or sent as `application/x-www-form-urlencoded` body. Both helpers respect the standard form rules: unnamed fields, disabled controls, and `type="submit"` buttons are skipped, and unchecked checkboxes / radios are excluded rather than serialized as `false`.
+`serialize()` collects every named, non-disabled control inside the wrapped `<form>` into an object — input values, selected option(s), checked checkboxes, radio groups, multi-select arrays, and `<textarea>` content are all supported. The returned object has a **null prototype** (security hardening), so inherited members like `hasOwnProperty` or `toString` are not available on it — use `Object.keys(data)` or `Object.prototype.hasOwnProperty.call(data, key)` instead. `serializeString()` returns the same data already URL-encoded so it can be appended to a query string or sent as `application/x-www-form-urlencoded` body. Both helpers respect the standard form rules: unnamed fields, disabled controls, and `type="submit"` buttons are skipped, and unchecked checkboxes / radios are excluded rather than serialized as `false`.
 
 - `serialize()` – returns form data as object
 - `serializeString()` – returns URL-encoded string
@@ -211,9 +211,9 @@ const query = $('form').serializeString();
 
 ## BQueryCollection (multi-element wrapper)
 
-`BQueryCollection` is the zero-or-more-element wrapper returned by `$$()` (and by collection-returning methods like `find()`, `siblings()`, `children()`). It behaves like an array of `BQueryElement`s but flattens common operations: writing through the collection iterates every element, while reading returns the value from the first element only — matching jQuery's "first-wins" convention. Use `.each()` / `.map()` / `.toArray()` when you need per-element access, and `.eq(n)` to narrow back down to a single-element collection.
+`BQueryCollection` is the zero-or-more-element wrapper returned by `$$()` (and by collection-returning methods like `find()`, `siblings()`, `children()`). It flattens common operations: writing through the collection iterates every element, while reading returns the value from the first element only — matching jQuery's "first-wins" convention. For per-element access, note the callback shapes: `.each()` and `.toArray()` yield `BQueryElement` wrappers, while `.map()` / `.filter()` / `.reduce()` hand their callbacks the **raw `Element`**. Use `.eq(n)` to narrow down to a single `BQueryElement` (`undefined` when the index is out of range).
 
-All mutating methods are chainable and apply to every element. Getter methods return values from the first element.
+Mutating methods apply to every element and return `this` for chaining — except `replaceWith()`, which returns a **new** `BQueryCollection` of the replacement nodes, so further chained calls target the replacements. Getter methods return values from the first element.
 
 ### Collection helpers
 
@@ -221,11 +221,11 @@ All mutating methods are chainable and apply to every element. Getter methods re
 - `eq(index)`
 - `firstEl()`
 - `lastEl()`
-- `each(callback)`
-- `map(callback)`
-- `filter(predicate)`
-- `reduce(callback, initialValue)`
-- `toArray()`
+- `each(callback)` – callback receives a `BQueryElement`
+- `map(callback)` – callback receives the raw `Element`
+- `filter(predicate)` – predicate receives the raw `Element`
+- `reduce(callback, initialValue)` – callback receives the raw `Element`
+- `toArray()` – returns `BQueryElement[]`
 - `find(selector)` – query all descendant elements matching a selector across all collection elements (deduplicates shared descendants)
 
 ### DOM traversal
@@ -299,7 +299,7 @@ The core module also exposes a large set of pure, tree-shakeable utility functio
 1. **Named imports** (best for tree-shaking with a bundler): `import { debounce, merge, uid } from '@bquery/bquery/core';`
 2. **Namespace import** (best for editor autocomplete and IntelliSense): `import { utils } from '@bquery/bquery/core';` then `utils.debounce(...)`.
 
-Function wrappers (`debounce`, `throttle`, `memoize`, `retry`) return a callable with extra control methods such as `.cancel()`, `.flush()`, and `.clear()` — see each entry below for specifics. None of the utilities mutate their arguments, and deep object helpers (`get`, `set`, `merge`, `defaults`) refuse to traverse prototype keys (`__proto__`, `constructor`, `prototype`), preventing prototype-pollution exploits.
+Function wrappers (`debounce`, `throttle`, `memoize`) return a callable with extra control methods such as `.cancel()`, `.flush()`, and `.clear()` — see each entry below for specifics. `retry` is not a wrapper: it invokes the function immediately and returns a `Promise`; cancel it via its `signal` option. Most utilities do not mutate their arguments — the deliberate exceptions are `set()`, `defaults()`, and `freeze()`, which modify (or freeze) the object you pass in and return that same reference. Deep object helpers (`get`, `set`, `merge`, `defaults`) refuse to traverse prototype keys (`__proto__`, `constructor`, `prototype`), preventing prototype-pollution exploits.
 
 ```ts
 import { debounce, throttle, merge, uid, utils } from '@bquery/bquery/core';
@@ -328,6 +328,7 @@ later.cancel();
 ### Utility list
 
 #### Object
+
 - `clone(value)`
 - `merge(...sources)`
 - `pick(obj, keys)`
@@ -342,6 +343,7 @@ later.cancel();
 - `entriesTyped(obj)` / `keysTyped(obj)` – key-preserving typed wrappers
 
 #### Function
+
 - `debounce(fn, delayMs, options?)` – `DebouncedFn` with `.cancel()`, `.flush()`. Options: `{ leading?, trailing?, maxWait? }`
 - `throttle(fn, intervalMs, options?)` – `ThrottledFn` with `.cancel()`, `.flush()`. Options: `{ leading?, trailing? }`
 - `once(fn)` / `noop()`
@@ -351,6 +353,7 @@ later.cancel();
 - `retry(fn, opts?)` – exponential backoff with jitter and `AbortSignal`
 
 #### Misc
+
 - `uid(prefix?)` – short hash-style id
 - `uuid()` – RFC 4122 v4 (uses `crypto.randomUUID()` / `getRandomValues()` when available)
 - `isEmpty(value)` / `parseJson(json, fallback)` / `sleep(ms)`
@@ -358,12 +361,14 @@ later.cancel();
 - `times(n, fn)` / `pollUntil(predicate, opts?)` / `nextFrame()` / `nextTick()`
 
 #### Type guards
+
 - `isElement` / `isCollection` / `isFunction` / `isString` / `isNumber` / `isBoolean` / `isArray` / `isDate` / `isPromise` / `isObject`
 - `isError` / `isMap` / `isSet` / `isRegExp` / `isSymbol` / `isBigInt`
 - `isAsyncFunction` / `isIterable` / `isAsyncIterable`
 - `isNullish(value)` / `isDefined(value)`
 
 #### Number
+
 - `randomInt(min, max)` / `randomFloat(min, max)`
 - `clamp(value, min, max)` / `inRange(value, min, max, inclusive?)` / `toNumber(value, fallback?)`
 - `round(value, precision?)` / `roundTo(value, step)`
@@ -375,6 +380,7 @@ later.cancel();
 > The locale-aware `formatNumber` is exposed by `@bquery/bquery/i18n`. `utils.formatBytes()` accepts the same `locale` option for consistent localized output without pulling in i18n.
 
 #### String
+
 - `capitalize` / `toKebabCase` / `toCamelCase` / `toSnakeCase` / `toPascalCase` / `toTitleCase`
 - `truncate(str, maxLength, suffix?)` / `slugify(str)` / `escapeRegExp(str)`
 - `pad(str, length, char?)` / `padStart(str, length, char?)` / `padEnd(str, length, char?)`
@@ -384,6 +390,7 @@ later.cancel();
 - `randomString(length, charset?)` – crypto-backed when available
 
 #### Array
+
 - `ensureArray(value)` / `unique(items)` / `uniqueBy(items, fn)`
 - `chunk(items, size)` / `chunkBy(items, predicate)` / `compact(items)`
 - `flatten(items)` / `flattenDeep(items)`
@@ -404,13 +411,13 @@ later.cancel();
 - Mutating wrappers return `this` for chaining; non-mutating getters (`.text()`, `.attr()` without args) do not.
 - `.text()` / `.attr()` / `.css()` are overloaded as getter and setter — pass a value to mutate.
 - HTML-writing APIs (`.html(value)`) sanitize untrusted content by default; use `.raw.innerHTML` only for trusted strings.
-- Utility helpers like `deepEqual`, `cloneDeep`, and `freeze` operate by structure — symbols and non-enumerable props are intentionally skipped.
+- Utility helpers like `deepEqual`, `clone`, and `freeze` operate by structure. `clone()` delegates to `structuredClone()`, which **throws** on functions and symbols rather than skipping them (the legacy JSON fallback silently drops them).
 
 ## Performance notes
 
 - Cache wrappers when re-using them in tight loops — each `$()` call performs a `querySelector`.
 - Prefer `.find()` / `.children()` over re-querying from `document` to keep selector scope narrow.
-- For very large lists, use `chunkBy()` / `range()` from `core/utils` to stream work rather than materializing arrays.
+- For very large lists, split the work into batches with `chunk()` from `@bquery/bquery/core` and yield between batches (`nextFrame()` / `nextTick()`). All array helpers return materialized arrays — there are no streaming or generator variants.
 
 ## Testing this module
 
@@ -425,5 +432,6 @@ later.cancel();
 
 ## Version history
 
+- **1.16.0** — `undelegate()` works across wrapper instances (module-level delegation registry, one counted listener per `delegate()` target); `wrap()` clone correctness over multi-element collections; cheaper `replaceWith(string)`, `empty()`, `children()`/`siblings()`/`index()`, `unwrap()`, `css(object)`, form serialization, and `data()`.
 - **1.13.0** — major `core/utils` expansion (array / function / object / string / number / misc helpers, additional type guards).
 - **1.0.0** — original chainable jQuery-inspired wrappers shipped.

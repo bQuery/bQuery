@@ -165,16 +165,14 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
 
   // Pending pointer state — used to honor `delay` and `touchStartThreshold`
   // before promoting a pointerdown to an active drag.
-  let pendingPointer:
-    | {
-        pointerId: number;
-        startX: number;
-        startY: number;
-        deadline: number;
-        timer: ReturnType<typeof setTimeout> | null;
-        originalEvent: PointerEvent;
-      }
-    | null = null;
+  let pendingPointer: {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    deadline: number;
+    timer: ReturnType<typeof setTimeout> | null;
+    originalEvent: PointerEvent;
+  } | null = null;
 
   // Keyboard pickup state
   let keyboardActive = false;
@@ -403,7 +401,10 @@ export const draggable = (el: HTMLElement, options: DraggableOptions = {}): Drag
     const isPickupKey = e.key === ' ' || e.key === 'Enter';
     const isCancelKey = e.key === 'Escape';
     const isArrowKey =
-      e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+      e.key === 'ArrowUp' ||
+      e.key === 'ArrowDown' ||
+      e.key === 'ArrowLeft' ||
+      e.key === 'ArrowRight';
 
     if (!keyboardActive) {
       if (isPickupKey) {

@@ -85,7 +85,11 @@ app is running) via `onReducedMotionChange()`, or use the reactive
 `reducedMotionSignal()` in components and `view` bindings:
 
 ```ts
-import { onReducedMotionChange, prefersReducedMotion, reducedMotionSignal } from '@bquery/bquery/motion';
+import {
+  onReducedMotionChange,
+  prefersReducedMotion,
+  reducedMotionSignal,
+} from '@bquery/bquery/motion';
 import { effect } from '@bquery/bquery/reactive';
 
 document.documentElement.dataset.reducedMotion = String(prefersReducedMotion());
@@ -221,7 +225,14 @@ const stairs = steps(4, 'end'); // matches CSS steps(4, end)
 ### `mix()` and `chain()` composers
 
 ```ts
-import { mix, chain, easeOutCubic, easeOutBack, easeInQuad, easeOutBounce } from '@bquery/bquery/motion';
+import {
+  mix,
+  chain,
+  easeOutCubic,
+  easeOutBack,
+  easeInQuad,
+  easeOutBounce,
+} from '@bquery/bquery/motion';
 
 const softSpring = mix(easeOutCubic, easeOutBack, 0.4);
 const inThenBounce = chain(easeInQuad, easeOutBounce);
@@ -265,10 +276,14 @@ await t.finished;
 ```ts
 import { animate, animateTo } from '@bquery/bquery/motion';
 
-await animateTo(card, { opacity: 1, transform: 'translateY(0)' }, {
-  duration: 320,
-  easing: 'ease-out',
-});
+await animateTo(
+  card,
+  { opacity: 1, transform: 'translateY(0)' },
+  {
+    duration: 320,
+    easing: 'ease-out',
+  }
+);
 
 const ctrl = new AbortController();
 animate(card, {
@@ -560,4 +575,5 @@ button.addEventListener('pointerleave', () => scale.to(1));
 
 ## Version history
 
+- **1.16.0** — `onReducedMotionChange` re-binds to the current `window.matchMedia` on subscribe and flushes preference changes that happened without a `change` event.
 - **1.13.0** — full Penner easing family, `cubicBezier`, `steps`, `mix`, `chain`, `tween`, `animateValue`, richer `spring`/`timeline`/`stagger`, `scrollProgress`, `inView`, `magnetic`, `tilt`, `shake`, `pulse`, `countUp`, reactive reduced-motion signals.

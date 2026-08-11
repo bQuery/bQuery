@@ -236,9 +236,7 @@ export function exposeRpc<TRoutes extends WorkerRpcHandlers>(
   const routes: Record<string, WorkerTaskHandler<unknown, unknown>> = Object.create(null);
   const names = Object.keys(handlers);
   if (names.length === 0) {
-    throw new TaskWorkerSerializationError(
-      'exposeRpc() requires at least one named RPC handler.'
-    );
+    throw new TaskWorkerSerializationError('exposeRpc() requires at least one named RPC handler.');
   }
 
   for (const name of names) {

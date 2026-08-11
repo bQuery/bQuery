@@ -316,9 +316,7 @@ const wireBoundaryHandlers = (
     if (!handlerId || isPrototypePollutionKey(handlerId)) continue;
     const fn = handlers[handlerId];
     if (typeof fn !== 'function') continue;
-    const events = (el.getAttribute(RESUMABLE_EVENT_ATTR) ?? 'click')
-      .split(/\s+/)
-      .filter(Boolean);
+    const events = (el.getAttribute(RESUMABLE_EVENT_ATTR) ?? 'click').split(/\s+/).filter(Boolean);
     for (const event of events) {
       el.addEventListener(event, fn as EventListener);
       wired += 1;

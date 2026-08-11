@@ -650,7 +650,7 @@ const boundary = suspense(user);
 // <section bq-show="boundary.settled">…content…</section>
 
 boundary.error.value; // first error surfaced by any tracked source, or null
-boundary.dispose();   // detach internal effects + promise listeners
+boundary.dispose(); // detach internal effects + promise listeners
 ```
 
 - `pending` is `true` while any tracked source is pending
@@ -671,7 +671,7 @@ import { startTransition } from '@bquery/bquery/concurrency';
 const [isPending, start] = startTransition();
 
 input.addEventListener('input', (event) => {
-  query.value = event.target.value;              // urgent: keeps the field responsive
+  query.value = event.target.value; // urgent: keeps the field responsive
   start(() => (filter.value = event.target.value)); // non-urgent: heavy list re-render
 });
 
@@ -689,7 +689,7 @@ every keystroke.
 import { deferred } from '@bquery/bquery/concurrency';
 import { computed } from '@bquery/bquery/reactive';
 
-const deferredQuery = deferred(query);                 // lags `query`
+const deferredQuery = deferred(query); // lags `query`
 const results = computed(() => expensiveSearch(deferredQuery.value));
 ```
 

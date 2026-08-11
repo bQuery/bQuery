@@ -1,5 +1,5 @@
 import { effect } from '../../reactive/index';
-import { evaluate, parseObjectExpression } from '../evaluate';
+import { evaluate, parseObjectExpressionCached } from '../evaluate';
 import type { DirectiveHandler } from '../types';
 
 /**
@@ -11,13 +11,18 @@ export const handleClass: DirectiveHandler = (el, expression, context, cleanups)
   // Track classes added by this directive to clean them up on re-evaluation
   let previousClasses: Set<string> = new Set();
 
+  // The expression is a static attribute value: classify the syntax and parse
+  // the object form once at bind time instead of on every reactive update.
+  const classEntries = expression.trimStart().startsWith('{')
+    ? Object.entries(parseObjectExpressionCached(expression))
+    : null;
+
   const cleanup = effect(() => {
     const newClasses: Set<string> = new Set();
 
-    if (expression.trimStart().startsWith('{')) {
+    if (classEntries) {
       // Object syntax: { active: isActive, disabled: !enabled }
-      const classMap = parseObjectExpression(expression);
-      for (const [className, conditionExpr] of Object.entries(classMap)) {
+      for (const [className, conditionExpr] of classEntries) {
         const condition = evaluate<boolean>(conditionExpr, context);
         el.classList.toggle(className, Boolean(condition));
         // Track class regardless of condition - toggle handles add/remove

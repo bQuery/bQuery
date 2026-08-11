@@ -1,6 +1,6 @@
 # Backend API + WebSocket session
 
-Build a small HTTP + WebSocket back-end with [Server](/guide/server) and consume it on the client with [Reactive realtime helpers](/guide/reactive#realtime-helpers).
+Build a small HTTP + WebSocket back-end with [Server](/guide/server) and consume it on the client with [Reactive realtime helpers](/guide/reactive#websocket).
 
 ## 1. Server: routes + a chat room
 

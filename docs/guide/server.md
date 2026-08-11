@@ -629,7 +629,7 @@ const { entries } = createFileRoutes(import.meta.glob('./routes/**/+page.ts'));
 const app = createServer();
 mountFileRoutes(app, entries, {
   middlewares: [csrf()], // mutations are CSRF-guarded
-  dataPath: '/__data',   // optional: also serve each route's `load` as JSON
+  dataPath: '/__data', // optional: also serve each route's `load` as JSON
 });
 ```
 

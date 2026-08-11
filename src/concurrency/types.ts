@@ -571,16 +571,14 @@ export interface RpcWorkerModule<TRoutes extends WorkerRpcHandlers = WorkerRpcHa
  * needs `'unsafe-eval'`) or a CSP-safe {@link WorkerModule} (module mode).
  */
 export type WorkerTaskSource<TInput = void, TResult = unknown> =
-  | WorkerTaskHandler<TInput, TResult>
-  | WorkerModule<TInput, TResult>;
+  WorkerTaskHandler<TInput, TResult> | WorkerModule<TInput, TResult>;
 
 /**
  * Accepted RPC source: either an inline map of standalone handlers (dynamic
  * mode) or a CSP-safe {@link RpcWorkerModule} (module mode).
  */
 export type WorkerRpcSource<TRoutes extends WorkerRpcHandlers = WorkerRpcHandlers> =
-  | TRoutes
-  | RpcWorkerModule<TRoutes>;
+  TRoutes | RpcWorkerModule<TRoutes>;
 
 /**
  * Minimal worker global-scope surface used by `exposeTask()` / `exposeRpc()`.

@@ -61,7 +61,10 @@ const SENTINEL_ABSENT = '∅'; // ∅ — marks an absent attribute in reports.
  * the top-level context.
  */
 const leadingIdentifier = (expression: string): string | null => {
-  const match = expression.trim().replace(/^[!\s]+/, '').match(/^[A-Za-z_$][\w$]*/);
+  const match = expression
+    .trim()
+    .replace(/^[!\s]+/, '')
+    .match(/^[A-Za-z_$][\w$]*/);
   return match ? match[0] : null;
 };
 

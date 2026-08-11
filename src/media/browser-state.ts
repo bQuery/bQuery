@@ -6,7 +6,12 @@
  * @module bquery/media
  */
 
-import { createMediaSignal, createWritableMediaSignal, hasDom, type AbortableOptions } from './internal';
+import {
+  createMediaSignal,
+  createWritableMediaSignal,
+  hasDom,
+  type AbortableOptions,
+} from './internal';
 import type { MediaSignalHandle } from './types';
 
 // ---------------------------------------------------------------------------
@@ -18,9 +23,7 @@ import type { MediaSignalHandle } from './types';
  *
  * Updates when the browser fires the `languagechange` event.
  */
-export const usePreferredLanguage = (
-  options?: AbortableOptions
-): MediaSignalHandle<string> => {
+export const usePreferredLanguage = (options?: AbortableOptions): MediaSignalHandle<string> => {
   const read = (): string =>
     typeof navigator !== 'undefined' && typeof navigator.language === 'string'
       ? navigator.language
@@ -120,7 +123,8 @@ export const usePageVisibility = (
  * Reactive boolean tracking `document.hasFocus()`.
  */
 export const useDocumentFocus = (options?: AbortableOptions): MediaSignalHandle<boolean> => {
-  const read = (): boolean => (hasDom() && typeof document.hasFocus === 'function' ? document.hasFocus() : true);
+  const read = (): boolean =>
+    hasDom() && typeof document.hasFocus === 'function' ? document.hasFocus() : true;
 
   return createMediaSignal<boolean>(
     read(),
@@ -387,7 +391,8 @@ export const useWakeLock = (options?: AbortableOptions): WakeLockHandle => {
  * Whether `navigator.share()` is available.
  */
 export const useShareSupported = (): boolean =>
-  typeof navigator !== 'undefined' && typeof (navigator as Navigator & { share?: unknown }).share === 'function';
+  typeof navigator !== 'undefined' &&
+  typeof (navigator as Navigator & { share?: unknown }).share === 'function';
 
 /**
  * Returned shape of {@link useShare}.
@@ -651,8 +656,7 @@ export const useStorage = <T>(
 ): StorageHandle<T> => {
   const storageKind = options.storage ?? 'local';
   const serialize = options.serialize ?? ((value: T): string => JSON.stringify(value));
-  const deserialize =
-    options.deserialize ?? ((raw: string): T => JSON.parse(raw) as T);
+  const deserialize = options.deserialize ?? ((raw: string): T => JSON.parse(raw) as T);
   const syncTabs = options.syncTabs !== false && storageKind === 'local';
 
   const area = getStorageArea(storageKind);

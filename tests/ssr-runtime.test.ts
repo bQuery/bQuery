@@ -132,31 +132,43 @@ describe('runtime detection', () => {
     const context = createSSRContext();
     expect(context.metrics).toBeUndefined();
 
-    const result = await renderToStringAsync('<h1 bq-text="title"></h1>', { title: 'no-metrics' }, {
-      context,
-    });
+    const result = await renderToStringAsync(
+      '<h1 bq-text="title"></h1>',
+      { title: 'no-metrics' },
+      {
+        context,
+      }
+    );
 
     expect(result.html).toContain('no-metrics');
   });
 
   it('serves cached SSR responses when a cache store is provided', async () => {
     const cache = createSSRCache();
-    const first = await renderToResponse('<p bq-text="msg"></p>', { msg: 'cached' }, {
-      cache: { store: cache, vary: ['accept-language'] },
-      context: createSSRContext({
-        request: new Request('http://localhost/cached', {
-          headers: { 'accept-language': 'en' },
+    const first = await renderToResponse(
+      '<p bq-text="msg"></p>',
+      { msg: 'cached' },
+      {
+        cache: { store: cache, vary: ['accept-language'] },
+        context: createSSRContext({
+          request: new Request('http://localhost/cached', {
+            headers: { 'accept-language': 'en' },
+          }),
         }),
-      }),
-    });
-    const second = await renderToResponse('<p bq-text="msg"></p>', { msg: 'fresh' }, {
-      cache: { store: cache, vary: ['accept-language'] },
-      context: createSSRContext({
-        request: new Request('http://localhost/cached', {
-          headers: { 'accept-language': 'en' },
+      }
+    );
+    const second = await renderToResponse(
+      '<p bq-text="msg"></p>',
+      { msg: 'fresh' },
+      {
+        cache: { store: cache, vary: ['accept-language'] },
+        context: createSSRContext({
+          request: new Request('http://localhost/cached', {
+            headers: { 'accept-language': 'en' },
+          }),
         }),
-      }),
-    });
+      }
+    );
 
     expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
     expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
@@ -189,9 +201,12 @@ describe('runtime detection', () => {
       },
       {
         onError(error, request) {
-          return new Response(`${request.url}:${error instanceof Error ? error.message : 'unknown'}`, {
-            status: 502,
-          });
+          return new Response(
+            `${request.url}:${error instanceof Error ? error.message : 'unknown'}`,
+            {
+              status: 502,
+            }
+          );
         },
       }
     );
@@ -1112,25 +1127,33 @@ describe('renderToResponse', () => {
   });
 
   it('keeps an explicit Cache-Control header when cache shaping is also enabled', async () => {
-    const response = await renderToResponse('<p>x</p>', {}, {
-      cache: {
-        sMaxAge: 30,
-      },
-      cacheControl: 'public, max-age=60',
-    });
+    const response = await renderToResponse(
+      '<p>x</p>',
+      {},
+      {
+        cache: {
+          sMaxAge: 30,
+        },
+        cacheControl: 'public, max-age=60',
+      }
+    );
 
     expect(response.headers.get('cache-control')).toBe('public, max-age=60');
   });
 
   it('merges cache vary values with existing Vary headers', async () => {
-    const response = await renderToResponse('<p>x</p>', {}, {
-      cache: {
-        vary: ['accept-language', 'accept-encoding'],
-      },
-      headers: {
-        vary: 'accept-encoding',
-      },
-    });
+    const response = await renderToResponse(
+      '<p>x</p>',
+      {},
+      {
+        cache: {
+          vary: ['accept-language', 'accept-encoding'],
+        },
+        headers: {
+          vary: 'accept-encoding',
+        },
+      }
+    );
 
     expect(response.headers.get('vary')).toBe('accept-encoding, accept-language');
   });
@@ -1140,26 +1163,38 @@ describe('renderToResponse', () => {
       getKey: () => '',
     });
 
-    const first = await renderToResponse('<p bq-text="msg"></p>', { msg: 'cached' }, {
-      cache: { store: cache },
-    });
-    const second = await renderToResponse('<p bq-text="msg"></p>', { msg: 'fresh' }, {
-      cache: { store: cache },
-    });
+    const first = await renderToResponse(
+      '<p bq-text="msg"></p>',
+      { msg: 'cached' },
+      {
+        cache: { store: cache },
+      }
+    );
+    const second = await renderToResponse(
+      '<p bq-text="msg"></p>',
+      { msg: 'fresh' },
+      {
+        cache: { store: cache },
+      }
+    );
 
     expect(await first.text()).toBe('<p bq-text="msg">cached</p>');
     expect(await second.text()).toBe('<p bq-text="msg">cached</p>');
   });
 
   it('keeps Vary as "*" when cache vary values include wildcard', async () => {
-    const response = await renderToResponse('<p>x</p>', {}, {
-      cache: {
-        vary: ['*', 'accept-language'],
-      },
-      headers: {
-        vary: 'accept-encoding',
-      },
-    });
+    const response = await renderToResponse(
+      '<p>x</p>',
+      {},
+      {
+        cache: {
+          vary: ['*', 'accept-language'],
+        },
+        headers: {
+          vary: 'accept-encoding',
+        },
+      }
+    );
 
     expect(response.headers.get('vary')).toBe('*');
   });

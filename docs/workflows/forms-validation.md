@@ -6,13 +6,7 @@ A reusable sign-up form combining [Forms](/guide/forms) validation, [i18n](/guid
 
 ```ts
 // src/signup-form.ts
-import {
-  createForm,
-  required,
-  email,
-  minLength,
-  oneOf,
-} from '@bquery/bquery/forms';
+import { createForm, required, email, minLength, oneOf } from '@bquery/bquery/forms';
 import { t } from '@bquery/bquery/i18n';
 
 export const form = createForm({
@@ -83,10 +77,7 @@ The live region is created once and reused — every announcement is debounced i
       bq-model="form.fields.email.value"
       bq-aria="{ invalid: Boolean(form.fields.email.error.value) }"
     />
-    <small
-      bq-show="form.fields.email.error.value"
-      bq-text="form.fields.email.error.value"
-    ></small>
+    <small bq-show="form.fields.email.error.value" bq-text="form.fields.email.error.value"></small>
   </label>
 
   <label>
@@ -144,8 +135,13 @@ focusVisible(document.body); // adds .focus-visible class only for keyboard user
 Combine with CSS:
 
 ```css
-:focus { outline: none; }
-.focus-visible :focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus {
+  outline: none;
+}
+.focus-visible :focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 ```
 
 ## What you exercised

@@ -149,15 +149,12 @@ describe('utils/object extras', () => {
 
   it('deepEqual structurally compares Map keys and Set values', () => {
     expect(
-      deepEqual(
-        new Map([[{ id: 1 }, { label: 'A' }]]),
-        new Map([[{ id: 1 }, { label: 'A' }]])
-      )
+      deepEqual(new Map([[{ id: 1 }, { label: 'A' }]]), new Map([[{ id: 1 }, { label: 'A' }]]))
     ).toBe(true);
     expect(deepEqual(new Set([{ id: 1 }]), new Set([{ id: 1 }]))).toBe(true);
-    expect(deepEqual(new Map([[{ id: 1 }, { label: 'A' }]]), new Map([[{ id: 2 }, { label: 'A' }]]))).toBe(
-      false
-    );
+    expect(
+      deepEqual(new Map([[{ id: 1 }, { label: 'A' }]]), new Map([[{ id: 2 }, { label: 'A' }]]))
+    ).toBe(false);
     expect(deepEqual(new Set([{ id: 1 }]), new Set([{ id: 2 }]))).toBe(false);
   });
 

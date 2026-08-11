@@ -124,7 +124,10 @@ export const readSerializedFormState = <T extends Record<string, unknown>>(
  * Convenience: hydrate a {@link Form} from a previously-serialized snapshot.
  * Returns `true` when state was applied.
  */
-export const hydrateForm = <T extends Record<string, unknown>>(form: Form<T>, id: string): boolean => {
+export const hydrateForm = <T extends Record<string, unknown>>(
+  form: Form<T>,
+  id: string
+): boolean => {
   const snapshot = readSerializedFormState<T>(id);
   if (!snapshot) return false;
   form.restore(snapshot);

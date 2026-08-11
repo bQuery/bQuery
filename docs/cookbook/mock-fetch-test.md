@@ -10,8 +10,13 @@ import { mockFetch, renderComponent, screen, cleanup } from '@bquery/bquery/test
 
 describe('user list', () => {
   let mock: ReturnType<typeof mockFetch>;
-  beforeEach(() => { mock = mockFetch(); });
-  afterEach(() => { mock.restore(); cleanup(); });
+  beforeEach(() => {
+    mock = mockFetch();
+  });
+  afterEach(() => {
+    mock.restore();
+    cleanup();
+  });
 
   it('renders fetched users', async () => {
     mock.on('GET', '/api/users', () => ({ status: 200, body: [{ id: 1, name: 'Ada' }] }));
@@ -26,5 +31,5 @@ describe('user list', () => {
 ## Related
 
 - [Testing guide](/guide/testing)
-- [Reactive — `useFetch`](/guide/reactive#fetch-with-usefetch)
+- [Reactive — `useFetch`](/guide/reactive#fetch-composables)
 - Longer worked example: [Examples & Recipes — Testing](/guide/examples#testing)

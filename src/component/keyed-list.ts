@@ -83,9 +83,7 @@ export const reconcileKeyed = (
   container: Element,
   desiredKeys?: readonly (string | number)[]
 ): number => {
-  const children = Array.from(container.children).filter((el) =>
-    el.hasAttribute(DEFAULT_KEY_ATTR)
-  );
+  const children = Array.from(container.children).filter((el) => el.hasAttribute(DEFAULT_KEY_ATTR));
   if (children.length < 2) return 0;
 
   const nextKeyedSibling = (node: Element): Element | null => {

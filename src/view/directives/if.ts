@@ -33,7 +33,6 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
 
     const cleanup = effect(() => {
       const shown = Boolean(evaluate<boolean>(expression, context));
-      const config = resolveTransition(el, prefix);
 
       // The effect also re-runs when unrelated dependencies of the expression
       // change. Only react to an actual flip, otherwise the enter would replay
@@ -43,6 +42,12 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
       const isFirst = first;
       first = false;
       prevShown = shown;
+
+      // Resolved per flip rather than once at bind time: the transition
+      // companion attributes may be added or rewritten after mount, and a
+      // cached config would pin the element to the values it was born with.
+      // Reading them only on an actual flip keeps unrelated re-runs free.
+      const config = resolveTransition(el, prefix);
 
       if (shown) {
         // Bump the token so any pending leave is superseded and won't remove

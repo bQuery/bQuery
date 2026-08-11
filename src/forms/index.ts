@@ -110,11 +110,7 @@ export type {
 } from './types';
 
 export type { FieldSchema, SchemaEntry } from './schema';
-export type {
-  OptimisticController,
-  OptimisticHandle,
-  OptimisticReducer,
-} from './optimistic';
+export type { OptimisticController, OptimisticHandle, OptimisticReducer } from './optimistic';
 export type {
   EnhanceOptions,
   FormAction,

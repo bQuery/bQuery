@@ -2,7 +2,7 @@
 
 **Problem.** Fire an API request only after the user pauses typing for 300 ms.
 
-**Solution.** Combine [`signal`](/guide/reactive#signal) with [`watchDebounce`](/guide/reactive#watchdebounce-watchthrottle) and [`useFetch`](/guide/reactive#fetch-with-usefetch).
+**Solution.** Combine [`signal`](/guide/reactive#signal) with [`watchDebounce`](/guide/reactive#watch) and [`useFetch`](/guide/reactive#fetch-composables).
 
 ```ts
 import { signal, watchDebounce, useFetch } from '@bquery/bquery/reactive';
@@ -39,7 +39,7 @@ document.querySelector('input#search')!.addEventListener('input', (e) => {
 
 ## Related
 
-- [Reactive — `watchDebounce` / `watchThrottle`](/guide/reactive#watchdebounce-watchthrottle)
-- [Reactive — `useFetch`](/guide/reactive#fetch-with-usefetch)
-- [Reactive — `deduplicateRequest`](/guide/reactive#deduplicaterequest)
+- [Reactive — `watchDebounce` / `watchThrottle`](/guide/reactive#watch)
+- [Reactive — `useFetch`](/guide/reactive#fetch-composables)
+- [Reactive — `deduplicateRequest`](/guide/reactive#request-deduplication)
 - Longer worked example: [Examples & Recipes — Debounced search input](/guide/examples#search-with-debounced-input)

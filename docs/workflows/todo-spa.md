@@ -42,9 +42,7 @@ export const useTodos = defineStore('todos', {
       this.items = this.items.filter((x) => x.id !== id);
     },
   },
-  plugins: [
-    /* registered globally below */
-  ],
+  plugins: [/* registered globally below */],
 });
 ```
 
@@ -149,5 +147,5 @@ mount('#app', { router, todos, title, visible });
 
 - Add validation with [Forms](/guide/forms).
 - Announce completed items to screen readers via [A11y](/guide/a11y)'s `createLiveRegion`.
-- Replace `localStorage` with an HTTP backend through [`useFetch`](/guide/reactive#fetch-with-usefetch).
+- Replace `localStorage` with an HTTP backend through [`useFetch`](/guide/reactive#fetch-composables).
 - Hydrate on the server with the [SSR workflow](./ssr-hydration).

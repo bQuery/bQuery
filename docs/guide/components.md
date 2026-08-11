@@ -394,22 +394,27 @@ component('focus-input', {
 });
 ```
 
+For one-off slot checks without a reactive subscription, `hasSlot(host, name?)` returns `true` when the named slot (or the default slot) has assigned content, and `slotText(host, name?)` returns the concatenated text content of the assigned nodes.
+
 ### Delegated event handlers (no inline `on*` attributes, no `eval`)
 
 ```ts
 import { onClick, bindDelegatedEvents } from '@bquery/bquery/component';
 
 component('counter', {
-  connected() { bindDelegatedEvents(this); },
+  connected() {
+    bindDelegatedEvents(this);
+  },
   state: { n: 0 },
   render({ state }) {
-    return html`<button ${onClick(() => state.n += 1)}>+ ${state.n}</button>`;
+    return html`<button ${onClick(() => (state.n += 1))}>+ ${state.n}</button>`;
   },
 });
 ```
 
 Handlers are stored in a module-level Map keyed by opaque IDs, so the sanitizer never
-sees inline JavaScript.
+sees inline JavaScript. Besides the generic `on(event, handler)`, the shortcuts
+`onClick`, `onInput`, `onChange`, and `onSubmit` cover the common cases.
 
 ### Dependency injection
 
@@ -419,7 +424,9 @@ import { provide, inject, injectionKey } from '@bquery/bquery/component';
 const ThemeKey = injectionKey<{ dark: boolean }>('theme');
 
 component('app-shell', {
-  connected() { provide(this, ThemeKey, { dark: true }); },
+  connected() {
+    provide(this, ThemeKey, { dark: true });
+  },
   render: () => html`<slot></slot>`,
 });
 
@@ -433,6 +440,8 @@ component('themed-button', {
 ```
 
 Uses a typed `CustomEvent` over the composed path — no globals.
+
+The built-in `formContextKey` is a strongly-typed injection key for the enclosing `<bq-form>` context: components that render form inputs can `inject(this, formContextKey)` to discover the surrounding form and auto-bind themselves (`registerField`, `setValue`, `getValue`).
 
 ### Lifecycle additions
 
@@ -473,8 +482,13 @@ import { component, css, html } from '@bquery/bquery/component';
 
 component('themed-card', {
   styles: css`
-    :host { display: block; padding: 1rem; }
-    h2 { color: ${'#0066cc'}; }
+    :host {
+      display: block;
+      padding: 1rem;
+    }
+    h2 {
+      color: ${'#0066cc'};
+    }
   `,
   render: () => html`<h2><slot></slot></h2>`,
 });
@@ -484,6 +498,8 @@ When Constructable Stylesheets are available, the underlying CSS is shared
 across instances via `document.adoptedStyleSheets`. Otherwise the existing
 `<style>`-tag pathway is used. Interpolations are CSS-escaped.
 
+Two lower-level helpers support custom integrations: `isComponentStyles(value)` is a type guard for `css`-produced style payloads, and `applyAdoptedStyles(shadowRoot, styles)` applies such a payload to a shadow root via `adoptedStyleSheets`, returning `false` when the environment lacks support (fall back to a `<style>` element then).
+
 ### Keyed lists
 
 ```ts
@@ -492,9 +508,13 @@ import { component, html, keyedList, reconcileKeyed } from '@bquery/bquery/compo
 component('todo-list', {
   state: { items: [] as Array<{ id: string; text: string }> },
   render({ state }) {
-    return html`<ul>${keyedList(state.items, (it) => it.id, (it) =>
-      `<li>${it.text}</li>`
-    )}</ul>`;
+    return html`<ul>
+      ${keyedList(
+        state.items,
+        (it) => it.id,
+        (it) => `<li>${it.text}</li>`
+      )}
+    </ul>`;
   },
   updated() {
     const items = this.getState<Array<{ id: string }>>('items');

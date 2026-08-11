@@ -72,11 +72,7 @@ const getOrCreateProviderMap = (host: EventTarget) => {
  * });
  * ```
  */
-export const provide = <T>(
-  host: EventTarget,
-  key: string | InjectionKey<T>,
-  value: T
-): void => {
+export const provide = <T>(host: EventTarget, key: string | InjectionKey<T>, value: T): void => {
   const scope = getCurrentScope();
   if (!scope || isCurrentScopeRendering()) {
     throw new Error(

@@ -2,7 +2,7 @@
 
 **Problem.** Append new items as the user reaches the bottom of a list.
 
-**Solution.** [`useInfiniteFetch`](/guide/reactive#useinfinitefetch) combined with [`useElementVisibility`](/guide/media) from Media.
+**Solution.** [`useInfiniteFetch`](/guide/reactive#infinite-fetch) combined with [`useElementVisibility`](/guide/media) from Media.
 
 ```ts
 import { useInfiniteFetch } from '@bquery/bquery/reactive';
@@ -31,6 +31,6 @@ effect(() => {
 
 ## Related
 
-- [Reactive — `useInfiniteFetch`](/guide/reactive#useinfinitefetch)
+- [Reactive — `useInfiniteFetch`](/guide/reactive#infinite-fetch)
 - [Media — `useElementVisibility`](/guide/media)
 - [Cookbook — Pagination](./pagination)

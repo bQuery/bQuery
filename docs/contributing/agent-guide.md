@@ -2,7 +2,7 @@
 
 This page is a curated, human-readable subset of [`AGENT.md`](https://github.com/bQuery/bQuery/blob/main/AGENT.md) — the deep architectural reference shared by both human contributors and AI coding agents. If you are working with an AI assistant on this codebase, point it at `AGENT.md` directly; that file is structured for fast machine consumption.
 
-The rest of this page summarises the *conventions* that human contributors most often need to know.
+The rest of this page summarises the _conventions_ that human contributors most often need to know.
 
 ## Source of truth ordering
 

@@ -23,7 +23,7 @@ export const resolveRouteDefinitionPath = (
 ): string => {
   const routeLabel = route.name ?? route.path;
   let path = '';
-  for (let i = 0; i < route.path.length; ) {
+  for (let i = 0; i < route.path.length;) {
     if (route.path[i] === ':' && isParamStart(route.path[i + 1])) {
       let nameEnd = i + 2;
       while (nameEnd < route.path.length && isParamChar(route.path[nameEnd])) {

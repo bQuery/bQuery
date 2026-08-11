@@ -151,7 +151,10 @@ export function toPascalCase(str: string): string {
  * ```
  */
 export function toTitleCase(str: string): string {
-  return str.replace(/\w\S*/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+  return str.replace(
+    /\w\S*/g,
+    (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+  );
 }
 
 /**
@@ -285,8 +288,15 @@ function matchRawTextOpen(str: string, at: number): 'script' | 'style' | null {
     }
     const next = str.charCodeAt(at + 1 + nlen);
     // Valid terminators: whitespace, '>', '/'
-    return next === 32 || next === 9 || next === 10 || next === 13 || next === 12 ||
-      next === 62 /* > */ || next === 47 /* / */;
+    return (
+      next === 32 ||
+      next === 9 ||
+      next === 10 ||
+      next === 13 ||
+      next === 12 ||
+      next === 62 /* > */ ||
+      next === 47
+    ); /* / */
   };
   if (tryMatch('script')) return 'script';
   if (tryMatch('style')) return 'style';
@@ -327,8 +337,13 @@ function findRawTextClose(str: string, from: number, tagName: 'script' | 'style'
     }
     const next = str.charCodeAt(i + 2 + nlen);
     if (
-      next === 32 || next === 9 || next === 10 || next === 13 || next === 12 ||
-      next === 62 /* > */ || Number.isNaN(next)
+      next === 32 ||
+      next === 9 ||
+      next === 10 ||
+      next === 13 ||
+      next === 12 ||
+      next === 62 /* > */ ||
+      Number.isNaN(next)
     ) {
       return i;
     }
@@ -349,7 +364,8 @@ export function randomString(length: number, charset = DEFAULT_RANDOM_STRING_CHA
   if (length <= 0) return '';
   if (charset.length === 0) throw new RangeError('randomString: charset must not be empty');
   const cryptoApi: Crypto | undefined =
-    typeof globalThis.crypto !== 'undefined' && typeof globalThis.crypto.getRandomValues === 'function'
+    typeof globalThis.crypto !== 'undefined' &&
+    typeof globalThis.crypto.getRandomValues === 'function'
       ? globalThis.crypto
       : undefined;
   if (cryptoApi) {

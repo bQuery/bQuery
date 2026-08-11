@@ -28,7 +28,10 @@ const form = createForm({
   <input bq-model="form.fields.email.value" />
   <small bq-show="form.fields.email.error.value" bq-text="form.fields.email.error.value"></small>
   <input type="password" bq-model="form.fields.password.value" />
-  <small bq-show="form.fields.password.error.value" bq-text="form.fields.password.error.value"></small>
+  <small
+    bq-show="form.fields.password.error.value"
+    bq-text="form.fields.password.error.value"
+  ></small>
   <button :disabled="!form.isValid.value || form.isSubmitting.value">Sign in</button>
   <p role="alert" bq-text="form.submitError.value"></p>
 </form>

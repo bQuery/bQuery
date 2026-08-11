@@ -203,8 +203,7 @@ describe('View 1.14.0 expansion', () => {
 
     it('supports .prevent', () => {
       const root = document.createElement('div');
-      root.innerHTML =
-        '<a href="#nope" bq-on:click.prevent="onClick">link</a>';
+      root.innerHTML = '<a href="#nope" bq-on:click.prevent="onClick">link</a>';
       document.body.appendChild(root);
       let defaultPrevented = false;
       const view = mount(root, {
@@ -222,8 +221,7 @@ describe('View 1.14.0 expansion', () => {
 
     it('forces passive listeners off when .prevent is present', () => {
       const root = document.createElement('div');
-      root.innerHTML =
-        '<a href="#nope" bq-on:click.prevent.passive="onClick">link</a>';
+      root.innerHTML = '<a href="#nope" bq-on:click.prevent.passive="onClick">link</a>';
       document.body.appendChild(root);
       const view = mount(root, {
         onClick: () => {},
@@ -260,15 +258,9 @@ describe('View 1.14.0 expansion', () => {
       let calls = 0;
       const view = mount(root, { onEnter: () => calls++ });
       const input = root.querySelector('input')!;
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'a', bubbles: true })
-      );
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       expect(calls).toBe(1);
       view.destroy();
       root.remove();
@@ -295,18 +287,13 @@ describe('View 1.14.0 expansion', () => {
 
     it('supports key filters .enter', () => {
       const root = document.createElement('div');
-      root.innerHTML =
-        '<input bq-on:keydown.enter="onEnter" type="text" />';
+      root.innerHTML = '<input bq-on:keydown.enter="onEnter" type="text" />';
       document.body.appendChild(root);
       let calls = 0;
       const view = mount(root, { onEnter: () => calls++ });
       const input = root.querySelector('input')!;
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'a', bubbles: true })
-      );
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'a', bubbles: true }));
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       expect(calls).toBe(1);
       view.destroy();
       root.remove();
@@ -314,15 +301,12 @@ describe('View 1.14.0 expansion', () => {
 
     it('supports system modifier .ctrl', () => {
       const root = document.createElement('div');
-      root.innerHTML =
-        '<input bq-on:keydown.ctrl.enter="onAction" type="text" />';
+      root.innerHTML = '<input bq-on:keydown.ctrl.enter="onAction" type="text" />';
       document.body.appendChild(root);
       let calls = 0;
       const view = mount(root, { onAction: () => calls++ });
       const input = root.querySelector('input')!;
-      input.dispatchEvent(
-        new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
-      );
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
       input.dispatchEvent(
         new KeyboardEvent('keydown', {
           key: 'Enter',

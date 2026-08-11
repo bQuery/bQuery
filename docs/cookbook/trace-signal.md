@@ -5,12 +5,22 @@
 **Solution.** Use [`traceSignal`](/guide/devtools) to print the signal lineage to the timeline.
 
 ```ts
-import { enableDevtools, filterTimeline, subscribeTimeline, traceSignal, trackSignal } from '@bquery/bquery/devtools';
+import {
+  enableDevtools,
+  filterTimeline,
+  subscribeTimeline,
+  traceSignal,
+  trackSignal,
+} from '@bquery/bquery/devtools';
 import { signal } from '@bquery/bquery/reactive';
 
 const cart = signal<{ items: number }>({ items: 0 });
 enableDevtools(true);
-trackSignal('cart', () => cart.peek(), () => 0);
+trackSignal(
+  'cart',
+  () => cart.peek(),
+  () => 0
+);
 traceSignal('cart');
 
 subscribeTimeline((entry) => {

@@ -14,9 +14,13 @@ import type { DirectiveHandler } from '../types';
  */
 export const handleHtml = (sanitize: boolean): DirectiveHandler => {
   return (el, expression, context, cleanups) => {
+    let previousHtml: string | undefined;
     const cleanup = effect(() => {
       const value = evaluate<string>(expression, context);
       const html = String(value ?? '');
+      // Skip the sanitizer and HTML parser when the markup is unchanged.
+      if (html === previousHtml) return;
+      previousHtml = html;
       el.innerHTML = sanitize ? trustedHtmlForSink(html) : html;
     });
     cleanups.push(cleanup);

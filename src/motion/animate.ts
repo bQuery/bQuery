@@ -197,7 +197,8 @@ export type AnimateToStyles = Record<string, string | number | [string | number,
  * Options for {@link animateTo}.
  */
 export interface AnimateToOptions
-  extends Omit<AnimateOptions, 'keyframes' | 'options'>,
+  extends
+    Omit<AnimateOptions, 'keyframes' | 'options'>,
     Omit<KeyframeAnimationOptions, 'composite' | 'iterationComposite'> {
   /** Optional override keyframe options merged with the top-level ones. */
   options?: Omit<KeyframeAnimationOptions, 'composite' | 'iterationComposite'>;

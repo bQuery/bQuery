@@ -119,13 +119,7 @@ export const mount = (
     nodeContext: BindingContext,
     nodeCleanups: CleanupFn[]
   ) => {
-    const shouldProcessChildren = processElement(
-      node,
-      nodeContext,
-      prefix,
-      nodeCleanups,
-      handlers
-    );
+    const shouldProcessChildren = processElement(node, nodeContext, prefix, nodeCleanups, handlers);
 
     if (shouldProcessChildren) {
       processChildren(node, nodeContext, prefix, nodeCleanups, handlers);

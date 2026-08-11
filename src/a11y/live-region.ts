@@ -83,9 +83,7 @@ export type LiveRegionHandle = {
  * region.destroy();
  * ```
  */
-export const createLiveRegion = (
-  options: CreateLiveRegionOptions = {}
-): LiveRegionHandle => {
+export const createLiveRegion = (options: CreateLiveRegionOptions = {}): LiveRegionHandle => {
   const {
     priority = 'polite',
     role = priority === 'assertive' ? 'alert' : 'status',

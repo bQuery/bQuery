@@ -118,9 +118,7 @@ function createFrameInterpolator<T extends TweenValue>(from: T, to: T): (t: numb
       return out as T;
     };
   }
-  throw new TypeError(
-    '"from" and "to" must be numbers, number[], or Record<string, number>'
-  );
+  throw new TypeError('"from" and "to" must be numbers, number[], or Record<string, number>');
 }
 
 const safeRaf = (): ((cb: (time: number) => void) => number) => {
@@ -326,8 +324,7 @@ export function tween<T extends TweenValue>(options: TweenOptions<T>): TweenCont
       if (stopped || finalized) return;
       const clamped = Math.min(1, Math.max(0, p));
       elapsed = clamped * totalDuration;
-      const complete =
-        (direction === 1 && clamped >= 1) || (direction === -1 && clamped <= 0);
+      const complete = (direction === 1 && clamped >= 1) || (direction === -1 && clamped <= 0);
       update(clamped, complete);
     },
     stop(): void {

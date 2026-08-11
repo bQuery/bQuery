@@ -1,6 +1,6 @@
 # Reactivity Model
 
-bQuery's reactivity is **fine-grained** and **signal-based**. There is no virtual DOM and no component-level re-rendering: when a value changes, only the effects and computeds that *read* that value re-run.
+bQuery's reactivity is **fine-grained** and **signal-based**. There is no virtual DOM and no component-level re-rendering: when a value changes, only the effects and computeds that _read_ that value re-run.
 
 This page summarises the mental model. The full API and the async / HTTP / realtime sub-system live in the [Reactive module guide](/guide/reactive).
 
@@ -10,10 +10,10 @@ This page summarises the mental model. The full API and the async / HTTP / realt
 import { signal, computed, effect, batch } from '@bquery/bquery/reactive';
 ```
 
-- **`signal(initial)`** — a writable reactive cell. Read via `.value` to subscribe; write via `.value = ...` or `.set(...)` to notify.
-- **`computed(() => ...)`** — a read-only derived value. Lazy and memoized; recomputes only when one of its dependencies changes *and* it is read again.
+- **`signal(initial)`** — a writable reactive cell. Read via `.value` to subscribe; write via `.value = ...` or `.update(fn)` to notify.
+- **`computed(() => ...)`** — a read-only derived value. Memoized: while nothing subscribes to it, it recomputes lazily on the next read after a dependency changes. Once it has subscribers, a dependency change re-validates it so subscribers are only notified when the value actually changed (`Object.is`).
 - **`effect(() => ...)`** — a side-effect callback. Runs once eagerly, then again whenever any signal read inside it changes.
-- **`batch(() => ...)`** — defers notifications so multiple writes in the same tick produce only one downstream run.
+- **`batch(() => ...)`** — coalesces notifications: writes inside the callback trigger a single flush when the batch ends instead of notifying synchronously per write. Observers re-triggered transitively during that flush run again in a follow-up pass.
 
 ```ts
 const count = signal(0);
@@ -62,7 +62,7 @@ scope.run(() => {
 scope.stop(); // disposes all effects/computeds registered inside
 ```
 
-Components, routes, and `useResource()` results manage their own scopes for you. You only need a manual scope when you create reactivity outside of those owners.
+Components collect their `use*` composables (`useSignal`, `useComputed`, `useEffect`) in a component scope and dispose them on disconnect — but a bare `effect()` created inside a component is **not** auto-collected. Composables like `useResource()` don't create a scope either; call the `dispose()` they return. Use a manual `effectScope()` whenever you create reactivity outside such an owner.
 
 ## Watch with comparison
 
@@ -80,7 +80,7 @@ watchThrottle(scrollY, syncScroll, 16);
 
 Beyond the four primitives, the `reactive` module exposes a **signal-shaped async layer**:
 
-- `useAsyncData()` / `useFetch()` / `createUseFetch()` — async resources as signals with `data`, `error`, `isLoading`, `refresh`.
+- `useAsyncData()` / `useFetch()` / `createUseFetch()` — async resources as signals with `data`, `error`, `pending`, `refresh`.
 - `usePolling()`, `usePaginatedFetch()`, `useInfiniteFetch()` — long-running and paginated fetches.
 - `useWebSocket()`, `useWebSocketChannel()`, `useEventSource()` — realtime transports.
 - `useResource()`, `useResourceList()`, `useSubmit()` — REST-shaped resources with optimistic updates.

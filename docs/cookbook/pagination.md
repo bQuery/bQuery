@@ -2,7 +2,7 @@
 
 **Problem.** Page through a long REST list with next/prev controls.
 
-**Solution.** [`usePaginatedFetch`](/guide/reactive#usepaginatedfetch) tracks `page` and exposes `next` / `prev` / `goTo` actions.
+**Solution.** [`usePaginatedFetch`](/guide/reactive#paginated-fetch) tracks `page` and exposes `next` / `prev` / `goTo` actions.
 
 ```ts
 import { effect, usePaginatedFetch } from '@bquery/bquery/reactive';
@@ -22,6 +22,6 @@ effect(() => {
 
 ## Related
 
-- [Reactive — `usePaginatedFetch`](/guide/reactive#usepaginatedfetch)
-- [Reactive — `useInfiniteFetch`](/guide/reactive#useinfinitefetch)
+- [Reactive — `usePaginatedFetch`](/guide/reactive#paginated-fetch)
+- [Reactive — `useInfiniteFetch`](/guide/reactive#infinite-fetch)
 - Longer worked example: [Examples & Recipes — Paginated data loading](/guide/examples#paginated-data-loading)

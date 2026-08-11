@@ -450,6 +450,34 @@ describe('core/BQueryCollection', () => {
 
     parent.remove();
   });
+
+  it('wrap with an element wrapper clones the pristine wrapper for each element', () => {
+    const parent = document.createElement('div');
+    const span1 = document.createElement('span');
+    const span2 = document.createElement('span');
+    const span3 = document.createElement('span');
+    parent.append(span1, span2, span3);
+    document.body.appendChild(parent);
+
+    const wrapper = document.createElement('section');
+    wrapper.className = 'wrap';
+
+    new BQueryCollection([span1, span2, span3]).wrap(wrapper);
+
+    const sections = parent.querySelectorAll('section.wrap');
+    expect(sections.length).toBe(3);
+    for (const section of Array.from(sections)) {
+      // Each wrapper must contain exactly its own span, not copies of
+      // previously wrapped elements.
+      expect(section.children.length).toBe(1);
+      expect(section.children[0].tagName).toBe('SPAN');
+    }
+    expect(sections[0].children[0]).toBe(span1);
+    expect(sections[1].children[0]).toBe(span2);
+    expect(sections[2].children[0]).toBe(span3);
+
+    parent.remove();
+  });
 });
 
 describe('core/BQueryElement new methods', () => {
@@ -1125,6 +1153,94 @@ describe('core/BQueryCollection - delegate/undelegate', () => {
 
     container1.remove();
     container2.remove();
+  });
+
+  it('undelegate works from a different wrapper instance than delegate', () => {
+    const container = document.createElement('div');
+    container.className = 'container';
+    container.innerHTML = '<button class="btn">Click</button>';
+    document.body.appendChild(container);
+
+    let clickCount = 0;
+    const handler = (_e: Event, _target: Element) => {
+      clickCount++;
+    };
+
+    $$('.container').delegate('click', '.btn', handler);
+    $$('.container').undelegate('click', '.btn', handler);
+
+    container.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(clickCount).toBe(0);
+
+    container.remove();
+  });
+
+  it('delegating the same handler twice keeps a single listener', () => {
+    const container = document.createElement('div');
+    container.className = 'container';
+    container.innerHTML = '<button class="btn">Click</button>';
+    document.body.appendChild(container);
+
+    let clickCount = 0;
+    const handler = (_e: Event, _target: Element) => {
+      clickCount++;
+    };
+
+    $$('.container').delegate('click', '.btn', handler);
+    $$('.container').delegate('click', '.btn', handler);
+
+    // One listener, so the handler fires once per click.
+    container.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(clickCount).toBe(1);
+
+    container.remove();
+  });
+
+  it('keeps a shared delegation alive until every owner has undelegated', () => {
+    const container = document.createElement('div');
+    container.className = 'container';
+    container.innerHTML = '<button class="btn">Click</button>';
+    document.body.appendChild(container);
+
+    let clickCount = 0;
+    // Two independent owners delegating the identical handler reference: the
+    // first teardown must not detach the listener the second one relies on.
+    const handler = (_e: Event, _target: Element) => {
+      clickCount++;
+    };
+
+    $$('.container').delegate('click', '.btn', handler);
+    $$('.container').delegate('click', '.btn', handler);
+
+    $$('.container').undelegate('click', '.btn', handler);
+    container.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(clickCount).toBe(1);
+
+    $$('.container').undelegate('click', '.btn', handler);
+    container.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(clickCount).toBe(1);
+
+    container.remove();
+  });
+
+  it('delegated listeners ignore non-Element event targets', () => {
+    const container = document.createElement('div');
+    container.innerHTML = '<button class="btn">Click</button>';
+    document.body.appendChild(container);
+
+    let clickCount = 0;
+    const wrapped = new BQueryElement(container);
+    wrapped.delegate('custom', '.btn', () => clickCount++);
+
+    // Dispatch at a text node so event.target is not an Element.
+    const textNode = container.querySelector('.btn')!.firstChild!;
+    expect(() => {
+      textNode.dispatchEvent(new Event('custom', { bubbles: true }));
+    }).not.toThrow();
+    expect(clickCount).toBe(0);
+
+    wrapped.undelegate('custom', '.btn', () => clickCount++);
+    container.remove();
   });
 });
 

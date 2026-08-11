@@ -175,7 +175,9 @@ export function isIterable<T = unknown>(value: unknown): value is Iterable<T> {
  */
 export function isAsyncIterable<T = unknown>(value: unknown): value is AsyncIterable<T> {
   if (value === null || value === undefined) return false;
-  return typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function';
+  return (
+    typeof (value as { [Symbol.asyncIterator]?: unknown })[Symbol.asyncIterator] === 'function'
+  );
 }
 
 /**
