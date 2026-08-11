@@ -472,6 +472,38 @@ describe('motion/reduced-motion subscriptions', () => {
     }
   });
 
+  it('subscribes exactly once when a baseline exists without an active subscription', () => {
+    // Regression: setReducedMotion() baselines lastDispatchedValue via the real
+    // matchMedia without subscribing. A later subscribe against a swapped
+    // matchMedia must establish the subscription first and reuse it for the
+    // flush, not issue an extra one-off matchMedia call (2 calls instead of 1).
+    setReducedMotion(true);
+    setReducedMotion(null);
+
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = mock(
+      () =>
+        ({
+          matches: false,
+          media: '(prefers-reduced-motion: reduce)',
+          onchange: null,
+          addListener: () => {},
+          removeListener: () => {},
+          addEventListener: () => {},
+          removeEventListener: () => {},
+          dispatchEvent: () => true,
+        }) as unknown as MediaQueryList
+    ) as unknown as typeof window.matchMedia;
+
+    try {
+      const off = onReducedMotionChange(() => {});
+      expect(window.matchMedia).toHaveBeenCalledTimes(1);
+      off();
+    } finally {
+      window.matchMedia = originalMatchMedia;
+    }
+  });
+
   it('reuses the cached media query while reduced-motion subscriptions are active', () => {
     const originalMatchMedia = window.matchMedia;
     let matches = false;

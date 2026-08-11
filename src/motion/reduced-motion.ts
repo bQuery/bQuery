@@ -207,11 +207,13 @@ export const onReducedMotionChange = (callback: (reduced: boolean) => void): (()
   // Re-bind to the current matchMedia source in case it was replaced since the
   // subscription was created, and flush value changes that happened without a
   // change event so existing listeners and the new baseline stay accurate.
+  // The subscription is (re-)established before flushing so evaluation reads
+  // the cached media query instead of issuing a one-off matchMedia call.
   syncMediaQuerySubscription(resolveMatchMedia());
+  ensureMediaQuerySubscription();
   if (lastDispatchedValue === null) lastDispatchedValue = evaluateCurrent();
   else dispatchIfChanged();
   reducedMotionListeners.add(callback);
-  ensureMediaQuerySubscription();
   return () => {
     reducedMotionListeners.delete(callback);
     if (reducedMotionListeners.size === 0) teardownMediaQuerySubscription();
