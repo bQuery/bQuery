@@ -30,12 +30,12 @@ export const createShowHandler = (prefix = 'bq'): DirectiveHandler => {
     let token = 0;
     let wasShown = false;
 
-    // The transition attributes are static — resolve once at bind time instead
-    // of re-reading and re-parsing them on every reactive update.
-    const config = resolveTransition(el, prefix);
-
     const cleanup = effect(() => {
       const shown = Boolean(evaluate<boolean>(expression, context));
+      // Resolved per run rather than once at bind time: the transition
+      // companion attributes may be added or rewritten after mount, and a
+      // cached config would pin the element to the values it was born with.
+      const config = resolveTransition(el, prefix);
 
       // No transition, or the initial paint: apply display synchronously.
       if (!config || first) {

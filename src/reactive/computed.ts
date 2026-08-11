@@ -30,15 +30,27 @@ export class Computed<T> implements ReactiveSource {
   /** Value the subscribers were last notified about (or first observed). */
   private lastNotifiedValue!: T;
   private hasNotifiedValue = false;
+  /**
+   * Set when a subscriber observed a value the set as a whole was never
+   * notified about, which makes {@link lastNotifiedValue} unusable as a
+   * skip-notification baseline until the next full notification.
+   */
+  private notifiedValueStale = false;
 
   private readonly markDirty = () => {
-    if (this.disposed || this.dirty) {
+    if (this.disposed) {
       return;
     }
     this.dirty = true;
     if (this.subscribers.size === 0) return;
     // Re-validate before waking subscribers: if the recomputed value is
     // unchanged, downstream observers are not notified at all.
+    //
+    // Scheduled unconditionally — an already-dirty computed is not proof that a
+    // revalidate is still queued: a compute that threw restores `dirty` without
+    // one, and a batch that exceeds its flush passes drops queued observers.
+    // Re-scheduling is free (the pending-observer set deduplicates inside a
+    // batch) and `revalidate` short-circuits when nothing actually changed.
     scheduleObserver(this.revalidate);
   };
 
@@ -54,9 +66,14 @@ export class Computed<T> implements ReactiveSource {
         return;
       }
     }
-    if (this.hasNotifiedValue && Object.is(this.cachedValue, this.lastNotifiedValue)) return;
-    this.hasNotifiedValue = true;
-    this.lastNotifiedValue = this.cachedValue;
+    if (
+      this.hasNotifiedValue &&
+      !this.notifiedValueStale &&
+      Object.is(this.cachedValue, this.lastNotifiedValue)
+    ) {
+      return;
+    }
+    this.captureNotifiedValue();
     this.notifySubscribers();
   };
 
@@ -88,6 +105,38 @@ export class Computed<T> implements ReactiveSource {
     return this.cachedValue;
   }
 
+  /** Rebases the skip-notification baseline onto the current value. */
+  private captureNotifiedValue(): void {
+    this.hasNotifiedValue = true;
+    this.notifiedValueStale = false;
+    this.lastNotifiedValue = this.cachedValue;
+  }
+
+  /**
+   * Keeps the baseline aligned with what the current subscribers have actually
+   * seen. Called after a tracked read.
+   *
+   * @param hadSubscribers - Whether the subscriber set was non-empty before the read
+   */
+  private syncNotifiedValue(hadSubscribers: boolean): void {
+    if (!hadSubscribers || !this.hasNotifiedValue) {
+      // Nothing has been observed yet, or the set was empty and is being
+      // repopulated: the reader that just subscribed is in sync with the value
+      // it read. Rebasing here keeps a subscriber from a later generation from
+      // inheriting the baseline of an earlier one — otherwise a change made
+      // while nobody was subscribed, followed by a revert, would be skipped.
+      this.captureNotifiedValue();
+      return;
+    }
+    if (!Object.is(this.cachedValue, this.lastNotifiedValue)) {
+      // This subscriber saw a value the set was never notified about, so the
+      // baseline no longer describes every subscriber: a later revert back to
+      // it must still wake them instead of being swallowed by the equality
+      // check.
+      this.notifiedValueStale = true;
+    }
+  }
+
   private notifySubscribers(): void {
     const subs = this.subscribers;
     if (subs.size === 0) return;
@@ -113,6 +162,7 @@ export class Computed<T> implements ReactiveSource {
     }
 
     const current = getCurrentObserver();
+    const hadSubscribers = this.subscribers.size > 0;
     if (current && !this.subscribers.has(current)) {
       this.subscribers.add(current);
       registerDependency(current, this);
@@ -120,11 +170,8 @@ export class Computed<T> implements ReactiveSource {
     if (this.dirty) {
       this.recompute();
     }
-    if (current && !this.hasNotifiedValue) {
-      // First tracked read: the sole subscriber has now seen this value,
-      // so an equal recomputation later must not wake it.
-      this.hasNotifiedValue = true;
-      this.lastNotifiedValue = this.cachedValue;
+    if (current) {
+      this.syncNotifiedValue(hadSubscribers);
     }
     return this.cachedValue;
   }

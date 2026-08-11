@@ -301,3 +301,45 @@ describe('bq-for move + item transitions (#137)', () => {
     expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['2', '3']);
   });
 });
+
+describe('transition attributes are read per flip, not pinned at bind time', () => {
+  it('picks up a bq-transition added to a bq-if element after mount', () => {
+    const mock = installAnimateMock();
+    try {
+      const root = document.createElement('div');
+      root.innerHTML = '<p bq-if="open" bq-text="msg"></p>';
+      document.body.appendChild(root);
+      const open = signal(true);
+      mount(root, { open, msg: signal('hi') });
+
+      root.querySelector('p')!.setAttribute('bq-transition', 'fade');
+      open.value = false;
+      open.value = true;
+
+      expect(mock.calls.length).toBeGreaterThan(0);
+      root.remove();
+    } finally {
+      mock.restore();
+    }
+  });
+
+  it('picks up a changed duration on a bq-show element after mount', () => {
+    const mock = installAnimateMock();
+    try {
+      const root = document.createElement('div');
+      root.innerHTML = '<p bq-show="open" bq-transition="fade" bq-transition-duration="100"></p>';
+      document.body.appendChild(root);
+      const open = signal(true);
+      mount(root, { open });
+
+      root.querySelector('p')!.setAttribute('bq-transition-duration', '400');
+      open.value = false;
+
+      expect(mock.calls.length).toBe(1);
+      expect(mock.calls[0].options.duration).toBe(400);
+      root.remove();
+    } finally {
+      mock.restore();
+    }
+  });
+});

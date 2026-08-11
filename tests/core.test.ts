@@ -1189,6 +1189,30 @@ describe('core/BQueryCollection - delegate/undelegate', () => {
     $$('.container').delegate('click', '.btn', handler);
     $$('.container').delegate('click', '.btn', handler);
 
+    // One listener, so the handler fires once per click.
+    container.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
+    expect(clickCount).toBe(1);
+
+    container.remove();
+  });
+
+  it('keeps a shared delegation alive until every owner has undelegated', () => {
+    const container = document.createElement('div');
+    container.className = 'container';
+    container.innerHTML = '<button class="btn">Click</button>';
+    document.body.appendChild(container);
+
+    let clickCount = 0;
+    // Two independent owners delegating the identical handler reference: the
+    // first teardown must not detach the listener the second one relies on.
+    const handler = (_e: Event, _target: Element) => {
+      clickCount++;
+    };
+
+    $$('.container').delegate('click', '.btn', handler);
+    $$('.container').delegate('click', '.btn', handler);
+
+    $$('.container').undelegate('click', '.btn', handler);
     container.querySelector('.btn')!.dispatchEvent(new Event('click', { bubbles: true }));
     expect(clickCount).toBe(1);
 

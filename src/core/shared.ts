@@ -7,14 +7,27 @@ export type ElementList = Element[];
 export type DelegatedHandler = (event: Event, target: Element) => void;
 
 /**
+ * A single delegated registration plus the number of `delegate()` calls that
+ * asked for it. The listener is attached once no matter how often the same
+ * handler is delegated, but it is only detached when every registration has
+ * been undelegated — otherwise one owner's teardown would silently kill an
+ * identical delegation made by another.
+ * @internal
+ */
+type DelegatedRegistration = { wrapper: EventListener; count: number };
+
+/**
  * Delegated-listener registry shared by all wrapper instances and keyed by
  * the element itself, so a fresh `$`/`$$` wrapper can undelegate a listener
  * registered through an earlier one.
- * Outer map: element -> (key -> (handler -> wrapper))
+ * Outer map: element -> (key -> (handler -> registration))
  * Key format: `${event}:${selector}`
  * @internal
  */
-const delegatedHandlers = new WeakMap<Element, Map<string, Map<DelegatedHandler, EventListener>>>();
+const delegatedHandlers = new WeakMap<
+  Element,
+  Map<string, Map<DelegatedHandler, DelegatedRegistration>>
+>();
 
 /** @internal */
 export const addDelegatedListener = (
@@ -34,8 +47,12 @@ export const addDelegatedListener = (
     handlers = new Map();
     elementHandlers.set(key, handlers);
   }
-  // Re-delegating the same handler for the same key keeps a single listener.
-  if (handlers.has(handler)) {
+  // Re-delegating the same handler for the same key keeps a single listener,
+  // but each call is counted so it survives until it is undelegated as often
+  // as it was delegated.
+  const existing = handlers.get(handler);
+  if (existing) {
+    existing.count += 1;
     return;
   }
 
@@ -51,7 +68,7 @@ export const addDelegatedListener = (
     }
   };
 
-  handlers.set(handler, wrapper);
+  handlers.set(handler, { wrapper, count: 1 });
   el.addEventListener(event, wrapper);
 };
 
@@ -69,10 +86,14 @@ export const removeDelegatedListener = (
   const handlers = elementHandlers.get(key);
   if (!handlers) return;
 
-  const wrapper = handlers.get(handler);
-  if (!wrapper) return;
+  const registration = handlers.get(handler);
+  if (!registration) return;
 
-  el.removeEventListener(event, wrapper);
+  // Detach only once the last owner has released its registration.
+  registration.count -= 1;
+  if (registration.count > 0) return;
+
+  el.removeEventListener(event, registration.wrapper);
   handlers.delete(handler);
 
   // Clean up empty maps

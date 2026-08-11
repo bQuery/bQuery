@@ -432,6 +432,6 @@ later.cancel();
 
 ## Version history
 
-- **1.16.0** — `undelegate()` works across wrapper instances (module-level delegation registry, idempotent `delegate()`); `wrap()` clone correctness over multi-element collections; cheaper `replaceWith(string)`, `empty()`, `children()`/`siblings()`/`index()`, `unwrap()`, `css(object)`, form serialization, and `data()`.
+- **1.16.0** — `undelegate()` works across wrapper instances (module-level delegation registry, one counted listener per `delegate()` target); `wrap()` clone correctness over multi-element collections; cheaper `replaceWith(string)`, `empty()`, `children()`/`siblings()`/`index()`, `unwrap()`, `css(object)`, form serialization, and `data()`.
 - **1.13.0** — major `core/utils` expansion (array / function / object / string / number / misc helpers, additional type guards).
 - **1.0.0** — original chainable jQuery-inspired wrappers shipped.

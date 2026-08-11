@@ -15,6 +15,15 @@ import type { BindingContext, DirectiveHandler } from './types';
 const PASSIVE_DIRECTIVES = new Set<string>(['key', ...TRANSITION_ATTRS]);
 
 /**
+ * Upper bound for {@link parsedDirectives}, mirroring the expression caches in
+ * `evaluate.ts`. The set of distinct directive attribute names in an app is
+ * small; the bound only guards generated names (`bq-bind:data-item-<uuid>`)
+ * from growing the map for the lifetime of a long-lived SPA.
+ * @internal
+ */
+const MAX_PARSED_DIRECTIVES = 500;
+
+/**
  * Memoized {@link parseDirective} results. Attribute names are a small finite
  * set per app, but every bq-for row clone re-parses them — cache the parsed
  * form once per raw name. Cached objects (including their `modifiers` Set)
@@ -26,6 +35,11 @@ const parsedDirectives = new Map<string, ParsedDirective>();
 const parseDirectiveCached = (name: string): ParsedDirective => {
   let parsed = parsedDirectives.get(name);
   if (!parsed) {
+    // Dropping the whole map is fine: entries are pure derivations of their
+    // key, and already-handed-out objects stay valid for their holders.
+    if (parsedDirectives.size >= MAX_PARSED_DIRECTIVES) {
+      parsedDirectives.clear();
+    }
     parsed = parseDirective(name);
     parsedDirectives.set(name, parsed);
   }
@@ -216,17 +230,17 @@ export const processChildren = (
   cleanups: CleanupFn[],
   handlers: DirectiveHandlers
 ): void => {
-  // Capture the next sibling before processing: directives may replace the
-  // child with a placeholder (bq-if, bq-for) or insert rendered rows after it,
-  // and neither the detached child nor freshly inserted rows (already
-  // processed by bq-for) should steer the traversal.
-  let child = el.firstElementChild;
-  while (child) {
-    const next = child.nextElementSibling;
+  // Snapshot before processing: directives may replace a child with a
+  // placeholder (bq-if, bq-for), insert rendered rows after it, or remove a
+  // sibling outright (bq-init, custom directives). A live sibling walk would
+  // step into freshly inserted rows that bq-for already processed, and would
+  // silently drop the remaining original children as soon as the node it is
+  // standing on leaves the tree.
+  const children = Array.from(el.children);
+  for (const child of children) {
     const shouldProcessChildren = processElement(child, context, prefix, cleanups, handlers);
     if (shouldProcessChildren) {
       processChildren(child, context, prefix, cleanups, handlers);
     }
-    child = next;
   }
 };
