@@ -59,14 +59,41 @@ export const scheduleObserver = (observer: Observer): void => {
   observer();
 };
 
+/**
+ * Upper bound on flush passes. Observers re-queued during a flush are drained
+ * in follow-up passes so transitive updates stay batched; a cyclic update
+ * between observers would otherwise never settle. Mirrors MAX_SYNC_RERUNS in
+ * effect.ts.
+ */
+const MAX_FLUSH_PASSES = 100;
+
+let isFlushing = false;
+
 const flushObservers = (): void => {
-  for (const observer of Array.from(pendingObservers)) {
-    pendingObservers.delete(observer);
-    try {
-      observer();
-    } catch (error) {
-      console.error('bQuery reactive: Error in observer during batch flush', error);
+  if (isFlushing) return;
+  isFlushing = true;
+  let passes = 0;
+  try {
+    while (pendingObservers.size > 0) {
+      if (++passes > MAX_FLUSH_PASSES) {
+        pendingObservers.clear();
+        console.warn(
+          'bQuery reactive: batch flush did not settle (cyclic update between observers?); remaining updates were skipped'
+        );
+        break;
+      }
+      const snapshot = Array.from(pendingObservers);
+      pendingObservers.clear();
+      for (const observer of snapshot) {
+        try {
+          observer();
+        } catch (error) {
+          console.error('bQuery reactive: Error in observer during batch flush', error);
+        }
+      }
     }
+  } finally {
+    isFlushing = false;
   }
 };
 
@@ -76,10 +103,17 @@ export const beginBatch = (): void => {
 
 export const endBatch = (): void => {
   if (batchDepth <= 0) return;
-  batchDepth -= 1;
-  if (batchDepth === 0) {
-    flushObservers();
+  if (batchDepth === 1) {
+    // Keep the batch open while flushing so writes performed by observers
+    // keep coalescing into this same flush instead of dispatching one by one.
+    try {
+      flushObservers();
+    } finally {
+      batchDepth = 0;
+    }
+    return;
   }
+  batchDepth -= 1;
 };
 
 /**

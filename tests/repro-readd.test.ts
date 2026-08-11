@@ -25,7 +25,9 @@ const installHeldAnimateMock = () => {
   };
   return {
     releaseAll: () => finishers.splice(0).forEach((f) => f()),
-    restore: () => { proto.animate = original; },
+    restore: () => {
+      proto.animate = original;
+    },
   };
 };
 
@@ -36,7 +38,8 @@ describe('repro re-add during leave', () => {
     const mock = installHeldAnimateMock();
     try {
       const root = document.createElement('div');
-      root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-in="slide-up" bq-out="fade" bq-text="n"></li></ul>';
+      root.innerHTML =
+        '<ul><li bq-for="n in nums" bq-key="n" bq-in="slide-up" bq-out="fade" bq-text="n"></li></ul>';
       document.body.appendChild(root);
       const nums = signal([1, 2, 3]);
       mount(root, { nums });

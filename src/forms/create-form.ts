@@ -244,10 +244,13 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
   const stopDirtyEffects: Array<() => void> = [];
   for (const [name, fieldConfig] of fieldEntries) {
-    const { field, stopDirtyEffect, blurCount, consumeSilentNotifyWrite, consumeSilentValidationWrite } =
-      createField(
-      fieldConfig as FieldConfig<T[typeof name]>
-    );
+    const {
+      field,
+      stopDirtyEffect,
+      blurCount,
+      consumeSilentNotifyWrite,
+      consumeSilentValidationWrite,
+    } = createField(fieldConfig as FieldConfig<T[typeof name]>);
     const originalSetValue = field.setValue.bind(field);
     field.setValue = (next: T[typeof name], options: SetFieldValueOptions = {}) => {
       originalSetValue(next, options);
@@ -388,11 +391,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     const entry = runtime[name];
     const fieldStrategy: 'manual' | 'change' | 'blur' | 'both' =
       entry.config.validateOn ??
-      (formStrategy === 'onChange'
-        ? 'change'
-        : formStrategy === 'onBlur'
-          ? 'blur'
-          : 'manual');
+      (formStrategy === 'onChange' ? 'change' : formStrategy === 'onBlur' ? 'blur' : 'manual');
     const debounceMs = Math.max(0, entry.config.debounceMs ?? 0);
 
     if (fieldStrategy === 'manual') continue;

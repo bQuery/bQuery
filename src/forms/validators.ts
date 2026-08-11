@@ -781,10 +781,7 @@ export const compose = <T = unknown>(...validators: Validator<T>[]): Validator<T
  * @param separator - String used to join messages (default: `'; '`)
  * @returns A validator function
  */
-export const all = <T = unknown>(
-  validators: Validator<T>[],
-  separator = '; '
-): Validator<T> => {
+export const all = <T = unknown>(validators: Validator<T>[], separator = '; '): Validator<T> => {
   return ((value: T) => {
     const results: (ValidationResult | Promise<ValidationResult>)[] = [];
     let anyAsync = false;
@@ -824,7 +821,10 @@ export const all = <T = unknown>(
  * const notReserved = not(oneOf(['admin', 'root']), 'Username is reserved');
  * ```
  */
-export const not = <T = unknown>(validator: Validator<T>, message = 'Invalid value'): Validator<T> => {
+export const not = <T = unknown>(
+  validator: Validator<T>,
+  message = 'Invalid value'
+): Validator<T> => {
   return ((value: T) => {
     const result = validator(value);
     if (isPromise(result)) {

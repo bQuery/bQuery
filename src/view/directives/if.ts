@@ -20,6 +20,10 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
   return (el, expression, context, cleanups) => {
     const placeholder = document.createComment(`bq-if: ${expression}`);
 
+    // The transition attributes are static — resolve once at bind time instead
+    // of re-reading and re-parsing them on every reactive update.
+    const config = resolveTransition(el, prefix);
+
     let isInserted = true;
     // Skip enter/leave animations on the very first evaluation so initial paint
     // is not animated (parity with Vue/Svelte, which do not animate on mount
@@ -33,7 +37,6 @@ export const createIfHandler = (prefix = 'bq'): DirectiveHandler => {
 
     const cleanup = effect(() => {
       const shown = Boolean(evaluate<boolean>(expression, context));
-      const config = resolveTransition(el, prefix);
 
       // The effect also re-runs when unrelated dependencies of the expression
       // change. Only react to an actual flip, otherwise the enter would replay

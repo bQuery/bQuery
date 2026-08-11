@@ -93,7 +93,7 @@ examples/
 └── README.md
 ```
 
-These are the *canonical* SSR samples. PRs that touch SSR / server should keep these compiling and running.
+These are the _canonical_ SSR samples. PRs that touch SSR / server should keep these compiling and running.
 
 ## `scripts/` — repo-local checks
 

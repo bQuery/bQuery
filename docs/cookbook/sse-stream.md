@@ -2,7 +2,7 @@
 
 **Problem.** Consume an SSE endpoint and render incoming events without manual `EventSource` plumbing.
 
-**Solution.** [`useEventSource`](/guide/reactive#sse-helpers) exposes `data`, `eventName`, `error`, and lifecycle controls as signals.
+**Solution.** [`useEventSource`](/guide/reactive#server-sent-events-sse) exposes `data`, `eventName`, `error`, and lifecycle controls as signals.
 
 ```ts
 import { effect, useEventSource } from '@bquery/bquery/reactive';
@@ -22,6 +22,6 @@ effect(() => {
 
 ## Related
 
-- [Reactive — SSE helpers](/guide/reactive#sse-helpers)
+- [Reactive — SSE helpers](/guide/reactive#server-sent-events-sse)
 - [Server — `ctx.sse`](/guide/server)
 - Longer worked example: [Examples & Recipes — Real-time communication](/guide/examples#real-time-communication)

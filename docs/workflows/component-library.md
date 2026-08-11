@@ -6,13 +6,7 @@ How to ship a reusable Web Component library with [Component](/guide/components)
 
 ```ts
 // src/button.ts
-import {
-  bindDelegatedEvents,
-  css,
-  defineComponent,
-  html,
-  onClick,
-} from '@bquery/bquery/component';
+import { bindDelegatedEvents, css, defineComponent, html, onClick } from '@bquery/bquery/component';
 
 defineComponent('ds-button', {
   props: { variant: { type: String, default: 'primary' } },
@@ -25,8 +19,14 @@ defineComponent('ds-button', {
       border: 1px solid currentColor;
       cursor: pointer;
     }
-    button[data-variant='primary'] { background: var(--accent, #0b5fff); color: white; border-color: transparent; }
-    button[data-variant='ghost']   { background: transparent; }
+    button[data-variant='primary'] {
+      background: var(--accent, #0b5fff);
+      color: white;
+      border-color: transparent;
+    }
+    button[data-variant='ghost'] {
+      background: transparent;
+    }
   `,
   connected() {
     bindDelegatedEvents(this);

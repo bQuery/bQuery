@@ -7,12 +7,7 @@
  */
 import { describe, expect, it } from 'bun:test';
 import { signal } from '../src/reactive/index';
-import {
-  FormActionError,
-  formAction,
-  optimistic,
-  useFormStatus,
-} from '../src/forms/index';
+import { FormActionError, formAction, optimistic, useFormStatus } from '../src/forms/index';
 
 const flush = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -182,7 +177,8 @@ describe('forms/formAction — string target', () => {
   });
 
   it('throws FormActionError on a non-OK response', async () => {
-    const fetchStub = (async () => new Response('nope', { status: 422 })) as unknown as typeof fetch;
+    const fetchStub = (async () =>
+      new Response('nope', { status: 422 })) as unknown as typeof fetch;
     const action = formAction('/x', { fetch: fetchStub });
 
     await action.submit();

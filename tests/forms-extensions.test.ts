@@ -692,8 +692,7 @@ describe('forms/createFieldArray', () => {
     });
     type AddParams = Parameters<typeof _arr.add>;
     type Assert<T extends true> = T;
-    const _assertAddRequiresValue: Assert<AddParams extends [string] ? true : false> =
-      true;
+    const _assertAddRequiresValue: Assert<AddParams extends [string] ? true : false> = true;
     expect(_assertAddRequiresValue).toBe(true);
   });
 

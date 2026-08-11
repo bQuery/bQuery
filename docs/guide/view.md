@@ -13,6 +13,12 @@ import { mount } from '@bquery/bquery/view';
 import { signal, computed } from '@bquery/bquery/reactive';
 ```
 
+For convenience, `@bquery/bquery/view` re-exports the reactive primitives `signal`, `computed`, `effect`, and `batch`, so view-only setups can use a single import:
+
+```ts
+import { mount, signal, computed, effect, batch } from '@bquery/bquery/view';
+```
+
 ## Stability
 
 `view` is the declarative rendering layer and has been **Beta**. Its directive contract grew materially in 1.14.0 (`bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, and the full `bq-on` modifier system). The work to graduate it is tracked in [#136](https://github.com/bQuery/bQuery/issues/136): freeze the directive set and grammar for one minor cycle, resolve the documented parser edge cases, and publish a versioned directive reference with per-directive SSR support. It **graduated to Stable in 1.15.0**, with the surface frozen under the no-breaking-changes-between-minors contract.
@@ -33,16 +39,16 @@ The frozen directive set: `bq-text`, `bq-html`, `bq-html-safe`, `bq-if`, `bq-sho
 
 The SSR renderer evaluates a subset of directives into hydration-ready markup; the rest attach on the client during hydration. Pass `{ directives: 'full' }` to `renderToString()` to server-render the interactive directives, and `onUnsupportedDirective` to enforce the boundary (see the [SSR guide](./ssr)).
 
-| Directive                                              | SSR (`static`) | SSR (`full`) | Client (hydrate) |
-| ------------------------------------------------------ | -------------- | ------------ | ---------------- |
-| `bq-text` / `bq-html`                                  | yes            | yes          | yes              |
-| `bq-if` / `bq-show` / `bq-for`                         | yes            | yes          | yes              |
-| `bq-class` / `bq-style` / `bq-bind:*`                  | yes            | yes          | yes              |
-| `bq-model`                                             | no             | yes (value)  | yes              |
-| `bq-on:*`                                              | no             | marker only  | yes (attaches)   |
-| `bq-html-safe` / `bq-once` / `bq-init` / `bq-memo` / `bq-ref` | no       | no           | yes (client-only)|
-| `bq-error` / `bq-aria`                                 | no             | no           | yes              |
-| Transitions (`bq-transition`/`bq-in`/…)                | no             | no           | yes (client-only)|
+| Directive                                                     | SSR (`static`) | SSR (`full`) | Client (hydrate)  |
+| ------------------------------------------------------------- | -------------- | ------------ | ----------------- |
+| `bq-text` / `bq-html`                                         | yes            | yes          | yes               |
+| `bq-if` / `bq-show` / `bq-for`                                | yes            | yes          | yes               |
+| `bq-class` / `bq-style` / `bq-bind:*`                         | yes            | yes          | yes               |
+| `bq-model`                                                    | no             | yes (value)  | yes               |
+| `bq-on:*`                                                     | no             | marker only  | yes (attaches)    |
+| `bq-html-safe` / `bq-once` / `bq-init` / `bq-memo` / `bq-ref` | no             | no           | yes (client-only) |
+| `bq-error` / `bq-aria`                                        | no             | no           | yes               |
+| Transitions (`bq-transition`/`bq-in`/…)                       | no             | no           | yes (client-only) |
 
 Transitions are inherently client-only (they animate live DOM); on the server the companion attributes are inert and stripped/ignored.
 
@@ -303,7 +309,7 @@ List rendering with optional keyed reconciliation for optimal DOM reuse:
 
 When items in a list have unique identifiers, use the `:key` attribute to enable efficient DOM updates. This is similar to Vue's `v-for` with `:key` or React's `key` prop.
 
-**Without a key:** Elements are matched by index. If items are reordered, all affected DOM nodes are recreated.
+**Without a key:** Elements are matched by index. On reorder, DOM nodes stay where they are and the new values are written into each position's item signal — so per-row DOM state (focus, input values, open/closed toggles) sticks to the position, not the item.
 
 **With a key:** Elements are matched by their unique key. If items are reordered, existing DOM nodes are moved rather than recreated, preserving component state and improving performance.
 
@@ -383,14 +389,14 @@ Declarative enter/leave/move transitions bind the [`motion`](./motion) engine to
 
 ### Companion attributes
 
-| Attribute                 | Applies to                | Purpose                                                              |
-| ------------------------- | ------------------------- | ------------------------------------------------------------------- |
-| `bq-transition`           | `bq-if` / `bq-show` / `bq-for` | Named preset used for **both** enter and leave.                |
-| `bq-in`                   | `bq-if` / `bq-show` / `bq-for` | Enter-only preset (overrides `bq-transition` for enter).       |
-| `bq-out`                  | `bq-if` / `bq-show` / `bq-for` | Leave-only preset (overrides `bq-transition` for leave).       |
-| `bq-transition-duration`  | same                      | Duration in milliseconds (default `200`; FLIP default `300`).       |
-| `bq-transition-easing`    | same                      | CSS easing (default `ease`; FLIP default `ease-out`).               |
-| `bq-animate="flip"`       | `bq-for`                  | FLIP move animation when list items reorder.                        |
+| Attribute                | Applies to                     | Purpose                                                       |
+| ------------------------ | ------------------------------ | ------------------------------------------------------------- |
+| `bq-transition`          | `bq-if` / `bq-show` / `bq-for` | Named preset used for **both** enter and leave.               |
+| `bq-in`                  | `bq-if` / `bq-show` / `bq-for` | Enter-only preset (overrides `bq-transition` for enter).      |
+| `bq-out`                 | `bq-if` / `bq-show` / `bq-for` | Leave-only preset (overrides `bq-transition` for leave).      |
+| `bq-transition-duration` | same                           | Duration in milliseconds (default `200`; FLIP default `300`). |
+| `bq-transition-easing`   | same                           | CSS easing (default `ease`; FLIP default `ease-out`).         |
+| `bq-animate="flip"`      | `bq-for`                       | FLIP move animation when list items reorder.                  |
 
 Built-in presets: `fade`, `scale`, `slide`, `slide-up`, `slide-down`, `slide-left`, `slide-right`. (`slide` is an alias for `slide-up`; an unknown name falls back to `fade`.)
 
@@ -413,7 +419,14 @@ mount('#list', {
 
 ```html
 <ul id="list">
-  <li bq-for="item in items" bq-key="item.id" bq-animate="flip" bq-in="slide-up" bq-out="fade" bq-text="item.label"></li>
+  <li
+    bq-for="item in items"
+    bq-key="item.id"
+    bq-animate="flip"
+    bq-in="slide-up"
+    bq-out="fade"
+    bq-text="item.label"
+  ></li>
 </ul>
 ```
 
@@ -452,7 +465,7 @@ Or drive it from a build script with `compileFiles()` / `runCompileCli()`. The c
 
 ### What compiles
 
-The transform is conservative: identifiers, member access, calls, arithmetic/logical/comparison operators, ternaries, array and object literals (including shorthand), and string literals compile. It bails — and the expression falls back to runtime — on assignments, arrow/`function` bodies, `new`, spread, regex and template literals. Those skipped expressions are listed in `stats.skipped` with a reason, so nothing is silently dropped.
+The transform is conservative: identifiers, member access, calls, arithmetic/logical/comparison operators, ternaries, array and object literals (including shorthand), and string literals compile. It bails — and the expression falls back to runtime — on assignments (except `++`/`--`, which compile), arrow/`function` bodies, `new`, spread, regex and template literals. Those skipped expressions are listed in `stats.skipped` with a reason, so nothing is silently dropped.
 
 ## Mounting
 
@@ -461,8 +474,10 @@ The transform is conservative: identifiers, member access, calls, arithmetic/log
 Mount a view to an existing element:
 
 ```ts
+const name = signal('World');
+
 const view = mount('#app', {
-  name: signal('World'),
+  name,
   greeting: computed(() => `Hello, ${name.value}!`),
   handleClick: () => console.log('Clicked!'),
 });
@@ -596,39 +611,43 @@ Directives accept JavaScript expressions:
 
 ## Integration with Components
 
-Use view bindings inside Web Components:
+Use view bindings inside Web Components. `mount()` takes a selector string or an `Element`, so create a container element, put the `bq-*` markup into it, and mount that container:
 
 ```ts
-import { component, html } from '@bquery/bquery/component';
-import { mount, View } from '@bquery/bquery/view';
+import { mount, type View } from '@bquery/bquery/view';
 import { signal } from '@bquery/bquery/reactive';
 
-component('counter-app', {
-  view: null as View | null,
+class CounterApp extends HTMLElement {
+  private view: View | null = null;
 
-  connected() {
+  connectedCallback() {
+    const root = this.shadowRoot ?? this.attachShadow({ mode: 'open' });
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <span bq-text="count"></span>
+      <button bq-on:click="increment()">+</button>
+    `;
+    root.replaceChildren(container);
+
     const count = signal(0);
-
-    this.view = mount(this.shadowRoot!, {
+    this.view = mount(container, {
       count,
       increment: () => count.value++,
     });
-  },
+  }
 
-  disconnected() {
+  disconnectedCallback() {
     this.view?.destroy();
-  },
+    this.view = null;
+  }
+}
 
-  render() {
-    return html`
-      <div>
-        <span bq-text="count"></span>
-        <button bq-on:click="increment()">+</button>
-      </div>
-    `;
-  },
-});
+customElements.define('counter-app', CounterApp);
 ```
+
+::: warning
+Don't mount a view onto markup that bQuery's `component()` helper renders: its `render()` output is re-written on every update, which would destroy the mounted bindings (and `connected()` runs before the first render, so the markup doesn't exist yet at that point). Inside `component()`, use its own `signals` bindings instead, or mount into a container the component never re-renders.
+:::
 
 ## Type Reference
 
@@ -663,15 +682,23 @@ const parsed = parseDirective('on:click.stop.prevent');
 console.log(parsed.directive); // 'on'
 console.log(parsed.arg); // 'click'
 console.log(parsed.modifiers.has('stop')); // true
-console.log(parsed.modParams); // {}
+console.log(parsed.modParams); // [Object: null prototype] {} (no prototype methods)
 ```
 
-It also supports parameterized modifiers such as `debounce-300`:
+`parseDirective()` also parses `name-value` modifiers such as `debounce-300` into `modParams`:
 
 ```ts
 const parsed = parseDirective('model.debounce-300.trim');
 console.log(parsed.modParams.debounce); // '300'
 ```
+
+::: warning `modParams` is for tooling only
+No built-in directive consumes `modParams` today — it exists for custom directives and external tooling. In particular:
+
+- `bq-model` supports **no modifiers**; anything after the directive name is ignored.
+- On `bq-on` keyboard events, any modifier that isn't a reserved keyword (`.stop`, `.prevent`, `.self`, `.capture`, `.once`, `.passive`, system keys, mouse buttons) is treated as a **key filter** — `bq-on:keydown.debounce-300` adds the key filter `debounce`, so the handler only fires when `event.key` is literally `"debounce"`, i.e. never. Use `debounce()` from `@bquery/bquery/core` inside the handler instead.
+
+:::
 
 ## Security Considerations
 
@@ -754,36 +781,36 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Directive reference (1.15.0, frozen)
 
-| Directive                  | Purpose                                                                                                                                        |
-| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `bq-text`                  | Set element text content from an expression.                                                                                                   |
-| `bq-html` / `bq-html-safe` | Render HTML — `bq-html-safe` sanitizes before insertion.                                                                                       |
-| `bq-model`                 | Two-way binding for inputs, selects, textareas, checkboxes.                                                                                    |
-| `bq-show` / `bq-if`        | Toggle visibility or DOM mounting on a condition.                                                                                              |
-| `bq-for`                   | Render lists from arrays / iterables; supports keyed reconciliation via `:key` / `bq-key`.                                                     |
-| `bq-on:event[.mods]`       | Event handler with modifier matrix (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`, `.self`, `.left`, `.right`, `.middle`, key filters). |
-| `bq-class` / `bq-style`    | Reactive class / style objects.                                                                                                                |
-| `bq-attr` / `bq-aria`      | Reactive attribute / ARIA bag.                                                                                                                 |
-| `bq-once`                  | Run the binding exactly once, then untrack.                                                                                                    |
-| `bq-init`                  | Execute an expression on mount only.                                                                                                           |
-| `bq-pre`                   | Skip directive parsing in this subtree (preserve literal source).                                                                              |
-| `bq-cloak`                 | Hide until the view is mounted to prevent FOUC.                                                                                                |
-| `bq-memo`                  | Memoize a subtree by a reactive key.                                                                                                           |
-| `bq-error`                 | Per-subtree error boundary for binding failures.                                                                                               |
-| `bq-transition` / `bq-in` / `bq-out` | Declarative enter/leave [transitions](#transitions) on `bq-if` / `bq-show` / `bq-for` (companion attributes).                        |
-| `bq-animate="flip"`        | FLIP [move transition](#transitions) when `bq-for` items reorder.                                                                              |
+| Directive                            | Purpose                                                                                                                                        |
+| ------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `bq-text`                            | Set element text content from an expression.                                                                                                   |
+| `bq-html` / `bq-html-safe`           | Render HTML — `bq-html-safe` sanitizes before insertion.                                                                                       |
+| `bq-model`                           | Two-way binding for inputs, selects, textareas, checkboxes.                                                                                    |
+| `bq-show` / `bq-if`                  | Toggle visibility or DOM mounting on a condition.                                                                                              |
+| `bq-for`                             | Render lists from arrays (non-array values render nothing); supports keyed reconciliation via `:key` / `bq-key`.                               |
+| `bq-on:event[.mods]`                 | Event handler with modifier matrix (`.prevent`, `.stop`, `.once`, `.passive`, `.capture`, `.self`, `.left`, `.right`, `.middle`, key filters). |
+| `bq-class` / `bq-style`              | Reactive class / style objects.                                                                                                                |
+| `bq-bind:*` / `bq-aria`              | Reactive attribute binding / ARIA bag.                                                                                                         |
+| `bq-once`                            | Run the binding exactly once, then untrack.                                                                                                    |
+| `bq-init`                            | Execute an expression on mount only.                                                                                                           |
+| `bq-pre`                             | Skip directive parsing in this subtree (preserve literal source).                                                                              |
+| `bq-cloak`                           | Hide until the view is mounted to prevent FOUC.                                                                                                |
+| `bq-memo`                            | Marker directive: evaluates its expression once, untracked; the subtree still binds normally (no caching).                                     |
+| `bq-error`                           | Render a validation/error message from a signal, field, or `{ error }` object; toggles `hidden`, adds `role="alert"` / `aria-live`.            |
+| `bq-transition` / `bq-in` / `bq-out` | Declarative enter/leave [transitions](#transitions) on `bq-if` / `bq-show` / `bq-for` (companion attributes).                                  |
+| `bq-animate="flip"`                  | FLIP [move transition](#transitions) when `bq-for` items reorder.                                                                              |
 
 ## Pitfalls and gotchas
 
-- View expressions run through `new Function(...)` — your CSP must allow `'unsafe-eval'` or you must use the strict-mode allow-list.
+- View expressions run through `new Function(...)` — your CSP must allow `'unsafe-eval'`, or you precompile expressions with the [optional compiler](#optional-compiler-build-step) / `registerCompiledExpressions()` so the runtime evaluator is skipped.
 - `bq-html` sanitizes when the `sanitize` mount option is `true` (the default); `bq-html-safe` sanitizes unconditionally — prefer it for untrusted content to guard against accidental `sanitize: false`.
 - `bq-for` requires stable keys for reordering — supply `:key="item.id"` (or `bq-key="item.id"`) to avoid re-creating subtrees.
-- `bq-model` on `<select multiple>` always reads/writes an array, not a single string.
+- `bq-model` supports text-like inputs, textareas, single-select `<select>`, checkboxes, and radios. `<select multiple>` is not supported — it reads only the first selected option as a single string.
 - Call `destroy()` on the `View` returned by `mount()` when removing dynamic views — leaked bindings keep signals subscribed.
 
 ## Performance notes
 
-- Wrap expensive subtrees in `bq-memo` keyed on their inputs.
+- Key your `bq-for` lists (`:key="item.id"`) so reorders move DOM nodes instead of rewriting every row in place.
 - Use `bq-once` for write-once data (translations, server-injected props) to skip per-update work.
 - Cache compiled templates with `createTemplate()` when instantiating many copies.
 
@@ -801,5 +828,6 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Version history
 
+- **1.16.0** — per-update work moved to bind time (object-expression parsing, transition resolution, directive parsing memoized, sandbox proxies cached per context); unchanged DOM writes skipped in `bq-text`/`bq-bind`/`bq-model`/`bq-html` (fixes the `bq-model` caret reset); `bq-for` dispatched before other directives on the same element; `bq-once`/`bq-memo`/`bq-init` evaluate untracked; `bq-html` children are no longer directive-bound.
 - **1.15.0** — **graduated to Stable**: directive set + grammar frozen; `bq-for` duplicate-key and object-expression (`{ active }` shorthand) edge cases resolved; declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`); optional `@bquery/bquery/view/compiler` build step with `registerCompiledExpressions` / `clearCompiledExpressions` runtime hooks.
 - **1.14.0** — `parseDirective`, `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, full `bq-on` modifier system.

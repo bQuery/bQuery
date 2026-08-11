@@ -2,7 +2,7 @@
 
 **Problem.** Refresh a dashboard widget every few seconds without manual setInterval bookkeeping.
 
-**Solution.** Use [`usePolling`](/guide/reactive#polling-helpers) — it pauses on tab hidden, resumes on focus, and exposes a `dispose()` for teardown.
+**Solution.** Use [`usePolling`](/guide/reactive#polling) — it pauses on tab hidden, resumes on focus, and exposes a `dispose()` for teardown.
 
 ```ts
 import { effect, usePolling } from '@bquery/bquery/reactive';
@@ -27,6 +27,6 @@ effect(() => {
 
 ## Related
 
-- [Reactive — Polling helpers](/guide/reactive#polling-helpers)
+- [Reactive — Polling helpers](/guide/reactive#polling)
 - [Reactive — `useResource`](/guide/reactive#rest-resource-composable)
 - Longer worked example: [Examples & Recipes — Polling for live data](/guide/examples#polling-for-live-data)

@@ -14,7 +14,7 @@ A short reference for the terms used throughout the bQuery.js documentation. Cro
 
 **Watch / watchDebounce / watchThrottle** — Observe a signal or computed and run a callback with `(newValue, oldValue)`. Debounced and throttled variants share the same callback shape.
 
-**Scope (effect scope)** — A collection of effects, computeds, and signals that can be disposed together via [`effectScope()`](/guide/reactive).
+**Scope (effect scope)** — A collection of effects, computed values, watches, and nested scopes that can be disposed together via [`effectScope()`](/guide/reactive).
 
 **Batch** — A block that defers signal notifications until all writes inside complete. See [`batch()`](/guide/reactive).
 
@@ -44,7 +44,7 @@ A short reference for the terms used throughout the bQuery.js documentation. Cro
 
 **Hydration** — Attaching client-side reactivity to server-rendered HTML so it becomes interactive.
 
-**Resumability** — A hydration strategy that *resumes* server-built state on the client without re-running setup code, via [`createResumableState`](/guide/ssr).
+**Resumability** — A hydration strategy that _resumes_ server-built state on the client without re-running setup code, via [`createResumableState`](/guide/ssr).
 
 **SSR cache** — Per-fragment or per-route caching of SSR output, configured with [`createSSRCache`](/guide/ssr).
 

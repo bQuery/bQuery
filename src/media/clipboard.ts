@@ -79,9 +79,11 @@ export const clipboard: ClipboardAPI & {
     if (!hasClipboardItems()) {
       throw new Error(CLIPBOARD_UNAVAILABLE_ERROR);
     }
-    const items = await (navigator.clipboard as Clipboard & {
-      read: () => Promise<readonly (ClipboardItem & { types: readonly string[] })[]>;
-    }).read();
+    const items = await (
+      navigator.clipboard as Clipboard & {
+        read: () => Promise<readonly (ClipboardItem & { types: readonly string[] })[]>;
+      }
+    ).read();
     for (const item of items) {
       const imageType = item.types.find((t) => t.startsWith('image/'));
       if (imageType) {
@@ -95,9 +97,11 @@ export const clipboard: ClipboardAPI & {
       throw new Error(CLIPBOARD_UNAVAILABLE_ERROR);
     }
     const item = new ClipboardItem({ [blob.type || 'image/png']: blob });
-    await (navigator.clipboard as Clipboard & {
-      write: (items: readonly ClipboardItem[]) => Promise<void>;
-    }).write([item]);
+    await (
+      navigator.clipboard as Clipboard & {
+        write: (items: readonly ClipboardItem[]) => Promise<void>;
+      }
+    ).write([item]);
   },
 };
 
@@ -126,9 +130,7 @@ export interface ClipboardTextOptions extends AbortableOptions {
  * effect(() => console.log('clipboard:', text.value));
  * ```
  */
-export const clipboardText = (
-  options: ClipboardTextOptions = {}
-): MediaSignalHandle<string> => {
+export const clipboardText = (options: ClipboardTextOptions = {}): MediaSignalHandle<string> => {
   const onFocus = options.onFocus !== false;
   const onCopy = options.onCopy !== false;
   const pollMs = options.pollMs && options.pollMs > 0 ? options.pollMs : 0;
@@ -171,4 +173,3 @@ export const clipboardText = (
     options
   );
 };
-

@@ -31,8 +31,7 @@ const flush = async (): Promise<void> => {
   await new Promise((resolve) => setTimeout(resolve, 0));
 };
 
-const wait = (ms: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, ms));
+const wait = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 type ModuleSetup = (scope: WorkerHostScope) => void;
 
@@ -306,7 +305,11 @@ describe('concurrency/exposeTask + exposeRpc protocol (#134)', () => {
     scope.onmessage?.({ data: { id: 2, payload: undefined, type: 'bq:run' } });
     await flush();
     expect(scope.sent).toEqual([
-      { error: { code: 'CUSTOM', message: 'nope', name: 'Error', stack: expect.any(String) }, id: 2, type: 'bq:error' },
+      {
+        error: { code: 'CUSTOM', message: 'nope', name: 'Error', stack: expect.any(String) },
+        id: 2,
+        type: 'bq:error',
+      },
     ]);
   });
 

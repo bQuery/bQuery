@@ -72,7 +72,7 @@ export type {
 } from './rest';
 export type { EffectScope } from './scope';
 export type { MaybeSignal } from './to-value';
-export type { WatchOptions } from './watch';
+export type { WatchOptions, WatchThrottleOptions } from './watch';
 export type {
   ChannelMessage,
   ChannelSubscription,

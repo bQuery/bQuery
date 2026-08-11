@@ -27,16 +27,37 @@ export class Computed<T> implements ReactiveSource {
   private dirty = true;
   private disposed = false;
   private subscribers = new Set<() => void>();
+  /** Value the subscribers were last notified about (or first observed). */
+  private lastNotifiedValue!: T;
+  private hasNotifiedValue = false;
+
   private readonly markDirty = () => {
-    if (this.disposed) {
+    if (this.disposed || this.dirty) {
       return;
     }
     this.dirty = true;
-    // Create snapshot to avoid issues with subscribers modifying the set during iteration
-    const subscribersSnapshot = Array.from(this.subscribers);
-    for (const subscriber of subscribersSnapshot) {
-      scheduleObserver(subscriber);
+    if (this.subscribers.size === 0) return;
+    // Re-validate before waking subscribers: if the recomputed value is
+    // unchanged, downstream observers are not notified at all.
+    scheduleObserver(this.revalidate);
+  };
+
+  private readonly revalidate = () => {
+    if (this.disposed || this.subscribers.size === 0) return;
+    if (this.dirty) {
+      try {
+        this.recompute();
+      } catch {
+        // Wake subscribers so their own reads surface the compute error
+        // in their context, matching pre-revalidation behavior.
+        this.notifySubscribers();
+        return;
+      }
     }
+    if (this.hasNotifiedValue && Object.is(this.cachedValue, this.lastNotifiedValue)) return;
+    this.hasNotifiedValue = true;
+    this.lastNotifiedValue = this.cachedValue;
+    this.notifySubscribers();
   };
 
   /**
@@ -45,30 +66,65 @@ export class Computed<T> implements ReactiveSource {
    */
   constructor(private readonly compute: () => T) {}
 
+  private recompute(): void {
+    // Cleared before running so re-entrant reads see the cached value
+    // instead of recursing; restored on failure so the next read retries.
+    this.dirty = false;
+    clearDependencies(this.markDirty);
+    try {
+      this.cachedValue = track(this.markDirty, this.compute);
+      this.hasCachedValue = true;
+    } catch (error) {
+      this.dirty = true;
+      throw error;
+    }
+  }
+
+  private ensureDisposedValue(): T {
+    if (!this.hasCachedValue) {
+      this.cachedValue = withoutCurrentObserver(() => this.compute());
+      this.hasCachedValue = true;
+    }
+    return this.cachedValue;
+  }
+
+  private notifySubscribers(): void {
+    const subs = this.subscribers;
+    if (subs.size === 0) return;
+    if (subs.size === 1) {
+      const only = subs.values().next().value as () => void;
+      scheduleObserver(only);
+      return;
+    }
+    // Snapshot to avoid issues with subscribers modifying the set during iteration
+    const subscribersSnapshot = Array.from(subs);
+    for (const subscriber of subscribersSnapshot) {
+      scheduleObserver(subscriber);
+    }
+  }
+
   /**
    * Gets the computed value, recomputing if dependencies changed.
    * During untrack calls, getCurrentObserver returns undefined, preventing dependency tracking.
    */
   get value(): T {
     if (this.disposed) {
-      if (!this.hasCachedValue) {
-        this.cachedValue = withoutCurrentObserver(() => this.compute());
-        this.hasCachedValue = true;
-      }
-      return this.cachedValue;
+      return this.ensureDisposedValue();
     }
 
     const current = getCurrentObserver();
-    if (current) {
+    if (current && !this.subscribers.has(current)) {
       this.subscribers.add(current);
       registerDependency(current, this);
     }
     if (this.dirty) {
-      this.dirty = false;
-      // Clear old dependencies before recomputing
-      clearDependencies(this.markDirty);
-      this.cachedValue = track(this.markDirty, this.compute);
-      this.hasCachedValue = true;
+      this.recompute();
+    }
+    if (current && !this.hasNotifiedValue) {
+      // First tracked read: the sole subscriber has now seen this value,
+      // so an equal recomputation later must not wake it.
+      this.hasNotifiedValue = true;
+      this.lastNotifiedValue = this.cachedValue;
     }
     return this.cachedValue;
   }
@@ -81,19 +137,11 @@ export class Computed<T> implements ReactiveSource {
    */
   peek(): T {
     if (this.disposed) {
-      if (!this.hasCachedValue) {
-        this.cachedValue = withoutCurrentObserver(() => this.compute());
-        this.hasCachedValue = true;
-      }
-      return this.cachedValue;
+      return this.ensureDisposedValue();
     }
 
     if (this.dirty) {
-      this.dirty = false;
-      // Clear old dependencies before recomputing
-      clearDependencies(this.markDirty);
-      this.cachedValue = track(this.markDirty, this.compute);
-      this.hasCachedValue = true;
+      this.recompute();
     }
     return this.cachedValue;
   }

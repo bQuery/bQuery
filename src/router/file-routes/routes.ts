@@ -155,8 +155,7 @@ export const createFileRoutes = (
   return { routes, entries };
 };
 
-const segmentCount = (pattern: string): number =>
-  pattern.split('/').filter(Boolean).length;
+const segmentCount = (pattern: string): number => pattern.split('/').filter(Boolean).length;
 
 /**
  * Sort routes so that the existing first-match router resolves the most

@@ -134,7 +134,10 @@ export const createModuleWorkerInstance = (
   name?: string
 ): Worker => {
   if (typeof Worker !== 'function') {
-    throw new TaskWorkerError('The Worker constructor is unavailable in this environment.', 'UNSUPPORTED');
+    throw new TaskWorkerError(
+      'The Worker constructor is unavailable in this environment.',
+      'UNSUPPORTED'
+    );
   }
 
   const options: WorkerOptions = { type: module.type };

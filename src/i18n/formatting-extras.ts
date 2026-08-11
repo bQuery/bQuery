@@ -11,14 +11,7 @@
  */
 
 type RelativeTimeFormatUnit =
-  | 'year'
-  | 'quarter'
-  | 'month'
-  | 'week'
-  | 'day'
-  | 'hour'
-  | 'minute'
-  | 'second';
+  'year' | 'quarter' | 'month' | 'week' | 'day' | 'hour' | 'minute' | 'second';
 
 type RelativeTimeFormat = {
   format: (value: number, unit: RelativeTimeFormatUnit) => string;
@@ -121,12 +114,14 @@ export const formatList = (
   options?: ListFormatOptions
 ): string => {
   try {
-    const Ctor = (Intl as unknown as {
-      ListFormat?: new (
-        locale: string,
-        options?: ListFormatOptions
-      ) => { format: (values: readonly string[]) => string };
-    }).ListFormat;
+    const Ctor = (
+      Intl as unknown as {
+        ListFormat?: new (
+          locale: string,
+          options?: ListFormatOptions
+        ) => { format: (values: readonly string[]) => string };
+      }
+    ).ListFormat;
     if (typeof Ctor === 'function') {
       return new Ctor(locale, options).format(values);
     }
@@ -196,12 +191,14 @@ export const segment = (
 ): string[] => {
   const { granularity = 'grapheme' } = options;
   try {
-    const Ctor = (Intl as unknown as {
-      Segmenter?: new (
-        locale: string,
-        options: { granularity?: string }
-      ) => { segment: (input: string) => Iterable<{ segment: string }> };
-    }).Segmenter;
+    const Ctor = (
+      Intl as unknown as {
+        Segmenter?: new (
+          locale: string,
+          options: { granularity?: string }
+        ) => { segment: (input: string) => Iterable<{ segment: string }> };
+      }
+    ).Segmenter;
     if (typeof Ctor === 'function') {
       const seg = new Ctor(locale, { granularity });
       const out: string[] = [];

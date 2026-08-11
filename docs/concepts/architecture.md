@@ -26,31 +26,31 @@ This layering is enforced at review time and reflected in the directory structur
 
 The framework ships **23 public modules**. Each one has its own entry point in `package.json` and its own `src/<module>/index.ts` barrel.
 
-| Layer         | Module        | Responsibility                                                                              |
-| ------------- | ------------- | ------------------------------------------------------------------------------------------- |
-| Foundation    | `core`        | `$`, `$$`, DOM wrappers, traversal, events, utilities                                       |
-| Foundation    | `reactive`    | signals, computed, effects, scopes, watch, HTTP, polling, WebSocket/SSE, REST, queues       |
-| Foundation    | `concurrency` | worker tasks, RPC, pools, reactive metrics                                                  |
-| UI            | `component`   | Web Components, props, slots, refs, lifecycle                                               |
-| UI            | `view`        | declarative `bq-*` directives                                                               |
-| UI            | `motion`      | transitions, FLIP, springs, tweens, timelines                                               |
-| UI            | `storybook`   | safe story helpers                                                                          |
-| State         | `store`       | signal-based state + persistence                                                            |
-| State         | `forms`       | reactive form state, validation, schema                                                     |
-| Navigation    | `router`      | SPA routing, guards, navigation results                                                     |
-| Cross-cut     | `security`    | sanitization, Trusted Types                                                                 |
-| Cross-cut     | `platform`    | storage, cache, cookies, page meta                                                          |
-| Cross-cut     | `i18n`        | locale negotiation, Intl, pluralization                                                     |
-| Cross-cut     | `a11y`        | focus, live regions, audits, prefs                                                          |
-| Cross-cut     | `dnd`         | draggable, droppable, sortable                                                              |
-| Cross-cut     | `media`       | viewport, network, clipboard, prefs                                                         |
-| Extensibility | `plugin`      | hooks, DI, namespaced directives                                                            |
-| Tooling       | `devtools`    | timeline, diffs, traces, snapshots                                                          |
-| Tooling       | `testing`     | screen, userEvent, mocks, async helpers                                                     |
-| Server        | `ssr`         | runtime-agnostic rendering, streaming, hydration, resumability                              |
-| Server        | `server`      | dependency-free routing, SSR responses, WebSocket sessions                                  |
-| Entry         | (root)        | curated re-exports of common helpers                                                        |
-| Entry         | `full`        | every public runtime + type export, intended for CDN consumers                              |
+| Layer         | Module        | Responsibility                                                                        |
+| ------------- | ------------- | ------------------------------------------------------------------------------------- |
+| Foundation    | `core`        | `$`, `$$`, DOM wrappers, traversal, events, utilities                                 |
+| Foundation    | `reactive`    | signals, computed, effects, scopes, watch, HTTP, polling, WebSocket/SSE, REST, queues |
+| Foundation    | `concurrency` | worker tasks, RPC, pools, reactive metrics                                            |
+| UI            | `component`   | Web Components, props, slots, refs, lifecycle                                         |
+| UI            | `view`        | declarative `bq-*` directives                                                         |
+| UI            | `motion`      | transitions, FLIP, springs, tweens, timelines                                         |
+| UI            | `storybook`   | safe story helpers                                                                    |
+| State         | `store`       | signal-based state + persistence                                                      |
+| State         | `forms`       | reactive form state, validation, schema                                               |
+| Navigation    | `router`      | SPA routing, guards, navigation results                                               |
+| Cross-cut     | `security`    | sanitization, Trusted Types                                                           |
+| Cross-cut     | `platform`    | storage, cache, cookies, page meta                                                    |
+| Cross-cut     | `i18n`        | locale negotiation, Intl, pluralization                                               |
+| Cross-cut     | `a11y`        | focus, live regions, audits, prefs                                                    |
+| Cross-cut     | `dnd`         | draggable, droppable, sortable                                                        |
+| Cross-cut     | `media`       | viewport, network, clipboard, prefs                                                   |
+| Extensibility | `plugin`      | hooks, DI, namespaced directives                                                      |
+| Tooling       | `devtools`    | timeline, diffs, traces, snapshots                                                    |
+| Tooling       | `testing`     | screen, userEvent, mocks, async helpers                                               |
+| Server        | `ssr`         | runtime-agnostic rendering, streaming, hydration, resumability                        |
+| Server        | `server`      | dependency-free routing, SSR responses, WebSocket sessions                            |
+| Entry         | (root)        | curated re-exports of common helpers                                                  |
+| Entry         | `full`        | every public runtime + type export, intended for CDN consumers                        |
 
 ## Entry points
 

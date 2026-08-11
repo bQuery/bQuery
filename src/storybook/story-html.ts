@@ -8,7 +8,11 @@
  */
 
 import { sanitizeHtml } from '../security/sanitize';
-import { isUnsafeHtmlMarker, UNSAFE_HTML_PLACEHOLDER_PREFIX, UNSAFE_HTML_PLACEHOLDER_SUFFIX } from './unsafe-html';
+import {
+  isUnsafeHtmlMarker,
+  UNSAFE_HTML_PLACEHOLDER_PREFIX,
+  UNSAFE_HTML_PLACEHOLDER_SUFFIX,
+} from './unsafe-html';
 import type { UnsafeHtmlMarker } from './unsafe-html';
 
 /**

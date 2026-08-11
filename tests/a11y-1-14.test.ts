@@ -14,9 +14,7 @@ import {
   prefersReducedTransparency,
   scrollLock,
 } from '../src/a11y/index';
-import {
-  _disposeKeyboardSignals,
-} from '../src/a11y/keyboard-signals';
+import { _disposeKeyboardSignals } from '../src/a11y/keyboard-signals';
 import { _resetScrollLockForTests } from '../src/a11y/dom-helpers';
 
 afterEach(() => {

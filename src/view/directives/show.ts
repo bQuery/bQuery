@@ -30,9 +30,12 @@ export const createShowHandler = (prefix = 'bq'): DirectiveHandler => {
     let token = 0;
     let wasShown = false;
 
+    // The transition attributes are static — resolve once at bind time instead
+    // of re-reading and re-parsing them on every reactive update.
+    const config = resolveTransition(el, prefix);
+
     const cleanup = effect(() => {
       const shown = Boolean(evaluate<boolean>(expression, context));
-      const config = resolveTransition(el, prefix);
 
       // No transition, or the initial paint: apply display synchronously.
       if (!config || first) {

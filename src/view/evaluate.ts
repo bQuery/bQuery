@@ -27,7 +27,9 @@ class LRUCache {
 
   get(key: string): CompiledFn | undefined {
     const value = this.cache.get(key);
-    if (value !== undefined) {
+    // Recency only matters once the cache can evict; below capacity a plain
+    // hit skips the delete+set reorder on the hot path.
+    if (value !== undefined && this.cache.size >= this.maxSize) {
       // Move to end (most recently used) by re-inserting
       this.cache.delete(key);
       this.cache.set(key, value);
@@ -193,8 +195,18 @@ const hardenedHas = (target: BindingContext, prop: string | symbol): boolean => 
 const isShadowedGlobal = (target: BindingContext, prop: string): boolean =>
   SHADOWED_GLOBALS.has(prop) && !Object.prototype.hasOwnProperty.call(target, prop);
 
-const createLazyContext = (context: BindingContext): BindingContext =>
-  new Proxy(context, {
+/**
+ * Proxies are pure live views over their target, so one proxy per context
+ * object is enough — allocating a fresh proxy per evaluation was pure garbage
+ * on the hottest path in the view layer.
+ * @internal
+ */
+const lazyContextCache = new WeakMap<BindingContext, BindingContext>();
+
+const createLazyContext = (context: BindingContext): BindingContext => {
+  const cached = lazyContextCache.get(context);
+  if (cached) return cached;
+  const proxy = new Proxy(context, {
     get(target, prop: string | symbol) {
       // Only handle string keys for BindingContext indexing
       if (typeof prop !== 'string') {
@@ -212,6 +224,9 @@ const createLazyContext = (context: BindingContext): BindingContext =>
     },
     has: hardenedHas,
   });
+  lazyContextCache.set(context, proxy);
+  return proxy;
+};
 
 /**
  * Wraps a raw context so `with`-based evaluation cannot resolve inherited
@@ -219,8 +234,13 @@ const createLazyContext = (context: BindingContext): BindingContext =>
  * (unlike {@link createLazyContext}).
  * @internal
  */
-const createHardenedContext = (context: BindingContext): BindingContext =>
-  new Proxy(context, {
+/** One hardened proxy per context object — see {@link lazyContextCache}. @internal */
+const hardenedContextCache = new WeakMap<BindingContext, BindingContext>();
+
+const createHardenedContext = (context: BindingContext): BindingContext => {
+  const cached = hardenedContextCache.get(context);
+  if (cached) return cached;
+  const proxy = new Proxy(context, {
     get(target, prop: string | symbol) {
       if (typeof prop === 'string' && isShadowedGlobal(target, prop)) {
         return undefined;
@@ -229,6 +249,9 @@ const createHardenedContext = (context: BindingContext): BindingContext =>
     },
     has: hardenedHas,
   });
+  hardenedContextCache.set(context, proxy);
+  return proxy;
+};
 
 /**
  * Evaluates an expression in the given context using `new Function()`.
@@ -324,6 +347,29 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
     console.error(`bQuery view: Error evaluating "${expression}"`, error);
     return undefined as T;
   }
+};
+
+/**
+ * Memoized front-end for {@link parseObjectExpression}. Object expressions are
+ * static template attribute values, so each distinct string only needs to be
+ * scanned once — bq-for row clones re-bind the same expression per row.
+ * Callers must treat the returned record as read-only.
+ * @internal
+ */
+const parsedObjectExpressions = new Map<string, Record<string, string>>();
+
+export const parseObjectExpressionCached = (expression: string): Record<string, string> => {
+  let parsed = parsedObjectExpressions.get(expression);
+  if (!parsed) {
+    // Same bound as the compiled-expression caches; the set of distinct
+    // object expressions in an app is small, this only guards degenerate use.
+    if (parsedObjectExpressions.size >= MAX_CACHE_SIZE) {
+      parsedObjectExpressions.clear();
+    }
+    parsed = parseObjectExpression(expression);
+    parsedObjectExpressions.set(expression, parsed);
+  }
+  return parsed;
 };
 
 /**

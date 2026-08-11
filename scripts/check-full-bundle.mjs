@@ -186,9 +186,12 @@ export async function auditFullBundle({
     }
 
     for (const exp of [...moduleExports.runtime].sort()) {
-      const moduleOrigins = normalizeExportSourceModules(moduleExports.runtimeSources.get(exp), name);
+      const moduleOrigins = normalizeExportSourceModules(
+        moduleExports.runtimeSources.get(exp),
+        name
+      );
       const fullOrigins = normalizeExportSourceModules(fullExports.runtimeSources.get(exp), 'full');
-      if ([...moduleOrigins].some(origin => fullOrigins.has(origin))) continue;
+      if ([...moduleOrigins].some((origin) => fullOrigins.has(origin))) continue;
       if (INTENTIONAL_RUNTIME_OMISSIONS.has(`${name}:${exp}`)) continue;
       missingRuntime.push(`${name}.${exp}`);
     }
@@ -196,7 +199,7 @@ export async function auditFullBundle({
     for (const exp of [...moduleExports.types].sort()) {
       const moduleOrigins = normalizeExportSourceModules(moduleExports.typeSources.get(exp), name);
       const fullOrigins = normalizeExportSourceModules(fullExports.typeSources.get(exp), 'full');
-      if ([...moduleOrigins].some(origin => fullOrigins.has(origin))) continue;
+      if ([...moduleOrigins].some((origin) => fullOrigins.has(origin))) continue;
       if (INTENTIONAL_TYPE_OMISSIONS.has(`${name}:${exp}`)) continue;
       missingTypes.push(`${name}.${exp}`);
     }

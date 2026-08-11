@@ -1,6 +1,6 @@
 import { effect } from '../../reactive/index';
 import { isPrototypePollutionKey } from '../../core/utils/object';
-import { evaluate, parseObjectExpression } from '../evaluate';
+import { evaluate, parseObjectExpressionCached } from '../evaluate';
 import type { DirectiveHandler } from '../types';
 
 const toKebabCase = (value: string): string => value.replace(/([A-Z])/g, '-$1').toLowerCase();
@@ -26,14 +26,30 @@ const shouldRemoveAttribute = (value: unknown): boolean => value == null || valu
 export const handleAria: DirectiveHandler = (el, expression, context, cleanups) => {
   let appliedAttributes: Set<string> = new Set();
 
+  // Static object syntax: parse once at bind time and pre-normalize the
+  // attribute names — only the value expressions vary per update.
+  const ariaEntries = expression.trimStart().startsWith('{')
+    ? Object.entries(parseObjectExpressionCached(expression)).map(
+        ([attrName, valueExpr]): [string, string] => [normalizeAriaAttribute(attrName), valueExpr]
+      )
+    : null;
+
+  const applyAria = (normalizedName: string, value: unknown, newAttributes: Set<string>): void => {
+    if (shouldRemoveAttribute(value)) {
+      el.removeAttribute(normalizedName);
+      return;
+    }
+
+    el.setAttribute(normalizedName, value === true ? 'true' : String(value));
+    newAttributes.add(normalizedName);
+  };
+
   const cleanup = effect(() => {
     const newAttributes = new Set<string>();
-    const ariaValues = Object.create(null) as Record<string, unknown>;
 
-    if (expression.trimStart().startsWith('{')) {
-      const ariaMap = parseObjectExpression(expression);
-      for (const [attrName, valueExpr] of Object.entries(ariaMap)) {
-        ariaValues[attrName] = evaluate(valueExpr, context);
+    if (ariaEntries) {
+      for (const [normalizedName, valueExpr] of ariaEntries) {
+        applyAria(normalizedName, evaluate(valueExpr, context), newAttributes);
       }
     } else {
       const result = evaluate<Record<string, unknown>>(expression, context);
@@ -43,20 +59,9 @@ export const handleAria: DirectiveHandler = (el, expression, context, cleanups) 
             continue;
           }
 
-          ariaValues[attrName] = value;
+          applyAria(normalizeAriaAttribute(attrName), value, newAttributes);
         }
       }
-    }
-
-    for (const [attrName, value] of Object.entries(ariaValues)) {
-      const normalizedName = normalizeAriaAttribute(attrName);
-      if (shouldRemoveAttribute(value)) {
-        el.removeAttribute(normalizedName);
-        continue;
-      }
-
-      el.setAttribute(normalizedName, value === true ? 'true' : String(value));
-      newAttributes.add(normalizedName);
     }
 
     for (const attrName of appliedAttributes) {

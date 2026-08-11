@@ -3,6 +3,87 @@
  */
 export type ElementList = Element[];
 
+/** Handler signature for delegated events */
+export type DelegatedHandler = (event: Event, target: Element) => void;
+
+/**
+ * Delegated-listener registry shared by all wrapper instances and keyed by
+ * the element itself, so a fresh `$`/`$$` wrapper can undelegate a listener
+ * registered through an earlier one.
+ * Outer map: element -> (key -> (handler -> wrapper))
+ * Key format: `${event}:${selector}`
+ * @internal
+ */
+const delegatedHandlers = new WeakMap<Element, Map<string, Map<DelegatedHandler, EventListener>>>();
+
+/** @internal */
+export const addDelegatedListener = (
+  el: Element,
+  event: string,
+  selector: string,
+  handler: DelegatedHandler
+): void => {
+  let elementHandlers = delegatedHandlers.get(el);
+  if (!elementHandlers) {
+    elementHandlers = new Map();
+    delegatedHandlers.set(el, elementHandlers);
+  }
+  const key = `${event}:${selector}`;
+  let handlers = elementHandlers.get(key);
+  if (!handlers) {
+    handlers = new Map();
+    elementHandlers.set(key, handlers);
+  }
+  // Re-delegating the same handler for the same key keeps a single listener.
+  if (handlers.has(handler)) {
+    return;
+  }
+
+  const wrapper: EventListener = (e: Event) => {
+    const eventTarget = e.target;
+    // e.target can be a Text node, the document, or null (synthetic events).
+    if (!eventTarget || (eventTarget as Node).nodeType !== 1) {
+      return;
+    }
+    const target = (eventTarget as Element).closest(selector);
+    if (target && el.contains(target)) {
+      handler(e, target);
+    }
+  };
+
+  handlers.set(handler, wrapper);
+  el.addEventListener(event, wrapper);
+};
+
+/** @internal */
+export const removeDelegatedListener = (
+  el: Element,
+  event: string,
+  selector: string,
+  handler: DelegatedHandler
+): void => {
+  const elementHandlers = delegatedHandlers.get(el);
+  if (!elementHandlers) return;
+
+  const key = `${event}:${selector}`;
+  const handlers = elementHandlers.get(key);
+  if (!handlers) return;
+
+  const wrapper = handlers.get(handler);
+  if (!wrapper) return;
+
+  el.removeEventListener(event, wrapper);
+  handlers.delete(handler);
+
+  // Clean up empty maps
+  if (handlers.size === 0) {
+    elementHandlers.delete(key);
+  }
+  if (elementHandlers.size === 0) {
+    delegatedHandlers.delete(el);
+  }
+};
+
 export const toElementList = (input: Element | ElementList): ElementList =>
   Array.isArray(input) ? input : [input];
 

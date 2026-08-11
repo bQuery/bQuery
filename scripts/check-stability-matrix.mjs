@@ -58,7 +58,8 @@ function parseReadme(markdown) {
 /** Parse `docs/introduction.md` — grouped rows: `| **Stable** | \`a\`, \`b\` |`. */
 function parseDocsMatrix(markdown) {
   const section = sliceSection(markdown, /^##\s+Stability matrix\b/);
-  if (!section) throw new Error('docs/introduction.md: could not find "## Stability matrix" section.');
+  if (!section)
+    throw new Error('docs/introduction.md: could not find "## Stability matrix" section.');
   const rowRe = new RegExp(`^\\|\\s*\\*\\*${STATUS}\\*\\*\\s*\\|([^|]*)\\|`, 'gm');
   const map = new Map();
   let match;

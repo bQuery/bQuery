@@ -27,7 +27,12 @@ export const handleModel: DirectiveHandler = (el, expression, context, cleanups)
     } else if (isRadio) {
       (input as HTMLInputElement).checked = sig.value === input.value;
     } else {
-      input.value = String(sig.value ?? '');
+      const next = String(sig.value ?? '');
+      // Skip when unchanged: re-assigning .value while the user is typing
+      // (the effect run triggered by our own input listener) resets the caret.
+      if (input.value !== next) {
+        input.value = next;
+      }
     }
   };
 

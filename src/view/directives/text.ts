@@ -9,7 +9,12 @@ import type { DirectiveHandler } from '../types';
 export const handleText: DirectiveHandler = (el, expression, context, cleanups) => {
   const cleanup = effect(() => {
     const value = evaluate(expression, context);
-    el.textContent = String(value ?? '');
+    const next = String(value ?? '');
+    // Assigning textContent replaces the text node even for equal strings —
+    // skip the write when nothing changed.
+    if (el.textContent !== next) {
+      el.textContent = next;
+    }
   });
   cleanups.push(cleanup);
 };

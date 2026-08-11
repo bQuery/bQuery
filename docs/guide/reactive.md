@@ -113,7 +113,7 @@ stop();
 
 ## Batch
 
-Batch groups multiple updates into one notification pass.
+Batch defers notifications until the callback ends, so multiple writes coalesce into a single flush instead of notifying synchronously per write. Effects re-triggered transitively during the flush (an effect writing a signal another effect reads) run again in a follow-up pass.
 
 ```ts
 batch(() => {
@@ -520,6 +520,15 @@ watchThrottle(
   },
   100
 );
+```
+
+`watchThrottle` fires on the leading edge and, by default, drops changes that
+arrive within the interval. Pass `trailing: true` to also deliver the last
+value of a burst once the interval elapses, so consumers never stay on a stale
+intermediate value:
+
+```ts
+watchThrottle(scrollY, syncScrollIndicator, 100, { trailing: true });
 ```
 
 ## Readonly
@@ -985,6 +994,12 @@ chat.ws.dispose();
 
 ### Channel options
 
+Channel options are the **third** argument — the second argument takes the underlying `useWebSocket` options:
+
+```ts
+useWebSocketChannel(url, wsOptions, { getChannel, wrap });
+```
+
 | Option       | Type                         | Default                 | Description                  |
 | ------------ | ---------------------------- | ----------------------- | ---------------------------- |
 | `getChannel` | `(msg: TReceive) => string?` | reads `msg.channel`     | Extract channel from message |
@@ -1145,14 +1160,14 @@ const api = createHttp({
 ## Pitfalls and gotchas
 
 - Reading `.value` inside an `effect()` or `computed()` subscribes the caller — use `.peek()` for one-shot reads you do not want to track.
-- `computed()` is read-only. Use [`linkedSignal()`](./reactive#linkedsignal) when you need a derived value you can also write to.
+- `computed()` is read-only. Use [`linkedSignal()`](./reactive#linked-signals) when you need a derived value you can also write to.
 - `watch()` debounce/throttle variants keep the same `(newValue, oldValue)` signature; do not pass the timing options as the callback.
-- `effect()` returns a disposer — keep it and call it from your component's `disconnected` or scope's `dispose()` to avoid leaks in long-lived pages.
-- Async helpers (`useFetch`, `usePolling`, `useWebSocket`, …) always return disposers/`dispose()`; never spawn them without ownership in a long-lived component.
+- `effect()` returns a disposer — keep it and call it from your component's `disconnected` or scope's `stop()` to avoid leaks in long-lived pages.
+- Most async helpers (`useFetch`, `usePolling`, `useWebSocket`, …) return disposers/`dispose()` — never spawn them without ownership in a long-lived component. `useSubmit()` is the exception: it holds no subscriptions, so it has nothing to dispose.
 
 ## Performance notes
 
-- Batch multiple writes with `batch(() => { … })` to coalesce subscribers into a single notification pass.
+- Batch multiple writes with `batch(() => { … })` so each direct subscriber runs once per flush instead of once per write.
 - Prefer `computed()` over re-deriving values in templates — computed memoization avoids redundant work.
 - Use `deduplicateRequest()` for read-heavy endpoints to collapse concurrent calls, and `createRequestQueue()` to bound concurrency on slow back-ends.
 - For high-frequency producers (pointermove, scroll, SSE) wrap subscribers in `watchThrottle` / `watchDebounce` instead of raw `effect()`.
@@ -1161,7 +1176,7 @@ const api = createHttp({
 
 - Use `@bquery/bquery/testing`'s `mockSignal`, `mockComputed`, `flushEffects`, and `runScheduled` helpers to drive reactive code under `bun:test`.
 - Mock HTTP with `mockFetch()` and WebSockets with `mockWebSocket()` before exercising `useFetch` / `useWebSocket`.
-- For scope-based teardown, wrap test setup in `effectScope()` and assert that subscribers drop after `scope.dispose()`.
+- For scope-based teardown, wrap test setup in `effectScope()` and assert that subscribers drop after `scope.stop()`.
 
 ## Related modules
 
@@ -1173,6 +1188,7 @@ const api = createHttp({
 
 ## Version history
 
+- **1.16.0** — performance pass on the core: `batch()` coalesces transitive updates, computeds notify subscribers only when their value actually changes, hot-path allocation cuts on signal writes and dependency tracking; `watchThrottle` gains the opt-in `trailing` option (`WatchThrottleOptions`).
 - **1.12.0** — `WebSocketSendData` becomes a public type; plugin teardown helpers added.
 - **1.11.0** — runtime-agnostic WebSocket sessions integrated with `ssr` / `server`.
 - **1.10.0** — concurrency primitives interop with reactive metrics.

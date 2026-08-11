@@ -123,8 +123,9 @@ $('#composer').on('submit', (event) => {
 });
 
 function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
+  return value.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!
   );
 }
 ```
@@ -243,9 +244,7 @@ export const notesStore = createStore({
       this.notes = this.notes.filter((n) => n.id !== id);
     },
     togglePinned(id: number) {
-      this.notes = this.notes.map((n) =>
-        n.id === id ? { ...n, pinned: !n.pinned } : n,
-      );
+      this.notes = this.notes.map((n) => (n.id === id ? { ...n, pinned: !n.pinned } : n));
     },
     clear() {
       this.notes = [];
@@ -333,7 +332,7 @@ const composer = createForm({
   crossValidators: [
     (values) => {
       const exists = notesStore.notes.some(
-        (n) => n.text.toLowerCase() === values.text.trim().toLowerCase(),
+        (n) => n.text.toLowerCase() === values.text.trim().toLowerCase()
       );
       return exists ? { text: 'You already wrote that note' } : undefined;
     },
@@ -352,10 +351,7 @@ mount('#app', { composer, store: notesStore });
   <input bq-model="composer.fields.text.value" placeholder="Write a note…" />
   <p bq-error="composer.fields.text" class="error-text"></p>
 
-  <button
-    type="submit"
-    bq-bind:disabled="composer.isSubmitting.value || !composer.isValid.value"
-  >
+  <button type="submit" bq-bind:disabled="composer.isSubmitting.value || !composer.isValid.value">
     Add
   </button>
 </form>
@@ -432,9 +428,8 @@ Use it from the view template — Web Components are just HTML elements, so dire
 
 ```ts
 function handleNoteClick(event: MouseEvent, note: { id: number }) {
-  const action = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-    '[data-action]',
-  )?.dataset.action;
+  const action = (event.target as HTMLElement | null)?.closest<HTMLElement>('[data-action]')
+    ?.dataset.action;
   if (action === 'toggle-pin') notesStore.togglePinned(note.id);
   if (action === 'delete') notesStore.remove(note.id);
 }
@@ -613,9 +608,9 @@ describe('<note-card>', () => {
 
     await waitFor(() => mounted.el.shadowRoot?.querySelector('article.pinned'));
 
-    expect(
-      mounted.el.shadowRoot?.querySelector('article')?.classList.contains('pinned'),
-    ).toBe(true);
+    expect(mounted.el.shadowRoot?.querySelector('article')?.classList.contains('pinned')).toBe(
+      true
+    );
 
     mounted.unmount();
   });
@@ -629,7 +624,7 @@ describe('<note-card>', () => {
     mounted.el.addEventListener('click', () => clicks++);
 
     const pinButton = mounted.el.shadowRoot?.querySelector<HTMLButtonElement>(
-      '[data-action="toggle-pin"]',
+      '[data-action="toggle-pin"]'
     );
     fireEvent(pinButton!, 'click');
 
@@ -675,7 +670,7 @@ app.get('/', (ctx) => {
   return renderToResponse(
     TEMPLATE,
     { title: 'My Notes', notes: notesStore.notes },
-    { context: ssr, etag: true, cacheControl: 'public, max-age=0, must-revalidate' },
+    { context: ssr, etag: true, cacheControl: 'public, max-age=0, must-revalidate' }
   );
 });
 

@@ -14,7 +14,7 @@ layer on top that lets you:
 - attach a typed [`action`](#typed-action) that a `<form>` (or `formAction()`)
   posts to — bridging `router`, [`ssr`](./ssr), and [`server`](./server).
 
-It deliberately does **not** ship a bundler. The input is a *manifest*: the same
+It deliberately does **not** ship a bundler. The input is a _manifest_: the same
 `Record<string, …>` a bundler glob (`import.meta.glob`) already gives you, or a
 map you write by hand for a zero-build setup.
 
@@ -22,16 +22,16 @@ map you write by hand for a zero-build setup.
 
 A directory under `routes/` describes the URL; a `+page` file is the leaf:
 
-| File | Route pattern |
-| --- | --- |
-| `routes/index.ts` or `routes/+page.ts` | `/` |
-| `routes/about/+page.ts` | `/about` |
-| `routes/users/[id]/+page.ts` | `/users/:id` |
-| `routes/files/[...path]/+page.ts` | `/files/*` (catch-all) |
-| `routes/(marketing)/pricing/+page.ts` | `/pricing` (pathless `(group)`) |
-| `routes/blog/[slug].ts` | `/blog/:slug` (flat, Next/Nuxt style) |
-| `routes/+layout.ts` | layout for the subtree (recorded on `meta.fileRoute.layouts`) |
-| `routes/api/users/+server.ts` | server-only endpoint (no page) |
+| File                                   | Route pattern                                                 |
+| -------------------------------------- | ------------------------------------------------------------- |
+| `routes/index.ts` or `routes/+page.ts` | `/`                                                           |
+| `routes/about/+page.ts`                | `/about`                                                      |
+| `routes/users/[id]/+page.ts`           | `/users/:id`                                                  |
+| `routes/files/[...path]/+page.ts`      | `/files/*` (catch-all)                                        |
+| `routes/(marketing)/pricing/+page.ts`  | `/pricing` (pathless `(group)`)                               |
+| `routes/blog/[slug].ts`                | `/blog/:slug` (flat, Next/Nuxt style)                         |
+| `routes/+layout.ts`                    | layout for the subtree (recorded on `meta.fileRoute.layouts`) |
+| `routes/api/users/+server.ts`          | server-only endpoint (no page)                                |
 
 Supported segment syntax: `[id]` → `:id`, `[...rest]` → `*`, `(group)` → dropped.
 The catch-all matches the remainder but is **unnamed** (the router's `*` does not
@@ -143,7 +143,7 @@ const { entries } = createFileRoutes(import.meta.glob('./routes/**/+page.ts'));
 const app = createServer();
 mountFileRoutes(app, entries, {
   middlewares: [csrf()], // mutations are CSRF-guarded
-  dataPath: '/__data',   // optional: also serve `load` as JSON under /__data/*
+  dataPath: '/__data', // optional: also serve `load` as JSON under /__data/*
 });
 ```
 

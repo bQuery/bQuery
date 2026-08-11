@@ -495,7 +495,11 @@ const evaluateElement = (
       removeAttr(el, attrName);
       continue;
     }
-    setAttr(el, attrName, verdict === 'sanitize-html' ? sanitizeHtmlForSSR(stringValue) : stringValue);
+    setAttr(
+      el,
+      attrName,
+      verdict === 'sanitize-html' ? sanitizeHtmlForSSR(stringValue) : stringValue
+    );
   }
 
   // bq-model / bq-on — interactive directive parity (#128).

@@ -134,7 +134,10 @@ const injectStreamFragments = (
   return output;
 };
 
-const mergeHeaderValues = (existingValue: string | null, nextValues: readonly string[]): string | null => {
+const mergeHeaderValues = (
+  existingValue: string | null,
+  nextValues: readonly string[]
+): string | null => {
   const hasWildcard = (values: readonly string[]): boolean =>
     values.some((value) => value.trim() === '*');
 
@@ -186,7 +189,9 @@ const createRenderFragments = (
   let storeScriptTag = '';
 
   if (options.includeStoreState) {
-    const storeIds = Array.isArray(options.includeStoreState) ? options.includeStoreState : undefined;
+    const storeIds = Array.isArray(options.includeStoreState)
+      ? options.includeStoreState
+      : undefined;
     const result = serializeStoreState({
       storeIds,
       scriptId: options.storeScriptId,
@@ -417,9 +422,7 @@ const applyCacheHeaders = (headers: Headers, cacheOptions: RenderToResponseCache
     typeof cacheOptions.staleWhileRevalidate === 'number' &&
     cacheOptions.staleWhileRevalidate >= 0
   ) {
-    directives.push(
-      `stale-while-revalidate=${Math.trunc(cacheOptions.staleWhileRevalidate)}`
-    );
+    directives.push(`stale-while-revalidate=${Math.trunc(cacheOptions.staleWhileRevalidate)}`);
   }
   if (typeof cacheOptions.staleIfError === 'number' && cacheOptions.staleIfError >= 0) {
     directives.push(`stale-if-error=${Math.trunc(cacheOptions.staleIfError)}`);
@@ -450,8 +453,7 @@ export const renderToResponse = async (
   options: RenderToResponseOptions = {}
 ): Promise<Response> => {
   const ctx = options.context ?? createSSRContext({ ...options, mode: 'string' });
-  const cacheStore =
-    options.cache && 'store' in options.cache ? options.cache.store : undefined;
+  const cacheStore = options.cache && 'store' in options.cache ? options.cache.store : undefined;
   const cacheKey =
     cacheStore && options.cache
       ? cacheStore.getKey({

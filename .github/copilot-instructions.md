@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.15.0**.
+Current release baseline: **1.16.0**.
 
 Version `1.15.0` graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, `server` — so every module is now Stable, with no Beta or Experimental tiers (canonical record: `STABILITY.md`, enforced by `bun run check:stability`). Additive APIs this cycle: `@bquery/bquery/view` enter/leave/move transitions + the optional `@bquery/bquery/view/compiler` (no `'unsafe-eval'`); `@bquery/bquery/forms` `formAction`/`useFormStatus`/`optimistic`; `@bquery/bquery/i18n` ICU MessageFormat + `@bquery/bquery/i18n/extract` (`bquery-i18n` CLI); an opt-in file-route convention (`createFileRoutes`, `mountFileRoutes`) with typed `load`/`action`; `@bquery/bquery/server` `session`/`csrf`/`guard`/`basicAuth`/`bearerAuth`; `@bquery/bquery/ssr` production `hydrate`/`detectHydrationMismatches` + resumable boundaries; a versioned `@bquery/bquery/devtools` bridge protocol + reference extension; and `definePlugin()`. No breaking changes.
 
@@ -31,6 +31,15 @@ Start here before making assumptions:
 Prefer pointing back to those files instead of duplicating large architecture sections into new instructions or docs.
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
+
+## Version 1.16.0 highlights
+
+- Quality-and-performance release; no breaking changes, no module status transitions. `@bquery/bquery/reactive`: `batch()` coalesces transitive updates (diamond dependencies trigger their effect once per batch), computeds re-validate and notify subscribers only when their value actually changes (`Object.is`), hot-path allocation cuts on signal writes and dependency tracking; the only new API is the additive `trailing` option on `watchThrottle` (`WatchThrottleOptions`).
+- `@bquery/bquery/core`: `undelegate()` works across wrapper instances (module-level delegation registry; `delegate()` is idempotent per handler tuple); `wrap()` clone correctness over multi-element collections; cheaper `replaceWith(string)`, `empty()` (via `replaceChildren()`), `children()`/`siblings()`/`index()`/`unwrap()`. `@bquery/bquery/view`: per-update work moved to bind time, unchanged DOM writes skipped (fixes the `bq-model` caret reset), `bq-for` dispatched before other directives on the same element, `bq-once`/`bq-memo`/`bq-init` evaluate untracked. `@bquery/bquery/motion`: `onReducedMotionChange` re-binds to the current `window.matchMedia` on subscribe. `@bquery/bquery/store`: `deepClone` special-cases only the dangerous `__proto__` key.
+
+## Version 1.15.1 highlights
+
+- Security-and-correctness patch closing a full-codebase audit; no breaking changes. XSS hardening across every HTML sink (mutation-XSS fallback escaped, `bq-text` raw-text escaping in SSR, shared `bq-bind` attribute guard), evaluator code-execution paths closed (client `with`-scope denylist, CSP-safe SSR parser), Trusted Types wired in via the new `trustedHtmlForSink()`, secure-by-default session/CSRF cookies. Additive APIs: `effectScope(detached?)` and `dispose()` on `deferred()`'s handle.
 
 ## Version 1.14.1 highlights
 

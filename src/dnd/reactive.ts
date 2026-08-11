@@ -53,7 +53,10 @@ import type {
  * scope.stop(); // releases the draggable
  * ```
  */
-export const useDraggable = (el: HTMLElement, options: DraggableOptions = {}): UseDraggableReturn => {
+export const useDraggable = (
+  el: HTMLElement,
+  options: DraggableOptions = {}
+): UseDraggableReturn => {
   const position = signal<DragPosition>({ x: 0, y: 0 });
   const isDragging = signal(false);
 
@@ -116,7 +119,10 @@ export const useDraggable = (el: HTMLElement, options: DraggableOptions = {}): U
  * });
  * ```
  */
-export const useDroppable = (el: HTMLElement, options: DroppableOptions = {}): UseDroppableReturn => {
+export const useDroppable = (
+  el: HTMLElement,
+  options: DroppableOptions = {}
+): UseDroppableReturn => {
   const isOver = signal(false);
   const activeDragged = signal<HTMLElement | null>(null);
 
@@ -293,7 +299,10 @@ const registerScopeCleanup = (fn: () => void): void => {
  *
  * @internal
  */
-const wrapHandleDestroy = <T extends { destroy: () => void }>(handle: T, cleanup: () => void): void => {
+const wrapHandleDestroy = <T extends { destroy: () => void }>(
+  handle: T,
+  cleanup: () => void
+): void => {
   let cleaned = false;
   const runCleanup = (): void => {
     if (cleaned) return;

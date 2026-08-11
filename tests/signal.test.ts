@@ -735,6 +735,33 @@ describe('watch', () => {
     cleanup();
   });
 
+  it('delivers the last value of a burst with trailing: true', async () => {
+    const { signal, watchThrottle } = await import('../src/reactive/signal');
+    const count = signal(0);
+    const changes: [number, number | undefined][] = [];
+
+    const cleanup = watchThrottle(
+      count,
+      (newVal, oldVal) => {
+        changes.push([newVal, oldVal]);
+      },
+      30,
+      { trailing: true }
+    );
+
+    count.value = 1;
+    count.value = 2;
+    count.value = 3;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(changes).toEqual([
+      [1, 0],
+      [3, 2],
+    ]);
+
+    cleanup();
+  });
+
   it('supports immediate throttled watches and cleanup', async () => {
     const { signal, watchThrottle } = await import('../src/reactive/signal');
     const count = signal(10);
@@ -1329,7 +1356,8 @@ describe('useFetch', () => {
           }
           // The first request hangs until released; the second resolves.
           if (!releaseFirst) {
-            releaseFirst = () => resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+            releaseFirst = () =>
+              resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
           } else {
             resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
           }

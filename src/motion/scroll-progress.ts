@@ -75,7 +75,7 @@ export const scrollProgress = (
   const raf =
     typeof requestAnimationFrame === 'function'
       ? requestAnimationFrame
-      : ((cb: (t: number) => void) => setTimeout(() => cb(Date.now()), 16) as unknown as number);
+      : (cb: (t: number) => void) => setTimeout(() => cb(Date.now()), 16) as unknown as number;
   const caf =
     typeof cancelAnimationFrame === 'function'
       ? cancelAnimationFrame

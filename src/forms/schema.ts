@@ -65,7 +65,10 @@ export type FieldSchema<T = unknown> = {
   /** Append an arbitrary custom validator. */
   custom: (validator: Validator<T>) => FieldSchema<T>;
   /** Finalize as a {@link FieldConfig} with the given initial value. */
-  toConfig: (initialValue: T, extras?: Omit<FieldConfig<T>, 'initialValue' | 'validators'>) => FieldConfig<T>;
+  toConfig: (
+    initialValue: T,
+    extras?: Omit<FieldConfig<T>, 'initialValue' | 'validators'>
+  ) => FieldConfig<T>;
 };
 
 const chain = <T>(validators: readonly Validator<T>[]): FieldSchema<T> => {

@@ -566,10 +566,7 @@ describe('motion/animateTo', () => {
     );
 
     expect(animateMock).toHaveBeenCalledWith(
-      [
-        { transform: 'scale(0.5)' },
-        { opacity: 1, transform: 'scale(1)' },
-      ],
+      [{ transform: 'scale(0.5)' }, { opacity: 1, transform: 'scale(1)' }],
       { duration: 120, fill: 'forwards' }
     );
   });

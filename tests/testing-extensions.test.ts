@@ -137,9 +137,7 @@ describe('userEvent', () => {
     const input = document.createElement('input');
     document.body.appendChild(input);
 
-    await expect(userEvent.selectOptions(input, 'x')).rejects.toThrow(
-      /requires a select element/
-    );
+    await expect(userEvent.selectOptions(input, 'x')).rejects.toThrow(/requires a select element/);
   });
 
   it('click() dispatches mousedown/up/click in order', async () => {

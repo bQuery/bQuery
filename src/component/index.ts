@@ -42,20 +42,8 @@ export { useComputed, useEffect, useSignal } from './scope';
 export { useRef } from './refs';
 export type { Ref } from './refs';
 export { hasSlot, slotText, useSlot } from './slots';
-export {
-  bindDelegatedEvents,
-  on,
-  onChange,
-  onClick,
-  onInput,
-  onSubmit,
-} from './events';
-export {
-  formContextKey,
-  inject,
-  injectionKey,
-  provide,
-} from './inject';
+export { bindDelegatedEvents, on, onChange, onClick, onInput, onSubmit } from './events';
+export { formContextKey, inject, injectionKey, provide } from './inject';
 export type { InjectionKey } from './inject';
 export { useAsync, whenIdle } from './async';
 export type { UseAsyncResult } from './async';

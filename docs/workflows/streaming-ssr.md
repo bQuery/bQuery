@@ -106,9 +106,7 @@ import { createEdgeHandler, createSSRContext, renderToResponse } from '@bquery/b
 
 export default createEdgeHandler(async (request) => {
   const context = createSSRContext({ request, metrics });
-  const data = {
-    /* …resolve data from the request… */
-  };
+  const data = {/* …resolve data from the request… */};
   return renderToResponse(compiled, data, {
     context,
     cache: { store: cache, vary: ['accept-language'] },

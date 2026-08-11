@@ -62,12 +62,7 @@ export { isActive, isActiveSignal, resolve } from './utils';
 export { filePathToRoutePattern, parseFilePath } from './file-routes/path';
 export type { ParsedFilePath } from './file-routes/path';
 export { createFileRoutes, sortEntriesBySpecificity } from './file-routes/routes';
-export {
-  createRouteData,
-  getRouteAction,
-  getRouteLoad,
-  useRouteData,
-} from './file-routes/data';
+export { createRouteData, getRouteAction, getRouteLoad, useRouteData } from './file-routes/data';
 export type { RouteData, RouteDataOptions } from './file-routes/data';
 export type {
   Action,

@@ -55,12 +55,7 @@ export function attachSortable(container: HTMLElement) {
 
 ```html
 <ul id="task-list" role="list" aria-describedby="task-list-help">
-  <li
-    bq-for="item in items"
-    :key="item.id"
-    tabindex="0"
-    role="listitem"
-  >
+  <li bq-for="item in items" :key="item.id" tabindex="0" role="listitem">
     <button type="button" class="drag-handle" aria-label="Reorder item">⠿</button>
     <span bq-text="item.label"></span>
   </li>
@@ -100,10 +95,10 @@ document.querySelector('#task-list')!.addEventListener('keydown', (event) => {
 });
 ```
 
-| Key               | Action                                                 |
-| ----------------- | ------------------------------------------------------ |
-| `↑`               | Move the focused item one slot earlier.                |
-| `↓`               | Move the focused item one slot later.                  |
+| Key | Action                                  |
+| --- | --------------------------------------- |
+| `↑` | Move the focused item one slot earlier. |
+| `↓` | Move the focused item one slot later.   |
 
 Because `handle.move()` also triggers `onSortEnd`, pointer drags and keyboard reorders reuse the same live-region announcement and `items` signal update.
 

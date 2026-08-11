@@ -34,7 +34,9 @@ export class Signal<T> implements ReactiveSource {
    */
   get value(): T {
     const current = getCurrentObserver();
-    if (current) {
+    // A subscriber present in the set is always registered as a dependency
+    // too, so repeat reads inside the same observer skip the bookkeeping.
+    if (current && !this.subscribers.has(current)) {
       this.subscribers.add(current);
       registerDependency(current, this);
     }
@@ -48,8 +50,15 @@ export class Signal<T> implements ReactiveSource {
   set value(next: T) {
     if (Object.is(this._value, next)) return;
     this._value = next;
-    // Create snapshot to avoid issues with subscribers modifying the set during iteration
-    const subscribersSnapshot = Array.from(this.subscribers);
+    const subs = this.subscribers;
+    if (subs.size === 0) return;
+    if (subs.size === 1) {
+      const only = subs.values().next().value as () => void;
+      scheduleObserver(only);
+      return;
+    }
+    // Snapshot to avoid issues with subscribers modifying the set during iteration
+    const subscribersSnapshot = Array.from(subs);
     for (const subscriber of subscribersSnapshot) {
       scheduleObserver(subscriber);
     }

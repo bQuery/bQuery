@@ -95,11 +95,7 @@ export { capturePosition, flip, flipElements, flipList } from './flip';
 export { keyframePresets } from './keyframes';
 export { morphElement } from './morph';
 export { parallax } from './parallax';
-export {
-  onReducedMotionChange,
-  prefersReducedMotion,
-  setReducedMotion,
-} from './reduced-motion';
+export { onReducedMotionChange, prefersReducedMotion, setReducedMotion } from './reduced-motion';
 export { reducedMotionSignal } from './reduced-motion-signal';
 export { scrollAnimate } from './scroll';
 export { inView, scrollProgress } from './scroll-progress';

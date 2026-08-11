@@ -48,7 +48,7 @@ You sometimes need to insert HTML that you already trust (a CMS-rendered fragmen
 $('#article').raw.innerHTML = trustedHtmlFromCms; // bypasses sanitization
 ```
 
-Use `.raw` explicitly. Every escape hatch should come with a comment documenting *why* the input is safe.
+Use `.raw` explicitly. Every escape hatch should come with a comment documenting _why_ the input is safe.
 
 ## Component-level discipline
 
@@ -67,7 +67,7 @@ The forms module surfaces user input. The serialization helpers (`serializeFormS
 
 `createServer()` (the [Server module](/guide/server)) layers more defaults:
 
-- **Body size limits** are enforced by streamed byte count *before* parsing JSON / form / multipart / text bodies.
+- **Body size limits** are enforced by streamed byte count _before_ parsing JSON / form / multipart / text bodies.
 - **Cookie attribute validation** rejects `;`, `\r`, and other header-unsafe characters.
 - **`ServerHttpError`** is the canonical way to surface 4xx / 5xx; status codes propagate through `renderToResponse`.
 

@@ -121,7 +121,9 @@ type TryCatchThenableResult<T, E = unknown> = TryCatchResult<T, E> &
     finally(onFinally?: (() => void) | null): Promise<TryCatchResult<T, E>>;
   };
 
-function toThenableResult<T, E = unknown>(tuple: TryCatchResult<T, E>): TryCatchThenableResult<T, E> {
+function toThenableResult<T, E = unknown>(
+  tuple: TryCatchResult<T, E>
+): TryCatchThenableResult<T, E> {
   const settledTuple = [tuple[0], tuple[1]] as TryCatchResult<T, E>;
   const promise = Promise.resolve(settledTuple);
   const thenable = tuple as TryCatchThenableResult<T, E>;

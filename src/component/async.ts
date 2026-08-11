@@ -90,9 +90,7 @@ export type UseAsyncResult<T> = {
  * }
  * ```
  */
-export const useAsync = <T>(
-  fn: (signal: AbortSignal) => Promise<T>
-): UseAsyncResult<T> => {
+export const useAsync = <T>(fn: (signal: AbortSignal) => Promise<T>): UseAsyncResult<T> => {
   const scope = getCurrentScope();
   if (!scope || isCurrentScopeRendering()) {
     throw new Error(

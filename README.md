@@ -917,10 +917,10 @@ mount('#app', {
 
 | Browser | Version | Support |
 | ------- | ------- | ------- |
-| Chrome  | 90+     | ✅ Full  |
-| Firefox | 90+     | ✅ Full  |
-| Safari  | 15+     | ✅ Full  |
-| Edge    | 90+     | ✅ Full  |
+| Chrome  | 90+     | ✅ Full |
+| Firefox | 90+     | ✅ Full |
+| Safari  | 15+     | ✅ Full |
+| Edge    | 90+     | ✅ Full |
 
 > **No IE support** by design.
 >
@@ -929,6 +929,7 @@ mount('#app', {
 ## Documentation
 
 - **Getting Started**: [docs/guide/getting-started.md](docs/guide/getting-started.md)
+- **Tutorial**: [docs/guide/tutorial.md](docs/guide/tutorial.md)
 - **Core API**: [docs/guide/api-core.md](docs/guide/api-core.md)
 - **Agents**: [docs/guide/agents.md](docs/guide/agents.md)
 - **Components**: [docs/guide/components.md](docs/guide/components.md)
@@ -938,6 +939,7 @@ mount('#app', {
 - **Security**: [docs/guide/security.md](docs/guide/security.md)
 - **Platform**: [docs/guide/platform.md](docs/guide/platform.md)
 - **Router**: [docs/guide/router.md](docs/guide/router.md)
+- **File-based Routing**: [docs/guide/file-routing.md](docs/guide/file-routing.md)
 - **Store**: [docs/guide/store.md](docs/guide/store.md)
 - **View**: [docs/guide/view.md](docs/guide/view.md)
 - **Forms**: [docs/guide/forms.md](docs/guide/forms.md)
@@ -945,11 +947,17 @@ mount('#app', {
 - **Accessibility**: [docs/guide/a11y.md](docs/guide/a11y.md)
 - **Drag & Drop**: [docs/guide/dnd.md](docs/guide/dnd.md)
 - **Media**: [docs/guide/media.md](docs/guide/media.md)
+- **Concurrency**: [docs/guide/concurrency.md](docs/guide/concurrency.md)
 - **Plugin System**: [docs/guide/plugin.md](docs/guide/plugin.md)
 - **Devtools**: [docs/guide/devtools.md](docs/guide/devtools.md)
 - **Testing Utilities**: [docs/guide/testing.md](docs/guide/testing.md)
 - **SSR / Hydration**: [docs/guide/ssr.md](docs/guide/ssr.md)
 - **Server**: [docs/guide/server.md](docs/guide/server.md)
+- **Best Practices**: [docs/guide/best-practices.md](docs/guide/best-practices.md)
+- **Migration**: [docs/guide/migration.md](docs/guide/migration.md)
+- **Examples**: [docs/guide/examples.md](docs/guide/examples.md)
+- **FAQ**: [docs/guide/faq.md](docs/guide/faq.md)
+- **Glossary**: [docs/glossary.md](docs/glossary.md)
 
 ## Local Development
 

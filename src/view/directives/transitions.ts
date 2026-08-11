@@ -112,10 +112,7 @@ const reverseKeyframes = (frames: Keyframe[]): Keyframe[] => [...frames].reverse
  *
  * @internal
  */
-export const resolveTransition = (
-  el: Element,
-  prefix: string
-): ViewTransitionConfig | null => {
+export const resolveTransition = (el: Element, prefix: string): ViewTransitionConfig | null => {
   const transitionAttr = el.getAttribute(`${prefix}-transition`);
   const inAttr = el.getAttribute(`${prefix}-in`);
   const outAttr = el.getAttribute(`${prefix}-out`);
@@ -130,7 +127,8 @@ export const resolveTransition = (
   const parsedDuration = durationAttr != null ? Number(durationAttr) : NaN;
   const duration =
     Number.isFinite(parsedDuration) && parsedDuration >= 0 ? parsedDuration : DEFAULT_DURATION;
-  const easing = easingAttr != null && easingAttr.trim() !== '' ? easingAttr.trim() : DEFAULT_EASING;
+  const easing =
+    easingAttr != null && easingAttr.trim() !== '' ? easingAttr.trim() : DEFAULT_EASING;
 
   const enter = resolvePresetKeyframes(inAttr ?? transitionAttr);
   const leaveBase = resolvePresetKeyframes(outAttr ?? transitionAttr);

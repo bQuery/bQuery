@@ -69,7 +69,7 @@ English-only. Past tense or imperative ("add" / "added") is acceptable; be consi
 - **Beta** modules: deprecations may be flagged in the same minor that removes them; a migration path is always provided.
 - **Experimental** modules: APIs may change between minors without prior deprecation.
 
-When you deprecate something, add an entry to the relevant section in `CHANGELOG.md` *and* in the per-minor release notes page under `docs/release-notes/`.
+When you deprecate something, add an entry to the relevant section in `CHANGELOG.md` _and_ in the per-minor release notes page under `docs/release-notes/`.
 
 ## Publishing flow (maintainer-only)
 

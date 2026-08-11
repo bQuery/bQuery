@@ -61,8 +61,7 @@ const executeSerializedChunk = async (
 ): Promise<Array<IndexedMapResult<unknown>>> => {
   const revive = new Function(`return (${job.handlerSource});`);
   const handler = revive() as
-    | ((value: unknown, index: number) => unknown | Promise<unknown>)
-    | undefined;
+    ((value: unknown, index: number) => unknown | Promise<unknown>) | undefined;
 
   if (typeof handler !== 'function') {
     throw new TypeError('The serialized collection handler did not revive as a function.');

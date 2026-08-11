@@ -14,11 +14,11 @@ This means:
 
 ## Entry points
 
-| Entry point                     | When to use                                                                                                                |
-| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `@bquery/bquery`                | App code with a bundler. Re-exports common helpers; bundlers tree-shake unused ones.                                       |
-| `@bquery/bquery/<module>`       | When you only need one module. Smallest possible footprint per bundler chunk.                                              |
-| `@bquery/bquery/full`           | CDN consumers (`unpkg`, `jsdelivr`). Contains every public runtime + type export. **Not** intended for bundlers.           |
+| Entry point               | When to use                                                                                                      |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `@bquery/bquery`          | App code with a bundler. Re-exports common helpers; bundlers tree-shake unused ones.                             |
+| `@bquery/bquery/<module>` | When you only need one module. Smallest possible footprint per bundler chunk.                                    |
+| `@bquery/bquery/full`     | CDN consumers (`unpkg`, `jsdelivr`). Contains every public runtime + type export. **Not** intended for bundlers. |
 
 All three resolve to the **same TypeScript declarations**, so IDE features behave identically.
 

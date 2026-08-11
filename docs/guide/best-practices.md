@@ -38,9 +38,7 @@ defineBqueryConfig({
 });
 setupAuth();
 createRouter({
-  routes: [
-    /* ... */
-  ],
+  routes: [/* ... */],
 });
 ```
 
@@ -242,15 +240,9 @@ component('user-dashboard', {
 });
 
 // ✅ Composed small components
-component('user-avatar', {
-  /* avatar rendering */
-});
-component('user-stats', {
-  /* stats display */
-});
-component('user-activity', {
-  /* activity feed */
-});
+component('user-avatar', {/* avatar rendering */});
+component('user-stats', {/* stats display */});
+component('user-activity', {/* activity feed */});
 ```
 
 ### Use typed props

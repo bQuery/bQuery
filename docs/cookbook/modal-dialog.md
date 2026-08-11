@@ -9,7 +9,10 @@ import { bool, defineComponent, html } from '@bquery/bquery/component';
 import { createLiveRegion, trapFocus } from '@bquery/bquery/a11y';
 
 const region = createLiveRegion({ priority: 'assertive' });
-const modalHandles = new WeakMap<HTMLElement, { trap?: ReturnType<typeof trapFocus>; onKey?: (event: KeyboardEvent) => void }>();
+const modalHandles = new WeakMap<
+  HTMLElement,
+  { trap?: ReturnType<typeof trapFocus>; onKey?: (event: KeyboardEvent) => void }
+>();
 
 const syncModalState = (host: HTMLElement, open: boolean, label: string) => {
   const current = modalHandles.get(host);

@@ -11,7 +11,13 @@ export interface EffectInspectionSnapshot {
   readonly disposed: boolean;
 }
 
-const trackedEffects = new Map<symbol, EffectInspectionSnapshot>();
+interface EffectInspectionRecord {
+  label?: string;
+  runs: number;
+  disposed: boolean;
+}
+
+const trackedEffects = new Map<symbol, EffectInspectionRecord>();
 let effectInspectionEnabled = false;
 
 /**
@@ -23,7 +29,7 @@ const MAX_SYNC_RERUNS = 100;
 
 /** @internal */
 export const __inspectTrackedEffects = (): EffectInspectionSnapshot[] => {
-  return [...trackedEffects.values()];
+  return [...trackedEffects.values()].map((record) => ({ ...record }));
 };
 
 /** @internal */
@@ -48,9 +54,11 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
   let cleanupFn: CleanupFn | void;
   let isDisposed = false;
   const scope = getActiveScope();
-  const effectId = Symbol('bquery.effect');
+  // Allocated lazily: inspection is a dev feature, effects are created per binding.
+  let effectId: symbol | null = null;
 
   if (effectInspectionEnabled) {
+    effectId = Symbol('bquery.effect');
     trackedEffects.set(effectId, { runs: 0, disposed: false });
   }
 
@@ -77,7 +85,7 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
     }
 
     isDisposed = true;
-    trackedEffects.delete(effectId);
+    if (effectId) trackedEffects.delete(effectId);
     clearEffectState();
   };
 
@@ -87,11 +95,14 @@ export const effect = (fn: () => void | CleanupFn): CleanupFn => {
 
   const runEffect = (): void => {
     if (effectInspectionEnabled) {
-      const snapshot = trackedEffects.get(effectId);
-      trackedEffects.set(
-        effectId,
-        snapshot ? { ...snapshot, runs: snapshot.runs + 1, disposed: false } : { runs: 1, disposed: false }
-      );
+      effectId ??= Symbol('bquery.effect');
+      const record = trackedEffects.get(effectId);
+      if (record) {
+        record.runs += 1;
+        record.disposed = false;
+      } else {
+        trackedEffects.set(effectId, { runs: 1, disposed: false });
+      }
     }
 
     runCleanup();

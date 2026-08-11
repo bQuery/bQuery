@@ -13,7 +13,7 @@ import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 ### Exit criteria
 
 - [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150) below; no additive breaking changes land during the freeze. The progressive-enhancement action model ([#140](https://github.com/bQuery/bQuery/issues/140)) is additive and ships alongside.
-- [x] **`validationStrategy` default reviewed and clearly documented** ([#139](https://github.com/bQuery/bQuery/issues/139)) — the default stays `'manual'` (the least-surprising choice for "validate on submit"), and the contract is now explicit: **`handleSubmit()` always runs the full validation pass**, regardless of strategy. `validationStrategy` only controls *automatic* per-change / per-blur validation. See [Validation timing](#validation-timing-validationstrategy).
+- [x] **`validationStrategy` default reviewed and clearly documented** ([#139](https://github.com/bQuery/bQuery/issues/139)) — the default stays `'manual'` (the least-surprising choice for "validate on submit"), and the contract is now explicit: **`handleSubmit()` always runs the full validation pass**, regardless of strategy. `validationStrategy` only controls _automatic_ per-change / per-blur validation. See [Validation timing](#validation-timing-validationstrategy).
 - [x] **SSR serialization boundary documented as guaranteed** ([#139](https://github.com/bQuery/bQuery/issues/139)) — `serializeFormState()` deterministically drops functions, `File` / `Blob` / `FileList` handles, `bigint`, and `symbol`. This is a stable contract, not an incidental `JSON.stringify` side effect. See [SSR serialization boundary](#ssr-serialization-boundary).
 - [x] **`createFieldArray()` key contract validated with clear errors** ([#139](https://github.com/bQuery/bQuery/issues/139)) — supplying `getKey` enforces present, unique, stable keys on every structural mutation and throws a descriptive error naming the offending key. See [Field arrays and the stable-key contract](#field-arrays-and-the-stable-key-contract).
 - [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
@@ -35,7 +35,7 @@ The frozen public surface of `@bquery/bquery/forms`:
 A bQuery form is a **graph of signals**. Each field owns its own `value`, `error`, `isTouched`, `isDirty`, `isFocused`, and `isValidating` signal; the parent form derives aggregate signals (`isValid`, `isDirty`, `isSubmitting`, `submitCount`, …) from those. Because everything is signal-based:
 
 - Form fields can be read or rendered anywhere — from raw DOM via `bq-model`, from inside a `component()`, or from a plain `effect()`.
-- Validation is automatic and reactive: triggering modes (`'change' | 'blur' | 'both' | 'manual'`) decide *when* validators run, but the resulting `error` signal updates downstream subscribers immediately.
+- Validation is automatic and reactive: triggering modes (`'change' | 'blur' | 'both' | 'manual'`) decide _when_ validators run, but the resulting `error` signal updates downstream subscribers immediately.
 - Async validators return promises and update `isValidating` while in flight; later invocations supersede earlier ones and stale results are ignored, so the final state stays consistent with the most recent input.
 
 There are three entry points, in increasing scope:
@@ -347,16 +347,31 @@ unchanged — but you can now reach for many more first-party primitives:
 
 ```ts
 import {
-  integer, numeric, between, length, oneOf, notOneOf, arrayOf,
-  required, email,
-  requiredIf, requiredUnless, dateAfter, dateBefore, validDate,
-  fileSize, fileType,
-  compose, all, not, withMessage,
+  integer,
+  numeric,
+  between,
+  length,
+  oneOf,
+  notOneOf,
+  arrayOf,
+  required,
+  email,
+  requiredIf,
+  requiredUnless,
+  dateAfter,
+  dateBefore,
+  validDate,
+  fileSize,
+  fileType,
+  compose,
+  all,
+  not,
+  withMessage,
 } from '@bquery/bquery/forms';
 
 const t = (message: string) => message;
-const tagsRule  = arrayOf(required('Tag required'));
-const ageRule   = compose(required(), integer(), between(18, 120));
+const tagsRule = arrayOf(required('Tag required'));
+const ageRule = compose(required(), integer(), between(18, 120));
 const usernameRule = not(oneOf(['admin', 'root']), 'Reserved username');
 const localized = withMessage(email(), t('Please enter a valid email'));
 ```
@@ -499,8 +514,8 @@ const rows = createFieldArray<{ id: string; text: string }>({
   getKey: (value) => value.id, // must be present, unique, and stable
 });
 
-rows.keys();        // ['a']
-rows.keyAt(0);      // 'a'
+rows.keys(); // ['a']
+rows.keyAt(0); // 'a'
 rows.add({ id: 'a', text: 'dup' });
 // → Error: createFieldArray() requires stable, unique item keys, but getKey
 //   returned "a" for both index 0 and index 1.

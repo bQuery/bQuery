@@ -115,10 +115,7 @@ export function flatten<T>(items: Array<T | T[]>): T[] {
  * // { odd: [1, 3], even: [2, 4] }
  * ```
  */
-export function groupBy<T, K extends keyof T>(
-  items: readonly T[],
-  key: K
-): Record<string, T[]>;
+export function groupBy<T, K extends keyof T>(items: readonly T[], key: K): Record<string, T[]>;
 export function groupBy<T, R extends PropertyKey>(
   items: readonly T[],
   key: (item: T) => R
@@ -128,7 +125,8 @@ export function groupBy<T>(
   key: PropertyKey | ((item: T) => PropertyKey)
 ): Record<PropertyKey, T[]> {
   const result = Object.create(null) as Record<PropertyKey, T[]>;
-  const selector = typeof key === 'function' ? key : (item: T) => (item as Record<PropertyKey, unknown>)[key];
+  const selector =
+    typeof key === 'function' ? key : (item: T) => (item as Record<PropertyKey, unknown>)[key];
   const shouldStringify = typeof key !== 'function';
   for (const item of items) {
     const rawKey = selector(item) as PropertyKey;
@@ -158,7 +156,8 @@ export function keyBy<T>(
   key: PropertyKey | ((item: T) => PropertyKey)
 ): Record<PropertyKey, T> {
   const result = Object.create(null) as Record<PropertyKey, T>;
-  const selector = typeof key === 'function' ? key : (item: T) => (item as Record<PropertyKey, unknown>)[key];
+  const selector =
+    typeof key === 'function' ? key : (item: T) => (item as Record<PropertyKey, unknown>)[key];
   const shouldStringify = typeof key !== 'function';
   for (const item of items) {
     const rawKey = selector(item) as PropertyKey;
@@ -342,7 +341,7 @@ export function flattenDeep<T>(items: ReadonlyArray<T | readonly unknown[]>): T[
   const result: T[] = [];
   for (const item of items) {
     if (Array.isArray(item)) {
-      result.push(...flattenDeep(item as readonly unknown[]) as T[]);
+      result.push(...(flattenDeep(item as readonly unknown[]) as T[]));
     } else {
       result.push(item as T);
     }

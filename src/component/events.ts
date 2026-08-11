@@ -185,10 +185,7 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
             try {
               handler(event);
             } catch (error) {
-              console.error(
-                `bQuery component: delegated ${type} handler threw`,
-                error
-              );
+              console.error(`bQuery component: delegated ${type} handler threw`, error);
             }
             return;
           }

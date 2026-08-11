@@ -99,16 +99,16 @@ The contract that must not break once Stable: `renderToString`, `renderToStringA
 
 ### Per-runtime support matrix
 
-| Capability                                | Node ≥ 24 | Bun       | Deno      | Edge      |
-| ----------------------------------------- | --------- | --------- | --------- | --------- |
-| `renderToString` (sync, DOM-free)         | yes       | yes       | yes       | yes       |
-| `renderToStringAsync` / `defer`           | yes       | yes       | yes       | yes       |
-| `renderToStream` (Web streams)            | yes       | yes       | yes       | yes       |
-| `renderToStreamSuspense`                  | yes       | yes       | yes       | yes       |
-| `renderToResponse` (+ cache, ETag)        | yes       | yes       | yes       | yes       |
-| Full directive set (`bq-model`/`bq-on`)   | yes       | yes       | yes       | yes       |
-| Island hydration / `hydrate()`            | client    | client    | client    | client    |
-| Resumable boundaries                      | emit      | emit      | emit      | emit      |
+| Capability                              | Node ≥ 24 | Bun    | Deno   | Edge   |
+| --------------------------------------- | --------- | ------ | ------ | ------ |
+| `renderToString` (sync, DOM-free)       | yes       | yes    | yes    | yes    |
+| `renderToStringAsync` / `defer`         | yes       | yes    | yes    | yes    |
+| `renderToStream` (Web streams)          | yes       | yes    | yes    | yes    |
+| `renderToStreamSuspense`                | yes       | yes    | yes    | yes    |
+| `renderToResponse` (+ cache, ETag)      | yes       | yes    | yes    | yes    |
+| Full directive set (`bq-model`/`bq-on`) | yes       | yes    | yes    | yes    |
+| Island hydration / `hydrate()`          | client    | client | client | client |
+| Resumable boundaries                    | emit      | emit   | emit   | emit   |
 
 Per-runtime adapters: `createNodeHandler` (Node), `createBunHandler` (Bun), `createDenoHandler` (Deno), `createWebHandler` (edge/workerd). Hydration runs in the browser; the matrix marks server-emit support. The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the runtime-agnostic surface on Node 24, Bun 1.3 and Deno.
 
@@ -536,15 +536,19 @@ return new Response(stream, { headers: { 'content-type': 'text/html' } });
 ```ts
 const cache = createSSRCache({ maxEntries: 100, ttlMs: 60_000 });
 
-const response = await renderToResponse('<main bq-text="title"></main>', { title: 'Cached' }, {
-  cache: {
-    store: cache,
-    sMaxAge: 60,
-    staleWhileRevalidate: 30,
-    vary: ['accept-language'],
-  },
-  etag: true,
-});
+const response = await renderToResponse(
+  '<main bq-text="title"></main>',
+  { title: 'Cached' },
+  {
+    cache: {
+      store: cache,
+      sMaxAge: 60,
+      staleWhileRevalidate: 30,
+      vary: ['accept-language'],
+    },
+    etag: true,
+  }
+);
 ```
 
 ### `renderToStream()` + `flushBoundary()`
@@ -911,10 +915,14 @@ const template = `<main>
 
 export default createEdgeHandler(async (request) => {
   const context = createSSRContext({ request, metrics });
-  return renderToResponse(template, { title: 'Hello', body: '<p>…</p>' }, {
-    context,
-    cache: { store: cache, vary: ['accept-language'] },
-  });
+  return renderToResponse(
+    template,
+    { title: 'Hello', body: '<p>…</p>' },
+    {
+      context,
+      cache: { store: cache, vary: ['accept-language'] },
+    }
+  );
 });
 ```
 

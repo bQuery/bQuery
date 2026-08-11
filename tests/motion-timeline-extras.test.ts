@@ -422,13 +422,20 @@ describe('motion/reduced-motion subscriptions', () => {
           onchange: null,
           addListener: () => {},
           removeListener: () => {},
-          addEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
+          addEventListener: (
+            _type: string,
+            listener: EventListenerOrEventListenerObject | null
+          ) => {
             if (typeof listener === 'function') {
               changeListener = listener as (event: MediaQueryListEvent) => void;
             }
           },
-          removeEventListener: (_type: string, listener: EventListenerOrEventListenerObject | null) => {
-            if (typeof listener === 'function' && changeListener === listener) changeListener = null;
+          removeEventListener: (
+            _type: string,
+            listener: EventListenerOrEventListenerObject | null
+          ) => {
+            if (typeof listener === 'function' && changeListener === listener)
+              changeListener = null;
           },
           dispatchEvent: () => true,
         }) as unknown as MediaQueryList

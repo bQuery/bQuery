@@ -376,7 +376,9 @@ describe('component/whenIdle', () => {
 describe('component/css', () => {
   it('produces a ComponentStyles payload', () => {
     const styles = css`
-      :host { color: red; }
+      :host {
+        color: red;
+      }
     `;
     expect(isComponentStyles(styles)).toBe(true);
     expect(String(styles)).toContain(':host');
@@ -385,7 +387,9 @@ describe('component/css', () => {
   it('escapes dangerous values inside interpolations', () => {
     const evil = "'*/ body { background: red } /*";
     const styles = css`
-      .x { content: '${evil}'; }
+      .x {
+        content: '${evil}';
+      }
     `;
     expect(styles.text).not.toContain('*/');
     expect(styles.text).not.toContain('/*');
@@ -394,9 +398,13 @@ describe('component/css', () => {
   });
 
   it('inlines nested ComponentStyles', () => {
-    const partial = css`color: red;`;
+    const partial = css`
+      color: red;
+    `;
     const full = css`
-      :host { ${partial} }
+      :host {
+        ${partial}
+      }
     `;
     expect(full.text).toContain('color: red');
   });
@@ -404,7 +412,12 @@ describe('component/css', () => {
   it('attaches as styles in a component', async () => {
     const tag = uniqueTag('css-component');
     component(tag, {
-      styles: css`:host { display: block; color: rebeccapurple; }`,
+      styles: css`
+        :host {
+          display: block;
+          color: rebeccapurple;
+        }
+      `,
       render: () => html`<div>x</div>`,
     });
     const host = document.createElement(tag);
@@ -443,9 +456,13 @@ describe('component/events', () => {
       },
       render() {
         return html`
-          <button ${onClick(() => {
+          <button
+            ${onClick(() => {
             clicks += 1;
-          })}>+</button>
+          })}
+          >
+            +
+          </button>
         `;
       },
     });
@@ -466,9 +483,13 @@ describe('component/events', () => {
       },
       render() {
         return html`
-          <button ${onClick(() => {
+          <button
+            ${onClick(() => {
             clicks += 1;
-          })}>+</button>
+          })}
+          >
+            +
+          </button>
         `;
       },
     });
@@ -506,9 +527,13 @@ describe('component/events', () => {
       },
       render({ props }) {
         return html`
-          <button ${onClick(() => {
+          <button
+            ${onClick(() => {
             clicks += 1;
-          })}>${props.label}</button>
+          })}
+          >
+            ${props.label}
+          </button>
         `;
       },
     });
@@ -586,9 +611,13 @@ describe('component/events', () => {
       },
       render() {
         return html`
-          <button ${onClick(() => {
+          <button
+            ${onClick(() => {
             clicks += 1;
-          })}>+</button>
+          })}
+          >
+            +
+          </button>
         `;
       },
     });
@@ -596,7 +625,9 @@ describe('component/events', () => {
     const host = document.createElement(tag);
     document.body.appendChild(host);
 
-    host.querySelector('button')?.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
+    host
+      .querySelector('button')
+      ?.dispatchEvent(new Event('click', { bubbles: true, composed: true }));
 
     expect(clicks).toBe(1);
     host.remove();
@@ -650,7 +681,10 @@ describe('component/events', () => {
 describe('component/keyedList', () => {
   it('injects data-bq-key attributes into top-level item markup', () => {
     const html = keyedList(
-      [{ id: 'a', t: 'A' }, { id: 'b', t: 'B' }],
+      [
+        { id: 'a', t: 'A' },
+        { id: 'b', t: 'B' },
+      ],
       (it) => it.id,
       (it) => `<li>${it.t}</li>`
     );
@@ -886,7 +920,7 @@ describe('forms/useForm composable', () => {
     host.remove();
     // After disconnect, destroy ran — further mutation still works but
     // subscribers are gone. Just verify no throw.
-    expect(() => formRef!.fields.name.value.value = 'x').not.toThrow();
+    expect(() => (formRef!.fields.name.value.value = 'x')).not.toThrow();
   });
 
   it('rejects render-time form composables', () => {

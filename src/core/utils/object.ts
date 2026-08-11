@@ -391,8 +391,8 @@ export function set<T extends object>(
     if (next == null || typeof next !== 'object') {
       // Decide between array and object based on the next key being an array index.
       const nextKey = keys[i + 1];
-      const isIndex = typeof nextKey === 'number'
-        || (typeof nextKey === 'string' && /^\d+$/.test(nextKey));
+      const isIndex =
+        typeof nextKey === 'number' || (typeof nextKey === 'string' && /^\d+$/.test(nextKey));
       safeAssign(current, key, isIndex ? [] : {});
       const assigned = current[key];
       if (assigned == null || typeof assigned !== 'object') return obj;

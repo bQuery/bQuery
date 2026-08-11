@@ -333,8 +333,7 @@ export const sortable = (container: HTMLElement, options: SortableOptions = {}):
       // fact that `item` is removed before re-insertion: insert before the
       // element that is currently at `clampedTo + 1` if moving down, or at
       // `clampedTo` if moving up.
-      const reference =
-        clampedFrom < clampedTo ? (list[clampedTo + 1] ?? null) : list[clampedTo];
+      const reference = clampedFrom < clampedTo ? (list[clampedTo + 1] ?? null) : list[clampedTo];
       container.insertBefore(item, reference);
       onSortEnd?.(createEventData(item, clampedFrom, clampedTo));
     },

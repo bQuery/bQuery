@@ -5,7 +5,13 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['dist/**', 'node_modules/**', 'docs/.vitepress/**', 'docs/api/**', 'storybook-static/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'docs/.vitepress/**',
+      'docs/api/**',
+      'storybook-static/**',
+    ],
   },
   {
     files: ['**/*.{ts,tsx,js,jsx}'],

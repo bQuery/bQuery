@@ -86,8 +86,7 @@ export const skipLink = (targetSelector: string, options: SkipLinkOptions = {}):
   const { text = 'Skip to main content', className = 'bq-skip-link' } = options;
   let trackedGeneratedTargetId: string | undefined;
   let trackedFocusTarget:
-    | { target: HTMLElement; hadTabIndex: boolean; previousTabIndex: string | null }
-    | undefined;
+    { target: HTMLElement; hadTabIndex: boolean; previousTabIndex: string | null } | undefined;
   const safeQuerySelector = (selector: string): HTMLElement | null => {
     try {
       return document.querySelector(selector) as HTMLElement | null;

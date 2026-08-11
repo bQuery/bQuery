@@ -49,11 +49,7 @@ const init = (): void => {
     // When keyboard modality is active, text-entry targets should retain the
     // visible focus ring just like any other focused element.
     const tag = target.tagName;
-    if (
-      tag === 'INPUT' ||
-      tag === 'TEXTAREA' ||
-      (target as HTMLElement).isContentEditable
-    ) {
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (target as HTMLElement).isContentEditable) {
       focusVisibleSig.value = true;
       return;
     }

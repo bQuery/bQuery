@@ -60,7 +60,7 @@ const validateRoutePathPattern = (path: string): void => {
     return;
   }
 
-  for (let i = 0; i < path.length; ) {
+  for (let i = 0; i < path.length;) {
     const char = path[i];
 
     if (char === ':' && isParamStart(path[i + 1])) {

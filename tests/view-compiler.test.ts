@@ -12,11 +12,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { signal } from '../src/reactive/index';
-import {
-  clearCompiledExpressions,
-  mount,
-  registerCompiledExpressions,
-} from '../src/view/index';
+import { clearCompiledExpressions, mount, registerCompiledExpressions } from '../src/view/index';
 import {
   compileExpression,
   compileFiles,
@@ -45,7 +41,9 @@ describe('compileExpression — supported forms (#138)', () => {
   });
 
   it('leaves member-access property names alone', () => {
-    expect(instantiate(ok('user.profile.name'))({ user: { profile: { name: 'Ada' } } })).toBe('Ada');
+    expect(instantiate(ok('user.profile.name'))({ user: { profile: { name: 'Ada' } } })).toBe(
+      'Ada'
+    );
   });
 
   it('handles ternaries and comparisons', () => {
@@ -66,7 +64,9 @@ describe('compileExpression — supported forms (#138)', () => {
   });
 
   it('handles calls, arrays, optional chaining and string literals', () => {
-    expect(instantiate(ok('fn(a, b)'))({ fn: (x: number, y: number) => x + y, a: 2, b: 3 })).toBe(5);
+    expect(instantiate(ok('fn(a, b)'))({ fn: (x: number, y: number) => x + y, a: 2, b: 3 })).toBe(
+      5
+    );
     expect(instantiate(ok('[a, b]'))({ a: 1, b: 2 })).toEqual([1, 2]);
     expect(instantiate(ok('user?.name'))({ user: null })).toBeUndefined();
     expect(instantiate(ok("greeting + '!'"))({ greeting: 'hi' })).toBe('hi!');

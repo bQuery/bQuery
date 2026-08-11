@@ -37,8 +37,7 @@ const getResizeDimensions = (
     boxSize = (
       entry as ResizeObserverEntry & {
         devicePixelContentBoxSize?:
-          | ResizeObserverBoxSizeLike
-          | readonly ResizeObserverBoxSizeLike[];
+          ResizeObserverBoxSizeLike | readonly ResizeObserverBoxSizeLike[];
       }
     ).devicePixelContentBoxSize;
   } else {

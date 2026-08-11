@@ -21,6 +21,19 @@ export interface WatchOptions<T> {
 }
 
 /**
+ * Options for {@link watchThrottle}.
+ */
+export interface WatchThrottleOptions<T> extends WatchOptions<T> {
+  /**
+   * If true, the last value of a burst is delivered after the interval
+   * (trailing edge) so consumers never end up on a stale intermediate value.
+   * Defaults to false, matching the leading-edge-only behavior of earlier
+   * releases.
+   */
+  trailing?: boolean;
+}
+
+/**
  * Watches a signal or computed value and calls a callback with old and new values.
  * Unlike effect, watch provides access to the previous value.
  * The callback is only invoked when the value actually changes (compared via Object.is or custom equals).
@@ -184,13 +197,17 @@ export const watchThrottle = <T>(
   source: Signal<T> | Computed<T>,
   callback: (newValue: T, oldValue: T | undefined) => void,
   intervalMs: number,
-  options: WatchOptions<T> = {}
+  options: WatchThrottleOptions<T> = {}
 ): CleanupFn => {
-  const { immediate = false, equals = Object.is } = options;
+  const { immediate = false, equals = Object.is, trailing = false } = options;
   const normalizedIntervalMs = Number.isFinite(intervalMs) ? Math.max(0, intervalMs) : 0;
-  const notify = throttle((newValue: T, oldValue: T | undefined) => {
-    callback(newValue, oldValue);
-  }, normalizedIntervalMs);
+  const notify = throttle(
+    (newValue: T, oldValue: T | undefined) => {
+      callback(newValue, oldValue);
+    },
+    normalizedIntervalMs,
+    { leading: true, trailing }
+  );
 
   if (immediate) {
     notify(source.peek(), undefined);
@@ -203,6 +220,10 @@ export const watchThrottle = <T>(
     },
     { equals }
   );
+
+  if (getCurrentScope()) {
+    onScopeDispose(() => notify.cancel());
+  }
 
   return () => {
     cleanup();

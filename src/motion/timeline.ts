@@ -229,7 +229,11 @@ export const timeline = (
           animation.commitStyles();
         } else {
           const direction =
-            typeof animation.currentTime === 'number' ? (animation.currentTime <= 0 ? -1 : 1) : runningDirection;
+            typeof animation.currentTime === 'number'
+              ? animation.currentTime <= 0
+                ? -1
+                : 1
+              : runningDirection;
           applyResolvedStyles(step.target, step.keyframes, direction);
         }
       }
@@ -308,9 +312,7 @@ export const timeline = (
 
     startUpdateLoop();
 
-    const finishPromises = animations.map((item) =>
-      item.animation.finished.catch(() => undefined)
-    );
+    const finishPromises = animations.map((item) => item.animation.finished.catch(() => undefined));
     await Promise.all(finishPromises);
     stopUpdateLoop();
   };

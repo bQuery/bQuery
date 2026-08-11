@@ -24,7 +24,12 @@ const installAnimateMock = (): { calls: AnimateCall[]; restore: () => void } => 
   const calls: AnimateCall[] = [];
   proto.animate = function (keyframes: unknown, options: Record<string, unknown>) {
     calls.push({ keyframes, options });
-    const anim: { onfinish: null | (() => void); oncancel: null | (() => void); finished: Promise<void>; cancel: () => void } = {
+    const anim: {
+      onfinish: null | (() => void);
+      oncancel: null | (() => void);
+      finished: Promise<void>;
+      cancel: () => void;
+    } = {
       onfinish: null,
       oncancel: null,
       finished: Promise.resolve(),
@@ -33,7 +38,12 @@ const installAnimateMock = (): { calls: AnimateCall[]; restore: () => void } => 
     queueMicrotask(() => anim.onfinish?.());
     return anim;
   };
-  return { calls, restore: () => { proto.animate = original; } };
+  return {
+    calls,
+    restore: () => {
+      proto.animate = original;
+    },
+  };
 };
 
 afterEach(() => setReducedMotion(null));
@@ -99,7 +109,9 @@ describe('passive transition attributes do not warn (#137)', () => {
         '</div>';
       document.body.appendChild(root);
       const view = mount(root, { open: signal(true), items: signal([1, 2]) });
-      const unknownWarnings = warn.mock.calls.filter((c) => String(c[0]).includes('Unknown directive'));
+      const unknownWarnings = warn.mock.calls.filter((c) =>
+        String(c[0]).includes('Unknown directive')
+      );
       expect(unknownWarnings.length).toBe(0);
       view.destroy();
     } finally {
@@ -218,19 +230,29 @@ describe('bq-show transitions (#137)', () => {
 describe('bq-for move + item transitions (#137)', () => {
   it('reorders correctly with bq-animate="flip"', () => {
     const root = document.createElement('div');
-    root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
+    root.innerHTML =
+      '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
     document.body.appendChild(root);
     const nums = signal([1, 2, 3]);
     mount(root, { nums });
-    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['1', '2', '3']);
+    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
 
     nums.value = [3, 1, 2];
-    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['3', '1', '2']);
+    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual([
+      '3',
+      '1',
+      '2',
+    ]);
   });
 
   it('skips FLIP capture under reduced motion (honours the preference)', () => {
-    const proto = (globalThis as unknown as { Element: { prototype: { getBoundingClientRect: () => DOMRect } } })
-      .Element.prototype;
+    const proto = (
+      globalThis as unknown as { Element: { prototype: { getBoundingClientRect: () => DOMRect } } }
+    ).Element.prototype;
     const original = proto.getBoundingClientRect;
     let calls = 0;
     proto.getBoundingClientRect = function (this: Element) {
@@ -239,7 +261,8 @@ describe('bq-for move + item transitions (#137)', () => {
     };
     try {
       const root = document.createElement('div');
-      root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
+      root.innerHTML =
+        '<ul><li bq-for="n in nums" bq-key="n" bq-animate="flip" bq-text="n"></li></ul>';
       document.body.appendChild(root);
       const nums = signal([1, 2, 3]);
       mount(root, { nums });
@@ -260,13 +283,18 @@ describe('bq-for move + item transitions (#137)', () => {
 
   it('adds and removes items with enter/leave without corrupting the list', async () => {
     const root = document.createElement('div');
-    root.innerHTML = '<ul><li bq-for="n in nums" bq-key="n" bq-in="slide-up" bq-out="fade" bq-text="n"></li></ul>';
+    root.innerHTML =
+      '<ul><li bq-for="n in nums" bq-key="n" bq-in="slide-up" bq-out="fade" bq-text="n"></li></ul>';
     document.body.appendChild(root);
     const nums = signal([1, 2]);
     mount(root, { nums });
 
     nums.value = [1, 2, 3]; // add
-    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual(['1', '2', '3']);
+    expect(Array.from(root.querySelectorAll('li')).map((li) => li.textContent)).toEqual([
+      '1',
+      '2',
+      '3',
+    ]);
 
     nums.value = [2, 3]; // remove the first
     await flush();

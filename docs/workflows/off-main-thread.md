@@ -8,8 +8,13 @@ Heavy work — markdown rendering, syntax highlighting, image processing, JSON n
 // src/workers/highlight.ts
 import { createReactiveTaskPool } from '@bquery/bquery/concurrency';
 
-interface HighlightInput { source: string; lang: string }
-interface HighlightOutput { html: string }
+interface HighlightInput {
+  source: string;
+  lang: string;
+}
+interface HighlightOutput {
+  html: string;
+}
 
 export const highlighter = createReactiveTaskPool<HighlightInput, HighlightOutput>(
   async ({ source, lang }) => {
@@ -28,7 +33,14 @@ export const highlighter = createReactiveTaskPool<HighlightInput, HighlightOutpu
 ## 2. Call it from a component
 
 ```ts
-import { defineComponent, html, safeHtml, slotText, useAsync, useEffect } from '@bquery/bquery/component';
+import {
+  defineComponent,
+  html,
+  safeHtml,
+  slotText,
+  useAsync,
+  useEffect,
+} from '@bquery/bquery/component';
 import { sanitizeHtml, trusted } from '@bquery/bquery/security';
 import { highlighter } from '../workers/highlight';
 
@@ -80,10 +92,14 @@ effect(() => {
   const { completed, failed, avgRuntimeMs, p95RuntimeMs } = highlighter.metrics$.value;
   console.debug(
     '[highlight]',
-    'pending', highlighter.pending$.value,
-    'size', highlighter.size$.value,
-    'completed', completed,
-    'failed', failed,
+    'pending',
+    highlighter.pending$.value,
+    'size',
+    highlighter.size$.value,
+    'completed',
+    completed,
+    'failed',
+    failed,
     `${avgRuntimeMs.toFixed(1)}ms (p95 ${p95RuntimeMs.toFixed(1)}ms)`
   );
 });
@@ -102,8 +118,14 @@ const scroll = useScroll();
 let paused = false;
 effect(() => {
   const scrolling = scroll.value.isScrolling;
-  if (scrolling && !paused) { highlighter.pause(); paused = true; }
-  if (!scrolling && paused)  { highlighter.resume(); paused = false; }
+  if (scrolling && !paused) {
+    highlighter.pause();
+    paused = true;
+  }
+  if (!scrolling && paused) {
+    highlighter.resume();
+    paused = false;
+  }
 });
 
 // Drain before navigation

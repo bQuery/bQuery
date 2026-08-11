@@ -59,7 +59,9 @@ export const classMap = (classes: Record<string, unknown>): string => {
  * storyHtml`<div style=${styleMap({ color: 'red', backgroundColor: theme.bg })}></div>`;
  * ```
  */
-export const styleMap = (styles: Record<string, string | number | null | undefined | false>): string => {
+export const styleMap = (
+  styles: Record<string, string | number | null | undefined | false>
+): string => {
   const parts: string[] = [];
   for (const key of Object.keys(styles)) {
     const value = styles[key];

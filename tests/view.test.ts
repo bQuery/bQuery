@@ -754,7 +754,14 @@ describe('View', () => {
     it('invokes a handler resolved from an expression containing inner parens (#180)', () => {
       container.innerHTML = '<button bq-on:click="items.find(matcher).handler">Go</button>';
       let called = false;
-      const items = [{ id: 1, handler: () => { called = true; } }];
+      const items = [
+        {
+          id: 1,
+          handler: () => {
+            called = true;
+          },
+        },
+      ];
 
       view = mount(container, {
         items,
@@ -768,7 +775,11 @@ describe('View', () => {
     it('invokes a bare handler reference with the event (#180)', () => {
       container.innerHTML = '<button bq-on:click="onClick">Go</button>';
       let receivedType = '';
-      view = mount(container, { onClick: (e: Event) => { receivedType = e.type; } });
+      view = mount(container, {
+        onClick: (e: Event) => {
+          receivedType = e.type;
+        },
+      });
 
       container.querySelector('button')!.click();
       expect(receivedType).toBe('click');
@@ -1505,7 +1516,9 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
     // `foo` is a legit own context value, but `foo.constructor.constructor`
     // reaches Function without resolving a bare identifier — must be blocked.
     expect(evaluate("items.constructor.constructor('return 2')()", { items: [] })).toBeUndefined();
-    expect(evaluateRaw("items.constructor.constructor('return 2')()", { items: [] })).toBeUndefined();
+    expect(
+      evaluateRaw("items.constructor.constructor('return 2')()", { items: [] })
+    ).toBeUndefined();
     expect(evaluate("name.constructor('return 2')()", { name: 'x' })).toBeUndefined();
   });
 

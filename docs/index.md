@@ -65,14 +65,14 @@ Read more in the **[Introduction](/introduction)** or jump straight to **[Gettin
 
 ## Why bQuery?
 
-| You want…                                                  | bQuery gives you                                                                                                              |
-| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| **A jQuery-style DOM API on modern reactive primitives**   | `$(selector)` returns a typed `BQueryElement`; signals and effects participate in chainable code without a virtual DOM.       |
-| **Zero build for small projects**                          | Drop a `<script type="module">` from a CDN — no Vite, no bundler, no transpiler required.                                     |
-| **A real framework when projects grow**                    | 23 tree-shakeable modules covering routing, state, forms, SSR, server, motion, a11y, i18n, devtools, testing, plugins.        |
-| **One stack for client and server**                        | `@bquery/bquery/ssr` + `@bquery/bquery/server` render and serve from the same runtime (Node, Bun, Deno, or edge).             |
-| **Security defaults that don't fight you**                 | HTML-writing APIs sanitize untrusted input; Trusted Types and CSP-friendly patterns are first-class.                          |
-| **Predictable bundle size**                                | Zero runtime dependencies; every public surface is tree-shakeable; a `/full` bundle is reserved for CDN consumers.            |
+| You want…                                                | bQuery gives you                                                                                                        |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **A jQuery-style DOM API on modern reactive primitives** | `$(selector)` returns a typed `BQueryElement`; signals and effects participate in chainable code without a virtual DOM. |
+| **Zero build for small projects**                        | Drop a `<script type="module">` from a CDN — no Vite, no bundler, no transpiler required.                               |
+| **A real framework when projects grow**                  | 23 tree-shakeable modules covering routing, state, forms, SSR, server, motion, a11y, i18n, devtools, testing, plugins.  |
+| **One stack for client and server**                      | `@bquery/bquery/ssr` + `@bquery/bquery/server` render and serve from the same runtime (Node, Bun, Deno, or edge).       |
+| **Security defaults that don't fight you**               | HTML-writing APIs sanitize untrusted input; Trusted Types and CSP-friendly patterns are first-class.                    |
+| **Predictable bundle size**                              | Zero runtime dependencies; every public surface is tree-shakeable; a `/full` bundle is reserved for CDN consumers.      |
 
 ## At a glance
 
@@ -167,22 +167,16 @@ Walk through both end-to-end in the **[Tutorial](/guide/tutorial)** and the **[F
 
 ## I want to…
 
-| I want to…                                  | Start here                                                                          |
-| ------------------------------------------- | ----------------------------------------------------------------------------------- |
-| Reactively update the DOM without a build   | [Core](/guide/api-core) + [Reactive](/guide/reactive)                               |
-| Build a single-page app                     | [Router](/guide/router), [Store](/guide/store), [View](/guide/view)                 |
-| Build Web Components                        | [Component](/guide/components) + [Storybook](/guide/storybook)                      |
-| Build a full-stack app with SSR             | [SSR](/guide/ssr) + [Server](/guide/server)                                         |
-| Handle forms, i18n, and a11y                | [Forms](/guide/forms) + [i18n](/guide/i18n) + [A11y](/guide/a11y)                   |
-| Animate things                              | [Motion](/guide/motion)                                                             |
-| Move work off the main thread               | [Concurrency](/guide/concurrency)                                                   |
-| Migrate from jQuery                         | [Migration Guide](/guide/migration)                                                 |
-
-## What's new in 1.14.0
-
-The 1.14.0 release graduates **media, plugin, devtools, and testing** into batteries-included tiers, with additive expansions across router, view, a11y, i18n, dnd, storybook, concurrency, ssr, and server.
-
-Read the structured release notes at **[Release Notes — 1.14.0](/release-notes/1.14)** or the full [CHANGELOG](https://github.com/bQuery/bQuery/blob/main/CHANGELOG.md).
+| I want to…                                | Start here                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------- |
+| Reactively update the DOM without a build | [Core](/guide/api-core) + [Reactive](/guide/reactive)               |
+| Build a single-page app                   | [Router](/guide/router), [Store](/guide/store), [View](/guide/view) |
+| Build Web Components                      | [Component](/guide/components) + [Storybook](/guide/storybook)      |
+| Build a full-stack app with SSR           | [SSR](/guide/ssr) + [Server](/guide/server)                         |
+| Handle forms, i18n, and a11y              | [Forms](/guide/forms) + [i18n](/guide/i18n) + [A11y](/guide/a11y)   |
+| Animate things                            | [Motion](/guide/motion)                                             |
+| Move work off the main thread             | [Concurrency](/guide/concurrency)                                   |
+| Migrate from jQuery                       | [Migration Guide](/guide/migration)                                 |
 
 ## Learn more
 

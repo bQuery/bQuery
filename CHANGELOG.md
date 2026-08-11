@@ -9,6 +9,11 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+  - [\[1.16.0\] - 2026-08-11](#1160---2026-08-11)
+    - [Added (1.16.0)](#added-1160)
+    - [Changed (1.16.0)](#changed-1160)
+    - [Fixed (1.16.0)](#fixed-1160)
+    - [Security (1.16.0)](#security-1160)
   - [\[1.15.1\] - 2026-07-06](#1151---2026-07-06)
     - [Security (1.15.1)](#security-1151)
     - [Fixed (1.15.1)](#fixed-1151)
@@ -17,6 +22,7 @@ and this project adheres to Semantic Versioning.
     - [Changed (1.15.0)](#changed-1150)
     - [Fixed (1.15.0)](#fixed-1150)
     - [Module status (1.15.0)](#module-status-1150)
+      - [Breaking changes](#breaking-changes)
   - [\[1.14.2\] - 2026-06-26](#1142---2026-06-26)
     - [Fixed (1.14.2)](#fixed-1142)
   - [\[1.14.1\] - 2026-05-28](#1141---2026-05-28)
@@ -97,6 +103,40 @@ and this project adheres to Semantic Versioning.
 ## [Unreleased]
 
 _Nothing yet._
+
+## [1.16.0] - 2026-08-11
+
+A quality-and-performance pass over the three hot paths of the framework — the reactive core, the DOM core, and the view layer — driven by a full audit of each. Signal writes, computed propagation, list reconciliation, and directive updates all got measurably cheaper, and the audit surfaced (and this release fixes) several real correctness bugs. The release also folds in the previously staged follow-up to the 1.15.1 security review (a residual evaluator-hardening gap, the `deepClone` prototype-pollution guard, and a compiler numeric-literal fix). No breaking changes; one small additive API (`watchThrottle`'s `trailing` option).
+
+### Added (1.16.0)
+
+- **`@bquery/bquery/reactive`** — `watchThrottle` accepts a new `trailing` option (`WatchThrottleOptions`). When `true`, the last value of a burst is delivered once the interval elapses, so consumers never end up on a stale intermediate value. Defaults to `false`, preserving the leading-edge-only behavior of earlier releases.
+
+### Changed (1.16.0)
+
+- **`@bquery/bquery/reactive`** — batching now spans the whole propagation: `batch()` keeps the batch open while flushing, so signal writes performed by observers keep coalescing into the same flush instead of dispatching synchronously one by one. Flushes drain re-queued observers in follow-up passes (bounded at 100 passes, mirroring the existing cyclic-effect guard) — diamond dependencies inside a batch now trigger their effect once instead of once per branch.
+- **`@bquery/bquery/reactive`** — `Computed` re-validates before waking subscribers: when a dependency changes but the recomputed value is `Object.is`-equal to the last observed one, downstream effects are not notified at all. In the micro-benchmark, a `computed(() => count.value > 5)` under 20k writes went from 20k effect runs to 2.
+- **`@bquery/bquery/reactive`** — hot-path allocation cuts: signal writes with zero or one subscriber no longer allocate a snapshot array (~6× faster with no subscribers), repeat reads of the same source inside one observer skip the dependency bookkeeping (~1.6× faster), computed chains propagate ~1.7× faster, and `effect()` no longer allocates an inspection `Symbol` when effect inspection is disabled.
+- **`@bquery/bquery/core`** — collection/element cheapening: `replaceWith(string)` sanitizes and parses the HTML once and clones per element (matching `insertAll`); `css(object)` hoists `Object.entries` out of the per-element loop; `children()`/`siblings()` iterate live `HTMLCollection`s without `Array.from` copies and `siblings()` visits each unique parent once; `index()` counts `previousElementSibling` instead of materializing the sibling list; `empty()` uses `replaceChildren()` (no HTML parser, no Trusted Types sink); `unwrap()` collapses to a single `replaceWith(...childNodes)` mutation; form serialization resolves each control's kind with one `tagName.toLowerCase()` instead of three; `data()`'s camel→kebab regex is compiled once at module level. The per-instance delegation maps are gone entirely (see the `undelegate` fix below).
+- **`@bquery/bquery/view`** — per-update work moved to bind time: `bq-class`/`bq-style`/`bq-aria` parse their static object expression once (memoized) instead of on every reactive tick, and pre-normalize property names; `bq-if`/`bq-show` resolve their transition config once instead of per effect run; `bq-text`/`bq-bind`/`bq-model` skip the DOM write when the value is unchanged; `bq-html` skips sanitize+parse when the HTML string is unchanged. `processElement`/`processChildren` stop allocating per-element attribute arrays and prefix strings, `parseDirective` results are memoized, `bq-for`'s key extraction reuses one context object per reconcile instead of spreading the context per item, and expression evaluation caches its sandbox proxies per context object instead of allocating one per evaluation.
+- **Tooling / Dev dependencies**: Bumped `@storybook/addon-docs` and `@storybook/web-components-vite` from `10.4.6` to `10.5.7`, `@typescript-eslint/eslint-plugin` and `@typescript-eslint/parser` from `8.63.0` to `8.67.0`, `eslint` from `10.6.0` to `10.8.1`, `globals` from `17.7.0` to `17.9.0`, `happy-dom` from `20.10.6` to `20.11.2`, `prettier` from `3.9.4` to `3.9.6`, `storybook` from `10.4.6` to `10.5.7`, and `vite` from `8.1.3` to `8.2.1`.
+
+### Fixed (1.16.0)
+
+- **`@bquery/bquery/core`** — `undelegate()` called on a fresh wrapper (e.g. `$$('.container').undelegate(...)` after delegating via an earlier `$$()` call — the documented usage) was a silent no-op because the handler registry lived on the wrapper instance, permanently leaking the delegated listener. The registry is now module-level and keyed by element, `delegate()` is idempotent for the same (element, event, selector, handler), and the delegated dispatcher no longer throws when `event.target` is not an `Element` (e.g. a `Text` node).
+- **`@bquery/bquery/core`** — `wrap(element)` over a multi-element collection cloned the wrapper _after_ the first element had been moved into it, so later wrappers contained copies of previously wrapped elements. The pristine wrapper is snapshotted before the loop.
+- **`@bquery/bquery/view`** — directives declared before `bq-for` on the same element (`<li bq-text="item.name" bq-for="item in items">`) were bound against the discarded template element and the outer context, leaking a live effect that errored on every update. `bq-for` is now dispatched first regardless of attribute order.
+- **`@bquery/bquery/view`** — `bq-once`/`bq-memo`/`bq-init` evaluated their expression while the enclosing `bq-for` reconciler was the active observer, silently subscribing the whole list to signals the "non-reactive" directives read. Their evaluation is now untracked, matching their documented contract.
+- **`@bquery/bquery/view`** — `bq-model` re-wrote `input.value` on the effect tick triggered by the input's own `input` event, resetting the caret position while typing. The write is now skipped when the input already holds the value.
+- **`@bquery/bquery/view`** — children of `bq-html`/`bq-html-safe` content were processed for directives at mount and their effects kept running (and writing) after the first re-render replaced the markup. Child processing is skipped for author-opaque HTML content.
+- **`@bquery/bquery/motion`** — `onReducedMotionChange` now re-binds to the current `window.matchMedia` when subscribing (a replaced `matchMedia` — e.g. in tests or embedded contexts — previously left the subscription attached to the stale source) and flushes preference changes that happened without a `change` event, so existing listeners and the new subscriber's baseline stay accurate. This also fixes two order-dependent test failures in the motion suite.
+- **`@bquery/bquery/reactive`** — nested `batch()` calls could execute observers twice per flush (the flush loop iterated a stale snapshot); a `computed` whose compute function threw was left marked clean and served its stale cached value on subsequent reads (it now stays dirty and retries); `watchThrottle` cancels a pending trailing delivery on scope disposal, mirroring `watchDebounce`.
+- **`@bquery/bquery/store`** — `deepClone` (used by `$patchDeep`) now special-cases only the genuinely dangerous `__proto__` key, defining it as a real own data property so it can no longer trigger the prototype-reassigning setter. Own data properties merely _named_ `constructor` or `prototype` are copied normally again instead of being silently dropped, which had discarded legitimate cloned data.
+- **`@bquery/bquery/view/compiler`** — `NUMERIC_LITERAL_RE` now rejects legacy leading-zero decimal literals (`007`, `01.5`), which are `SyntaxError`s in the strict-mode ES module the compiler emits, instead of compiling them into invalid output.
+
+### Security (1.16.0)
+
+- **`@bquery/bquery/view`** — closes a residual escape from the `with`-scoped evaluator hardening shipped in 1.15.1 ([#168](https://github.com/bQuery/bQuery/issues/168)): shadowing dangerous _identifiers_ on the `with` scope didn't stop a _member access_ chain off any reachable context value from reaching `Function`, e.g. `items.constructor.constructor('return 2')()`. A new shared guard, `hasDangerousMemberAccess()`, rejects dotted (`.constructor`), optional-chaining (`?.constructor`), and string-literal bracket (`['constructor']`) access to `constructor`, `prototype`, or `__proto__` — applied to both the runtime evaluator (`evaluate`/`evaluateRaw`, which now refuse and log instead of executing) and the ahead-of-time compiler (which bails to the runtime evaluator, itself also guarded). Computed bracket access assembled at runtime (`foo['con' + 'structor']`) remains out of scope, documented as a residual limit of the `with`-scope evaluator's threat model ([#202](https://github.com/bQuery/bQuery/issues/202)).
 
 ## [1.15.1] - 2026-07-06
 

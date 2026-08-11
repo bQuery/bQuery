@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.15.0
+- Version: 1.16.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,20 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`
+
+## Version 1.16.0 Highlights
+
+- Quality-and-performance release driven by a full audit of the reactive core, DOM core, and view layer. No breaking changes, no module status transitions; the only new API is the additive `trailing` option on `watchThrottle` (`WatchThrottleOptions`).
+- `@bquery/bquery/reactive` — `batch()` coalesces transitive updates (diamond dependencies trigger their effect once per batch); computeds re-validate and notify subscribers only when their value actually changes; hot-path allocation cuts on signal writes and dependency tracking; a throwing `computed` stays dirty and retries instead of serving a stale cache.
+- `@bquery/bquery/core` — `undelegate()` works across wrapper instances (module-level delegation registry; `delegate()` is idempotent per handler tuple); `wrap()` no longer clones previously wrapped elements into later wrappers; `replaceWith(string)` sanitizes once per call; `empty()` uses `replaceChildren()`; `children()`/`siblings()`/`index()`/`unwrap()`/`css(object)`/`data()` shed per-element allocations.
+- `@bquery/bquery/view` — per-update work moved to bind time (object-expression parsing, transition resolution, memoized directive parsing, sandbox proxies cached per context); unchanged DOM writes are skipped (fixes the `bq-model` caret reset); `bq-for` is dispatched before other directives on the same element; `bq-once`/`bq-memo`/`bq-init` evaluate untracked; `bq-html` children are no longer directive-bound. The `with`-scope evaluator hardening closes a residual member-access escape via `hasDangerousMemberAccess()`, and the compiler rejects legacy leading-zero numeric literals.
+- `@bquery/bquery/motion` — `onReducedMotionChange` re-binds to the current `window.matchMedia` on subscribe and flushes preference changes that happened without a `change` event. `@bquery/bquery/store` — `deepClone` special-cases only the dangerous `__proto__` key; properties merely named `constructor`/`prototype` are copied normally again.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+
+## Version 1.15.1 Highlights
+
+- Security-and-correctness patch closing a full-codebase audit — no breaking changes, no module status transitions. XSS hardening across every HTML sink (mutation-XSS fallback escaped, `bq-text` raw-text escaping in SSR, shared `bq-bind` attribute guard), evaluator code-execution paths closed (client `with`-scope denylist, CSP-safe SSR parser), Trusted Types wired in via the new `trustedHtmlForSink()` (`@bquery/bquery/security`), secure-by-default session/CSRF cookies.
+- Additive APIs introduced by the fixes: `effectScope(detached?)` (`@bquery/bquery/reactive`) and a `dispose()` method on `deferred()`'s handle.
 
 ## Version 1.15.0 Highlights
 
