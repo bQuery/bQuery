@@ -105,8 +105,8 @@ describe('reactive/computed - revalidation', () => {
 
     // Whatever the batch collapses to, no subscriber may be left displaying a
     // value the computed no longer holds.
-    expect(seenSecond.at(-1)).toBe(mirrored.value);
-    expect(seenFirst.at(-1)).toBe(mirrored.value);
+    expect(seenSecond[seenSecond.length - 1]).toBe(mirrored.value);
+    expect(seenFirst[seenFirst.length - 1]).toBe(mirrored.value);
 
     stopFirst();
     stopSecond();
