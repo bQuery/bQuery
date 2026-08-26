@@ -924,7 +924,7 @@ mount('#app', {
 
 > **No IE support** by design.
 >
-> Server-side runtimes: Node.js ≥ 24, Bun ≥ 1.3.13, and Deno 2 are supported for SSR and server modules.
+> Server-side runtimes: Node.js ≥ 24, Bun ≥ 1.4.0, and Deno 2 are supported for SSR and server modules.
 
 ## Documentation
 

@@ -9,7 +9,7 @@ By participating in this project, you agree to follow the repository's [Code of 
 ## Prerequisites
 
 - **Node.js** `>=24.0.0`
-- **Bun** `>=1.3.13` (recommended, aligned with the project scripts)
+- **Bun** `>=1.4.0` (recommended, aligned with the project scripts)
 - **Git**
 
 ## Setup

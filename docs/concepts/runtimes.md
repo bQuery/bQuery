@@ -7,7 +7,7 @@ bQuery.js targets multiple JavaScript runtimes from a single codebase. This page
 | Runtime       | Minimum version                 | Status    | Notes                                                                  |
 | ------------- | ------------------------------- | --------- | ---------------------------------------------------------------------- |
 | Node.js       | **24.0.0**                      | Primary   | Used for the canonical `examples/ssr-node` and CI baseline.            |
-| Bun           | **1.3.13**                      | Primary   | Used for repo workflows (`bun run lint`, `bun test`, `bun run build`). |
+| Bun           | **1.4.0**                       | Primary   | Used for repo workflows (`bun run lint`, `bun test`, `bun run build`). |
 | Deno          | latest stable                   | Supported | `examples/ssr-deno` demonstrates the SSR adapter.                      |
 | Chrome        | 90+                             | Browser   | Baseline for all browser-facing features.                              |
 | Firefox       | 90+                             | Browser   | Same baseline.                                                         |

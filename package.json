@@ -1,6 +1,6 @@
 {
   "name": "@bquery/bquery",
-  "version": "1.16.0",
+  "version": "1.16.1",
   "description": "bQuery.js — batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
   "type": "module",
   "main": "./dist/full.umd.js",
@@ -137,6 +137,7 @@
     "build:lib": "vite build",
     "build:umd": "vite build --config vite.umd.config.ts",
     "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "check": "bun run check:ai-guidance && bun run check:full-bundle && bun run check:stability && bun run check:doc-exports",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
     "check:stability": "bun scripts/check-stability-matrix.mjs",
@@ -184,24 +185,24 @@
   },
   "engines": {
     "node": ">=24.0.0",
-    "bun": ">=1.3.13"
+    "bun": ">=1.4.0"
   },
   "devDependencies": {
-    "@storybook/addon-docs": "^10.5.7",
-    "@storybook/web-components-vite": "^10.5.7",
-    "@typescript-eslint/eslint-plugin": "^8.67.0",
-    "@typescript-eslint/parser": "^8.67.0",
-    "bun-types": "^1.3.14",
-    "eslint": "^10.8.1",
+    "@storybook/addon-docs": "^10.5.10",
+    "@storybook/web-components-vite": "^10.5.10",
+    "@typescript-eslint/eslint-plugin": "^8.68.0",
+    "@typescript-eslint/parser": "^8.68.0",
+    "bun-types": "^1.4.0",
+    "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
-    "globals": "^17.9.0",
-    "happy-dom": "^20.11.2",
+    "globals": "^17.11.0",
+    "happy-dom": "^20.11.6",
     "prettier": "^3.9.6",
     "rimraf": "^6.1.3",
-    "storybook": "^10.5.7",
+    "storybook": "^10.5.10",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
-    "vite": "^8.2.1",
+    "vite": "^8.2.2",
     "vitepress": "^1.6.4"
   }
 }

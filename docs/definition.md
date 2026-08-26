@@ -495,7 +495,7 @@ This repo uses **Bun**, **Vite**, **VitePress**, **Storybook**, and **TypeScript
 ### 5.2 Tooling Contracts
 
 - **Bun** is the runtime and test runner. No Node-only globals in source.
-- Supported validation floor is **Node.js ≥ 24.0.0** and **Bun ≥ 1.3.13**.
+- Supported validation floor is **Node.js ≥ 24.0.0** and **Bun ≥ 1.4.0**.
 - **Vite** powers the library builds and Storybook builder.
 - **VitePress** builds the documentation site from `docs/`.
 - **Storybook** is the primary component preview/development environment.

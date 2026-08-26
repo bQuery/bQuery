@@ -9,6 +9,9 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+  - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
+    - [Changed (1.16.1)](#changed-1161)
+    - [Fixed (1.16.1)](#fixed-1161)
   - [\[1.16.0\] - 2026-08-11](#1160---2026-08-11)
     - [Added (1.16.0)](#added-1160)
     - [Changed (1.16.0)](#changed-1160)
@@ -103,6 +106,20 @@ and this project adheres to Semantic Versioning.
 ## [Unreleased]
 
 _Nothing yet._
+
+## [1.16.1] - 2026-08-26
+
+A toolchain-and-build maintenance patch. Nothing under `src/` changed, so every 1.16.0 API behaves identically and upgrading is a drop-in. The supported Bun floor moves to `1.4.0`, the dev-dependency set is refreshed, and both Vite configs now build warning-free.
+
+### Changed (1.16.1)
+
+- **Toolchain**: The supported Bun floor moves from `1.3.13` to `1.4.0` (`engines.bun`), mirrored in `mise.toml`, the AI guidance files (`AGENT.md`, `llms.txt`, `.github/copilot-instructions.md`, `.cursorrules`, `.clinerules`), the runtime support matrix, and the bug-report template. CI workflows install `bun-version: 'latest'` instead of pinning a patch release, and the SSR cross-runtime matrix leg `bun-1.3` becomes `bun-1.4`. Node.js stays at `>=24.0.0`.
+- **Build**: `vite.config.ts` and `vite.umd.config.ts` resolve the repository root from `import.meta.dirname` instead of `__dirname`, making both configs compatible with Vite's `configLoader: 'native'` (planned to become the default in a future major) and silencing the loader warning it emitted on every build.
+- **Dev dependencies**: Bumped `@storybook/addon-docs`, `@storybook/web-components-vite`, and `storybook` from `10.5.7` to `10.5.10`, `@typescript-eslint/eslint-plugin` and `@typescript-eslint/parser` from `8.67.0` to `8.68.0`, `bun-types` from `1.3.14` to `1.4.0`, `eslint` from `10.8.1` to `10.9.1`, `globals` from `17.9.0` to `17.11.0`, `happy-dom` from `20.11.2` to `20.11.6`, and `vite` from `8.2.1` to `8.2.2`.
+
+### Fixed (1.16.1)
+
+- **Build**: The UMD/IIFE build no longer logs `Module "node:http" has been externalized for browser compatibility`. `createServer().listen()` dynamically imports `node:http` on its Node branch, which is unreachable in a browser bundle, but Vite's resolver substituted its own stub and warned on every build (`rollupOptions.external` does not apply — `node:*` is handled earlier by Vite's client-environment resolver). A build-only plugin in `vite.umd.config.ts` now maps `node:*` to a stub module that throws a message naming the missing built-in, so the dynamic import rejects with actionable text instead of failing later as a cryptic "not a function". Bundle contents are otherwise unchanged.
 
 ## [1.16.0] - 2026-08-11
 

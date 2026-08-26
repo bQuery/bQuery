@@ -458,8 +458,8 @@ describe('component/events', () => {
         return html`
           <button
             ${onClick(() => {
-            clicks += 1;
-          })}
+              clicks += 1;
+            })}
           >
             +
           </button>
@@ -485,8 +485,8 @@ describe('component/events', () => {
         return html`
           <button
             ${onClick(() => {
-            clicks += 1;
-          })}
+              clicks += 1;
+            })}
           >
             +
           </button>
@@ -529,8 +529,8 @@ describe('component/events', () => {
         return html`
           <button
             ${onClick(() => {
-            clicks += 1;
-          })}
+              clicks += 1;
+            })}
           >
             ${props.label}
           </button>
@@ -613,8 +613,8 @@ describe('component/events', () => {
         return html`
           <button
             ${onClick(() => {
-            clicks += 1;
-          })}
+              clicks += 1;
+            })}
           >
             +
           </button>

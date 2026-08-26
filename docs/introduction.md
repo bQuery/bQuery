@@ -14,7 +14,7 @@ bQuery is shaped by a handful of explicit, non-negotiable goals:
 4. **Secure by default.** HTML-writing APIs sanitize untrusted input. Trusted Types and CSP-friendly patterns are baked in.
 5. **Predictable bundle size.** Zero runtime dependencies. Every public surface lives behind a tree-shakeable sub-path. A `/full` bundle exists only as an opt-in convenience for CDN consumers.
 6. **TypeScript-first.** Public APIs are strictly typed; chainable methods preserve their return type; signal values flow through `.value` with full inference.
-7. **Runtime agnosticism.** Node ≥ 24, Bun ≥ 1.3.13, Deno, modern evergreen browsers, and edge runtimes are all supported targets.
+7. **Runtime agnosticism.** Node ≥ 24, Bun ≥ 1.4.0, Deno, modern evergreen browsers, and edge runtimes are all supported targets.
 
 ## Non-goals
 

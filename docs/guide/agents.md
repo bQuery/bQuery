@@ -206,7 +206,7 @@ component('tool-pill', {
 ## FAQ
 
 **Can bQuery run on the backend?**
-Yes — bQuery is runtime-agnostic. The browser-only modules (`core`, `view`, `component`, `motion`, etc.) require a DOM, but `@bquery/bquery/reactive`, `@bquery/bquery/store`, `@bquery/bquery/ssr`, and `@bquery/bquery/server` run on Node ≥ 24, Bun ≥ 1.3.13, and Deno. For agent backends, host your model calls behind a `createServer()` instance and stream tokens to the browser over SSE or WebSockets — see [Server](./server.md) and [SSR](./ssr.md).
+Yes — bQuery is runtime-agnostic. The browser-only modules (`core`, `view`, `component`, `motion`, etc.) require a DOM, but `@bquery/bquery/reactive`, `@bquery/bquery/store`, `@bquery/bquery/ssr`, and `@bquery/bquery/server` run on Node ≥ 24, Bun ≥ 1.4.0, and Deno. For agent backends, host your model calls behind a `createServer()` instance and stream tokens to the browser over SSE or WebSockets — see [Server](./server.md) and [SSR](./ssr.md).
 
 **Can I combine bQuery with frameworks?**
 Yes — for example as a light DOM layer inside existing apps. Keep responsibilities clearly separated.

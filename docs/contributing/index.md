@@ -29,7 +29,7 @@ bun test
 bun run dev
 ```
 
-Supported tooling: **Node ≥ 24** and **Bun ≥ 1.3.13**. See [Supported Runtimes](/concepts/runtimes).
+Supported tooling: **Node ≥ 24** and **Bun ≥ 1.4.0**. See [Supported Runtimes](/concepts/runtimes).
 
 ## Workflow at a glance
 

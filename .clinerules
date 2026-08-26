@@ -6,7 +6,9 @@ You are working on bQuery.js (`@bquery/bquery`), a batteries-included TypeScript
 
 bQuery.js is not a utility library; its broad module surface is the product. The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.16.0**.
+Current release baseline: **1.16.1**.
+
+Version `1.16.1` is a toolchain-and-build maintenance patch with no source, API, or module status changes: the Bun floor moves from `1.3.13` to `1.4.0` (Node.js stays `>=24.0.0`), dev dependencies are refreshed (Storybook `10.5.10`, `@typescript-eslint/*` `8.68.0`, `eslint` `10.9.1`, `happy-dom` `20.11.6`, `vite` `8.2.2`), and both Vite configs build warning-free — `import.meta.dirname` instead of `__dirname` for `configLoader: 'native'`, plus a throwing `node:*` stub in the UMD/IIFE build so the unreachable `node:http` import in `createServer().listen()` stops triggering Vite's browser-externalized warning.
 
 Version `1.16.0` is a quality-and-performance release with no breaking changes and no module status transitions. `@bquery/bquery/reactive`: `batch()` coalesces transitive updates (diamond dependencies trigger their effect once per batch), computeds re-validate and notify subscribers only when their value actually changes (`Object.is`), hot-path allocation cuts on signal writes and dependency tracking; the only new API is the additive `trailing` option on `watchThrottle` (`WatchThrottleOptions`). `@bquery/bquery/core`: `undelegate()` works across wrapper instances (module-level delegation registry; `delegate()` idempotent per handler tuple), `wrap()` clone correctness, cheaper `replaceWith(string)`/`empty()`/`children()`/`siblings()`/`index()`/`unwrap()`. `@bquery/bquery/view`: unchanged DOM writes skipped (fixes the `bq-model` caret reset), `bq-for` dispatched before other directives on the same element, `bq-once`/`bq-memo`/`bq-init` evaluate untracked. `@bquery/bquery/motion`: `onReducedMotionChange` re-binds to the current `window.matchMedia` on subscribe. `@bquery/bquery/store`: `deepClone` special-cases only the dangerous `__proto__` key.
 
@@ -29,7 +31,7 @@ Version `1.12.0` adds Store plugin teardown APIs (`unregisterPlugin()`, `clearPl
 - Read `AGENT.md` for the full architecture, module API tables, and common tasks.
 - All commands use Bun: `bun test`, `bun run build`, `bun run lint`.
 - Tests use `bun:test` imports and `happy-dom` for DOM simulation.
-- Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`.
+- Supported engines: Node.js `>=24.0.0`, Bun `>=1.4.0`.
 - If you touch release metadata or repo guidance files, run `bun run check:ai-guidance` before finishing.
 
 ## Core Invariants

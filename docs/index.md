@@ -131,7 +131,7 @@ yarn add @bquery/bquery
 
 :::
 
-Supported runtimes: **Node.js ≥ 24**, **Bun ≥ 1.3.13**, modern Chromium / Firefox / Safari / Edge. See **[Supported Runtimes](/concepts/runtimes)**.
+Supported runtimes: **Node.js ≥ 24**, **Bun ≥ 1.4.0**, modern Chromium / Firefox / Safari / Edge. See **[Supported Runtimes](/concepts/runtimes)**.
 
 ## Two-minute example — client
 
