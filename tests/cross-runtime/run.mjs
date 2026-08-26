@@ -5,7 +5,7 @@
  * Web-Crypto-backed session/CSRF primitives using only Web standard APIs
  * (Request, Response, ReadableStream, fetch, URL, TextEncoder/Decoder, crypto).
  *
- * Designed to run unmodified on Node ≥ 24, Bun ≥ 1.3.13 and Deno latest by
+ * Designed to run unmodified on Node ≥ 24, Bun ≥ 1.4.0 and Deno latest by
  * importing the built ESM bundles (`dist/ssr.es.mjs`, `dist/server.es.mjs`). Run
  * `bun run build` first.
  *

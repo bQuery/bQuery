@@ -40,7 +40,7 @@ bun run build
 
 If you want to use a runtime that isn't pre-installed:
 
-- **Bun** ≥ 1.3.13 — <https://bun.sh>
+- **Bun** ≥ 1.4.0 — <https://bun.sh>
 - **Deno** ≥ 1.40 — <https://deno.com> (the script uses `Deno.serve`)
 - **Node** ≥ 24.0.0 — needed for `--experimental-strip-types` so the `.ts`
   file can run without a transpile step

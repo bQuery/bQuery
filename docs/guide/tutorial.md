@@ -20,7 +20,7 @@ We will start from the simplest possible bQuery script and grow it. Every sectio
 
 ## Prerequisites
 
-You need a recent browser (Chrome 90+, Firefox 90+, Safari 15+, Edge 90+) and, for the build-based steps, **Node.js ≥ 24** or **Bun ≥ 1.3.13**.
+You need a recent browser (Chrome 90+, Firefox 90+, Safari 15+, Edge 90+) and, for the build-based steps, **Node.js ≥ 24** or **Bun ≥ 1.4.0**.
 
 You do not need React, Vue, Svelte, or any other framework. bQuery itself has zero runtime dependencies.
 

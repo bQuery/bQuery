@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.16.0**.
+Current release baseline: **1.16.1**.
 
 Version `1.15.0` graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, `server` — so every module is now Stable, with no Beta or Experimental tiers (canonical record: `STABILITY.md`, enforced by `bun run check:stability`). Additive APIs this cycle: `@bquery/bquery/view` enter/leave/move transitions + the optional `@bquery/bquery/view/compiler` (no `'unsafe-eval'`); `@bquery/bquery/forms` `formAction`/`useFormStatus`/`optimistic`; `@bquery/bquery/i18n` ICU MessageFormat + `@bquery/bquery/i18n/extract` (`bquery-i18n` CLI); an opt-in file-route convention (`createFileRoutes`, `mountFileRoutes`) with typed `load`/`action`; `@bquery/bquery/server` `session`/`csrf`/`guard`/`basicAuth`/`bearerAuth`; `@bquery/bquery/ssr` production `hydrate`/`detectHydrationMismatches` + resumable boundaries; a versioned `@bquery/bquery/devtools` bridge protocol + reference extension; and `definePlugin()`. No breaking changes.
 
@@ -31,6 +31,13 @@ Start here before making assumptions:
 Prefer pointing back to those files instead of duplicating large architecture sections into new instructions or docs.
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
+
+## Version 1.16.1 highlights
+
+- Toolchain-and-build maintenance patch. Nothing under `src/` changed: no API changes, no breaking changes, no module status transitions — every 1.16.0 API behaves identically.
+- Supported Bun floor moves from `1.3.13` to `1.4.0` (`engines.bun`), mirrored in `mise.toml`, the runtime support matrix, the AI guidance files, and the bug-report template. Node.js stays at `>=24.0.0`. CI installs `bun-version: 'latest'`; the SSR cross-runtime matrix leg `bun-1.3` is now `bun-1.4`.
+- Build: `vite.config.ts` and `vite.umd.config.ts` use `import.meta.dirname` instead of `__dirname` (compatible with Vite's `configLoader: 'native'`), and the UMD/IIFE build stubs `node:*` with a throwing module so the unreachable `node:http` import in `createServer().listen()` no longer triggers Vite's browser-externalized warning. Bundle contents unchanged.
+- Dev dependencies refreshed: Storybook `10.5.10`, `@typescript-eslint/*` `8.68.0`, `bun-types` `1.4.0`, `eslint` `10.9.1`, `globals` `17.11.0`, `happy-dom` `20.11.6`, `vite` `8.2.2`. Still zero runtime dependencies.
 
 ## Version 1.16.0 highlights
 
@@ -53,7 +60,7 @@ For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep r
 - `@bquery/bquery/testing` graduates into a batteries-included tier: auto cleanup (`cleanup`, `autoCleanup`); `fireEvent.click`/`.input`/`.change`/`.submit`/`.focus`/`.blur`/`.dblClick`/`.keyDown`/`.keyUp` shortcut methods on the existing `fireEvent`; `userEvent` namespace with `click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`; shadow-DOM-aware screen queries via `screen` and `within(el)` with `getByRole`/`getByText`/`getByLabelText`/`getByPlaceholderText`/`getByTestId` plus their `query*` and `find*` variants; reactive harnesses (`mockComputed`, `mockEffect`); async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`); module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`); snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).
 - Additive 1.14.0 module expansions: `@bquery/bquery/router` (`NavigationResult`, `pushResult`/`replaceResult`, `beforeResolve`, `resolveRoute`, dynamic `addRoute`/`removeRoute`/`hasRoute`, `isReady`, `lastNavigation`, `useNavigation`), `@bquery/bquery/view` (`parseDirective`, `ParsedDirective`, new `bq-once`/`bq-init`/`bq-pre`/`bq-cloak`/`bq-html-safe`/`bq-memo`, full `bq-on` modifier system), `@bquery/bquery/a11y` (`createLiveRegion`, `keyboardUserSignal`, `focusVisible`, `prefersReducedTransparency`/`prefersReducedData`/`forcedColors`, `inert`/`scrollLock`/`autoFocus`), `@bquery/bquery/i18n` (`negotiateLocale`, `detectLocale`, `isRTL`, `formatRelativeTime`/`formatList`/`formatDisplayName`/`segment`), `@bquery/bquery/dnd` (programmatic handle APIs, `grid`/`delay`/`touchStartThreshold`/`keyboard`/`keyboardStep`, `'viewport'` bounds, reactive `useDraggable`/`useDroppable`/`useSortable`), `@bquery/bquery/storybook` (`classMap`/`styleMap`/`ifDefined`/`repeat`/`storyText`/`unsafeHtml`/`storySvg`), `@bquery/bquery/concurrency` (`withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause`/`resume`/`onIdle`, rolling reactive metrics), `@bquery/bquery/ssr` (`flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`), and `@bquery/bquery/server` (`ServerHttpError`, `ctx.body`/`ctx.cookies`/`ctx.setCookie`/`ctx.accepts`/`ctx.stream`/`ctx.sse`/`ctx.renderStream`/`ctx.renderResponse`, `app.listen()`).
 - The `1.13.0` forms/component/motion/core-utils baselines remain first-class public surface, as do the `1.12.0` store/reactive surface (`unregisterPlugin`, `clearPlugins`, `WebSocketSendData`), the `1.11.0` SSR/server runtime (`createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions), `1.10.0` concurrency, and `1.9.0` watcher/view/media APIs.
-- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.13`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
+- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.4.0`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
 
 ## Version 1.13.0 highlights
 
@@ -63,7 +70,7 @@ For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep r
 - `@bquery/bquery/core` adds a deep `utils/` expansion: array helpers (`groupBy`, `keyBy`, `partition`, `zip`, `range`, `take`, `drop`, `sample`, `shuffle`, `uniqueBy`, `sortBy`, `intersection`, `difference`, `flattenDeep`, `move`, `chunkBy`); function helpers (`memoize`, `compose`, `pipe`, `curry`, `partial`, `retry`, plus richer `debounce`/`throttle` options + `.flush()`); object helpers (deep `get`/`set`/`has`, `mapValues`, `mapKeys`, `invert`, `deepEqual`/`isEqual`, deep `freeze`, `defaults`, typed `entriesTyped`/`keysTyped`); string helpers (`toSnakeCase`, `toPascalCase`, `toTitleCase`, `pad`, `wordCount`, safe `template`, `stripHtml`, `randomString`, `lines`); number helpers (`round`, `roundTo`, `lerp`, `inverseLerp`, `mapRange`, `formatBytes`, `randomFloat`, `sum`, `average`, `median`, `degToRad`, `radToDeg`); misc helpers (`uuid`, `tryCatch`, `times`, `pollUntil`, `nextFrame`, `nextTick`); and additional type guards (`isError`, `isMap`, `isSet`, `isRegExp`, `isSymbol`, `isBigInt`, `isAsyncFunction`, `isIterable`, `isAsyncIterable`, `isNullish`, `isDefined`).
 - The `1.12.0` store/reactive surface (`unregisterPlugin`, `clearPlugins`, `WebSocketSendData`) and the `1.11.0` SSR/server runtime (`createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions) remain first-class public surface.
 - The `1.10.0` concurrency additions plus the `1.9.0` watcher/view/media APIs remain first-class public surface and should still appear in documentation refreshes.
-- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.13`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
+- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.4.0`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
 
 ## Version 1.12.0 highlights
 
@@ -72,7 +79,7 @@ For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep r
 - The `/full` bundle and `bun run check:full-bundle` now cover public type-only export drift for platform, a11y, and media surfaces.
 - The `1.11.0` server/SSR runtime surface remains first-class; repo guidance should still treat `createServer()`, runtime-agnostic WebSocket sessions, `renderToStringAsync()`, `renderToStream()`, and `renderToResponse()` as documented surface.
 - The `1.10.0` concurrency additions plus the `1.9.0` watcher/view/media APIs remain first-class public surface and should still appear in documentation refreshes.
-- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.3.13`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
+- Publish and local validation target Node.js `>=24.0.0` and Bun `>=1.4.0`; when release metadata or repo guidance changes, `bun run check:ai-guidance` is part of the expected validation.
 
 ## Source of truth
 
@@ -118,7 +125,7 @@ For any implementation task, follow this order:
 
 Use Bun for repository workflows.
 
-Supported engines: Node.js `>=24.0.0`, Bun `>=1.3.13`.
+Supported engines: Node.js `>=24.0.0`, Bun `>=1.4.0`.
 
 - `bun test` — primary test suite with `happy-dom`
 - `bun test --watch` — watch mode

@@ -11,11 +11,11 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.16.0                                                                                                                                                                                            |
+| Version     | 1.16.1                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
-| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.3.13`                                                                                                                                                                |
+| Toolchain   | Node.js `>=24.0.0`, Bun `>=1.4.0`                                                                                                                                                                 |
 | Repository  | <https://github.com/bQuery/bQuery>                                                                                                                                                                |
 | Homepage    | <https://bquery.js.org>                                                                                                                                                                           |
 | Tagline     | The full-stack web framework that speaks jQuery.                                                                                                                                                  |
@@ -40,6 +40,13 @@ bun run dev           # VitePress docs server
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
 
+## Version 1.16.1 Highlights
+
+- Toolchain-and-build maintenance patch. Nothing under `src/` changed: no API changes, no breaking changes, no module status transitions — every 1.16.0 API behaves identically.
+- Supported Bun floor moves from `1.3.13` to `1.4.0` (`engines.bun`), mirrored in `mise.toml`, the runtime support matrix, the AI guidance files, and the bug-report template. Node.js stays at `>=24.0.0`. CI installs `bun-version: 'latest'`; the SSR cross-runtime matrix leg `bun-1.3` is now `bun-1.4`.
+- Build: `vite.config.ts` and `vite.umd.config.ts` use `import.meta.dirname` instead of `__dirname` (compatible with Vite's `configLoader: 'native'`), and the UMD/IIFE build stubs `node:*` with a throwing module so the unreachable `node:http` import in `createServer().listen()` no longer triggers Vite's browser-externalized warning. Bundle contents unchanged.
+- Dev dependencies refreshed: Storybook `10.5.10`, `@typescript-eslint/*` `8.68.0`, `bun-types` `1.4.0`, `eslint` `10.9.1`, `globals` `17.11.0`, `happy-dom` `20.11.6`, `vite` `8.2.2`. Still zero runtime dependencies.
+
 ## Version 1.16.0 Highlights
 
 - Quality-and-performance release driven by a full audit of the reactive core, DOM core, and view layer. No breaking changes, no module status transitions; the only new API is the additive `trailing` option on `watchThrottle` (`WatchThrottleOptions`).
@@ -47,7 +54,7 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 - `@bquery/bquery/core` — `undelegate()` works across wrapper instances (module-level delegation registry; `delegate()` is idempotent per handler tuple); `wrap()` no longer clones previously wrapped elements into later wrappers; `replaceWith(string)` sanitizes once per call; `empty()` uses `replaceChildren()`; `children()`/`siblings()`/`index()`/`unwrap()`/`css(object)`/`data()` shed per-element allocations.
 - `@bquery/bquery/view` — per-update work moved to bind time (object-expression parsing, transition resolution, memoized directive parsing, sandbox proxies cached per context); unchanged DOM writes are skipped (fixes the `bq-model` caret reset); `bq-for` is dispatched before other directives on the same element; `bq-once`/`bq-memo`/`bq-init` evaluate untracked; `bq-html` children are no longer directive-bound. The `with`-scope evaluator hardening closes a residual member-access escape via `hasDangerousMemberAccess()`, and the compiler rejects legacy leading-zero numeric literals.
 - `@bquery/bquery/motion` — `onReducedMotionChange` re-binds to the current `window.matchMedia` on subscribe and flushes preference changes that happened without a `change` event. `@bquery/bquery/store` — `deepClone` special-cases only the dangerous `__proto__` key; properties merely named `constructor`/`prototype` are copied normally again.
-- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.4.0`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ## Version 1.15.1 Highlights
 
@@ -64,7 +71,7 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 - `@bquery/bquery/server` — first-party `session`/`memoryStore`, `csrf`/`csrfToken`, `guard`, `basicAuth`/`bearerAuth`, and the Web-Crypto signing utilities they build on (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`); `app.listen()` supports Node, Bun, and Deno.
 - `@bquery/bquery/ssr` — production hydration (`hydrate`, `detectHydrationMismatches`), interactive directive parity (`directives: 'full'`, `onUnsupportedDirective`), and resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). `renderToStringAsync()` and the rest of the SSR surface are unchanged.
 - `@bquery/bquery/devtools` — a stable, versioned bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `serializeComponentTree`, `BRIDGE_PROTOCOL_VERSION`/`BRIDGE_SOURCE`/`BRIDGE_CAPABILITIES`) and a reference Manifest V3 browser extension (component tree, signal/store inspection, timeline) in `extension/`. `@bquery/bquery/a11y` stamps each `AuditFinding` with a `wcag` criterion and exports the `auditRules` catalog; `@bquery/bquery/plugin` adds the `definePlugin()` authoring helper.
-- All graduations are additive — there are no breaking changes. Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+- All graduations are additive — there are no breaking changes. Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.4.0`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ## Version 1.14.2 Highlights
 
@@ -82,7 +89,7 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 - `@bquery/bquery/testing` graduates into a batteries-included tier: auto-cleanup tracking (`cleanup`, `autoCleanup`); `fireEvent.click`/`.input`/`.change`/`.submit`/`.focus`/`.blur`/`.dblClick`/`.keyDown`/`.keyUp` shortcut methods on the existing `fireEvent`; `userEvent` namespace with `click`, `dblClick`, `hover`, `unhover`, `type`, `clear`, `selectOptions`, `tab`, `paste`; shadow-DOM-aware screen queries via `screen` and `within(el)` with `getByRole`/`getByText`/`getByLabelText`/`getByPlaceholderText`/`getByTestId` plus their `query*` and `find*` variants; reactive harnesses (`mockComputed`, `mockEffect`); async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`); module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`); snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).
 - Additive 1.14.0 module expansions for `@bquery/bquery/router` (`NavigationResult` with `pushResult()`/`replaceResult()`, `beforeResolve()`, `resolveRoute()`, dynamic `addRoute`/`removeRoute`/`hasRoute`, `isReady()`, `lastNavigation` signal, `useNavigation()`), `@bquery/bquery/view` (public `parseDirective()` + `ParsedDirective`, new `bq-once`/`bq-init`/`bq-pre`/`bq-cloak`/`bq-html-safe`/`bq-memo` directives, full `bq-on` modifier system), `@bquery/bquery/a11y` (`createLiveRegion()`, `keyboardUserSignal()`, `focusVisible()`, `prefersReducedTransparency()`/`prefersReducedData()`/`forcedColors()`, `inert()`/`scrollLock()`/`autoFocus()`), `@bquery/bquery/i18n` (`negotiateLocale()`, `detectLocale()`, `isRTL()`, `formatRelativeTime`/`formatList`/`formatDisplayName`/`segment`), `@bquery/bquery/dnd` (programmatic handle APIs, `grid`/`delay`/`touchStartThreshold`/`keyboard`/`keyboardStep` options, `'viewport'` bounds, reactive `useDraggable`/`useDroppable`/`useSortable`), `@bquery/bquery/storybook` (`classMap`/`styleMap`/`ifDefined`/`repeat`/`storyText`/`unsafeHtml`/`storySvg`), `@bquery/bquery/concurrency` (`withTransferables`, `createSharedBuffer`, RPC `maxInFlight`, pool priorities, `pause`/`resume`/`onIdle`, rolling reactive metrics), `@bquery/bquery/ssr` (`flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream` boundaries), and `@bquery/bquery/server` (`ServerHttpError` helpers, `ctx.body`/`ctx.cookies`/`ctx.setCookie`/`ctx.accepts`/`ctx.stream`/`ctx.sse`/`ctx.renderStream`/`ctx.renderResponse`, `app.listen()`).
 - All earlier baselines (`1.13.0` forms / motion / core utils, `1.12.0` store plugin teardown, `1.11.0` runtime-agnostic SSR/server, `1.10.0` concurrency, `1.9.0` watch/view/media APIs) remain first-class public surface.
-- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.4.0`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ## Version 1.13.0 Highlights
 
@@ -91,7 +98,7 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 - `@bquery/bquery/motion` ships a major expansion: full Penner easing family plus `cubicBezier()`, `steps()`, `mix()`, and `chain()` composers; new `tween()` for number, array, or record interpolation with `pause`/`resume`/`reverse`/`seek`/`stop`/`progress`/`finished` controls and `AbortSignal` support, plus Promise-based `animateValue()`; `animate()` gains `signal` and `playbackRate`, and `animateTo()` turns CSS records into keyframes; `spring()` gains `.velocity()` / `.set()` plus `springVector()` and additional presets (`wobbly`, `slow`, `molasses`); timelines support labels, `reverse()`, `playbackRate()`, `repeat()`, `yoyo()`, `onUpdate()`, and `progress()`; new primitives `scrollProgress()`, `inView()`, `magnetic()`, `tilt()`, `shake()`, `pulse()`, and `countUp()`; `stagger()` gains 2D grids, `axis`, and deterministic `random` / `randomSeed`; new `onReducedMotionChange()` and `reducedMotionSignal()` for reactive reduced-motion observation.
 - `@bquery/bquery/core` adds a deep utilities expansion in `utils/`: array helpers (`groupBy`, `keyBy`, `partition`, `zip`, `range`, `first`, `last`, `take`, `drop`, `sample`, `shuffle`, `uniqueBy`, `sortBy`, `intersection`, `difference`, `flattenDeep`, `move`, `chunkBy`); function helpers (`memoize`, `compose`, `pipe`, `curry`, `partial`, `retry`, plus richer `debounce`/`throttle` options and `.flush()`); object helpers (`get`, `set`, `has`, `mapValues`, `mapKeys`, `invert`, `deepEqual`/`isEqual`, deep `freeze`, `defaults`, `entriesTyped`, `keysTyped`); string helpers (`toSnakeCase`, `toPascalCase`, `toTitleCase`, `pad`/`padStart`/`padEnd`, `wordCount`, safe `template`, `stripHtml`, crypto-backed `randomString`, `lines`); number helpers (`round`, `roundTo`, `lerp`, `inverseLerp`, `mapRange`, `formatBytes`, `randomFloat`, `sum`, `average`, `median`, `degToRad`, `radToDeg`); misc helpers (`uuid`, `tryCatch`, `times`, `pollUntil`, `nextFrame`, `nextTick`); and additional type guards (`isError`, `isMap`, `isSet`, `isRegExp`, `isSymbol`, `isBigInt`, `isAsyncFunction`, `isIterable`, `isAsyncIterable`, `isNullish`, `isDefined`).
 - All earlier baselines (`1.12.0` store plugin teardown, `1.11.0` runtime-agnostic SSR/server, `1.10.0` concurrency, `1.9.0` watch/view/media APIs) remain first-class public surface.
-- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.4.0`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ## Version 1.12.0 Highlights
 
@@ -99,7 +106,7 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 - `@bquery/bquery/reactive` now promotes `WebSocketSendData` to a public type-only export for custom serializers, raw WebSocket frames, heartbeat messages, and parity with the server-side `ServerWebSocketData` union.
 - The `/full` bundle now re-exports the public platform, a11y, and media type-only surfaces, and `bun run check:full-bundle` statically validates runtime + type export drift before release.
 - `@bquery/bquery/server` and `@bquery/bquery/ssr` remain first-class public surfaces from the `1.11.0` runtime-agnostic baseline, including `createServer()`, `renderToStringAsync()`, `renderToStream()`, and `renderToResponse()`.
-- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.3.13`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
+- Local validation and publish checks target Node.js `>=24.0.0` and Bun `>=1.4.0`; whenever release metadata or AI guidance changes, `bun run check:ai-guidance` should pass before you stop.
 
 ---
 
@@ -422,7 +429,7 @@ When version metadata or public exports change, refresh the AI-facing files as a
 
 ### SSR (`@bquery/bquery/ssr`)
 
-Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.3.13 with no external deps. The DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs keep their original behaviour.
+Runtime-agnostic SSR pipeline. Works on Node.js ≥ 24, Deno and Bun ≥ 1.4.0 with no external deps. The DOM-free renderer activates automatically when no `DOMParser` is available; existing public APIs keep their original behaviour.
 
 | Export                                                                                      | Kind      | Description                                                                                    |
 | ------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------- |

@@ -25,7 +25,7 @@ reproduce on unsupported runtimes or browsers will be evaluated on a
 best-effort basis.
 
 - Node.js `>= 24.0.0`
-- Bun `>= 1.3.13`
+- Bun `>= 1.4.0`
 - Chrome 90+, Firefox 90+, Safari 15+, Edge 90+
 
 ## Reporting a vulnerability

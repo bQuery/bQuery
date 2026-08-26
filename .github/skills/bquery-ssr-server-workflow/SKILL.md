@@ -26,7 +26,7 @@ Typical triggers:
    - `src/index.ts`
    - `src/full.ts`
 2. Inspect the nearby implementation before editing behavior.
-3. Preserve runtime-agnostic behavior across Node.js >= 24, Bun >= 1.3.13, and Deno unless the task explicitly changes support.
+3. Preserve runtime-agnostic behavior across Node.js >= 24, Bun >= 1.4.0, and Deno unless the task explicitly changes support.
 4. Update tests together with the implementation:
    - `tests/ssr.test.ts`
    - `tests/ssr-runtime.test.ts`
