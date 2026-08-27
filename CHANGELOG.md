@@ -9,6 +9,7 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+    - [Removed (Unreleased)](#removed-unreleased)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
     - [Changed (1.16.1)](#changed-1161)
     - [Fixed (1.16.1)](#fixed-1161)
@@ -105,7 +106,9 @@ and this project adheres to Semantic Versioning.
 
 ## [Unreleased]
 
-_Nothing yet._
+### Removed (Unreleased)
+
+- **DevTools extension**: The reference `extension/` folder has been removed from this repository. The DevTools browser extension is now developed and released from [`bQuery/devtools-extension`](https://github.com/bQuery/devtools-extension) ([#205](https://github.com/bQuery/bQuery/issues/205)), so it can follow browser-store review cycles independently of the npm release train. Nothing under `src/` changed: `@bquery/bquery/devtools` still exports the same stable bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `BRIDGE_PROTOCOL_VERSION` v1), which is the contract the extension consumes as an external package.
 
 ## [1.16.1] - 2026-08-26
 

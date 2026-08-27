@@ -104,7 +104,7 @@ getPerformanceSummary(); // counts + averages per event type
 ### Exit criteria
 
 - [x] **Stabilized, versioned bridge protocol** ([#146](https://github.com/bQuery/bQuery/issues/146)) — `connectDevtoolsBridge()`, `createBridgeServer()`, `BRIDGE_PROTOCOL_VERSION`, and the message contract are the frozen app↔extension surface. See [Bridge protocol](#bridge-protocol-v1).
-- [x] **Reference browser extension shipped** — a Manifest V3 extension (component tree, signal/store inspection, live timeline) lives in [`extension/`](https://github.com/bQuery/bQuery/tree/main/extension) and connects over the protocol.
+- [x] **Browser extension shipped** — a Manifest V3 extension (component tree, signal/store inspection, live timeline) lives in its own repository, [`bQuery/devtools-extension`](https://github.com/bQuery/devtools-extension), and connects over the protocol.
 - [x] **Public surface frozen for one minor** — see [Frozen surface reference](#frozen-surface-reference-1150). The bridge additions are additive; existing runtime helpers are unchanged.
 - [x] **Surface frozen** (no breaking changes) — committed under the Stable contract from 1.15.0.
 
@@ -147,7 +147,7 @@ Time-travel is built on these primitives plus the existing `exportDevtoolsSnapsh
 
 ### The reference extension
 
-A Manifest V3 reference extension lives in [`extension/`](https://github.com/bQuery/bQuery/tree/main/extension): load it unpacked (`chrome://extensions` → Developer mode → Load unpacked), enable the bridge in your app, and open the **bQuery** DevTools panel. See [`extension/README.md`](https://github.com/bQuery/bQuery/tree/main/extension/README.md) for details. The panel renders the component tree, live signal/store values, and the reactive timeline. It is intentionally minimal — the **protocol** is the stable contract; the panel is a starting point to extend.
+The DevTools extension lives in its own repository, [`bQuery/devtools-extension`](https://github.com/bQuery/devtools-extension), so it can follow the browser stores' release cadence instead of the npm one. Build it (`bun run deploy-v3`) and load `dist/` unpacked (`chrome://extensions` → Developer mode → Load unpacked), enable the bridge in your app, and open the **bQuery** DevTools panel. See that repository's [README](https://github.com/bQuery/devtools-extension#readme) for details. The panel renders the component tree, live signal/store values, and the reactive timeline — the **protocol** documented here is the stable contract between the two.
 
 ---
 
@@ -574,5 +574,5 @@ clearTimeline();
 
 ## Version history
 
-- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#146](https://github.com/bQuery/bQuery/issues/146)). New stable, versioned bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `serializeComponentTree`, `BRIDGE_PROTOCOL_VERSION`) and a reference Manifest V3 browser extension (component tree + signal/store inspection + timeline) in `extension/`.
+- **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#146](https://github.com/bQuery/bQuery/issues/146)). New stable, versioned bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `serializeComponentTree`, `BRIDGE_PROTOCOL_VERSION`) and a reference Manifest V3 browser extension (component tree + signal/store inspection + timeline) in `extension/` (since extracted to [`bQuery/devtools-extension`](https://github.com/bQuery/devtools-extension)).
 - **1.14.0** — ring-buffered timeline, expanded `TimelineEntry`, new event types, `filterTimeline`, `subscribeTimeline`, privacy-aware `inspectSignals`, `diffSignals` / `diffStores`, `traceSignal` / `untraceSignal`, `inspectEffects`, snapshot import/export, `installBrowserBridge`, perf helpers.
