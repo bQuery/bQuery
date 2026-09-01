@@ -6,8 +6,9 @@
  *
  * Targeting **Stable** in 1.15.0: the surface is frozen for one minor cycle.
  * A versioned bridge protocol (`connectDevtoolsBridge` / `createBridgeServer`,
- * `BRIDGE_PROTOCOL_VERSION`) is the stable contract the reference DevTools
- * browser extension (in `extension/`) connects to.
+ * `BRIDGE_PROTOCOL_VERSION`) is the stable contract the DevTools browser
+ * extension connects to. The extension lives in its own repository:
+ * https://github.com/bQuery/devtools-extension
  *
  * @module bquery/devtools
  *
