@@ -64,13 +64,10 @@
 
   /* Blueprint grid. Drawn at very low contrast behind hero/section chrome. */
   --bq-grid-size: 28px;
-}
 
-/* ---------------------------------------------------------------------------
- * Light theme — ink on drafting paper.
- * ------------------------------------------------------------------------ */
-
-:root {
+  /* -------------------------------------------------------------------------
+   * Light theme — ink on drafting paper.
+   * ---------------------------------------------------------------------- */
   --vp-c-bg: #fbfcfd;
   --vp-c-bg-alt: #f1f6fa;
   --vp-c-bg-elv: #ffffff;
@@ -133,81 +130,10 @@
   --bq-live: var(--bq-amber-500);
   --bq-glow: rgba(71, 128, 165, 0.14);
   --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.9);
-}
 
-/* ---------------------------------------------------------------------------
- * Dark theme — instrument panel at night.
- * ------------------------------------------------------------------------ */
-
-.dark {
-  --vp-c-bg: var(--bq-ink-900);
-  --vp-c-bg-alt: var(--bq-ink-950);
-  --vp-c-bg-elv: var(--bq-ink-850);
-  --vp-c-bg-soft: var(--bq-ink-850);
-
-  --vp-c-text-1: #dbe7ef;
-  --vp-c-text-2: #94a9b9;
-  --vp-c-text-3: #63798b;
-
-  --vp-c-divider: rgba(124, 166, 196, 0.16);
-  --vp-c-border: rgba(124, 166, 196, 0.26);
-  --vp-c-gutter: rgba(124, 166, 196, 0.14);
-
-  --vp-c-brand-1: #85c1e6;
-  --vp-c-brand-2: var(--bq-steel-400);
-  --vp-c-brand-3: var(--bq-steel-500);
-  --vp-c-brand-soft: rgba(106, 171, 213, 0.16);
-
-  --vp-c-default-1: var(--bq-steel-300);
-  --vp-c-default-2: var(--bq-steel-400);
-  --vp-c-default-3: var(--bq-ink-700);
-  --vp-c-default-soft: rgba(124, 166, 196, 0.12);
-
-  --vp-c-tip-1: var(--vp-c-brand-1);
-  --vp-c-tip-2: var(--vp-c-brand-2);
-  --vp-c-tip-3: var(--vp-c-brand-3);
-  --vp-c-tip-soft: rgba(106, 171, 213, 0.12);
-
-  --vp-c-note-1: var(--vp-c-brand-1);
-  --vp-c-note-soft: var(--vp-c-tip-soft);
-
-  --vp-c-warning-1: var(--bq-amber-400);
-  --vp-c-warning-2: var(--bq-amber-500);
-  --vp-c-warning-3: var(--bq-amber-600);
-  --vp-c-warning-soft: rgba(233, 169, 79, 0.12);
-
-  --vp-c-danger-1: var(--bq-rose-400);
-  --vp-c-danger-2: var(--bq-rose-500);
-  --vp-c-danger-3: var(--bq-rose-600);
-  --vp-c-danger-soft: rgba(240, 128, 143, 0.12);
-
-  --vp-c-caution-1: var(--vp-c-danger-1);
-  --vp-c-caution-soft: var(--vp-c-danger-soft);
-
-  --vp-c-success-1: var(--bq-sage-400);
-  --vp-c-success-2: var(--bq-sage-500);
-  --vp-c-success-3: var(--bq-sage-600);
-  --vp-c-success-soft: rgba(95, 191, 150, 0.12);
-
-  --vp-c-important-1: var(--vp-c-brand-1);
-  --vp-c-important-soft: var(--vp-c-brand-soft);
-
-  --bq-surface: var(--bq-ink-850);
-  --bq-surface-sunken: var(--bq-ink-950);
-  --bq-hairline: rgba(124, 166, 196, 0.16);
-  --bq-hairline-strong: rgba(124, 166, 196, 0.32);
-  --bq-grid-line: rgba(124, 166, 196, 0.08);
-  --bq-sigil: var(--bq-steel-400);
-  --bq-live: var(--bq-amber-400);
-  --bq-glow: rgba(106, 171, 213, 0.1);
-  --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-/* ---------------------------------------------------------------------------
- * VitePress structural + component variables.
- * ------------------------------------------------------------------------ */
-
-:root {
+  /* -------------------------------------------------------------------------
+   * VitePress structural + component variables.
+   * ---------------------------------------------------------------------- */
   --vp-font-family-base: var(--bq-font-sans);
   --vp-font-family-mono: var(--bq-font-mono);
 
@@ -273,7 +199,76 @@
   --vp-local-search-highlight-text: var(--vp-c-text-1);
 }
 
+/* ---------------------------------------------------------------------------
+ * Dark theme — instrument panel at night.
+ *
+ * `.dark` and `:root` have the same specificity, so this block has to stay
+ * below the one above for these values to win.
+ * ------------------------------------------------------------------------ */
+
 .dark {
+  --vp-c-bg: var(--bq-ink-900);
+  --vp-c-bg-alt: var(--bq-ink-950);
+  --vp-c-bg-elv: var(--bq-ink-850);
+  --vp-c-bg-soft: var(--bq-ink-850);
+
+  --vp-c-text-1: #dbe7ef;
+  --vp-c-text-2: #94a9b9;
+  --vp-c-text-3: #63798b;
+
+  --vp-c-divider: rgba(124, 166, 196, 0.16);
+  --vp-c-border: rgba(124, 166, 196, 0.26);
+  --vp-c-gutter: rgba(124, 166, 196, 0.14);
+
+  --vp-c-brand-1: #85c1e6;
+  --vp-c-brand-2: var(--bq-steel-400);
+  --vp-c-brand-3: var(--bq-steel-500);
+  --vp-c-brand-soft: rgba(106, 171, 213, 0.16);
+
+  --vp-c-default-1: var(--bq-steel-300);
+  --vp-c-default-2: var(--bq-steel-400);
+  --vp-c-default-3: var(--bq-ink-700);
+  --vp-c-default-soft: rgba(124, 166, 196, 0.12);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: rgba(106, 171, 213, 0.12);
+
+  --vp-c-note-1: var(--vp-c-brand-1);
+  --vp-c-note-soft: var(--vp-c-tip-soft);
+
+  --vp-c-warning-1: var(--bq-amber-400);
+  --vp-c-warning-2: var(--bq-amber-500);
+  --vp-c-warning-3: var(--bq-amber-600);
+  --vp-c-warning-soft: rgba(233, 169, 79, 0.12);
+
+  --vp-c-danger-1: var(--bq-rose-400);
+  --vp-c-danger-2: var(--bq-rose-500);
+  --vp-c-danger-3: var(--bq-rose-600);
+  --vp-c-danger-soft: rgba(240, 128, 143, 0.12);
+
+  --vp-c-caution-1: var(--vp-c-danger-1);
+  --vp-c-caution-soft: var(--vp-c-danger-soft);
+
+  --vp-c-success-1: var(--bq-sage-400);
+  --vp-c-success-2: var(--bq-sage-500);
+  --vp-c-success-3: var(--bq-sage-600);
+  --vp-c-success-soft: rgba(95, 191, 150, 0.12);
+
+  --vp-c-important-1: var(--vp-c-brand-1);
+  --vp-c-important-soft: var(--vp-c-brand-soft);
+
+  --bq-surface: var(--bq-ink-850);
+  --bq-surface-sunken: var(--bq-ink-950);
+  --bq-hairline: rgba(124, 166, 196, 0.16);
+  --bq-hairline-strong: rgba(124, 166, 196, 0.32);
+  --bq-grid-line: rgba(124, 166, 196, 0.08);
+  --bq-sigil: var(--bq-steel-400);
+  --bq-live: var(--bq-amber-400);
+  --bq-glow: rgba(106, 171, 213, 0.1);
+  --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
   --vp-shadow-1: 0 1px 0 rgba(0, 0, 0, 0.4);
   --vp-shadow-2: 0 2px 10px rgba(0, 0, 0, 0.5);
   --vp-shadow-3: 0 10px 30px rgba(0, 0, 0, 0.55);
