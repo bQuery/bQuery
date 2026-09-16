@@ -1,0 +1,289 @@
+/*
+ * bQuery.js documentation — design tokens.
+ *
+ * The palette is derived from the two blues in the project logo
+ * (#4780a5 / #6aabd5) and extended into a full steel-blue ramp. Nothing here
+ * is decorative for its own sake: the light theme is "ink on drafting paper",
+ * the dark theme is "instrument panel at night". Amber is the only second hue
+ * and is reserved for things that are *live* (signals, warnings, highlights).
+ */
+
+:root {
+  /* Steel — the logo blues, extended. */
+  --bq-steel-50: #f2f7fa;
+  --bq-steel-100: #e3eef5;
+  --bq-steel-200: #c4dbe9;
+  --bq-steel-300: #9cc4db;
+  --bq-steel-400: #6aabd5; /* logo, light */
+  --bq-steel-500: #4780a5; /* logo, dark */
+  --bq-steel-600: #366b8d;
+  --bq-steel-700: #285573;
+  --bq-steel-800: #1d4058;
+  --bq-steel-900: #142d3f;
+
+  /* Ink — blue-tinted neutrals, used for dark surfaces and light text. */
+  --bq-ink-950: #060b10;
+  --bq-ink-900: #0b1218;
+  --bq-ink-850: #0f1922;
+  --bq-ink-800: #14212c;
+  --bq-ink-700: #1c2e3c;
+  --bq-ink-600: #27404f;
+
+  /* Amber — "this is live". Signals, highlights, warnings. */
+  --bq-amber-400: #e9a94f;
+  --bq-amber-500: #d08c26;
+  --bq-amber-600: #a06a14;
+
+  /* Rose — failure states only. */
+  --bq-rose-400: #f0808f;
+  --bq-rose-500: #d9485c;
+  --bq-rose-600: #b32f42;
+
+  /* Sage — success / stable states only. */
+  --bq-sage-400: #5fbf96;
+  --bq-sage-500: #2f8f68;
+  --bq-sage-600: #1f6f4f;
+
+  /* Typography. IBM Plex is a technical typeface family: Sans for prose,
+     Mono for every piece of metadata (labels, nav, kickers, module paths). */
+  --bq-font-sans:
+    'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+  --bq-font-mono:
+    'IBM Plex Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas,
+    'Liberation Mono', monospace;
+
+  /* Geometry. Hairlines and near-square corners, never pill-shaped. */
+  --bq-radius-1: 2px;
+  --bq-radius-2: 4px;
+  --bq-radius-3: 6px;
+
+  /* Mono metadata label: used in a dozen places, defined once. */
+  --bq-label-size: 0.6875rem;
+  --bq-label-tracking: 0.12em;
+
+  /* Blueprint grid. Drawn at very low contrast behind hero/section chrome. */
+  --bq-grid-size: 28px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Light theme — ink on drafting paper.
+ * ------------------------------------------------------------------------ */
+
+:root {
+  --vp-c-bg: #fbfcfd;
+  --vp-c-bg-alt: #f1f6fa;
+  --vp-c-bg-elv: #ffffff;
+  --vp-c-bg-soft: #f4f8fb;
+
+  --vp-c-text-1: #0f1f2b;
+  --vp-c-text-2: #415a6c;
+  --vp-c-text-3: #7b92a3;
+
+  --vp-c-divider: rgba(20, 45, 63, 0.1);
+  --vp-c-border: rgba(20, 45, 63, 0.16);
+  --vp-c-gutter: rgba(20, 45, 63, 0.1);
+
+  --vp-c-brand-1: #1f5f85;
+  --vp-c-brand-2: #2a7099;
+  --vp-c-brand-3: var(--bq-steel-500);
+  --vp-c-brand-soft: rgba(71, 128, 165, 0.12);
+
+  --vp-c-default-1: var(--bq-steel-600);
+  --vp-c-default-2: var(--bq-steel-500);
+  --vp-c-default-3: var(--bq-steel-100);
+  --vp-c-default-soft: rgba(40, 85, 115, 0.08);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: rgba(71, 128, 165, 0.1);
+
+  --vp-c-note-1: var(--vp-c-brand-1);
+  --vp-c-note-soft: var(--vp-c-tip-soft);
+
+  --vp-c-warning-1: var(--bq-amber-600);
+  --vp-c-warning-2: var(--bq-amber-500);
+  --vp-c-warning-3: var(--bq-amber-400);
+  --vp-c-warning-soft: rgba(208, 140, 38, 0.1);
+
+  --vp-c-danger-1: var(--bq-rose-600);
+  --vp-c-danger-2: var(--bq-rose-500);
+  --vp-c-danger-3: var(--bq-rose-400);
+  --vp-c-danger-soft: rgba(217, 72, 92, 0.1);
+
+  --vp-c-caution-1: var(--vp-c-danger-1);
+  --vp-c-caution-soft: var(--vp-c-danger-soft);
+
+  --vp-c-success-1: var(--bq-sage-600);
+  --vp-c-success-2: var(--bq-sage-500);
+  --vp-c-success-3: var(--bq-sage-400);
+  --vp-c-success-soft: rgba(47, 143, 104, 0.1);
+
+  --vp-c-important-1: var(--vp-c-brand-1);
+  --vp-c-important-soft: var(--vp-c-brand-soft);
+
+  /* bQuery-specific surfaces. */
+  --bq-surface: #ffffff;
+  --bq-surface-sunken: #eef4f9;
+  --bq-hairline: rgba(20, 45, 63, 0.12);
+  --bq-hairline-strong: rgba(20, 45, 63, 0.22);
+  --bq-grid-line: rgba(40, 85, 115, 0.1);
+  --bq-sigil: var(--bq-steel-500);
+  --bq-live: var(--bq-amber-500);
+  --bq-glow: rgba(71, 128, 165, 0.14);
+  --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+/* ---------------------------------------------------------------------------
+ * Dark theme — instrument panel at night.
+ * ------------------------------------------------------------------------ */
+
+.dark {
+  --vp-c-bg: var(--bq-ink-900);
+  --vp-c-bg-alt: var(--bq-ink-950);
+  --vp-c-bg-elv: var(--bq-ink-850);
+  --vp-c-bg-soft: var(--bq-ink-850);
+
+  --vp-c-text-1: #dbe7ef;
+  --vp-c-text-2: #94a9b9;
+  --vp-c-text-3: #63798b;
+
+  --vp-c-divider: rgba(124, 166, 196, 0.16);
+  --vp-c-border: rgba(124, 166, 196, 0.26);
+  --vp-c-gutter: rgba(124, 166, 196, 0.14);
+
+  --vp-c-brand-1: #85c1e6;
+  --vp-c-brand-2: var(--bq-steel-400);
+  --vp-c-brand-3: var(--bq-steel-500);
+  --vp-c-brand-soft: rgba(106, 171, 213, 0.16);
+
+  --vp-c-default-1: var(--bq-steel-300);
+  --vp-c-default-2: var(--bq-steel-400);
+  --vp-c-default-3: var(--bq-ink-700);
+  --vp-c-default-soft: rgba(124, 166, 196, 0.12);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: rgba(106, 171, 213, 0.12);
+
+  --vp-c-note-1: var(--vp-c-brand-1);
+  --vp-c-note-soft: var(--vp-c-tip-soft);
+
+  --vp-c-warning-1: var(--bq-amber-400);
+  --vp-c-warning-2: var(--bq-amber-500);
+  --vp-c-warning-3: var(--bq-amber-600);
+  --vp-c-warning-soft: rgba(233, 169, 79, 0.12);
+
+  --vp-c-danger-1: var(--bq-rose-400);
+  --vp-c-danger-2: var(--bq-rose-500);
+  --vp-c-danger-3: var(--bq-rose-600);
+  --vp-c-danger-soft: rgba(240, 128, 143, 0.12);
+
+  --vp-c-caution-1: var(--vp-c-danger-1);
+  --vp-c-caution-soft: var(--vp-c-danger-soft);
+
+  --vp-c-success-1: var(--bq-sage-400);
+  --vp-c-success-2: var(--bq-sage-500);
+  --vp-c-success-3: var(--bq-sage-600);
+  --vp-c-success-soft: rgba(95, 191, 150, 0.12);
+
+  --vp-c-important-1: var(--vp-c-brand-1);
+  --vp-c-important-soft: var(--vp-c-brand-soft);
+
+  --bq-surface: var(--bq-ink-850);
+  --bq-surface-sunken: var(--bq-ink-950);
+  --bq-hairline: rgba(124, 166, 196, 0.16);
+  --bq-hairline-strong: rgba(124, 166, 196, 0.32);
+  --bq-grid-line: rgba(124, 166, 196, 0.08);
+  --bq-sigil: var(--bq-steel-400);
+  --bq-live: var(--bq-amber-400);
+  --bq-glow: rgba(106, 171, 213, 0.1);
+  --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ---------------------------------------------------------------------------
+ * VitePress structural + component variables.
+ * ------------------------------------------------------------------------ */
+
+:root {
+  --vp-font-family-base: var(--bq-font-sans);
+  --vp-font-family-mono: var(--bq-font-mono);
+
+  --vp-layout-max-width: 1480px;
+  --vp-sidebar-width: 292px;
+  --vp-nav-height: 62px;
+
+  /* The bar paints itself (see nav.css) so the frosted layer spans the full
+     width instead of only the content half on sidebar layouts. */
+  --vp-nav-bg-color: transparent;
+
+  /* Flatter, tighter shadows: hairline first, blur second. */
+  --vp-shadow-1: 0 1px 0 rgba(20, 45, 63, 0.05);
+  --vp-shadow-2: 0 2px 8px rgba(20, 45, 63, 0.07);
+  --vp-shadow-3: 0 10px 28px rgba(20, 45, 63, 0.09);
+  --vp-shadow-4: 0 14px 40px rgba(20, 45, 63, 0.12);
+  --vp-shadow-5: 0 18px 52px rgba(20, 45, 63, 0.15);
+
+  --vp-code-font-size: 0.8125em;
+  --vp-code-line-height: 1.65;
+  --vp-code-block-bg: var(--bq-surface-sunken);
+  --vp-code-block-divider-color: var(--bq-hairline);
+  --vp-code-line-highlight-color: rgba(71, 128, 165, 0.1);
+  --vp-code-line-number-color: var(--vp-c-text-3);
+
+  --vp-code-copy-code-border-color: var(--bq-hairline);
+  --vp-code-copy-code-bg: var(--vp-c-bg);
+  --vp-code-copy-code-hover-border-color: var(--bq-hairline-strong);
+  --vp-code-copy-code-hover-bg: var(--vp-c-bg);
+  --vp-code-copy-copied-text-content: 'copied';
+
+  --vp-code-tab-divider: var(--bq-hairline);
+  --vp-code-tab-text-color: var(--vp-c-text-3);
+  --vp-code-tab-bg: var(--bq-surface-sunken);
+  --vp-code-tab-hover-text-color: var(--vp-c-text-1);
+  --vp-code-tab-active-text-color: var(--vp-c-text-1);
+  --vp-code-tab-active-bar-color: var(--bq-steel-400);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #f7fbfd;
+  --vp-button-brand-bg: #1f5f85;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #f7fbfd;
+  --vp-button-brand-hover-bg: #275f80;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #f7fbfd;
+  --vp-button-brand-active-bg: #16496a;
+
+  --vp-button-alt-border: var(--bq-hairline-strong);
+  --vp-button-alt-text: var(--vp-c-text-1);
+  --vp-button-alt-bg: transparent;
+  --vp-button-alt-hover-border: var(--bq-steel-400);
+  --vp-button-alt-hover-text: var(--vp-c-brand-1);
+  --vp-button-alt-hover-bg: var(--vp-c-brand-soft);
+  --vp-button-alt-active-border: var(--bq-steel-500);
+  --vp-button-alt-active-text: var(--vp-c-brand-1);
+  --vp-button-alt-active-bg: var(--vp-c-brand-soft);
+
+  --vp-custom-block-font-size: 0.9375rem;
+  --vp-custom-block-code-font-size: 0.8125em;
+
+  --vp-local-search-highlight-bg: var(--vp-c-brand-soft);
+  --vp-local-search-highlight-text: var(--vp-c-text-1);
+}
+
+.dark {
+  --vp-shadow-1: 0 1px 0 rgba(0, 0, 0, 0.4);
+  --vp-shadow-2: 0 2px 10px rgba(0, 0, 0, 0.5);
+  --vp-shadow-3: 0 10px 30px rgba(0, 0, 0, 0.55);
+  --vp-shadow-4: 0 14px 44px rgba(0, 0, 0, 0.6);
+  --vp-shadow-5: 0 18px 56px rgba(0, 0, 0, 0.65);
+
+  --vp-button-brand-text: #05121b;
+  --vp-button-brand-bg: var(--bq-steel-400);
+  --vp-button-brand-hover-text: #05121b;
+  --vp-button-brand-hover-bg: #7fbce2;
+  --vp-button-brand-active-text: #05121b;
+  --vp-button-brand-active-bg: var(--bq-steel-500);
+}

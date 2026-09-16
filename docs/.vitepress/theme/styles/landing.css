@@ -1,0 +1,942 @@
+/*
+ * Landing page.
+ *
+ * The page is built as a spec document: a hero with working code next to the
+ * pitch, a strip of hard numbers, then numbered sections — module map,
+ * capabilities, entry points. Hairlines do the structural work; there is no
+ * gradient hero, no floating glass card, no stock illustration.
+ */
+
+:root {
+  --bq-page-max: 1240px;
+  --bq-page-wide: 1420px;
+  --bq-page-pad: 24px;
+}
+
+@media (min-width: 768px) {
+  :root {
+    --bq-page-pad: 40px;
+  }
+}
+
+.bq-landing .VPContent {
+  padding-bottom: 0;
+}
+
+/* The landing page has no sidebar and no markdown outline, so the mobile local
+   nav would render as a lone "Return to top" strip above the hero. */
+.bq-landing .VPLocalNav {
+  display: none;
+}
+
+/* Shared centred measure. */
+.bq-hero__inner,
+.bq-footer__inner,
+.bq-footer__base {
+  max-width: var(--bq-page-max);
+  margin-inline: auto;
+  padding-inline: var(--bq-page-pad);
+}
+
+/* Sections stay full-bleed and pad themselves to the measure, so the rules
+   between them run the full width of the page like a document rule. */
+.bq-section {
+  padding-inline: max(var(--bq-page-pad), calc((100% - var(--bq-page-max)) / 2));
+}
+
+.bq-section--wide {
+  padding-inline: max(var(--bq-page-pad), calc((100% - var(--bq-page-wide)) / 2));
+}
+
+/* ---------------------------------------------------------------------------
+ * Hero.
+ * ------------------------------------------------------------------------ */
+
+.bq-hero {
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid var(--bq-hairline);
+  padding: 56px 0 64px;
+}
+
+.bq-hero__backdrop {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(120% 90% at 18% 0%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(120% 90% at 18% 0%, #000 0%, transparent 72%);
+}
+
+.bq-hero__backdrop::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 70%;
+  height: 140%;
+  background: radial-gradient(closest-side, var(--bq-glow), transparent);
+}
+
+.bq-hero__inner {
+  position: relative;
+  display: grid;
+  gap: 44px;
+  align-items: start;
+}
+
+@media (min-width: 1024px) {
+  .bq-hero {
+    padding: 76px 0 84px;
+  }
+
+  .bq-hero__inner {
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, 0.98fr);
+    gap: 52px;
+  }
+}
+
+/* Kicker: mono facts, divided by hairlines. */
+.bq-hero__kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.bq-hero__kicker li {
+  line-height: 1.4;
+}
+
+/* Slash separators rather than rules: they survive wrapping on phones, where
+   a stranded divider in front of a line would not. */
+.bq-hero__kicker li:not(:last-child)::after {
+  content: ' /';
+  color: var(--bq-hairline-strong);
+}
+
+.bq-hero__title {
+  margin: 0;
+  font-size: clamp(2.125rem, 4.6vw, 3.25rem);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.032em;
+  color: var(--vp-c-text-1);
+  text-wrap: balance;
+}
+
+/* The accented word carries the jQuery lineage — steel, with a trace under it. */
+.bq-hero__accent {
+  position: relative;
+  white-space: nowrap;
+  color: var(--vp-c-brand-1);
+}
+
+.bq-hero__accent::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0.06em;
+  left: 0;
+  height: 2px;
+  background: var(--bq-steel-400);
+  opacity: 0.55;
+}
+
+.bq-hero__lead {
+  max-width: 48ch;
+  margin: 22px 0 0;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--vp-c-text-2);
+}
+
+.bq-hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 30px;
+}
+
+.bq-hero__install {
+  margin-top: 34px;
+}
+
+/* Closing call to action, below the routing table. */
+.bq-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 32px;
+}
+
+.bq-hero__install .bq-label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+.bq-hero__runtimes {
+  margin: 14px 0 0;
+  line-height: 1.6;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+.bq-hero__runtimes a {
+  color: var(--vp-c-text-2);
+  text-decoration: underline;
+  text-decoration-color: var(--bq-hairline-strong);
+  text-underline-offset: 3px;
+}
+
+.bq-hero__runtimes a:hover {
+  color: var(--vp-c-brand-1);
+}
+
+/* Buttons: mono, square-ish, hairline. */
+.bq-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--bq-hairline-strong);
+  border-radius: var(--bq-radius-2);
+  padding: 10px 16px;
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--vp-c-text-1);
+  text-decoration: none;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.bq-btn__mark {
+  transition: transform 0.18s ease;
+}
+
+.bq-btn:hover .bq-btn__mark {
+  transform: translateX(3px);
+}
+
+.bq-btn--brand {
+  border-color: transparent;
+  background: var(--vp-button-brand-bg);
+  color: var(--vp-button-brand-text);
+  box-shadow: var(--bq-inset-top);
+}
+
+.bq-btn--brand:hover {
+  background: var(--vp-button-brand-hover-bg);
+  color: var(--vp-button-brand-hover-text);
+}
+
+.bq-btn--ghost:hover {
+  border-color: var(--bq-steel-400);
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+}
+
+/* Code panel. */
+.bq-hero__panel {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-3);
+  background: var(--bq-surface);
+  box-shadow: var(--vp-shadow-2);
+  overflow: hidden;
+}
+
+.bq-hero__panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--bq-hairline);
+  padding: 11px 16px;
+  background: var(--vp-c-bg-alt);
+}
+
+/* "Live" indicator — the one place amber is allowed to move. */
+.bq-hero__pulse {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 99px;
+  background: var(--bq-live);
+  box-shadow: 0 0 0 0 var(--bq-live);
+  animation: bq-pulse 2.8s ease-out infinite;
+}
+
+@keyframes bq-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(208, 140, 38, 0.45);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(208, 140, 38, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(208, 140, 38, 0);
+  }
+}
+
+/* Framed code: the panel owns the border, the block owns nothing. */
+.bq-code-frame {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: var(--vp-code-block-bg);
+  overflow: hidden;
+}
+
+.bq-hero__panel > .bq-code-frame {
+  border: none;
+  border-radius: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Spec strip — full-bleed, content still on the page measure.
+ * ------------------------------------------------------------------------ */
+
+.bq-specs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: max(var(--bq-page-pad), calc((100% - var(--bq-page-max)) / 2));
+  border-bottom: 1px solid var(--bq-hairline);
+  background: var(--vp-c-bg-alt);
+}
+
+@media (min-width: 720px) {
+  .bq-specs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.bq-specs__item {
+  position: relative;
+  padding: 22px 0 24px;
+}
+
+.bq-specs__item + .bq-specs__item::before {
+  content: '';
+  position: absolute;
+  top: 22px;
+  bottom: 24px;
+  left: -1px;
+  width: 1px;
+  background: var(--bq-hairline-strong);
+}
+
+.bq-specs__value {
+  font-family: var(--bq-font-mono);
+  font-size: 1.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: var(--vp-c-brand-1);
+}
+
+.bq-specs__label {
+  margin: 8px 0 0;
+  max-width: 18ch;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Sections.
+ * ------------------------------------------------------------------------ */
+
+.bq-section {
+  /* padding-block only — the inline padding is the page measure, set above. */
+  padding-block: 64px;
+}
+
+.bq-section + .bq-section {
+  border-top: 1px solid var(--bq-hairline);
+}
+
+.bq-section__head {
+  display: grid;
+  gap: 14px;
+}
+
+@media (min-width: 900px) {
+  .bq-section__head {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+
+.bq-section__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+}
+
+.bq-section__index {
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 600;
+  letter-spacing: var(--bq-label-tracking);
+  color: var(--bq-sigil);
+}
+
+.bq-section__title {
+  margin: 0;
+  font-size: clamp(1.5rem, 2.6vw, 1.875rem);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.026em;
+  color: var(--vp-c-text-1);
+}
+
+.bq-section__lead {
+  max-width: 62ch;
+  margin: 12px 0 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: var(--vp-c-text-2);
+}
+
+.bq-section__body {
+  margin-top: 36px;
+}
+
+@media (min-width: 900px) {
+  .bq-section__body {
+    margin-left: 212px;
+  }
+
+  .bq-section--wide .bq-section__body {
+    margin-left: 0;
+  }
+}
+
+/* Markdown dropped into a section (tables, prose) keeps doc typography. */
+.bq-prose > :first-child {
+  margin-top: 0;
+}
+
+.bq-prose .bq-table-scroll {
+  margin-top: 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Reactive pipeline.
+ * ------------------------------------------------------------------------ */
+
+.bq-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bq-flow__node {
+  display: flex;
+  align-items: center;
+  flex: 1 1 190px;
+  min-width: 0;
+}
+
+.bq-flow__box {
+  flex: 1 1 auto;
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  padding: 14px 16px;
+  background: var(--bq-surface);
+}
+
+.bq-flow__call {
+  display: block;
+  font-family: var(--bq-font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.bq-flow__role {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-3);
+}
+
+/* Connector with a travelling pulse: data moving through the graph. */
+.bq-flow__wire {
+  position: relative;
+  flex: none;
+  width: 26px;
+  height: 1px;
+  margin-right: 12px;
+  background: var(--bq-hairline-strong);
+}
+
+.bq-flow__wire::after {
+  content: '';
+  position: absolute;
+  top: -1.5px;
+  left: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 99px;
+  background: var(--bq-live);
+  animation: bq-travel 2.6s ease-in-out infinite;
+}
+
+.bq-flow__node:nth-child(2) .bq-flow__wire::after {
+  animation-delay: 0.2s;
+}
+
+.bq-flow__node:nth-child(3) .bq-flow__wire::after {
+  animation-delay: 0.5s;
+}
+
+.bq-flow__node:nth-child(4) .bq-flow__wire::after {
+  animation-delay: 0.8s;
+}
+
+@keyframes bq-travel {
+  0%,
+  100% {
+    transform: translateX(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  90%,
+  100% {
+    transform: translateX(22px);
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Module map.
+ * ------------------------------------------------------------------------ */
+
+.bq-map__layer {
+  display: grid;
+  gap: 16px;
+  padding: 26px 0;
+}
+
+.bq-map__layer + .bq-map__layer {
+  border-top: 1px solid var(--bq-hairline);
+}
+
+.bq-map__layer:first-child {
+  padding-top: 0;
+}
+
+@media (min-width: 900px) {
+  .bq-map__layer {
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 32px;
+  }
+}
+
+.bq-map__index {
+  margin: 0;
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 600;
+  letter-spacing: var(--bq-label-tracking);
+  color: var(--bq-sigil);
+}
+
+.bq-map__label {
+  margin: 6px 0 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--vp-c-text-1);
+}
+
+.bq-map__note {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-3);
+}
+
+.bq-map__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(232px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bq-mod {
+  display: block;
+  padding: 13px 15px;
+  height: 100%;
+  text-decoration: none;
+}
+
+.bq-mod:hover {
+  border-color: var(--bq-steel-400);
+  background: var(--vp-c-brand-soft);
+}
+
+.bq-mod__path {
+  display: block;
+  font-family: var(--bq-font-mono);
+  font-size: 0.78125rem;
+  line-height: 1.4;
+  /* Break after the scope (there is a <wbr /> there), never inside a name. */
+  word-break: normal;
+  overflow-wrap: break-word;
+}
+
+.bq-mod__scope {
+  color: var(--vp-c-text-3);
+}
+
+.bq-mod__name {
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.bq-mod:hover .bq-mod__name {
+  color: var(--vp-c-brand-1);
+}
+
+.bq-mod__blurb {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2);
+}
+
+.bq-mod__mark {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-family: var(--bq-font-mono);
+  color: var(--bq-sigil);
+  opacity: 0;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.bq-mod:hover .bq-mod__mark {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+/* ---------------------------------------------------------------------------
+ * Capability grid — one continuous hairline table.
+ * ------------------------------------------------------------------------ */
+
+.bq-features {
+  display: grid;
+  /* Explicit column counts, because 12 cards have to divide evenly — an
+     auto-fit grid leaves holes in the hairline table. */
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: var(--bq-hairline);
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .bq-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .bq-features {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1280px) {
+  .bq-features {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.bq-feature {
+  display: flex;
+  background: var(--vp-c-bg);
+}
+
+.bq-feature__body {
+  display: block;
+  flex: 1 1 auto;
+  padding: 20px;
+  text-decoration: none;
+  transition: background-color 0.18s ease;
+}
+
+a.bq-feature__body:hover {
+  background: var(--vp-c-brand-soft);
+}
+
+.bq-feature__index {
+  display: block;
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  color: var(--vp-c-text-3);
+}
+
+a.bq-feature__body:hover .bq-feature__index {
+  color: var(--bq-sigil);
+}
+
+.bq-feature__title {
+  margin: 12px 0 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--vp-c-text-1);
+}
+
+.bq-feature__details {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-2);
+}
+
+/* ---------------------------------------------------------------------------
+ * "I want to…" routing table.
+ * ------------------------------------------------------------------------ */
+
+.bq-paths {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--bq-hairline);
+}
+
+.bq-paths__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 20px;
+  padding: 13px 2px;
+  border-bottom: 1px solid var(--bq-hairline);
+}
+
+.bq-paths__goal {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-1);
+}
+
+.bq-paths__goal .bq-sigil {
+  margin-right: 8px;
+  font-size: 0.8125rem;
+}
+
+.bq-paths__targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bq-paths__targets a {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-1);
+  padding: 2px 8px;
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.bq-paths__targets a:hover {
+  border-color: var(--bq-steel-400);
+  color: var(--vp-c-brand-1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Landing footer.
+ * ------------------------------------------------------------------------ */
+
+.bq-footer {
+  border-top: 1px solid var(--bq-hairline);
+  background: var(--vp-c-bg-alt);
+  padding-top: 52px;
+}
+
+.bq-footer__inner {
+  display: grid;
+  gap: 36px;
+}
+
+@media (min-width: 900px) {
+  .bq-footer__inner {
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: 48px;
+  }
+}
+
+.bq-footer__wordmark {
+  margin: 0;
+  font-family: var(--bq-font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--vp-c-text-1);
+}
+
+.bq-footer__note {
+  max-width: 34ch;
+  margin: 10px 0 0;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: var(--vp-c-text-3);
+}
+
+.bq-footer__version {
+  margin: 14px 0 0;
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.bq-footer__columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(146px, 1fr));
+  gap: 28px;
+}
+
+.bq-footer__column h2 {
+  margin: 0 0 12px;
+  border: none;
+  padding: 0;
+}
+
+.bq-footer__column ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bq-footer__column li + li {
+  margin-top: 8px;
+}
+
+.bq-footer__column a {
+  font-size: 0.84375rem;
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.bq-footer__column a:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.bq-footer__base {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  justify-content: space-between;
+  margin: 44px auto 0;
+  padding-block: 18px 22px;
+  border-top: 1px solid var(--bq-hairline);
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  color: var(--vp-c-text-3);
+}
+
+/* ---------------------------------------------------------------------------
+ * Nav version chip + aside help panel.
+ * ------------------------------------------------------------------------ */
+
+.bq-version {
+  display: none;
+  align-items: center;
+  gap: 7px;
+  margin-left: 6px;
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  padding: 3px 9px;
+  font-family: var(--bq-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--vp-c-text-2);
+  text-decoration: none;
+  transition:
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+@media (min-width: 900px) {
+  .bq-version {
+    display: inline-flex;
+  }
+}
+
+.bq-version:hover {
+  border-color: var(--bq-steel-400);
+  color: var(--vp-c-brand-1);
+}
+
+.bq-version__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--vp-c-success-1);
+  box-shadow: 0 0 0 2px var(--vp-c-success-soft);
+}
+
+.bq-aside-help {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--bq-hairline);
+}
+
+.bq-aside-help ul {
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bq-aside-help li + li {
+  margin-top: 7px;
+}
+
+.bq-aside-help a {
+  font-size: 0.8125rem;
+  color: var(--vp-c-text-3);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.bq-aside-help a:hover {
+  color: var(--vp-c-brand-1);
+}

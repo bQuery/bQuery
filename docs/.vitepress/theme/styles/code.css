@@ -1,0 +1,242 @@
+/*
+ * Code.
+ *
+ * Code blocks are the primary content here, so they are treated as
+ * instruments: a sunken panel, a hairline frame, the language stamped in the
+ * corner in mono, and filenames rendered as a real title bar. No fake macOS
+ * window chrome, no rounded glass.
+ */
+
+/* Inline code: a quiet chip, never a coloured blob. */
+.vp-doc :not(pre) > code {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-1);
+  padding: 2px 5px;
+  font-size: 0.8125em;
+  font-weight: 450;
+  background: var(--bq-surface-sunken);
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc a > code {
+  color: var(--vp-c-brand-1);
+  border-color: var(--bq-steel-300);
+}
+
+.vp-doc h1 > code,
+.vp-doc h2 > code,
+.vp-doc h3 > code,
+.vp-doc h4 > code {
+  font-size: 0.9em;
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+/* ---------------------------------------------------------------------------
+ * Block-level code.
+ * ------------------------------------------------------------------------ */
+
+.vp-doc div[class*='language-'],
+.vp-block div[class*='language-'] {
+  position: relative;
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  margin: 22px 0;
+  background: var(--vp-code-block-bg);
+  box-shadow: none;
+}
+
+.vp-doc [class*='language-'] pre {
+  padding: 18px 0;
+}
+
+.vp-doc [class*='language-'] code {
+  padding: 0 22px;
+  font-size: var(--vp-code-font-size);
+  font-weight: 400;
+}
+
+/* Language stamp, bottom-anchored so it never collides with the copy button. */
+.vp-doc div[class*='language-'] > span.lang {
+  position: absolute;
+  top: auto;
+  right: 12px;
+  bottom: 8px;
+  z-index: 2;
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
+}
+
+.vp-doc div[class*='language-']:hover > span.lang {
+  opacity: 0;
+}
+
+/* Copy button: square, hairline, mono confirmation text. */
+.vp-doc div[class*='language-'] > button.copy {
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--bq-radius-1);
+  background-size: 15px;
+}
+
+.vp-doc div[class*='language-'] > button.copy.copied::before,
+.vp-doc div[class*='language-'] > button.copy:hover.copied::before {
+  border-radius: var(--bq-radius-1);
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  border: 1px solid var(--bq-hairline);
+  background: var(--vp-c-bg);
+  color: var(--vp-c-text-2);
+}
+
+/* Filename title bar for ```ts [file.ts] blocks. */
+.vp-doc [class*='language-'] > .title {
+  padding: 9px 22px;
+  border-bottom: 1px solid var(--bq-hairline);
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--vp-c-text-2);
+  background: var(--bq-surface);
+  border-radius: var(--bq-radius-2) var(--bq-radius-2) 0 0;
+}
+
+/* Highlighted lines get a steel gutter tick, not just a wash. */
+.vp-doc .has-highlighted-lines .line.highlighted::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 2px;
+  height: calc(var(--vp-code-line-height) * 1em);
+  background: var(--bq-steel-400);
+}
+
+.vp-doc .line.highlighted.error {
+  background: var(--vp-c-danger-soft);
+}
+
+.vp-doc .line.highlighted.warning {
+  background: var(--vp-c-warning-soft);
+}
+
+.vp-doc .line-numbers-wrapper {
+  border-right: 1px solid var(--bq-hairline);
+  padding-top: 18px;
+  padding-bottom: 18px;
+  font-family: var(--bq-font-mono);
+  font-size: var(--vp-code-font-size);
+}
+
+/* Diff markers as mono signs in the gutter. */
+.vp-doc .line.diff.add {
+  background: var(--vp-c-success-soft);
+}
+
+.vp-doc .line.diff.remove {
+  background: var(--vp-c-danger-soft);
+}
+
+/* ---------------------------------------------------------------------------
+ * Code groups (install commands, per-runtime variants).
+ * ------------------------------------------------------------------------ */
+
+.vp-doc .vp-code-group,
+.vp-block .vp-code-group {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  margin: 22px 0;
+  overflow: hidden;
+  background: var(--vp-code-block-bg);
+}
+
+.vp-code-group .tabs {
+  margin: 0;
+  padding: 0 8px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--bq-hairline);
+  background: var(--bq-surface);
+  box-shadow: none;
+}
+
+.vp-code-group .tabs label {
+  padding: 0 12px;
+  line-height: 38px;
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.vp-code-group .tabs label::after {
+  right: 0;
+  left: 0;
+  border-radius: 0;
+  height: 2px;
+}
+
+.vp-code-group div[class*='language-'] {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+}
+
+.vp-code-group div[class*='language-'] > span.lang {
+  display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Free-standing code panels outside .vp-doc (hero, landing sections).
+ * ------------------------------------------------------------------------ */
+
+.bq-code-frame div[class*='language-'] {
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  background: transparent;
+}
+
+.bq-code-frame [class*='language-'] pre {
+  padding: 16px 0;
+}
+
+.bq-code-frame [class*='language-'] code {
+  padding: 0 18px;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.bq-code-frame div[class*='language-'] > span.lang {
+  display: none;
+}
+
+.bq-code-frame div[class*='language-'] > button.copy {
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--bq-radius-1);
+  background-size: 14px;
+}
+
+.bq-code-frame .vp-code-group {
+  border: none;
+  margin: 0;
+  background: transparent;
+}
+
+.bq-code-frame .vp-code-group .tabs {
+  background: transparent;
+  border-bottom: 1px solid var(--bq-hairline);
+}
