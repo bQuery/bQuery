@@ -24,7 +24,10 @@ hero:
       link: /introduction
     - text: github
       link: https://github.com/bQuery/bQuery
-      external: true
+  runtimes:
+    text: Node ≥ 24 · Bun ≥ 1.4 · Deno · edge · evergreen browsers
+    linkText: support matrix
+    link: /concepts/runtimes
 ---
 
 <BqHero>
@@ -57,8 +60,6 @@ pnpm add @bquery/bquery
 :::
 
 </div>
-
-<p class="bq-label bq-hero__runtimes">Node ≥ 24 · Bun ≥ 1.4 · Deno · edge · evergreen browsers — <a href="/concepts/runtimes">support matrix</a></p>
 
 </template>
 <template #code>

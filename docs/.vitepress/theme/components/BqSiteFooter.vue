@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { href } from '../data/href';
+import { href, isExternal } from '../data/href';
 import { footerColumns } from '../data/landing';
 import { version } from '../data/version';
 </script>
@@ -25,9 +25,9 @@ import { version } from '../data/version';
             <li v-for="link in column.links" :key="link.link">
               <a
                 :href="href(link.link)"
-                :target="link.external ? '_blank' : undefined"
-                :rel="link.external ? 'noreferrer' : undefined"
-                >{{ link.text }}<span v-if="link.external" aria-hidden="true"> ↗</span></a
+                :target="isExternal(link.link) ? '_blank' : undefined"
+                :rel="isExternal(link.link) ? 'noreferrer' : undefined"
+                >{{ link.text }}<span v-if="isExternal(link.link)" aria-hidden="true"> ↗</span></a
               >
             </li>
           </ul>

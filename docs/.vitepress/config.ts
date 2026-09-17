@@ -198,7 +198,6 @@ export default defineConfig({
           '&family=IBM+Plex+Sans:wght@400;500;600&display=swap',
       },
     ],
-    ['meta', { name: 'color-scheme', content: 'light dark' }],
     ['meta', { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#fbfcfd' }],
     ['meta', { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#0b1218' }],
     // Open Graph

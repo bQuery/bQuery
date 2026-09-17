@@ -50,7 +50,11 @@
 /* Section sigil: bQuery's own selector sits on the rule that opens each
    section, the way a reference mark sits on a schematic's border. */
 .vp-doc h2::before {
+  /* The second declaration gives the glyph empty alternative text, so screen
+     readers announce "Signals", not "dollar sign Signals". The plain `content`
+     above stays as the fallback for browsers without the alt-text syntax. */
   content: '$';
+  content: '$' / '';
   position: absolute;
   top: 0;
   left: 0;

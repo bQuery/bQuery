@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useData } from 'vitepress';
 
-import { href } from '../data/href';
+import { href, isExternal } from '../data/href';
 
 /**
  * Landing hero. All copy comes from the `hero` block in docs/index.md so the
@@ -12,7 +12,12 @@ interface HeroAction {
   text: string;
   link: string;
   theme?: 'brand' | 'ghost';
-  external?: boolean;
+}
+
+interface HeroRuntimes {
+  text: string;
+  linkText: string;
+  link: string;
 }
 
 interface HeroBlock {
@@ -21,6 +26,7 @@ interface HeroBlock {
   accent?: string;
   lead?: string;
   actions?: HeroAction[];
+  runtimes?: HeroRuntimes;
 }
 
 const { frontmatter } = useData();
@@ -51,17 +57,24 @@ const hero = computed<HeroBlock>(() => (frontmatter.value.hero ?? {}) as HeroBlo
             class="bq-btn"
             :class="`bq-btn--${action.theme ?? 'ghost'}`"
             :href="href(action.link)"
-            :target="action.external ? '_blank' : undefined"
-            :rel="action.external ? 'noreferrer' : undefined"
+            :target="isExternal(action.link) ? '_blank' : undefined"
+            :rel="isExternal(action.link) ? 'noreferrer' : undefined"
           >
             {{ action.text }}
-            <span class="bq-btn__mark" aria-hidden="true">{{ action.external ? '↗' : '→' }}</span>
+            <span class="bq-btn__mark" aria-hidden="true">{{
+              isExternal(action.link) ? '↗' : '→'
+            }}</span>
           </a>
         </div>
 
         <div class="bq-hero__install">
           <slot name="install" />
         </div>
+
+        <p v-if="hero.runtimes" class="bq-label bq-hero__runtimes">
+          {{ hero.runtimes.text }} —
+          <a :href="href(hero.runtimes.link)">{{ hero.runtimes.linkText }}</a>
+        </p>
       </div>
 
       <div class="bq-hero__panel">

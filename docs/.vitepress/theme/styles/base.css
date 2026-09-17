@@ -47,25 +47,30 @@ body {
   scrollbar-color: var(--bq-hairline-strong) transparent;
 }
 
-*::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
+/* Setting the standard properties above makes Chromium 121+ and Safari 18.2+
+   ignore the legacy pseudo-elements entirely, so they are only worth styling
+   where the standard ones are not understood. */
+@supports not (scrollbar-width: thin) {
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
 
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
 
-*::-webkit-scrollbar-thumb {
-  background: var(--bq-hairline-strong);
-  border: 3px solid transparent;
-  background-clip: content-box;
-  border-radius: 99px;
-}
+  *::-webkit-scrollbar-thumb {
+    background: var(--bq-hairline-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
 
-*::-webkit-scrollbar-thumb:hover {
-  background: var(--bq-steel-400);
-  background-clip: content-box;
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--bq-steel-400);
+    background-clip: content-box;
+  }
 }
 
 /* ---------------------------------------------------------------------------

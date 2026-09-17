@@ -9,6 +9,11 @@
  */
 
 :root {
+  /* Native controls (the search field, form widgets, scrollbars) follow this,
+     so it has to track the site's own toggle rather than the OS preference —
+     VitePress only ever sets the dark side, on `html.dark`. */
+  color-scheme: light;
+
   /* Steel — the logo blues, extended. */
   --bq-steel-50: #f2f7fa;
   --bq-steel-100: #e3eef5;
@@ -207,6 +212,8 @@
  * ------------------------------------------------------------------------ */
 
 .dark {
+  color-scheme: dark;
+
   --vp-c-bg: var(--bq-ink-900);
   --vp-c-bg-alt: var(--bq-ink-950);
   --vp-c-bg-elv: var(--bq-ink-850);

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { href } from '../data/href';
+import { href, isExternal } from '../data/href';
 import { startPaths } from '../data/landing';
 </script>
 
@@ -12,9 +12,14 @@ import { startPaths } from '../data/landing';
         {{ path.goal }}
       </span>
       <span class="bq-paths__targets">
-        <a v-for="target in path.targets" :key="target.link" :href="href(target.link)">{{
-          target.text
-        }}</a>
+        <a
+          v-for="target in path.targets"
+          :key="target.link"
+          :href="href(target.link)"
+          :target="isExternal(target.link) ? '_blank' : undefined"
+          :rel="isExternal(target.link) ? 'noreferrer' : undefined"
+          >{{ target.text }}</a
+        >
       </span>
     </li>
   </ul>
