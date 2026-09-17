@@ -34,9 +34,10 @@ body {
   color: var(--vp-c-text-1);
 }
 
-/* Visible, square focus ring everywhere — keyboard users get a real target. */
+/* Visible, square focus ring everywhere — keyboard users get a real target.
+   The colour is per-theme: the light steel does not clear 3:1 on paper. */
 :where(a, button, input, select, summary, [tabindex]):focus-visible {
-  outline: 2px solid var(--bq-steel-400);
+  outline: 2px solid var(--bq-focus);
   outline-offset: 2px;
   border-radius: var(--bq-radius-1);
 }

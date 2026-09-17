@@ -2,6 +2,9 @@ import { defineConfig } from 'vitepress';
 
 const SITE_URL = 'https://bquery.js.org';
 const SOCIAL_CARD = '/assets/bquery-social-card.png';
+// `head` entries are emitted verbatim — VitePress prepends the base to links
+// it finds in markdown and in theme options, but not here.
+const BASE = process.env.VITEPRESS_BASE ?? '/';
 const DESCRIPTION =
   'Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components, routing, and more — with a jQuery-inspired API and zero mandatory build step.';
 
@@ -171,7 +174,7 @@ export default defineConfig({
   lang: 'en-US',
   title: 'bQuery.js',
   description: DESCRIPTION,
-  base: process.env.VITEPRESS_BASE ?? '/',
+  base: BASE,
   cleanUrls: true,
   // TypeDoc emits its HTML reference into docs/api/ via `bun run docs:api`.
   // VitePress should not crawl those files; the API reference is linked as
@@ -183,7 +186,7 @@ export default defineConfig({
     /^\/?api\//,
   ],
   head: [
-    ['link', { rel: 'icon', href: '/assets/bquerry-logo.svg' }],
+    ['link', { rel: 'icon', href: `${BASE}assets/bquerry-logo.svg` }],
     ['meta', { name: 'google-site-verification', content: 'injOs87iZEPOqUJhHQiKuXhzvuD7XL4dyXxyDpx4Sx8' }],
     // IBM Plex: Sans for prose, Mono for every piece of metadata. The theme
     // falls back to the system stack if these never arrive.

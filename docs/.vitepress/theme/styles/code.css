@@ -71,7 +71,6 @@
   letter-spacing: var(--bq-label-tracking);
   text-transform: uppercase;
   color: var(--vp-c-text-3);
-  opacity: 0.75;
   transition: opacity 0.2s ease;
 }
 

@@ -80,7 +80,10 @@
 
   --vp-c-text-1: #0f1f2b;
   --vp-c-text-2: #415a6c;
-  --vp-c-text-3: #7b92a3;
+  /* Muted, but this token labels 11px mono metadata, so it still has to clear
+     4.5:1 on every surface it lands on (4.58:1 on the sunken code panel, the
+     worst of them). */
+  --vp-c-text-3: #5c7181;
 
   --vp-c-divider: rgba(20, 45, 63, 0.1);
   --vp-c-border: rgba(20, 45, 63, 0.16);
@@ -132,6 +135,7 @@
   --bq-hairline-strong: rgba(20, 45, 63, 0.22);
   --bq-grid-line: rgba(40, 85, 115, 0.1);
   --bq-sigil: var(--bq-steel-500);
+  --bq-focus: var(--bq-steel-500);
   --bq-live: var(--bq-amber-500);
   --bq-glow: rgba(71, 128, 165, 0.14);
   --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -221,7 +225,7 @@
 
   --vp-c-text-1: #dbe7ef;
   --vp-c-text-2: #94a9b9;
-  --vp-c-text-3: #63798b;
+  --vp-c-text-3: #70899b;
 
   --vp-c-divider: rgba(124, 166, 196, 0.16);
   --vp-c-border: rgba(124, 166, 196, 0.26);
@@ -272,6 +276,7 @@
   --bq-hairline-strong: rgba(124, 166, 196, 0.32);
   --bq-grid-line: rgba(124, 166, 196, 0.08);
   --bq-sigil: var(--bq-steel-400);
+  --bq-focus: var(--bq-steel-400);
   --bq-live: var(--bq-amber-400);
   --bq-glow: rgba(106, 171, 213, 0.1);
   --bq-inset-top: inset 0 1px 0 rgba(255, 255, 255, 0.04);
