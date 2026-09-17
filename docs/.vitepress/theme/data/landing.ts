@@ -5,8 +5,8 @@
  * and the components stay layout-only.
  *
  * Every `link` here must resolve to a real page. VitePress only validates
- * links it finds in markdown, so these are NOT covered by the build's
- * dead-link check — renaming a page means updating this file by hand.
+ * links it finds in markdown, so these are outside the docs build's dead-link
+ * check — `bun run check:theme-links` covers them instead.
  *
  * Whether a link is external is derived from the URL by `isExternal()`; there
  * is deliberately no per-entry flag to fall out of sync with it.

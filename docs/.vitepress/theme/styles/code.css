@@ -74,10 +74,6 @@
   transition: opacity 0.2s ease;
 }
 
-.vp-doc div[class*='language-']:hover > span.lang {
-  opacity: 0;
-}
-
 /* Copy button: square, hairline, mono confirmation text. */
 .vp-doc div[class*='language-'] > button.copy {
   top: 10px;
@@ -238,4 +234,13 @@
 .bq-code-frame .vp-code-group .tabs {
   background: transparent;
   border-bottom: 1px solid var(--bq-hairline);
+}
+
+/* ---------------------------------------------------------------------------
+ * The language stamp gets out of the way on hover, so it never sits under the
+ * copy button. Last in the file, after the rules that hide the stamp outright.
+ * ------------------------------------------------------------------------ */
+
+.vp-doc div[class*='language-']:hover > span.lang {
+  opacity: 0;
 }

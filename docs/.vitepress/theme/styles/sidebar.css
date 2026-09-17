@@ -69,8 +69,8 @@
   border-radius: 0;
 }
 
-.VPSidebarItem:not(.level-0) > .item > .link > .text,
-.VPSidebarItem:not(.level-0) > .item > .text {
+.VPSidebarItem:not(.level-0) > .item > .text,
+.VPSidebarItem:not(.level-0) > .item > .link > .text {
   position: relative;
   padding: 5px 0;
   font-size: 0.84375rem;
@@ -79,11 +79,34 @@
   transition: color 0.15s ease;
 }
 
-.VPSidebarItem:not(.level-0) > .item:hover > .link > .text {
+/* Active page: steel text plus a solid connector back to the rail. */
+.VPSidebarItem.is-active > .item > .link > .text {
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+}
+
+.VPSidebarItem.is-link.is-active > .item > .link > .text::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: 8px;
+  height: 2px;
+  background: var(--bq-steel-400);
+  transform: translateY(-50%);
+}
+
+.VPSidebarItem.level-0.is-active > .item > .text {
+  color: var(--vp-c-text-2);
+}
+
+/* The current page keeps its steel colour on hover, so this excludes it
+   rather than relying on specificity to settle the two rules. */
+.VPSidebarItem:not(.level-0):not(.is-active) > .item:hover > .link > .text {
   color: var(--vp-c-text-1);
 }
 
-.VPSidebarItem.is-link:not(.level-0) > .item > .link > .text::before {
+.VPSidebarItem.is-link:not(.level-0):not(.is-active) > .item > .link > .text::before {
   content: '';
   position: absolute;
   top: 50%;
@@ -93,22 +116,6 @@
   background: var(--bq-hairline);
   transform: translateY(-50%);
   transition: background-color 0.15s ease;
-}
-
-/* Active page: steel text plus a solid connector back to the rail. */
-.VPSidebarItem.is-active > .item > .link > .text {
-  font-weight: 600;
-  color: var(--vp-c-brand-1);
-}
-
-.VPSidebarItem.is-active > .item > .link > .text::before {
-  width: 8px;
-  height: 2px;
-  background: var(--bq-steel-400);
-}
-
-.VPSidebarItem.level-0.is-active > .item > .text {
-  color: var(--vp-c-text-2);
 }
 
 /* Collapse caret: a mono glyph rather than a chunky chevron block. */

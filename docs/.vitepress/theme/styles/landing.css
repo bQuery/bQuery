@@ -184,17 +184,6 @@
   letter-spacing: 0.02em;
 }
 
-.bq-hero__runtimes a {
-  color: var(--vp-c-text-2);
-  text-decoration: underline;
-  text-decoration-color: var(--bq-hairline-strong);
-  text-underline-offset: 3px;
-}
-
-.bq-hero__runtimes a:hover {
-  color: var(--vp-c-brand-1);
-}
-
 /* Buttons: mono, square-ish, hairline. */
 .bq-btn {
   display: inline-flex;
@@ -771,11 +760,6 @@ a.bq-feature__body:hover .bq-feature__index {
     color 0.15s ease;
 }
 
-.bq-paths__targets a:hover {
-  border-color: var(--bq-steel-400);
-  color: var(--vp-c-brand-1);
-}
-
 /* ---------------------------------------------------------------------------
  * Landing footer.
  * ------------------------------------------------------------------------ */
@@ -848,10 +832,6 @@ a.bq-feature__body:hover .bq-feature__index {
   color: var(--vp-c-text-2);
   text-decoration: none;
   transition: color 0.15s ease;
-}
-
-.bq-footer__column a:hover {
-  color: var(--vp-c-brand-1);
 }
 
 .bq-footer__base {
@@ -931,6 +911,30 @@ a.bq-feature__body:hover .bq-feature__index {
   transition: color 0.15s ease;
 }
 
-.bq-aside-help a:hover {
+/* ---------------------------------------------------------------------------
+ * Quiet inline link in the hero's runtime line.
+ * ------------------------------------------------------------------------ */
+
+.bq-hero__runtimes a {
+  color: var(--vp-c-text-2);
+  text-decoration: underline;
+  text-decoration-color: var(--bq-hairline-strong);
+  text-underline-offset: 3px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Hover states for the quiet links above. Collected here, after every base
+ * rule, because they all resolve to the same steel and the cascade reads
+ * cleanest with the states last.
+ * ------------------------------------------------------------------------ */
+
+.bq-paths__targets a:hover,
+.bq-footer__column a:hover,
+.bq-aside-help a:hover,
+.bq-hero__runtimes a:hover {
   color: var(--vp-c-brand-1);
+}
+
+.bq-paths__targets a:hover {
+  border-color: var(--bq-steel-400);
 }

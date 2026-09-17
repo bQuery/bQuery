@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitepress';
 
 const SITE_URL = 'https://bquery.js.org';
-const SOCIAL_CARD = '/assets/bquery-social-card.png';
+const SOCIAL_CARD = '/assets/bquery-social-card.jpg';
 // `head` entries are emitted verbatim — VitePress prepends the base to links
 // it finds in markdown and in theme options, but not here.
 const BASE = process.env.VITEPRESS_BASE ?? '/';

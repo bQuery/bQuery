@@ -94,6 +94,19 @@
   color: var(--bq-sigil);
 }
 
+/* Local-search excerpts render page HTML into a 140px box, where a heading's
+   section chrome — the rule above it, the 56px margin, the `$` marker — eats
+   most of the visible text. Strip it there. */
+.VPLocalSearchBox .excerpt .vp-doc :is(h1, h2, h3, h4) {
+  margin: 0 0 4px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.VPLocalSearchBox .excerpt .vp-doc h2::before {
+  content: none;
+}
+
 /* ---------------------------------------------------------------------------
  * Prose.
  * ------------------------------------------------------------------------ */
@@ -145,19 +158,6 @@
   color: var(--vp-c-text-1);
 }
 
-/* Blockquote as a margin note: hairline rail, no italics, no quote marks. */
-.vp-doc blockquote {
-  border-left: 2px solid var(--bq-steel-400);
-  padding-left: 18px;
-  margin: 22px 0;
-  color: var(--vp-c-text-2);
-}
-
-.vp-doc blockquote > p {
-  font-size: 0.9375rem;
-  margin: 8px 0;
-}
-
 .vp-doc hr {
   border-top: 1px solid var(--bq-hairline);
   margin: 48px 0;
@@ -191,16 +191,18 @@
   overscroll-behavior-x: contain;
 }
 
+/* Any table that escaped the wrapper (inside a component, say) still gets
+   the doc type scale. */
+.vp-doc table {
+  font-size: 0.875rem;
+}
+
 .vp-doc .bq-table-scroll > table {
   display: table;
   width: 100%;
   min-width: 26rem;
   margin: 0;
   border-collapse: collapse;
-  font-size: 0.875rem;
-}
-
-.vp-doc table {
   font-size: 0.875rem;
 }
 
@@ -253,7 +255,6 @@
  * Callouts — annotations in the margin language, not filled bubbles.
  * ------------------------------------------------------------------------ */
 
-.vp-doc .custom-block,
 .custom-block {
   position: relative;
   border: none;
@@ -278,7 +279,10 @@
   margin: 8px 0;
 }
 
-.custom-block p:last-child {
+/* Whatever ends the callout — paragraph, list, code block — loses its
+   trailing margin, so the box closes evenly. Scoped to `.vp-doc` because it
+   has to outweigh the default theme's own `.vp-doc .custom-block p`. */
+.vp-doc .custom-block > :last-child {
   margin-bottom: 0;
 }
 
@@ -330,6 +334,21 @@
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
+}
+
+/* A blockquote is the markdown-native version of the same annotation: a
+   hairline rail, no italics, no quote marks. It lives here, after the
+   callouts, so the paragraph rules ascend in specificity. */
+.vp-doc blockquote {
+  border-left: 2px solid var(--bq-steel-400);
+  padding-left: 18px;
+  margin: 22px 0;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc blockquote > p {
+  font-size: 0.9375rem;
+  margin: 8px 0;
 }
 
 /* ---------------------------------------------------------------------------
@@ -406,6 +425,35 @@
 
 .VPDocAside .outline-marker {
   opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * 404. Kept above the page footer because both style a `.title`, and this
+ * one is the less specific of the two.
+ * ------------------------------------------------------------------------ */
+
+.NotFound .code {
+  font-family: var(--bq-font-mono);
+  font-weight: 500;
+  color: var(--bq-steel-400);
+}
+
+.NotFound .divider {
+  background: var(--bq-hairline-strong);
+}
+
+.NotFound .title {
+  font-family: var(--bq-font-mono);
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+}
+
+.NotFound .link {
+  border: 1px solid var(--bq-hairline-strong);
+  border-radius: var(--bq-radius-2);
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+  color: var(--vp-c-brand-1);
 }
 
 /* ---------------------------------------------------------------------------
@@ -490,28 +538,4 @@
   font-family: var(--bq-font-mono);
   font-size: 0.75rem;
   color: var(--vp-c-text-3);
-}
-
-.NotFound .code {
-  font-family: var(--bq-font-mono);
-  font-weight: 500;
-  color: var(--bq-steel-400);
-}
-
-.NotFound .divider {
-  background: var(--bq-hairline-strong);
-}
-
-.NotFound .title {
-  font-family: var(--bq-font-mono);
-  letter-spacing: var(--bq-label-tracking);
-  text-transform: uppercase;
-}
-
-.NotFound .link {
-  border: 1px solid var(--bq-hairline-strong);
-  border-radius: var(--bq-radius-2);
-  font-family: var(--bq-font-mono);
-  font-size: 0.8125rem;
-  color: var(--vp-c-brand-1);
 }
