@@ -9,6 +9,7 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+    - [Added (Unreleased)](#added-unreleased)
     - [Removed (Unreleased)](#removed-unreleased)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
     - [Changed (1.16.1)](#changed-1161)
@@ -105,6 +106,10 @@ and this project adheres to Semantic Versioning.
     - [Added (1.0.0)](#added-100)
 
 ## [Unreleased]
+
+### Added (Unreleased)
+
+- **Server**: `rateLimit()` throttles incoming requests ([#223](https://github.com/bQuery/bQuery/issues/223)). No server-side throttling primitive existed, so any public endpoint was unprotected against brute force by default — including the login route in the `login-form` cookbook recipe, which now shows the limit. (`createRequestQueue` in `reactive` is the client-side mirror image: it limits outgoing parallel requests, not incoming ones.) Counters live in a `SessionStore`, the same abstraction sessions use, so a Redis-backed store plugs in the same way and the limit holds across processes. Responses carry `RateLimit-Limit`/`-Remaining`/`-Reset`, and a rejected request gets `429` with `Retry-After`. `keyBy` is required rather than defaulting to the client address: `X-Forwarded-For` is client-supplied unless a trusted proxy overwrites it, so an implicit default would produce a limiter that is bypassed by varying the header — `trustProxy: true` opts into that behaviour explicitly.
 
 ### Removed (Unreleased)
 

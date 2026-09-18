@@ -77,6 +77,7 @@ Runtime helpers:
 | `csrf()` / `csrfToken()`                  | Double-submit CSRF protection and per-request token accessor (1.15.0).                               |
 | `guard()`                                 | Predicate-based route guard middleware (1.15.0).                                                     |
 | `basicAuth()` / `bearerAuth()`            | `Authorization`-header auth helpers with a `verify` hook (1.15.0).                                   |
+| `rateLimit()`                             | Fixed-window request throttling with `RateLimit-*` headers and a pluggable store.                    |
 | `signValue()` / `unsignValue()`           | HMAC-SHA-256 sign/verify with secret rotation (1.15.0).                                              |
 | `timingSafeEqual()`                       | Constant-time string comparison (1.15.0).                                                            |
 | `randomToken()` / `randomId()`            | CSPRNG-backed token and id generation (1.15.0).                                                      |
@@ -361,6 +362,79 @@ app.use(bearerAuth({ verify: (token) => verifyJwt(token) }));
 const requireUser = guard((ctx) => Boolean(ctx.state.user), { status: 401 });
 app.get('/me', (ctx) => ctx.json({ user: ctx.state.user }), [requireUser]);
 ```
+
+### Rate limiting
+
+`rateLimit()` caps how many requests one key may make per window. Pair it with
+the auth helpers above: an unprotected login route is a brute-force target, and
+that is exactly where a limit belongs.
+
+```ts
+import { createServer, rateLimit, session } from '@bquery/bquery/server';
+
+const app = createServer();
+app.use(session({ secret: process.env.SECRET! }));
+
+app.post('/login', handleLogin, [
+  rateLimit({
+    window: 15 * 60_000,
+    max: 5,
+    keyBy: (ctx) => ctx.session?.$id ?? null,
+    skipSuccessfulRequests: true, // a valid login should not use up the budget
+  }),
+]);
+```
+
+Under the limit, responses carry `RateLimit-Limit`, `RateLimit-Remaining` and
+`RateLimit-Reset`. Over it, the request is answered `429 Too Many Requests`
+with `Retry-After`.
+
+#### Choosing `keyBy`
+
+**`keyBy` is required**, and that is deliberate. The obvious default — the
+client's address from `X-Forwarded-For` — is a header the _client_ sets unless
+a proxy you control overwrites it. Keying on it without that proxy gives a
+limiter an attacker bypasses by sending a different header per request: worse
+than no limiter, because it looks like protection.
+
+So pick the identity that is actually meaningful for the route:
+
+| `keyBy`                                         | Good for                                             |
+| ----------------------------------------------- | ---------------------------------------------------- |
+| `(ctx) => ctx.session?.$id ?? null`             | Per-browser limits on session-bearing routes         |
+| `(ctx) => (ctx.state.user as User)?.id ?? null` | Per-account limits after auth                        |
+| `(ctx) => ctx.request.headers.get('x-api-key')` | Per-API-key quotas                                   |
+| `trustProxy: true` (instead of `keyBy`)         | Behind a proxy that **overwrites** `X-Forwarded-For` |
+
+Returning `null` skips the limit for that request.
+
+#### Options
+
+| Option                   | Default         | Notes                                                           |
+| ------------------------ | --------------- | --------------------------------------------------------------- |
+| `window`                 | _(required)_    | Window length in milliseconds.                                  |
+| `max`                    | _(required)_    | Requests allowed per key per window.                            |
+| `keyBy`                  | _(required\*)_  | Identity to count against. `null` skips. \*Or set `trustProxy`. |
+| `trustProxy`             | `false`         | Derive the key from `X-Forwarded-For` and friends.              |
+| `store`                  | `memoryStore()` | Any `SessionStore`. The default is per process.                 |
+| `prefix`                 | `'rl:'`         | Store-key prefix, so counters cannot collide with sessions.     |
+| `headers`                | `true`          | Emit the `RateLimit-*` headers.                                 |
+| `status` / `message`     | `429` / text    | The default rejection response.                                 |
+| `skip`                   | —               | Skip a request entirely, without consuming budget.              |
+| `onLimit`                | —               | Handle rejection yourself; the headers are still applied.       |
+| `skipSuccessfulRequests` | `false`         | Refund requests that ended below 400.                           |
+
+::: warning The default store only limits one process
+`memoryStore()` is process-local, so with several instances behind a load
+balancer each enforces its own count. Pass a shared `SessionStore` — the same
+interface sessions use — to make the limit hold across all of them.
+:::
+
+The window is **fixed**, not sliding: the first request starts it and the
+counter resets wholesale when it ends. That allows a burst of up to `2 × max`
+across a window boundary, which is the standard trade-off — a sliding window
+needs per-request timestamps in the store, a much larger write cost for a
+limiter whose job is to be cheap.
 
 ### Signing utilities
 
