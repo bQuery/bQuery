@@ -36,7 +36,7 @@ Supported tooling: **Node ≥ 24** and **Bun ≥ 1.4.0**. See [Supported Runtime
 1. **Open an issue first** for non-trivial changes — this avoids wasted work.
 2. **Branch** from `main` (or `dev` for in-flight work).
 3. **Make the smallest change that fully addresses the request.** Add or update tests and docs.
-4. **Run the local validation suite**: `bun run lint`, `bun run build`, `bun test`, and `bun run check:full-bundle` for any public-export change.
+4. **Run the local validation suite**: `bun run lint`, `bun run format`, `bun run lint:types`, `bun test`, `bun run check`, and `bun run build`. The PR gate runs the same set (`Test` workflow, `quality` job), so anything failing there fails locally first.
 5. **Open a PR** using the [PR template](https://github.com/bQuery/bQuery/blob/main/.github/pull_request_template.md). Conventional Commits are required (`feat(module): …`).
 
 ## Where to go next

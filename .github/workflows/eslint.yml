@@ -6,6 +6,10 @@
 # found in ECMAScript/JavaScript code.
 # More details at https://github.com/eslint/eslint
 # and https://eslint.org
+#
+# This workflow exists to publish SARIF results to GitHub code scanning. It is
+# NOT the lint gate — that is the `quality` job in `test.yml`, which runs on
+# every push and every PR (#212).
 
 name: ESLint
 
