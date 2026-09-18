@@ -9,6 +9,7 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+    - [Added (Unreleased)](#added-unreleased)
     - [Removed (Unreleased)](#removed-unreleased)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
     - [Changed (1.16.1)](#changed-1161)
@@ -105,6 +106,10 @@ and this project adheres to Semantic Versioning.
     - [Added (1.0.0)](#added-100)
 
 ## [Unreleased]
+
+### Added (Unreleased)
+
+- **Security**: `sanitizeHtml()` and `stripTags()` now work on runtimes without a DOM ([#229](https://github.com/bQuery/bQuery/issues/229)). They previously threw `ReferenceError: document is not defined` on Bun, Node and Deno, so server code that needed to sanitize user-generated HTML — the most common place to need it — had to install `linkedom` or `happy-dom` and wire up globals. A DOM-free string backend is now selected automatically when no DOM is present, mirroring how `src/ssr` picks a renderer. New `configureSanitizer({ backend: 'auto' | 'dom' | 'string' })` and `getSanitizerConfig()` pin the choice, which is useful when server and browser output must match byte for byte. Both backends share a single policy module, so the allow lists, URL checks, DOM-clobbering protection and mutation-XSS guard cannot drift between them; they can differ on malformed input, where the string backend escapes rather than guesses. No behaviour changes in the browser.
 
 ### Removed (Unreleased)
 
