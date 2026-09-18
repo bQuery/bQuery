@@ -155,6 +155,7 @@ const contributingItems = [
   { text: 'Architecture', link: '/contributing/architecture' },
   { text: 'Testing Strategy', link: '/contributing/testing-strategy' },
   { text: 'Release Process', link: '/contributing/release-process' },
+  { text: 'Improvement Roadmap', link: '/contributing/improvement-roadmap' },
   { text: 'Agent Guide', link: '/contributing/agent-guide' },
   { text: 'Code of Conduct', link: '/contributing/code-of-conduct' },
   { text: 'Security Policy', link: '/contributing/security' },

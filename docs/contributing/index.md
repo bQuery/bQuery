@@ -45,6 +45,7 @@ Supported tooling: **Node ≥ 24** and **Bun ≥ 1.4.0**. See [Supported Runtime
 - [Architecture](/contributing/architecture) — module layering rules and the dependency direction guarantee.
 - [Testing Strategy](/contributing/testing-strategy) — how the test suite is organised.
 - [Release Process](/contributing/release-process) — `check:ai-guidance`, `check:full-bundle`, semver policy.
+- [Improvement Roadmap](/contributing/improvement-roadmap) — audited findings and proposed work, with evidence.
 - [Agent Guide](/contributing/agent-guide) — curated subset of `AGENT.md` for human contributors.
 - [Code of Conduct](/contributing/code-of-conduct).
 - [Security Policy](/contributing/security).
