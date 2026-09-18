@@ -39,8 +39,36 @@ const form = createForm({
 
 **Why it works.** `validationStrategy: 'onChange'` validates on every keystroke; throwing inside `onSubmit` populates `submitError` automatically.
 
+## Rate-limit the endpoint
+
+Client-side validation stops typos, not a password-guessing script. The
+`/login` route this form posts to needs a limit of its own:
+
+```ts
+import { createServer, rateLimit, session } from '@bquery/bquery/server';
+
+const app = createServer();
+app.use(session({ secret: process.env.SECRET! }));
+
+app.post('/login', handleLogin, [
+  rateLimit({
+    window: 15 * 60_000,
+    max: 5,
+    keyBy: (ctx) => ctx.session?.$id ?? null,
+    // A correct password should not spend budget — only failures count.
+    skipSuccessfulRequests: true,
+  }),
+]);
+```
+
+Attempts past the fifth get `429` with `Retry-After`, and the form surfaces
+the body through `submitError` like any other server error. See
+[Rate limiting](/guide/server#rate-limiting) for choosing `keyBy` and for
+sharing counters across processes.
+
 ## Related
 
 - [Forms guide](/guide/forms)
+- [Server — Rate limiting](/guide/server#rate-limiting)
 - [Workflow — Forms + validation + i18n + a11y](/workflows/forms-validation)
 - Longer worked example: [Examples & Recipes — Login form](/guide/examples#login-form-with-validation)
