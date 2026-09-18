@@ -114,6 +114,9 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.js.map",
+    "!dist/**/*.mjs.map",
+    "!dist/**/*.cjs.map",
     "src",
     "bin",
     "README.md",
@@ -142,6 +145,7 @@
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
     "check:stability": "bun scripts/check-stability-matrix.mjs",
     "check:doc-exports": "bun scripts/check-doc-exports.mjs",
+    "check:package": "bun scripts/check-package-size.mjs",
     "docs:check": "bun scripts/check-doc-exports.mjs",
     "test": "bun test",
     "test:types": "tsc -p tsconfig.component-test.json --noEmit",
@@ -152,7 +156,7 @@
     "format:check": "prettier --check .",
     "docs:api": "typedoc",
     "clean": "rimraf dist",
-    "prepublishOnly": "bun run clean && bun run build && bun test"
+    "prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package"
   },
   "keywords": [
     "dom",
