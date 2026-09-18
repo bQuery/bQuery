@@ -4,6 +4,7 @@
  * @module bquery/security
  */
 
+export { configureSanitizer, getSanitizerConfig } from './config';
 export { generateNonce, hasCSPDirective } from './csp';
 export { escapeHtml, sanitizeHtml as sanitize, sanitizeHtml, stripTags } from './sanitize';
 export { trusted } from './trusted-html';
@@ -14,4 +15,5 @@ export {
   trustedHtmlForSink,
 } from './trusted-types';
 export type { SanitizedHtml, TrustedHtml } from './trusted-html';
+export type { SanitizerBackend } from './config';
 export type { SanitizeOptions } from './types';
