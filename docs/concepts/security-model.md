@@ -71,6 +71,15 @@ The forms module surfaces user input. The serialization helpers (`serializeFormS
 - **Cookie attribute validation** rejects `;`, `\r`, and other header-unsafe characters.
 - **`ServerHttpError`** is the canonical way to surface 4xx / 5xx; status codes propagate through `renderToResponse`.
 
+## Sanitizing without a DOM
+
+`sanitizeHtml()` is runtime-agnostic. It uses `DOMParser` where a DOM exists
+and a DOM-free scanner everywhere else, so server code can sanitize
+user-generated HTML without installing `linkedom` or `happy-dom`. Both
+backends share one policy module, and `configureSanitizer({ backend })` pins
+the choice when you want it fixed. See
+[Runtime backends](/guide/security#runtime-backends).
+
 ## Reporting vulnerabilities
 
 If you find a vulnerability, follow the [Security Policy](/contributing/security). Please **do not** open a public issue for security reports.

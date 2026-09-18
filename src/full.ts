@@ -552,9 +552,11 @@ export type {
 // Security Module: Sanitization, CSP compatibility, Trusted Types
 // ============================================================================
 export {
+  configureSanitizer,
   createTrustedHtml,
   escapeHtml,
   generateNonce,
+  getSanitizerConfig,
   getTrustedTypesPolicy,
   hasCSPDirective,
   isTrustedTypesSupported,
@@ -564,7 +566,12 @@ export {
   trusted,
   trustedHtmlForSink,
 } from './security/index';
-export type { SanitizedHtml, SanitizeOptions, TrustedHtml } from './security/index';
+export type {
+  SanitizedHtml,
+  SanitizeOptions,
+  SanitizerBackend,
+  TrustedHtml,
+} from './security/index';
 
 // ============================================================================
 // Platform Module: Storage, buckets, notifications, cache
