@@ -83,7 +83,7 @@ pnpm add @bquery/bquery
 
 ### Vite + TypeScript
 
-Use any modern bundler — Vite, Rspack, esbuild, tsup, Rollup, or webpack — without extra configuration. bQuery ships ESM, CJS, UMD, and `.d.ts` files, so TypeScript projects get full type inference out of the box. A minimal Vite entry looks like this:
+Use any modern bundler — Vite, Rspack, esbuild, tsup, Rollup, or webpack — without extra configuration. bQuery ships ESM and `.d.ts` files for every entry, plus a UMD build reachable through `require('@bquery/bquery')`, so TypeScript projects get full type inference out of the box. See [Module format](#module-format) for what `require()` does and does not resolve. A minimal Vite entry looks like this:
 
 ```ts
 import { $, signal, effect } from '@bquery/bquery';
@@ -96,6 +96,32 @@ effect(() => {
 ```
 
 The root `@bquery/bquery` entry re-exports the most commonly used helpers (selectors, signals, components, view mount, security, default config, etc.). For smaller bundles, import directly from a sub-path such as `@bquery/bquery/reactive` — every sub-path is tree-shakeable and listed in [Module Imports](#module-imports).
+
+### Module format
+
+**The sub-path entries are ESM-only.** This is deliberate, not an oversight.
+
+| Specifier                                                 | `import` | `require()` |
+| --------------------------------------------------------- | -------- | ----------- |
+| `@bquery/bquery`                                          | ✅ ESM   | ✅ UMD      |
+| `@bquery/bquery/full`                                     | ✅ ESM   | ✅ UMD      |
+| `@bquery/bquery/core`, `/server`, and all other sub-paths | ✅ ESM   | ❌          |
+
+`require('@bquery/bquery/server')` therefore fails with `ERR_PACKAGE_PATH_NOT_EXPORTED`. If you need bQuery from a CommonJS file, you have three options:
+
+```js
+// 1. Dynamic import — works in any CJS file, no build change.
+const { createServer } = await import('@bquery/bquery/server');
+
+// 2. Go through the root entry, which has a `require` condition.
+const { signal, effect } = require('@bquery/bquery');
+
+// 3. Best: make the consuming package ESM (`"type": "module"`).
+```
+
+Only the root and `/full` entries carry a `require` condition, and both resolve to the same UMD bundle — so `require('@bquery/bquery')` pulls in the full framework rather than one module. When bundle size matters, use ESM and a sub-path.
+
+`./package.json` is exported too, for tooling that resolves it (several bundler plugins and type-resolution tools expect to).
 
 ## Module Imports
 
