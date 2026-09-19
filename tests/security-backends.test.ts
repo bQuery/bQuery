@@ -96,7 +96,9 @@ describe('sanitizer backend selection', () => {
 
   it('routes sanitizeHtml and stripTags through the configured backend', () => {
     configureSanitizer({ backend: 'string' });
-    expect(sanitizeHtml('<b>hi</b>')).toBe('<b>hi</b>');
+    // `sanitizeHtml` returns the branded `SanitizedHtml`, so compare as a
+    // plain string — the same way tests/security.test.ts does.
+    expect(String(sanitizeHtml('<b>hi</b>'))).toBe('<b>hi</b>');
     expect(stripTags('<div>a<script>evil()</script>b</div>')).toBe('ab');
   });
 });
