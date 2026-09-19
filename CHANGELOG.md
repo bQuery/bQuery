@@ -9,6 +9,8 @@ and this project adheres to Semantic Versioning.
 - [Changelog](#changelog)
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
+    - [Added (Unreleased)](#added-unreleased)
+    - [Fixed (Unreleased)](#fixed-unreleased)
     - [Removed (Unreleased)](#removed-unreleased)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
     - [Changed (1.16.1)](#changed-1161)
@@ -105,6 +107,14 @@ and this project adheres to Semantic Versioning.
     - [Added (1.0.0)](#added-100)
 
 ## [Unreleased]
+
+### Added (Unreleased)
+
+- **Reactive**: `configureReactive({ scheduler: 'sync' | 'batched' })` plus `getReactiveConfig()` and `flushSync()` ([#210](https://github.com/bQuery/bQuery/issues/210)). Under the new `'batched'` scheduler a signal write is coalesced onto a microtask instead of notifying synchronously, which makes a diamond dependency graph glitch-free and collapses a burst of writes in one tick into a single effect run. Measured on Bun 1.3.11, 1000 writes to one signal with 1000 subscribed effects go from 1314 ms / 1,000,000 effect invocations to 44 ms / 1000. `flushSync()` drains pending updates immediately for tests and for code that needs the synchronous timing. **`'sync'` remains the default for all of 1.x** — effect timing is observable, so flipping it is semver-major even though it fixes a bug.
+
+### Fixed (Unreleased)
+
+- **Reactive**: a flush now settles every derived value before running any effect ([#210](https://github.com/bQuery/bQuery/issues/210)). Previously the pending-observer queue mixed computed revalidations with effects in insertion order, so in a chain like `a → double → quadruple` an effect reading both `double` and `quadruple` could run between the two recomputations and observe a fresh `double` beside a stale `quadruple`. This affected explicit `batch()` under the default scheduler too, so the fix applies there as well.
 
 ### Removed (Unreleased)
 

@@ -5,7 +5,9 @@
  */
 
 export { createUseFetch, useAsyncData, useFetch } from './async-data';
-export { batch } from './batch';
+export { batch, flushSync } from './batch';
+export { configureReactive, getReactiveConfig } from './config';
+export type { ReactiveScheduler } from './config';
 export { Computed, computed } from './computed';
 export { Signal, signal } from './core';
 export { effect } from './effect';

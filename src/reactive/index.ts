@@ -6,6 +6,7 @@
 
 export {
   batch,
+  configureReactive,
   Computed,
   computed,
   createHttp,
@@ -15,7 +16,9 @@ export {
   deduplicateRequest,
   effect,
   effectScope,
+  flushSync,
   getCurrentScope,
+  getReactiveConfig,
   http,
   HttpError,
   isComputed,
@@ -67,6 +70,7 @@ export type {
   Observer,
   PaginatedState,
   PollingState,
+  ReactiveScheduler,
   ReadonlySignal,
   ReadonlySignalHandle,
   RequestQueue,
