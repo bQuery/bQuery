@@ -28,8 +28,20 @@ import type { SanitizeOptions } from './types';
  */
 const parseHtmlDocument = (htmlContent: string): Document => {
   const parser = new DOMParser();
-  // Parse as a full HTML document in an inert context; scripts won't execute
-  return parser.parseFromString(htmlContent, 'text/html');
+  // Parse as a full HTML document in an inert context; scripts won't execute.
+  //
+  // CodeQL flags this as `js/xss-through-dom` ("DOM text reinterpreted as
+  // HTML") because of the mutation-XSS guard in `sanitizeHtmlDom`: that reads
+  // the sanitized fragment back out through `innerHTML` and re-parses it here
+  // to check the markup is stable across a second parse. Parsing untrusted
+  // HTML is what a sanitizer is for, and `DOMParser.parseFromString` is the
+  // safe way to do it — the document it builds is inert, so nothing executes
+  // and no resource is fetched. Every node then goes through the allow lists
+  // in `sanitize-policy.ts` before anything is returned to a caller.
+  //
+  // Removing the re-parse to satisfy the query would delete the mXSS check and
+  // make the sanitizer weaker, so the alert is suppressed rather than dodged.
+  return parser.parseFromString(htmlContent, 'text/html'); // codeql[js/xss-through-dom]
 };
 
 /**
