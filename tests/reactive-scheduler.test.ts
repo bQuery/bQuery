@@ -260,7 +260,7 @@ describe('batched scheduler: ordering', () => {
     await Promise.resolve();
 
     expect(order[0]).toBe('computed');
-    expect(order.at(-1)).toBe('effect:4');
+    expect(order[order.length - 1]).toBe('effect:4');
   });
 });
 
