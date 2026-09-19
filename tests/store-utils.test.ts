@@ -99,7 +99,7 @@ describe('store/deepClone', () => {
     const clone = deepClone(payload);
 
     expect(Object.getPrototypeOf(clone)).toBe(Object.prototype);
-    expect(Object.hasOwn(clone, '__proto__')).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(clone, '__proto__')).toBe(true);
     expect((clone as { polluted?: unknown }).polluted).toBeUndefined();
     expect(({} as { polluted?: unknown }).polluted).toBeUndefined();
   });
@@ -212,7 +212,7 @@ describe('store/detectNestedMutations', () => {
 
   it('reports nothing when the content is unchanged', () => {
     const shared = { count: 1 };
-    const signals = new Map<string, unknown>([['profile', shared]]);
+    const signals = new Map<'profile', unknown>([['profile', shared]]);
 
     expect(detectNestedMutations({ profile: { count: 1 } }, { profile: shared }, signals)).toEqual(
       []
@@ -222,14 +222,14 @@ describe('store/detectNestedMutations', () => {
   it('ignores a key whose reference changed — an ordinary signal write', () => {
     const before = { profile: { count: 1 } };
     const after = { profile: { count: 2 } };
-    const signals = new Map<string, unknown>([['profile', before.profile]]);
+    const signals = new Map<'profile', unknown>([['profile', before.profile]]);
 
     expect(detectNestedMutations(before, after, signals)).toEqual([]);
   });
 
   it('ignores non-plain-object values', () => {
     const list = [1];
-    const signals = new Map<string, unknown>([['list', list]]);
+    const signals = new Map<'list', unknown>([['list', list]]);
 
     expect(detectNestedMutations({ list: [1, 2] }, { list }, signals)).toEqual([]);
   });
@@ -237,7 +237,7 @@ describe('store/detectNestedMutations', () => {
   it('reports every mutated key', () => {
     const a = { n: 9 };
     const b = { n: 9 };
-    const signals = new Map<string, unknown>([
+    const signals = new Map<'a' | 'b', unknown>([
       ['a', a],
       ['b', b],
     ]);
