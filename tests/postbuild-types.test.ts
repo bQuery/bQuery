@@ -27,7 +27,7 @@ const { resolveSpecifier, rewriteSource } = (await import(scriptUrl)) as unknown
 /** Pretend `dist/` holds exactly these declaration files. */
 const fakeDist = (...paths: string[]): Exists => {
   const present = new Set(paths);
-  return (path) => present.has(path.replaceAll('\\', '/'));
+  return (path) => present.has(path.split('\\').join('/'));
 };
 
 describe('resolveSpecifier', () => {
