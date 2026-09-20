@@ -25,7 +25,15 @@ A bQuery release produces:
 ### What ships in the tarball
 
 The `files` field in `package.json` is a deliberate list, not a default. Three
-decisions are worth knowing before you change it (#220):
+decisions are worth knowing before you change it (#220).
+
+::: warning `.npmignore` is inert while `files` exists
+npm ignores the root `.npmignore` entirely when `files` is set, and it is set.
+Everything `.npmignore` still lists (`docs/`, `scripts/`, `tests/`, …) is
+already excluded by `files`, which is why nobody has noticed. **Exclusions
+belong in `files`** — adding one to `.npmignore` has no effect at all, and
+`check:package` would flag the resulting size without hinting why.
+:::
 
 | Content                                | Shipped | Why                                                                                      |
 | -------------------------------------- | ------- | ---------------------------------------------------------------------------------------- |
@@ -46,7 +54,15 @@ If you ever need published JS source maps, prefer a separate
 `@bquery/bquery-sourcemaps` package over re-adding 6.4 MB to every install.
 
 `bun run check:package` enforces all of the above against the real `npm pack`
-file list, and runs as part of `prepublishOnly`. It needs a current `dist/`.
+file list. It needs a current `dist/`, and runs both in the publish
+workflow's `build` job — so a re-inflated tarball fails at PR time rather
+than mid-release — and again from `prepublishOnly` as a last gate.
+
+It also verifies the invariant the exclusion rests on: that no shipped bundle
+carries a `sourceMappingURL` comment. Dropping the maps is only safe while
+both vite configs use `sourcemap: 'hidden'`; a revert to `sourcemap: true`
+would otherwise ship bundles pointing at maps that 404, with the check still
+green.
 
 ## Validation gates
 

@@ -14,7 +14,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -30,15 +30,47 @@ export const BUDGET = {
 
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
 
-/** Ask npm what it would publish. */
+/** Read a shipped bundle, tolerating a file the pack list names but disk does not. */
+export const readSource = (path) => {
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return '';
+  }
+};
+
+/**
+ * Ask npm what it would publish.
+ *
+ * Captures stderr: discarding it turned a failing `npm pack` into a raw
+ * stack trace with `stderr: null`, which is a poor thing to hit mid-release.
+ * `npm` missing entirely is realistic in this bun-first repo.
+ */
 export function packList() {
-  const raw = execFileSync('npm', ['pack', '--dry-run', '--json'], {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'ignore'],
-    maxBuffer: 64 * 1024 * 1024,
-  });
-  const [entry] = JSON.parse(raw);
+  let raw;
+  try {
+    raw = execFileSync('npm', ['pack', '--dry-run', '--json'], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (error) {
+    const detail = error?.stderr?.toString().trim() || error?.message || String(error);
+    throw new Error(`\`npm pack --dry-run --json\` failed:\n${detail}`);
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error(`\`npm pack\` did not return JSON:\n${raw.slice(0, 400)}`);
+  }
+
+  const [entry] = Array.isArray(parsed) ? parsed : [];
+  if (!entry || !Array.isArray(entry.files)) {
+    throw new Error('`npm pack` returned no file list — cannot audit the tarball.');
+  }
   return entry;
 }
 
@@ -50,7 +82,26 @@ export function auditPackage(entry) {
   if (jsMaps.length > 0) {
     problems.push(
       `${jsMaps.length} JS source map(s) are in the tarball (e.g. ${jsMaps[0]}). ` +
-        'They are excluded via `files` in package.json.'
+        'They should be excluded by the `!dist/**/*.{js,mjs,cjs}.map` entries in ' +
+        '`files` — check whether those were removed.'
+    );
+  }
+
+  // The invariant that makes dropping the maps safe is `sourcemap: 'hidden'`
+  // in both vite configs: no bundle carries a `sourceMappingURL`, so there
+  // is nothing for a browser to chase. Without checking it, a revert to
+  // `sourcemap: true` — or a third vite config without `'hidden'` — ships
+  // bundles pointing at maps that 404, and this guard still exits 0.
+  const dangling = paths.filter(
+    (path) =>
+      /^dist\/.*\.(js|mjs|cjs)$/.test(path) &&
+      readSource(resolve(repoRoot, path)).includes('sourceMappingURL=')
+  );
+  if (dangling.length > 0) {
+    problems.push(
+      `${dangling.length} shipped bundle(s) still carry a sourceMappingURL comment ` +
+        `(e.g. ${dangling[0]}) while the maps are not published. Both vite configs ` +
+        "must use `sourcemap: 'hidden'`."
     );
   }
 
@@ -79,27 +130,41 @@ export function auditPackage(entry) {
   return { problems, declarationMaps: declarationMaps.length };
 }
 
-export async function main() {
+/**
+ * Same injectable shape as `check-full-bundle.mjs` and
+ * `check-stability-matrix.mjs`, so `auditPackage` can be exercised from a
+ * test without tearing down the test process.
+ */
+export async function main({ log = console.log, error = console.error, exit } = {}) {
+  const terminate = exit ?? process.exit.bind(process);
+
   if (!existsSync(resolve(repoRoot, 'dist'))) {
-    console.error('✗ No dist/ directory — run `bun run build` first.');
-    process.exit(1);
+    error('✗ No dist/ directory — run `bun run build` first.');
+    return terminate(1);
   }
 
-  const entry = packList();
+  let entry;
+  try {
+    entry = packList();
+  } catch (failure) {
+    error(`✗ ${failure.message}`);
+    return terminate(1);
+  }
+
   const { problems, declarationMaps } = auditPackage(entry);
 
   if (problems.length === 0) {
-    console.log(
+    log(
       `✓ Package is ${mb(entry.size)} packed / ${mb(entry.unpackedSize)} unpacked across ` +
         `${entry.entryCount} files (${declarationMaps} declaration maps, no JS source maps).`
     );
-    process.exit(0);
+    return terminate(0);
   }
 
-  console.error('✗ Published package check failed:');
-  for (const problem of problems) console.error(`  - ${problem}`);
-  console.error('\nSee docs/contributing/release-process.md — "What ships in the tarball".');
-  process.exit(1);
+  error('✗ Published package check failed:');
+  for (const problem of problems) error(`  - ${problem}`);
+  error('\nSee docs/contributing/release-process.md — "What ships in the tarball".');
+  return terminate(1);
 }
 
 export function isDirectExecution(argvEntry = process.argv[1]) {
