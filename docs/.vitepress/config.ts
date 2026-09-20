@@ -1,6 +1,10 @@
 import { defineConfig } from 'vitepress';
 
 const SITE_URL = 'https://bquery.js.org';
+const SOCIAL_CARD = '/assets/bquery-social-card.jpg';
+// `head` entries are emitted verbatim — VitePress prepends the base to links
+// it finds in markdown and in theme options, but not here.
+const BASE = process.env.VITEPRESS_BASE ?? '/';
 const DESCRIPTION =
   'Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components, routing, and more — with a jQuery-inspired API and zero mandatory build step.';
 
@@ -170,7 +174,7 @@ export default defineConfig({
   lang: 'en-US',
   title: 'bQuery.js',
   description: DESCRIPTION,
-  base: process.env.VITEPRESS_BASE ?? '/',
+  base: BASE,
   cleanUrls: true,
   // TypeDoc emits its HTML reference into docs/api/ via `bun run docs:api`.
   // VitePress should not crawl those files; the API reference is linked as
@@ -182,24 +186,67 @@ export default defineConfig({
     /^\/?api\//,
   ],
   head: [
-    ['link', { rel: 'icon', href: '/assets/bquerry-logo.svg' }],
+    ['link', { rel: 'icon', href: `${BASE}assets/bquerry-logo.svg` }],
     ['meta', { name: 'google-site-verification', content: 'injOs87iZEPOqUJhHQiKuXhzvuD7XL4dyXxyDpx4Sx8' }],
-    ['meta', { name: 'theme-color', content: '#0b5fff' }],
+    // IBM Plex: Sans for prose, Mono for every piece of metadata. The theme
+    // falls back to the system stack if these never arrive.
+    ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
+    ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
+    [
+      'link',
+      {
+        rel: 'stylesheet',
+        href:
+          'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600' +
+          '&family=IBM+Plex+Sans:wght@400;500;600&display=swap',
+      },
+    ],
+    ['meta', { name: 'theme-color', media: '(prefers-color-scheme: light)', content: '#fbfcfd' }],
+    ['meta', { name: 'theme-color', media: '(prefers-color-scheme: dark)', content: '#0b1218' }],
     // Open Graph
     ['meta', { property: 'og:type', content: 'website' }],
     ['meta', { property: 'og:site_name', content: 'bQuery.js' }],
     ['meta', { property: 'og:title', content: 'bQuery.js — the full-stack framework that speaks jQuery' }],
     ['meta', { property: 'og:description', content: DESCRIPTION }],
     ['meta', { property: 'og:url', content: SITE_URL }],
-    ['meta', { property: 'og:image', content: `${SITE_URL}/assets/bquerry-logo.svg` }],
+    ['meta', { property: 'og:image', content: `${SITE_URL}${SOCIAL_CARD}` }],
+    ['meta', { property: 'og:image:width', content: '1200' }],
+    ['meta', { property: 'og:image:height', content: '630' }],
+    ['meta', { property: 'og:image:alt', content: 'bQuery.js — the full-stack framework that speaks jQuery' }],
     // Twitter
-    ['meta', { name: 'twitter:card', content: 'summary' }],
+    ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
     ['meta', { name: 'twitter:title', content: 'bQuery.js' }],
     ['meta', { name: 'twitter:description', content: DESCRIPTION }],
-    ['meta', { name: 'twitter:image', content: `${SITE_URL}/assets/bquerry-logo.svg` }],
+    ['meta', { name: 'twitter:image', content: `${SITE_URL}${SOCIAL_CARD}` }],
   ],
   sitemap: {
     hostname: SITE_URL,
+  },
+  markdown: {
+    // Dimmed GitHub reads better against the theme's blue-tinted panels than
+    // the high-contrast default does.
+    theme: { light: 'github-light', dark: 'github-dark-dimmed' },
+    config(md) {
+      // These docs are full of wide API tables. Wrapping every table in a
+      // scroll container lets the theme render real `display: table` layouts
+      // (full width on desktop, swipeable on phones) instead of the shrink-to-
+      // fit block tables the default stylesheet needs.
+      const renderTableOpen = md.renderer.rules.table_open;
+      md.renderer.rules.table_open = (tokens, idx, options, env, self) => {
+        const table = renderTableOpen
+          ? renderTableOpen(tokens, idx, options, env, self)
+          : self.renderToken(tokens, idx, options);
+        return `<div class="bq-table-scroll">${table}`;
+      };
+
+      const renderTableClose = md.renderer.rules.table_close;
+      md.renderer.rules.table_close = (tokens, idx, options, env, self) => {
+        const table = renderTableClose
+          ? renderTableClose(tokens, idx, options, env, self)
+          : self.renderToken(tokens, idx, options);
+        return `${table}</div>`;
+      };
+    },
   },
   lastUpdated: true,
   vite: {
@@ -214,6 +261,8 @@ export default defineConfig({
   },
   themeConfig: {
     logo: '/assets/bquerry-logo.svg',
+    siteTitle: 'bQuery.js',
+    externalLinkIcon: true,
     nav: [
       { text: 'Guide', link: '/guide/getting-started', activeMatch: '^/guide/' },
       { text: 'Concepts', link: '/concepts/architecture', activeMatch: '^/concepts/' },
@@ -239,13 +288,28 @@ export default defineConfig({
       '/release-notes/': fullSidebar,
       '/contributing/': fullSidebar,
     },
-    outline: { level: [2, 3] },
+    outline: { level: [2, 3], label: 'On this page' },
     search: {
       provider: 'local',
+      options: {
+        detailedView: true,
+      },
     },
     editLink: {
       pattern: 'https://github.com/bQuery/bQuery/edit/main/docs/:path',
-      text: 'Edit this page on GitHub',
+      text: 'Suggest an edit to this page',
+    },
+    lastUpdated: {
+      text: 'Last updated',
+      formatOptions: { dateStyle: 'medium' },
+    },
+    notFound: {
+      code: '404',
+      title: 'No matching route',
+      quote:
+        'The router found nothing at this path. The sidebar and the search box both know where everything lives.',
+      linkLabel: 'Go to the home page',
+      linkText: 'Back to the docs',
     },
     socialLinks: [
       { icon: 'github', link: 'https://github.com/bQuery/bQuery' },

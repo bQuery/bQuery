@@ -1,0 +1,137 @@
+/*
+ * Sidebar.
+ *
+ * Groups get mono uppercase headers; their children hang off a vertical
+ * hairline rail, so a long nav reads like a wiring diagram rather than a
+ * wall of links. The active item clamps onto the rail with a steel bar.
+ */
+
+.VPSidebar {
+  border-right: 1px solid var(--bq-hairline);
+  background: var(--vp-c-bg-alt);
+  padding-bottom: 96px;
+  scrollbar-gutter: stable;
+}
+
+.VPSidebar .group + .group {
+  border-top: 1px solid var(--bq-hairline);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+/* Group header: a mono channel label. */
+.VPSidebarItem.level-0 > .item > .text {
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+  padding: 2px 0;
+}
+
+.VPSidebarItem.level-0 {
+  padding-bottom: 14px;
+}
+
+.VPSidebarItem.level-0 > .item {
+  padding-bottom: 6px;
+}
+
+/* The rail: one hairline that every child link hangs off. */
+.VPSidebarItem.level-0 > .items {
+  position: relative;
+  border-left: none;
+  padding-left: 11px;
+  margin-left: 1px;
+}
+
+.VPSidebarItem.level-0 > .items::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: 0;
+  width: 1px;
+  background: var(--bq-hairline);
+}
+
+.VPSidebarItem.level-1 > .items,
+.VPSidebarItem.level-2 > .items,
+.VPSidebarItem.level-3 > .items {
+  border-left: 1px solid var(--bq-hairline);
+  padding-left: 14px;
+  margin-left: 2px;
+}
+
+/* Link rows. Compact, mono-adjacent sizing, no pill backgrounds. */
+.VPSidebarItem .link {
+  border-radius: 0;
+}
+
+.VPSidebarItem:not(.level-0) > .item > .text,
+.VPSidebarItem:not(.level-0) > .item > .link > .text {
+  position: relative;
+  padding: 5px 0;
+  font-size: 0.84375rem;
+  line-height: 1.45;
+  color: var(--vp-c-text-2);
+  transition: color 0.15s ease;
+}
+
+/* Active page: steel text plus a solid connector back to the rail. */
+.VPSidebarItem.is-active > .item > .link > .text {
+  font-weight: 600;
+  color: var(--vp-c-brand-1);
+}
+
+.VPSidebarItem.is-link.is-active > .item > .link > .text::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: 8px;
+  height: 2px;
+  background: var(--bq-steel-400);
+  transform: translateY(-50%);
+}
+
+.VPSidebarItem.level-0.is-active > .item > .text {
+  color: var(--vp-c-text-2);
+}
+
+/* The current page keeps its steel colour on hover, so this excludes it
+   rather than relying on specificity to settle the two rules. */
+.VPSidebarItem:not(.level-0):not(.is-active) > .item:hover > .link > .text {
+  color: var(--vp-c-text-1);
+}
+
+.VPSidebarItem.is-link:not(.level-0):not(.is-active) > .item > .link > .text::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -11px;
+  width: 6px;
+  height: 1px;
+  background: var(--bq-hairline);
+  transform: translateY(-50%);
+  transition: background-color 0.15s ease;
+}
+
+/* Collapse caret: a mono glyph rather than a chunky chevron block. */
+.VPSidebarItem .caret {
+  color: var(--vp-c-text-3);
+  border-radius: var(--bq-radius-1);
+}
+
+.VPSidebarItem .caret:hover {
+  color: var(--vp-c-brand-1);
+}
+
+/* Mobile drawer shares the language, minus the border. */
+@media (max-width: 959px) {
+  .VPSidebar {
+    border-right: none;
+    box-shadow: var(--vp-shadow-3);
+  }
+}
