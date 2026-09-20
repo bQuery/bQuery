@@ -1,109 +1,41 @@
 ---
-layout: home
+layout: page
+pageClass: bq-landing
+sidebar: false
+aside: false
 title: bQuery.js
+titleTemplate: The full-stack framework that speaks jQuery
+description: Batteries-included TypeScript framework for the modern web — signals, SSR, Web Components, routing, and more — with a jQuery-inspired API and zero mandatory build step.
+footer: false
 hero:
-  name: bQuery.js
-  text: The full-stack framework that speaks jQuery.
-  tagline: Batteries-included TypeScript framework with signals, Web Components, routing, SSR, and a dependency-free server — zero mandatory build step.
-  image:
-    src: /assets/bquerry-logo.svg
-    alt: bQuery Logo
+  kicker:
+    - TypeScript
+    - ESM only
+    - zero dependencies
+    - MIT
+  title: The full-stack framework that speaks
+  accent: jQuery
+  lead: Signals, Web Components, routing, forms, motion, runtime-agnostic SSR and a dependency-free server — 23 tree-shakeable entry points behind the $() you already know. A bundler is a choice, not a prerequisite.
   actions:
-    - theme: brand
-      text: Get started
+    - text: get started
       link: /guide/getting-started
-    - theme: alt
-      text: What is bQuery?
+      theme: brand
+    - text: what is bQuery?
       link: /introduction
-    - theme: alt
-      text: View on GitHub
+    - text: github
       link: https://github.com/bQuery/bQuery
-features:
-  - icon: ⚡
-    title: Zero Build
-    details: Works directly in the browser via CDN or ES modules. Vite is optional, not required.
-  - icon: 🧠
-    title: Fine-grained Reactivity
-    details: Signals, computed values, scopes, batching, watch with debounce/throttle, and async data primitives.
-  - icon: 🌐
-    title: Realtime & HTTP
-    details: Built-in HTTP client, polling, pagination, WebSocket/SSE composables, REST helpers, and request deduplication.
-  - icon: 🧩
-    title: Web Components
-    details: Typed Web Components with scoped reactivity, slots, refs, lifecycle hooks, and a previewable default library.
-  - icon: 🛡️
-    title: Secure by Default
-    details: HTML-writing APIs sanitize untrusted input. Trusted Types and CSP-friendly patterns ship out of the box.
-  - icon: 🧵
-    title: Off-Main-Thread
-    details: Zero-build worker tasks, RPC helpers, bounded pools, reactive worker state, and collection helpers.
-  - icon: 🛣️
-    title: Router & Store
-    details: SPA routing with guards and navigation results plus signal-based state management and persistence.
-  - icon: 📝
-    title: Forms & i18n
-    details: Reactive form state, schema validation, locale negotiation, pluralization, and Intl formatting.
-  - icon: ♿
-    title: Accessibility & Media
-    details: Focus traps, live regions, audits, viewport / network / battery signals, clipboard, and reduced-motion helpers.
-  - icon: 🖥️
-    title: SSR & Server
-    details: Runtime-agnostic SSR (Node, Bun, Deno, edge) and a dependency-free backend with WebSocket sessions.
-  - icon: 🧪
-    title: Testing & Devtools
-    details: Component mounts, screen / userEvent helpers, signal mocks, timeline inspection, and snapshot import/export.
-  - icon: 🎨
-    title: Motion & DnD
-    details: Springs, tweens, FLIP, timelines, parallax, drag-and-drop with keyboard a11y, and reactive draggable APIs.
+  runtimes:
+    text: Node ≥ 24 · Bun ≥ 1.4 · Deno · edge · evergreen browsers
+    linkText: support matrix
+    link: /concepts/runtimes
 ---
 
-## What is bQuery.js?
+<BqHero>
+<template #install>
 
-bQuery.js is a **batteries-included TypeScript framework for the modern web** — not just a DOM utility library. It bundles fine-grained reactivity, Web Components, routing, state management, forms, motion, accessibility, drag-and-drop, runtime-agnostic SSR, and a dependency-free backend behind a familiar **jQuery-inspired API**. Every public module ships its own entry point so bundlers can keep your build small.
+<span class="bq-label">install</span>
 
-Read more in the **[Introduction](/introduction)** or jump straight to **[Getting Started](/guide/getting-started)**.
-
-## Why bQuery?
-
-| You want…                                                | bQuery gives you                                                                                                        |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **A jQuery-style DOM API on modern reactive primitives** | `$(selector)` returns a typed `BQueryElement`; signals and effects participate in chainable code without a virtual DOM. |
-| **Zero build for small projects**                        | Drop a `<script type="module">` from a CDN — no Vite, no bundler, no transpiler required.                               |
-| **A real framework when projects grow**                  | 23 tree-shakeable modules covering routing, state, forms, SSR, server, motion, a11y, i18n, devtools, testing, plugins.  |
-| **One stack for client and server**                      | `@bquery/bquery/ssr` + `@bquery/bquery/server` render and serve from the same runtime (Node, Bun, Deno, or edge).       |
-| **Security defaults that don't fight you**               | HTML-writing APIs sanitize untrusted input; Trusted Types and CSP-friendly patterns are first-class.                    |
-| **Predictable bundle size**                              | Zero runtime dependencies; every public surface is tree-shakeable; a `/full` bundle is reserved for CDN consumers.      |
-
-## At a glance
-
-```
-@bquery/bquery
-├── core ─────────── selectors, traversal, events, utilities
-├── reactive ─────── signals, computed, watch, async data, HTTP, realtime
-├── concurrency ──── worker tasks, RPC, pools, reactive metrics
-├── component ────── typed Web Components, slots, refs, lifecycle
-├── motion ───────── transitions, springs, tweens, timelines
-├── security ─────── sanitization, Trusted Types
-├── platform ─────── storage, cache, cookies, page meta
-├── router ───────── SPA routing, guards, navigation results
-├── store ────────── signal-based state with persistence
-├── view ─────────── declarative bq-* directives
-├── forms ────────── reactive forms, validators, schema
-├── i18n ─────────── locale negotiation, Intl, pluralization
-├── a11y ─────────── focus, live regions, audits, prefs
-├── dnd ──────────── draggable, droppable, sortable
-├── media ────────── viewport, network, clipboard, prefs
-├── plugin ───────── hooks, DI, namespaced directives
-├── devtools ─────── timeline, signal/store diffs, perf
-├── testing ──────── screen, userEvent, mocks
-├── storybook ────── safe story helpers
-├── ssr ──────────── runtime-agnostic rendering & streaming
-└── server ───────── dependency-free routing + WebSockets
-```
-
-See the full **[Architecture overview](/concepts/architecture)** and the **[Modules](#i-want-to)** matrix below.
-
-## Install
+<div class="vp-doc bq-code-frame">
 
 ::: code-group
 
@@ -119,11 +51,7 @@ bun add @bquery/bquery
 pnpm add @bquery/bquery
 ```
 
-```bash [yarn]
-yarn add @bquery/bquery
-```
-
-```html [CDN]
+```html [cdn]
 <script type="module">
   import { $, signal, effect } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
 </script>
@@ -131,15 +59,20 @@ yarn add @bquery/bquery
 
 :::
 
-Supported runtimes: **Node.js ≥ 24**, **Bun ≥ 1.4.0**, modern Chromium / Firefox / Safari / Edge. See **[Supported Runtimes](/concepts/runtimes)**.
+</div>
 
-## Two-minute example — client
+</template>
+<template #code>
 
-```ts
-import { $, signal, effect } from '@bquery/bquery';
+::: code-group
+
+```ts [counter.ts]
+import { $, effect, signal } from '@bquery/bquery';
 
 const count = signal(0);
 
+// No virtual DOM: the effect writes straight to
+// the element it read, and nothing else re-renders.
 effect(() => {
   $('#counter').text(`Count: ${count.value}`);
 });
@@ -149,39 +82,102 @@ $('#counter').on('click', () => {
 });
 ```
 
-## Two-minute example — server
-
-```ts
+```ts [server.ts]
 import { createServer } from '@bquery/bquery/server';
 
 const app = createServer();
 
 app.get('/', async (ctx) => {
-  return ctx.renderResponse(`<h1 bq-text="message"></h1>`, { message: 'Hello from bQuery SSR' });
+  return ctx.renderResponse(`<h1 bq-text="message"></h1>`, {
+    message: 'Hello from bQuery SSR',
+  });
 });
 
+// No framework dependencies. Runs on Node, Bun or Deno.
 await app.listen({ port: 3000 });
 ```
 
-Walk through both end-to-end in the **[Tutorial](/guide/tutorial)** and the **[Full-Stack Workflows](/workflows/)**.
+```html [zero-build.html]
+<button id="counter">Count: 0</button>
 
-## I want to…
+<script type="module">
+  import { $, signal, effect } from 'https://unpkg.com/@bquery/bquery@1/dist/full.es.mjs';
 
-| I want to…                                | Start here                                                          |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| Reactively update the DOM without a build | [Core](/guide/api-core) + [Reactive](/guide/reactive)               |
-| Build a single-page app                   | [Router](/guide/router), [Store](/guide/store), [View](/guide/view) |
-| Build Web Components                      | [Component](/guide/components) + [Storybook](/guide/storybook)      |
-| Build a full-stack app with SSR           | [SSR](/guide/ssr) + [Server](/guide/server)                         |
-| Handle forms, i18n, and a11y              | [Forms](/guide/forms) + [i18n](/guide/i18n) + [A11y](/guide/a11y)   |
-| Animate things                            | [Motion](/guide/motion)                                             |
-| Move work off the main thread             | [Concurrency](/guide/concurrency)                                   |
-| Migrate from jQuery                       | [Migration Guide](/guide/migration)                                 |
+  const count = signal(0);
 
-## Learn more
+  effect(() => $('#counter').text(`Count: ${count.value}`));
+  $('#counter').on('click', () => count.value++);
+</script>
+```
 
-- **New to the project?** Start with **[Getting Started](/guide/getting-started)** and follow the **[Tutorial](/guide/tutorial)**.
-- **Stuck on a concept?** See **[Core Concepts](/concepts/architecture)** and the **[Glossary](/glossary)**.
-- **Looking for snippets?** The **[Cookbook](/cookbook/)** and **[Examples](/guide/examples)** have copy-paste recipes.
-- **Coming from jQuery?** Read the **[Migration Guide](/guide/migration)**.
-- **Contributing?** Read the **[Contributing Guide](/contributing/)**.
+:::
+
+</template>
+</BqHero>
+
+<BqSpecBar />
+
+<BqSection index="01" label="Positioning" title="A familiar surface over a modern core" lead="bQuery keeps the ergonomics that made $() stick — a typed, chainable wrapper around real DOM nodes — and puts fine-grained reactivity, components, routing and SSR underneath it.">
+
+<div class="vp-doc bq-prose">
+
+| You want…                                     | bQuery gives you                                                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| A jQuery-style DOM API on reactive primitives | `$(selector)` returns a typed `BQueryElement`; signals and effects join the same chain — no virtual DOM, no diffing pass. |
+| Zero build for small projects                 | One `<script type="module">` from a CDN. No Vite, no bundler, no transpiler.                                              |
+| A real framework once the project grows       | 23 tree-shakeable entry points: routing, state, forms, SSR, server, motion, a11y, i18n, devtools, testing, plugins.       |
+| One stack for client and server               | `@bquery/bquery/ssr` and `/server` render and serve from the same runtime — Node, Bun, Deno or edge.                      |
+| Security defaults that don't fight you        | Every HTML-writing API sanitizes untrusted input; Trusted Types and CSP-friendly patterns are first-class.                |
+| Predictable bundle size                       | Zero runtime dependencies, `sideEffects: false`, one entry point per module. `/full` exists for CDN consumers only.       |
+
+</div>
+</BqSection>
+
+<BqSection index="02" label="Reactivity" title="From a write to the DOM, with nothing in between" lead="A signal write notifies exactly the computeds and effects that read it. Effects write to the elements they touched. There is no component re-render to opt out of.">
+
+<BqSignalFlow />
+
+<div class="vp-doc bq-prose">
+
+```ts
+import { batch, computed, effect, signal } from '@bquery/bquery/reactive';
+
+const items = signal([{ done: false }, { done: true }]);
+const open = computed(() => items.value.filter((item) => !item.done).length);
+
+effect(() => {
+  console.log(`${open.value} open`); // runs once now, then on every change
+});
+
+batch(() => {
+  items.value = [...items.value, { done: false }]; // one notification,
+  items.value = [...items.value, { done: false }]; // not two
+});
+```
+
+Read the whole model in **[Reactivity](/concepts/reactivity-model)**, or the API surface in **[reactive](/guide/reactive)**.
+
+</div>
+</BqSection>
+
+<BqSection index="03" label="Surface" title="23 entry points. Import exactly what you use." lead="Every public module is its own sub-path export with its own types, so bundlers drop what you never touch. The root entry is a convenience, not a requirement." wide>
+
+<BqModuleMap />
+
+</BqSection>
+
+<BqSection index="04" label="Capabilities" title="What ships in the box" lead="Batteries included means the boring parts are already solved — sanitization, focus management, locale negotiation, request dedup, worker pools, hydration." wide>
+
+<BqFeatureGrid />
+
+</BqSection>
+
+<BqSection index="05" label="Start" title="Pick the layer you need today" lead="You do not have to adopt the whole framework at once. Start where your app is, and compose more modules in when you need them.">
+
+<BqStartPaths />
+
+<BqCta />
+
+</BqSection>
+
+<BqSiteFooter />

@@ -1,0 +1,541 @@
+/*
+ * The reading surface.
+ *
+ * Reference docs get read for hours, so the priorities here are measure,
+ * rhythm and scannability: a slightly wider column, headings that are easy to
+ * land on, tables that look like spec sheets, and callouts that annotate the
+ * text instead of interrupting it.
+ */
+
+/* A little more room than the stock 688px — these pages are full of tables
+   and wide code samples. */
+.VPDoc.has-aside .content-container {
+  max-width: 768px;
+}
+
+.VPDoc:not(.has-sidebar) .container {
+  max-width: 1040px;
+}
+
+@media (min-width: 960px) {
+  .VPDoc {
+    padding: 40px 32px 96px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Headings.
+ * ------------------------------------------------------------------------ */
+
+.vp-doc h1 {
+  margin-bottom: 20px;
+  font-size: 2.125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.028em;
+}
+
+.vp-doc h2 {
+  position: relative;
+  margin-top: 56px;
+  margin-bottom: 20px;
+  padding-top: 26px;
+  border-top: 1px solid var(--bq-hairline);
+  font-size: 1.4375rem;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+}
+
+/* Section sigil: bQuery's own selector sits on the rule that opens each
+   section, the way a reference mark sits on a schematic's border. */
+.vp-doc h2::before {
+  /* The second declaration gives the glyph empty alternative text, so screen
+     readers announce "Signals", not "dollar sign Signals". The plain `content`
+     above stays as the fallback for browsers without the alt-text syntax. */
+  content: '$';
+  content: '$' / '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-right: 9px;
+  transform: translateY(-50%);
+  background: var(--vp-c-bg);
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--bq-sigil);
+}
+
+.vp-doc h3 {
+  margin-top: 36px;
+  margin-bottom: 14px;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+.vp-doc h4 {
+  margin-top: 26px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* Anchor links: mono, quiet until hovered. */
+.vp-doc .header-anchor {
+  font-family: var(--bq-font-mono);
+  font-weight: 400;
+  color: var(--vp-c-text-3);
+  transition: color 0.15s ease;
+}
+
+.vp-doc .header-anchor:hover {
+  color: var(--bq-sigil);
+}
+
+/* Local-search excerpts render page HTML into a 140px box, where a heading's
+   section chrome — the rule above it, the 56px margin, the `$` marker — eats
+   most of the visible text. Strip it there. */
+.VPLocalSearchBox .excerpt .vp-doc :is(h1, h2, h3, h4) {
+  margin: 0 0 4px;
+  padding-top: 0;
+  border-top: none;
+}
+
+.VPLocalSearchBox .excerpt .vp-doc h2::before {
+  content: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Prose.
+ * ------------------------------------------------------------------------ */
+
+.vp-doc p,
+.vp-doc li {
+  line-height: 1.72;
+}
+
+.vp-doc p {
+  margin: 18px 0;
+}
+
+.vp-doc a {
+  font-weight: 500;
+  text-decoration-color: var(--bq-steel-300);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  transition:
+    color 0.15s ease,
+    text-decoration-color 0.15s ease;
+}
+
+.vp-doc a:hover {
+  text-decoration-color: currentColor;
+}
+
+.vp-doc ul,
+.vp-doc ol {
+  padding-left: 1.35rem;
+}
+
+.vp-doc ul > li::marker {
+  color: var(--bq-steel-400);
+}
+
+.vp-doc ol > li::marker {
+  font-family: var(--bq-font-mono);
+  font-size: 0.85em;
+  color: var(--vp-c-text-3);
+}
+
+.vp-doc li + li {
+  margin-top: 6px;
+}
+
+.vp-doc strong {
+  font-weight: 600;
+  color: var(--vp-c-text-1);
+}
+
+.vp-doc hr {
+  border-top: 1px solid var(--bq-hairline);
+  margin: 48px 0;
+}
+
+.vp-doc img {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+}
+
+.vp-doc kbd {
+  border: 1px solid var(--bq-hairline-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--bq-radius-1);
+  padding: 1px 5px;
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125em;
+  background: var(--bq-surface-sunken);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tables — these docs lean on them heavily (API surfaces, matrices).
+ * ------------------------------------------------------------------------ */
+
+/* Tables are wrapped in a scroll container by a markdown-it rule (see
+   .vitepress/config.ts) so they can be real `display: table` layouts —
+   full width on desktop, swipeable on phones, never pushing the page wide. */
+.bq-table-scroll {
+  margin: 24px 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+/* Any table that escaped the wrapper (inside a component, say) still gets
+   the doc type scale. */
+.vp-doc table {
+  font-size: 0.875rem;
+}
+
+.vp-doc .bq-table-scroll > table {
+  display: table;
+  width: 100%;
+  min-width: 26rem;
+  margin: 0;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.vp-doc thead th {
+  border: none;
+  border-bottom: 1px solid var(--bq-hairline-strong);
+  background: transparent;
+  padding: 0 14px 9px;
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--vp-c-text-3);
+  white-space: nowrap;
+}
+
+.vp-doc tbody td {
+  border: none;
+  border-bottom: 1px solid var(--bq-hairline);
+  background: transparent;
+  padding: 11px 14px;
+  vertical-align: top;
+  line-height: 1.6;
+}
+
+/* No zebra striping: hairlines already separate the rows. */
+.vp-doc tbody tr,
+.vp-doc tr:nth-child(2n) {
+  background: transparent;
+  transition: background-color 0.12s ease;
+}
+
+.vp-doc tbody tr:hover {
+  background: var(--vp-c-default-soft);
+}
+
+.vp-doc thead th:first-child,
+.vp-doc tbody td:first-child {
+  padding-left: 2px;
+}
+
+/* First column is almost always the identifier — keep it from wrapping mid-name. */
+.vp-doc tbody td:first-child > code {
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------------------
+ * Callouts — annotations in the margin language, not filled bubbles.
+ * ------------------------------------------------------------------------ */
+
+.custom-block {
+  position: relative;
+  border: none;
+  border-left: 2px solid var(--vp-c-brand-3);
+  border-radius: 0 var(--bq-radius-2) var(--bq-radius-2) 0;
+  padding: 14px 18px;
+  font-size: var(--vp-custom-block-font-size);
+  line-height: 1.65;
+  color: var(--vp-c-text-2);
+}
+
+.custom-block .custom-block-title {
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.custom-block p {
+  margin: 8px 0;
+}
+
+/* Whatever ends the callout — paragraph, list, code block — loses its
+   trailing margin, so the box closes evenly. Scoped to `.vp-doc` because it
+   has to outweigh the default theme's own `.vp-doc .custom-block p`. */
+.vp-doc .custom-block > :last-child {
+  margin-bottom: 0;
+}
+
+.custom-block.tip,
+.custom-block.note,
+.custom-block.important {
+  border-left-color: var(--bq-steel-400);
+  background: var(--vp-c-tip-soft);
+}
+
+.custom-block.tip .custom-block-title,
+.custom-block.note .custom-block-title {
+  color: var(--vp-c-brand-1);
+}
+
+.custom-block.warning {
+  border-left-color: var(--bq-amber-400);
+  background: var(--vp-c-warning-soft);
+}
+
+.custom-block.warning .custom-block-title {
+  color: var(--vp-c-warning-1);
+}
+
+.custom-block.danger,
+.custom-block.caution {
+  border-left-color: var(--bq-rose-400);
+  background: var(--vp-c-danger-soft);
+}
+
+.custom-block.danger .custom-block-title,
+.custom-block.caution .custom-block-title {
+  color: var(--vp-c-danger-1);
+}
+
+.custom-block.info {
+  border-left-color: var(--bq-hairline-strong);
+  background: var(--vp-c-default-soft);
+}
+
+.custom-block.details {
+  border-left-color: var(--bq-hairline-strong);
+  border-radius: var(--bq-radius-2);
+  background: var(--bq-surface-sunken);
+}
+
+.custom-block.details summary {
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* A blockquote is the markdown-native version of the same annotation: a
+   hairline rail, no italics, no quote marks. It lives here, after the
+   callouts, so the paragraph rules ascend in specificity. */
+.vp-doc blockquote {
+  border-left: 2px solid var(--bq-steel-400);
+  padding-left: 18px;
+  margin: 22px 0;
+  color: var(--vp-c-text-2);
+}
+
+.vp-doc blockquote > p {
+  font-size: 0.9375rem;
+  margin: 8px 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Badges.
+ * ------------------------------------------------------------------------ */
+
+.VPBadge {
+  border: 1px solid var(--bq-hairline-strong);
+  border-radius: var(--bq-radius-1);
+  padding: 0 6px;
+  font-family: var(--bq-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  background: transparent;
+}
+
+.VPBadge.info {
+  color: var(--vp-c-text-2);
+}
+
+.VPBadge.tip {
+  border-color: var(--bq-steel-400);
+  color: var(--vp-c-brand-1);
+}
+
+.VPBadge.warning {
+  border-color: var(--bq-amber-400);
+  color: var(--vp-c-warning-1);
+}
+
+.VPBadge.danger {
+  border-color: var(--bq-rose-400);
+  color: var(--vp-c-danger-1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Outline (right rail) — same rail idiom as the sidebar.
+ * ------------------------------------------------------------------------ */
+
+.VPDocAsideOutline .outline-title {
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.VPDocAsideOutline .outline-marker {
+  width: 2px;
+  border-radius: 0;
+  background: var(--bq-steel-400);
+}
+
+.VPDocAsideOutline .outline-link {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  padding: 4px 0;
+  font-weight: 400;
+  color: var(--vp-c-text-3);
+  transition: color 0.15s ease;
+}
+
+.VPDocAsideOutline .outline-link:hover,
+.VPDocAsideOutline .outline-link.active {
+  color: var(--vp-c-text-1);
+}
+
+.VPDocAside .aside-container {
+  border-left: none;
+}
+
+.VPDocAside .outline-marker {
+  opacity: 1;
+}
+
+/* ---------------------------------------------------------------------------
+ * 404. Kept above the page footer because both style a `.title`, and this
+ * one is the less specific of the two.
+ * ------------------------------------------------------------------------ */
+
+.NotFound .code {
+  font-family: var(--bq-font-mono);
+  font-weight: 500;
+  color: var(--bq-steel-400);
+}
+
+.NotFound .divider {
+  background: var(--bq-hairline-strong);
+}
+
+.NotFound .title {
+  font-family: var(--bq-font-mono);
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+}
+
+.NotFound .link {
+  border: 1px solid var(--bq-hairline-strong);
+  border-radius: var(--bq-radius-2);
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+  color: var(--vp-c-brand-1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Page footer: prev/next as hairline panels, metadata in mono.
+ * ------------------------------------------------------------------------ */
+
+.VPDocFooter {
+  margin-top: 56px;
+}
+
+.VPDocFooter .edit-info {
+  border-top: 1px solid var(--bq-hairline);
+  padding-top: 14px;
+}
+
+.VPDocFooter .edit-link-button,
+.VPDocFooter .VPLastUpdated {
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.VPDocFooter .edit-link-button {
+  color: var(--vp-c-text-2);
+}
+
+.VPDocFooter .edit-link-button:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.VPDocFooter .prev-next {
+  border-top: 1px solid var(--bq-hairline);
+  gap: 14px;
+}
+
+.VPDocFooter .pager-link {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: transparent;
+  padding: 14px 16px;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.VPDocFooter .pager-link:hover {
+  border-color: var(--bq-steel-400);
+  background: var(--vp-c-brand-soft);
+}
+
+.VPDocFooter .desc {
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+.VPDocFooter .pager-link .title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--vp-c-text-1);
+}
+
+.VPDocFooter .pager-link:hover .title {
+  color: var(--vp-c-brand-1);
+}
+
+/* ---------------------------------------------------------------------------
+ * Site footer + 404.
+ * ------------------------------------------------------------------------ */
+
+.VPFooter {
+  border-top: 1px solid var(--bq-hairline);
+  background: var(--vp-c-bg-alt);
+}
+
+.VPFooter .message,
+.VPFooter .copyright {
+  font-family: var(--bq-font-mono);
+  font-size: 0.75rem;
+  color: var(--vp-c-text-3);
+}
