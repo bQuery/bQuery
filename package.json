@@ -1,7 +1,7 @@
 {
   "name": "@bquery/bquery",
   "version": "1.16.1",
-  "description": "bQuery.js — batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
+  "description": "bQuery.js \u2014 batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
   "type": "module",
   "main": "./dist/full.umd.js",
   "module": "./dist/index.es.mjs",
@@ -195,6 +195,7 @@
     "@typescript-eslint/eslint-plugin": "^8.68.0",
     "@typescript-eslint/parser": "^8.68.0",
     "bun-types": "^1.4.0",
+    "esbuild": "^0.28.2",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.11.0",

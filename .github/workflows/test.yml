@@ -35,8 +35,13 @@ jobs:
       - name: Run tests
         run: bun test
 
+  # Build-dependent checks. `bun run build` is the expensive part, so
+  # anything else needing a current `dist/` — the `package` job from #218,
+  # `check:package` from #220 — belongs as a step here rather than as its
+  # own job that repeats the checkout, install and build. Whichever of those
+  # lands second should fold into this job.
   size:
-    name: Bundle size budgets
+    name: Build-dependent checks
     runs-on: ubuntu-latest
     permissions:
       contents: read

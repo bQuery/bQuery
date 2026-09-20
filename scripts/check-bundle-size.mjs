@@ -38,20 +38,52 @@ const repoRoot = resolve(__dirname, '..');
 const kb = (bytes) => `${(bytes / 1024).toFixed(1)} kB`;
 
 /**
+ * Resolve an `import` condition to its module path.
+ *
+ * The condition is either a bare string or a nested `{ types, default }`
+ * branch — the shape publint and attw steer packages toward, and the one
+ * this package adopted in #219. Reading only the string form silently
+ * dropped every entry, and a dropped entry is invisible to the audit: it
+ * never reaches `measurements`, so it is not reported as unbudgeted either,
+ * and a new public entry ships unmeasured with CI green.
+ */
+export function importTarget(condition) {
+  if (typeof condition === 'string') return condition;
+  if (condition && typeof condition === 'object' && typeof condition.default === 'string') {
+    return condition.default;
+  }
+  return null;
+}
+
+/**
  * The ESM target of every public entry, in `exports` order.
- * `./package.json` and any entry without an `import` condition are skipped.
+ *
+ * `./package.json` is skipped deliberately; anything else that cannot be
+ * resolved to an `.mjs` bundle is returned in `unsupported` so the audit can
+ * fail on it rather than pass in silence.
  */
 export async function publicEntries(pkg) {
   const manifest = pkg ?? JSON.parse(await readFile(resolve(repoRoot, 'package.json'), 'utf8'));
   const entries = [];
+  const unsupported = [];
 
   for (const [subpath, conditions] of Object.entries(manifest.exports ?? {})) {
+    // `"./package.json": "./package.json"` is a string export by design.
     if (typeof conditions !== 'object' || conditions === null) continue;
-    const target = conditions.import ?? conditions.default;
-    if (typeof target !== 'string' || !target.endsWith('.mjs')) continue;
+
+    const target = importTarget(conditions.import ?? conditions.default);
+    if (target === null) {
+      unsupported.push(`${subpath} — no import target this script can read; cannot measure.`);
+      continue;
+    }
+    if (!target.endsWith('.mjs')) {
+      unsupported.push(`${subpath} — import target ${target} is not an .mjs bundle.`);
+      continue;
+    }
     entries.push({ subpath, target });
   }
 
+  entries.unsupported = unsupported;
   return entries;
 }
 
@@ -92,12 +124,20 @@ export async function measureAll() {
     measurements.push({ ...entry, ...(await measureEntry(entry.target)) });
   }
 
+  // Carried through so the audit can fail on an entry it could not read,
+  // rather than reporting only on the ones it happened to understand.
+  measurements.unsupported = entries.unsupported ?? [];
   return measurements;
 }
 
 export function auditBudgets(measurements, budgets = budgetBySubpath()) {
   const problems = [];
   const unbudgeted = [];
+
+  // An entry whose exports shape this script cannot read never reaches
+  // `measurements`, so without this it would be invisible to both the
+  // budget check and the unbudgeted check.
+  for (const reason of measurements.unsupported ?? []) problems.push(reason);
 
   for (const entry of measurements) {
     if (entry.missing) {
@@ -163,6 +203,21 @@ export async function main(argv = process.argv.slice(2)) {
 
   const measurements = await measureAll();
 
+  // Both reporting modes drop entries they cannot measure, so a partial
+  // `dist/` would silently publish a table with rows missing. The docs tell
+  // maintainers to regenerate with `--table` and paste the result, so this
+  // has to fail loudly.
+  const incomplete = measurements.filter((entry) => entry.missing).map((entry) => entry.subpath);
+  const reporting = argv.includes('--json') || argv.includes('--table');
+
+  if (reporting && (incomplete.length > 0 || (measurements.unsupported ?? []).length > 0)) {
+    console.error(
+      `✗ Cannot report on an incomplete build: ${[...incomplete, ...(measurements.unsupported ?? [])].join(', ')}.`
+    );
+    console.error('Run `bun run build` first.');
+    process.exit(1);
+  }
+
   if (argv.includes('--json')) {
     console.log(JSON.stringify(measurements, null, 2));
     process.exit(0);
@@ -176,10 +231,17 @@ export async function main(argv = process.argv.slice(2)) {
   const { problems } = auditBudgets(measurements);
 
   if (problems.length === 0) {
-    const total = measurements.reduce((sum, entry) => sum + (entry.gzip ?? 0), 0);
+    // Not a package total: the per-module entries re-measure code the root
+    // entry already contains, so summing them overstates the real surface
+    // roughly threefold. Report the largest entry, which is a number that
+    // means something on its own.
+    const largest = measurements.reduce(
+      (worst, entry) => ((entry.gzip ?? 0) > (worst.gzip ?? 0) ? entry : worst),
+      measurements[0] ?? { subpath: '—', gzip: 0 }
+    );
     console.log(
       `✓ All ${measurements.length} entry points are within budget ` +
-        `(${kb(total)} gzipped across all entries).`
+        `(largest: ${largest.subpath} at ${kb(largest.gzip ?? 0)} gzipped).`
     );
     process.exit(0);
   }

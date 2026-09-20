@@ -7,7 +7,13 @@
  * pays, unlike the per-file sizes Vite prints, which exclude the shared chunks
  * an entry re-exports.
  *
- * Budgets are ceilings in bytes, set roughly 15% above the measured size so
+ * Budgets are ceilings in bytes, derived as `ceil(measured * 1.15 / 100) * 100`
+ * so every entry gets the same 15% headroom. Rounding to the nearest 1 kB
+ * instead gave the small entries far more slack than the large ones —
+ * `./security` could grow 42% before failing, which is exactly the size of
+ * regression worth catching in a module people pick for a small footprint.
+ *
+ * Set above the measured size so
  * ordinary growth does not trip them. When a change legitimately grows an
  * entry, raise its budget in the same PR and say why — that is the point:
  * the number moves visibly, in review, rather than silently.
@@ -26,33 +32,33 @@
 export const BUNDLE_BUDGETS = [
   {
     subpath: '.',
-    gzip: 148000,
+    gzip: 147500,
     note: 'Re-exports the common helpers of every module — nearly as large as /full when you import all of it. Tree-shaking is what makes this entry cheap in practice.',
   },
-  { subpath: './full', gzip: 149000, note: 'Every public export; for CDN use, not bundlers.' },
-  { subpath: './core', gzip: 15000 },
-  { subpath: './reactive', gzip: 14000 },
-  { subpath: './concurrency', gzip: 12000 },
-  { subpath: './component', gzip: 13000 },
-  { subpath: './motion', gzip: 13000 },
-  { subpath: './security', gzip: 4000 },
-  { subpath: './platform', gzip: 5000 },
-  { subpath: './router', gzip: 11000 },
-  { subpath: './store', gzip: 6000 },
-  { subpath: './view', gzip: 16000 },
-  { subpath: './view/compiler', gzip: 6000 },
-  { subpath: './storybook', gzip: 5000 },
-  { subpath: './forms', gzip: 12000 },
-  { subpath: './i18n', gzip: 5000 },
-  { subpath: './i18n/extract', gzip: 3000 },
+  { subpath: './full', gzip: 148800, note: 'Every public export; for CDN use, not bundlers.' },
+  { subpath: './core', gzip: 14400 },
+  { subpath: './reactive', gzip: 13400 },
+  { subpath: './concurrency', gzip: 11100 },
+  { subpath: './component', gzip: 12600 },
+  { subpath: './motion', gzip: 12600 },
+  { subpath: './security', gzip: 3300 },
+  { subpath: './platform', gzip: 4500 },
+  { subpath: './router', gzip: 10500 },
+  { subpath: './store', gzip: 5100 },
+  { subpath: './view', gzip: 15800 },
+  { subpath: './view/compiler', gzip: 5700 },
+  { subpath: './storybook', gzip: 4500 },
+  { subpath: './forms', gzip: 11600 },
+  { subpath: './i18n', gzip: 4800 },
+  { subpath: './i18n/extract', gzip: 2900 },
   { subpath: './a11y', gzip: 7000 },
-  { subpath: './dnd', gzip: 7000 },
-  { subpath: './media', gzip: 8000 },
-  { subpath: './plugin', gzip: 3000 },
-  { subpath: './devtools', gzip: 4000 },
-  { subpath: './testing', gzip: 8000 },
-  { subpath: './ssr', gzip: 39000, note: 'Pulls in the view renderer and the HTML parser.' },
-  { subpath: './server', gzip: 36000, note: 'Pulls in the router, SSR and the sanitizer.' },
+  { subpath: './dnd', gzip: 6400 },
+  { subpath: './media', gzip: 7400 },
+  { subpath: './plugin', gzip: 2700 },
+  { subpath: './devtools', gzip: 3600 },
+  { subpath: './testing', gzip: 7800 },
+  { subpath: './ssr', gzip: 38600, note: 'Pulls in the view renderer and the HTML parser.' },
+  { subpath: './server', gzip: 35800, note: 'Pulls in the router, SSR and the sanitizer.' },
 ];
 
 /** Budgets keyed by subpath. */
