@@ -1,0 +1,121 @@
+/*
+ * Global primitives: typography rhythm, focus, scrollbars, and the few
+ * reusable "schematic" pieces (mono labels, blueprint grid, hairline rules)
+ * that the rest of the theme composes from.
+ */
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+body {
+  font-feature-settings: 'cv05' 1, 'ss03' 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-text-1);
+}
+
+/* Visible, square focus ring everywhere — keyboard users get a real target.
+   The colour is per-theme: the light steel does not clear 3:1 on paper. */
+:where(a, button, input, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--bq-focus);
+  outline-offset: 2px;
+  border-radius: var(--bq-radius-1);
+}
+
+/* Thin, theme-aware scrollbars instead of the OS default slab. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--bq-hairline-strong) transparent;
+}
+
+/* Setting the standard properties above makes Chromium 121+ and Safari 18.2+
+   ignore the legacy pseudo-elements entirely, so they are only worth styling
+   where the standard ones are not understood. */
+@supports not (scrollbar-width: thin) {
+  *::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: var(--bq-hairline-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 99px;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: var(--bq-steel-400);
+    background-clip: content-box;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Shared schematic primitives.
+ * ------------------------------------------------------------------------ */
+
+/* Mono metadata label — kickers, section numbers, column headers, nav chips. */
+.bq-label {
+  font-family: var(--bq-font-mono);
+  font-size: var(--bq-label-size);
+  font-weight: 500;
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+  color: var(--vp-c-text-3);
+}
+
+/* The `$` sigil: bQuery's own selector, used as this site's bullet. */
+.bq-sigil {
+  color: var(--bq-sigil);
+  font-family: var(--bq-font-mono);
+  font-weight: 600;
+}
+
+/* Blueprint grid, drawn behind hero and section chrome. */
+.bq-grid-bg {
+  background-image:
+    linear-gradient(to right, var(--bq-grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--bq-grid-line) 1px, transparent 1px);
+  background-size: var(--bq-grid-size) var(--bq-grid-size);
+}
+
+/* A hairline panel: the base shape for every card on this site. */
+.bq-panel {
+  position: relative;
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: var(--bq-surface);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bq-panel {
+    transition:
+      border-color 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+}
