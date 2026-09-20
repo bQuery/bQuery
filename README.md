@@ -72,7 +72,7 @@ const { $, signal } = require('@bquery/bquery');
 
 Only the root and `/full` entries have a `require` condition; the sub-path
 entries are ESM-only. See
-[Module format](https://bquery.dev/guide/getting-started#module-format).
+[Module format](https://bquery.js.org/guide/getting-started#module-format).
 
 ## Import Strategies
 
