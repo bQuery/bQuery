@@ -241,10 +241,18 @@ mutation-XSS guard all live in one shared module, so they cannot drift.
 They can differ on **malformed** input, because the string backend is a
 scanner rather than a full HTML5 parser with error recovery. Where they
 differ, the string backend is the more conservative of the two: it escapes
-what it cannot interpret instead of guessing. For example,
+what it cannot interpret instead of guessing, and it drops anything it cannot
+serialize safely rather than emitting markup whose meaning depends on how
+forgiving the reader's parser is. For example,
 `<div><scr<script>ipt>alert(1)</script></div>` yields `<div></div>` under the
 DOM backend and `<div>ipt&amp;gt;alert(1)</div>` under the string backend —
 inert either way, one as nothing and one as escaped text.
+
+On **well-formed** input the two agree, including the cases where that is not
+obvious: a disallowed element takes its subtree with it under both backends
+(`<unknown><b>hi</b></unknown>` yields nothing, not `<b>hi</b>`), and a whole
+document is reduced to its body content under both, so `<head>` never leaks
+into the output.
 
 If byte-identical output across environments matters to you, pin
 `backend: 'string'` everywhere.

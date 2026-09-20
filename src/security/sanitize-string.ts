@@ -67,6 +67,24 @@ const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title', 'xmp'
 const TAG_NAME = /^[a-zA-Z][a-zA-Z0-9:-]*/;
 
 /**
+ * An attribute name safe to serialize into a tag. Deliberately stricter than
+ * what the HTML spec tolerates: anything outside this shape is dropped rather
+ * than emitted, so the output cannot depend on a consumer's error recovery.
+ */
+const VALID_ATTRIBUTE_NAME = /^[a-zA-Z_:][a-zA-Z0-9_:.-]*$/;
+
+/**
+ * Document-structure elements a real HTML parser absorbs rather than nests.
+ *
+ * The DOM backend parses into a document and lifts `body`'s children into the
+ * fragment, so `<html>` and `<body>` never appear as elements to remove — but
+ * their contents survive. Suppressing them here like any other disallowed tag
+ * would discard an entire server-rendered page. `<head>` is deliberately not
+ * in this set: its contents do not reach the body, so it is dropped whole.
+ */
+const TRANSPARENT_ELEMENTS = new Set(['html', 'body']);
+
+/**
  * Elements whose close tag HTML lets you omit, and what opening them implies
  * should close first. `<ul><li>a<li>b</ul>` means two siblings, not nesting.
  */
@@ -245,6 +263,10 @@ export const tokenize = (html: string): Token[] => {
   const tokens: Token[] = [];
   let pos = 0;
   let textStart = 0;
+  // Lowercased once, not per raw-text element: recomputing it inside the loop
+  // made tokenization O(raw-text elements x input length), so a megabyte of
+  // `<textarea>` blocked the event loop for seconds on the `ctx.html()` path.
+  const lowerHtml = html.toLowerCase();
 
   const flushText = (end: number): void => {
     if (end > textStart) {
@@ -304,10 +326,17 @@ export const tokenize = (html: string): Token[] => {
     // Raw-text elements: consume to the matching close tag so their content is
     // never re-entered as markup.
     if (RAW_TEXT_ELEMENTS.has(tag) && !selfClosing) {
-      const closeIndex = html.toLowerCase().indexOf(`</${tag}`, pos);
+      const closeIndex = lowerHtml.indexOf(`</${tag}`, pos);
       const contentEnd = closeIndex === -1 ? html.length : closeIndex;
       const rawContent = html.slice(pos, contentEnd);
-      if (rawContent.length > 0) tokens.push({ kind: 'text', value: rawContent });
+      // `textarea`, `title` and `xmp` are RCDATA, not true raw text: entities
+      // do decode in them. The token is re-escaped on output, so leaving it
+      // undecoded here made every sanitize pass escape one level deeper and
+      // the mXSS stability check could never agree — a single `<textarea>`
+      // containing `&` collapsed the whole document to escaped plain text.
+      // `script` and `style` are true raw text, but both are dangerous tags
+      // and get dropped wholesale before this matters.
+      if (rawContent.length > 0) tokens.push({ kind: 'text', value: decodeEntities(rawContent) });
       tokens.push({ kind: 'close', tag });
       if (closeIndex === -1) {
         pos = html.length;
@@ -332,10 +361,23 @@ const renderAttributes = (
 ): string => {
   let out = '';
   const kept = new Map<string, string>();
+  // Every name the tokenizer produced, allowed or not. The HTML parser drops
+  // duplicates at tokenization time, before any policy runs, so deduplicating
+  // only among *surviving* attributes would give an attacker a second attempt
+  // at every attribute the policy just rejected.
+  const seenNames = new Set<string>();
 
   for (const attr of attributes) {
     const name = attr.name.toLowerCase();
-    if (kept.has(name)) continue; // first wins, as the DOM does
+    // `readAttributes` ends a name at whitespace, `=`, `>` and `/`, so `"`,
+    // `'` and `<` are legal name characters — and a `data-`/`aria-` prefix is
+    // enough for the policy to keep one. Serializing such a name unescaped
+    // emits markup whose meaning depends on how forgiving the consumer's
+    // parser is; happy-dom, this repo's own DOM, splits it back into a live
+    // event handler. Never emit a name we cannot quote safely.
+    if (!VALID_ATTRIBUTE_NAME.test(name)) continue;
+    if (seenNames.has(name)) continue; // first wins, as the DOM does
+    seenNames.add(name);
     if (!isAttributeAllowed(name, attr.value, policy, seenIds)) continue;
     kept.set(name, attr.value);
   }
@@ -392,9 +434,6 @@ const sanitizePass = (html: string, policy: SanitizePolicy): string => {
   // and anything still open at the end can be closed. Without this the output
   // is unbalanced — a stray `</div>` survives, and `<p>unclosed` never closes.
   const openStack: string[] = [];
-  // Elements we dropped but whose children we keep: their close tag must not
-  // emit. Elements we dropped wholesale (dangerous ones) suppress children too.
-  const dropped: string[] = [];
   let suppressDepth = 0;
   let suppressTag: string | null = null;
 
@@ -415,20 +454,20 @@ const sanitizePass = (html: string, policy: SanitizePolicy): string => {
     }
 
     if (token.kind === 'open') {
-      // A dangerous element takes its subtree with it — `<script>alert(1)`
-      // must not leave `alert(1)` behind as text.
-      if (DANGEROUS_TAGS.has(token.tag)) {
+      // Any element that may not appear takes its subtree with it, whether it
+      // is dangerous (`<script>alert(1)` must not leave `alert(1)` as text) or
+      // merely disallowed. The DOM backend calls `Element.remove()`, which
+      // detaches the children too, so unwrapping here would make the string
+      // backend the *less* conservative of the two on well-formed input — and
+      // would leak `<head>`/`<title>` content into the body server-side.
+      if (!isAllowedTag(token.tag, policy)) {
+        // `<html>`/`<body>` are structure, not content: unwrap them so a whole
+        // server-rendered page is not discarded.
+        if (TRANSPARENT_ELEMENTS.has(token.tag)) continue;
         if (!token.selfClosing && !VOID_ELEMENTS.has(token.tag)) {
           suppressTag = token.tag;
           suppressDepth = 1;
         }
-        continue;
-      }
-
-      // A merely-disallowed element is unwrapped: children are kept, as the
-      // DOM backend does when it removes an element from the tree.
-      if (!isAllowedTag(token.tag, policy)) {
-        if (!token.selfClosing && !VOID_ELEMENTS.has(token.tag)) dropped.push(token.tag);
         continue;
       }
 
@@ -453,11 +492,6 @@ const sanitizePass = (html: string, policy: SanitizePolicy): string => {
 
     // close
     if (VOID_ELEMENTS.has(token.tag)) continue;
-    const droppedIndex = dropped.lastIndexOf(token.tag);
-    if (droppedIndex !== -1) {
-      dropped.splice(droppedIndex, 1);
-      continue;
-    }
     if (!isAllowedTag(token.tag, policy)) continue;
 
     // Close tag with no matching open tag — a stray `</div>`. Drop it rather

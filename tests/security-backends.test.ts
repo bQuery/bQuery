@@ -59,6 +59,10 @@ const ADVERSARIAL = [
   '<input onfocus=alert(1) autofocus>',
   '<a href="data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==">x</a>',
   '<a href="vbscript:msgbox(1)">x</a>',
+  // Attribute name carrying a quote: safe only if the name is validated
+  // before serialization, not if the consumer's parser happens to recover.
+  '<img src=y data-a"onerror=alert(1) "">',
+  '<p data-x"><script>alert(1)</script>">y</p>',
 ];
 
 /** Anything that would mean the sanitizer let something executable through. */
@@ -115,8 +119,20 @@ describe('DOM-free sanitizer', () => {
     );
   });
 
-  it('drops disallowed elements but keeps their children', () => {
-    expect(sanitizeHtmlString('<unknown-tag><b>kept</b></unknown-tag>')).toBe('<b>kept</b>');
+  it('drops a disallowed element together with its subtree, as the DOM does', () => {
+    // `Element.remove()` in the DOM backend detaches the children too, so
+    // unwrapping here would make this backend the less conservative one.
+    expect(sanitizeHtmlString('<unknown-tag><b>dropped</b></unknown-tag>')).toBe('');
+    expect(sanitizeHtmlString('<div>keep<blink>drop</blink></div>')).toBe('<div>keep</div>');
+  });
+
+  it('unwraps document structure instead of discarding the page', () => {
+    // `<html>`/`<body>` are absorbed by a real parser rather than nested, so
+    // suppressing them would throw away a whole server-rendered response.
+    // `<head>` is not structure the body keeps — its content goes.
+    expect(
+      sanitizeHtmlString('<html><head><title>Secret</title></head><body><h1>Hi</h1></body></html>')
+    ).toBe('<h1>Hi</h1>');
   });
 
   it('drops a dangerous element together with its subtree', () => {
@@ -172,6 +188,43 @@ describe('DOM-free sanitizer', () => {
 
   it('keeps the first of a repeated attribute', () => {
     expect(sanitizeHtmlString('<p class="a" class="b">x</p>')).toBe('<p class="a">x</p>');
+  });
+
+  it('does not give a rejected attribute a second chance via a duplicate', () => {
+    // The HTML parser discards duplicates before any policy runs, so a first
+    // occurrence the policy rejects must not let a later one through.
+    expect(sanitizeHtmlString('<a id="location" id="safe">x</a>')).toBe('<a>x</a>');
+    expect(sanitizeHtmlString('<img src="javascript:alert(1)" src="ok.png">')).toBe('<img>');
+  });
+
+  it('never serializes an attribute name it cannot quote safely', () => {
+    // `"` is a legal name character for the scanner and a `data-` prefix is
+    // enough for the policy, so an unvalidated name could be re-split into a
+    // live event handler by a lenient parser.
+    const out = sanitizeHtmlString('<img src=y data-a"onerror=alert(1) "">');
+    expect(out).not.toContain('onerror');
+    expect(out).toBe('<img src="y">');
+  });
+
+  it('keeps the two sanitize passes stable for RCDATA content', () => {
+    // Raw-text content used to be pushed undecoded but escaped on output, so
+    // the mXSS guard could never agree and one `<textarea>` collapsed the
+    // whole document to escaped plain text.
+    expect(sanitizeHtmlString('<textarea>a &amp; b</textarea>')).toBe(
+      '<textarea>a &amp; b</textarea>'
+    );
+    expect(sanitizeHtmlString('<p>before</p><textarea>x &lt; y</textarea>')).toBe(
+      '<p>before</p><textarea>x &lt; y</textarea>'
+    );
+  });
+
+  it('tokenizes raw-text elements in linear time', () => {
+    // The lowercased copy used to be rebuilt per raw-text element, making a
+    // megabyte of `<textarea>` take seconds on the `ctx.html()` path.
+    const input = '<textarea>x</textarea>'.repeat(5000) + 'a'.repeat(1_000_000);
+    const started = performance.now();
+    sanitizeHtmlString(input);
+    expect(performance.now() - started).toBeLessThan(2000);
   });
 
   it('reads unquoted and single-quoted attribute values', () => {
@@ -240,6 +293,18 @@ describe('both backends against the adversarial corpus', () => {
       '<p>a<br>b</p>',
       '<a href="/local">x</a>',
       'plain text',
+      // Disallowed tags with children: the corpus had none, which is how the
+      // backends came to disagree on ordinary input.
+      '<unknown-tag><b>hi</b></unknown-tag>',
+      '<foo>bar</foo>',
+      '<div>keep<blink>drop</blink></div>',
+      // RCDATA, and a full page: both reach this backend via `ctx.html()`.
+      '<textarea>a &amp; b</textarea>',
+      '<form><textarea name="c">a &lt; b</textarea></form>',
+      '<html><head><title>My &amp; Page</title></head><body><h1>Hi</h1></body></html>',
+      // Duplicate attributes where the first occurrence is rejected.
+      '<a id="location" id="safe">x</a>',
+      '<img src="javascript:alert(1)" src="ok.png">',
     ];
 
     for (const input of wellFormed) {
