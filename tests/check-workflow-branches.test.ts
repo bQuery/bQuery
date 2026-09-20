@@ -26,7 +26,7 @@ interface ParseProblem {
 
 interface CheckModule {
   extractBranchRefs: (source: string) => { refs: BranchRef[]; parseProblems: ParseProblem[] };
-  upstreamRemote: (list?: string | null) => string;
+  upstreamRemote: (list?: string | null) => string | null;
   auditWorkflowBranches: () => Promise<{
     problems: string[];
     refCount: number;
@@ -165,11 +165,14 @@ describe('upstreamRemote', () => {
     expect(upstreamRemote(list)).toBe('canonical');
   });
 
-  it('falls back to origin when no remote names the upstream', () => {
-    // A fork-only clone: resolving against it would report every `dev`
-    // trigger as missing, so `knownBranches` takes the skip path instead.
-    expect(upstreamRemote('origin\thttps://github.com/someone/fork.git (fetch)')).toBe('origin');
-    expect(upstreamRemote(null)).toBe('origin');
+  it('returns null when no remote names the upstream', () => {
+    // A fork-only clone. Its `origin` carries the fork's branches, not this
+    // repository's, and a fork *does* have `main` — so its branch set is no
+    // evidence either way. `knownBranches` takes the skip path rather than
+    // reporting every `dev` trigger as missing on a clean tree.
+    expect(upstreamRemote('origin\thttps://github.com/someone/bQuery.git (fetch)')).toBeNull();
+    expect(upstreamRemote('origin\thttps://github.com/someone/fork.git (fetch)')).toBeNull();
+    expect(upstreamRemote(null)).toBeNull();
   });
 });
 
