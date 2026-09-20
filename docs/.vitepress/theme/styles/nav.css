@@ -1,0 +1,259 @@
+/*
+ * Top bar, mobile nav, and search.
+ *
+ * The bar reads as an instrument strip: mono labels, a hairline base, and a
+ * 2px "signal trace" under the active section instead of a pill highlight.
+ */
+
+.VPNav {
+  background: transparent;
+}
+
+.VPNavBar {
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Frosted only once the page has actually scrolled under it. */
+.VPNavBar:not(.top) {
+  border-bottom-color: var(--bq-hairline);
+  background: color-mix(in srgb, var(--vp-c-bg) 82%, transparent);
+  backdrop-filter: saturate(140%) blur(12px);
+}
+
+@supports not (background: color-mix(in srgb, red 50%, blue)) {
+  .VPNavBar:not(.top) {
+    background: var(--vp-c-bg);
+  }
+}
+
+/* Mobile menu open: the bar has to be opaque or the screen shows through. */
+.VPNavBar.screen-open {
+  border-bottom-color: var(--bq-hairline);
+  background: var(--vp-c-bg);
+}
+
+.VPNavBar .divider {
+  display: none;
+}
+
+/* Wordmark: the logo plus a mono title, so the brand matches the type system. */
+.VPNavBarTitle .title {
+  border-bottom: none;
+  font-family: var(--bq-font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--vp-c-text-1);
+}
+
+.VPNavBarTitle .logo {
+  height: 26px;
+  margin-right: 10px;
+  filter: drop-shadow(0 1px 2px var(--bq-glow));
+}
+
+/* Nav items in mono: they are navigation controls, not prose. */
+.VPNavBarMenuLink,
+.VPNavBarMenuGroup .VPFlyout .button {
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem !important;
+  font-weight: 450;
+  letter-spacing: -0.01em;
+}
+
+.VPNavBarMenuLink {
+  position: relative;
+  padding: 0 12px !important;
+  color: var(--vp-c-text-2) !important;
+}
+
+.VPNavBarMenuLink:hover {
+  color: var(--vp-c-text-1) !important;
+}
+
+.VPNavBarMenuLink.active {
+  color: var(--vp-c-brand-1) !important;
+}
+
+/* The trace: a 2px rule that snaps under the active section. */
+.VPNavBarMenuLink.active::after {
+  content: '';
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  left: 12px;
+  height: 2px;
+  background: var(--bq-steel-400);
+}
+
+.VPNavBarMenuGroup .VPFlyout .text {
+  color: var(--vp-c-text-2);
+}
+
+.VPNavBarMenuGroup .VPFlyout:hover .text {
+  color: var(--vp-c-text-1);
+}
+
+/* Flyout + mobile menus: hairline panels, mono links. */
+.VPMenu {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: var(--vp-c-bg-elv);
+  box-shadow: var(--vp-shadow-3);
+}
+
+.VPMenuLink .link,
+.VPMenuGroup .title {
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+}
+
+.VPMenuGroup .title {
+  font-size: var(--bq-label-size);
+  letter-spacing: var(--bq-label-tracking);
+  text-transform: uppercase;
+}
+
+/* Search trigger: reads like a command input, complete with the `/` hint. */
+.DocSearch-Button,
+.VPNavBarSearchButton {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: var(--bq-surface-sunken);
+}
+
+.VPNavBarSearch .DocSearch-Button:hover {
+  border-color: var(--bq-steel-400);
+  background: var(--bq-surface-sunken);
+}
+
+.DocSearch-Button-Placeholder {
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+  color: var(--vp-c-text-3);
+}
+
+.DocSearch-Button-Keys {
+  font-family: var(--bq-font-mono);
+}
+
+.DocSearch-Button-Key {
+  border-radius: var(--bq-radius-1);
+  background: var(--vp-c-bg);
+  box-shadow: none;
+  border: 1px solid var(--bq-hairline);
+  padding-bottom: 0;
+  color: var(--vp-c-text-3);
+}
+
+/* Local search modal. */
+.VPLocalSearchBox .search-bar {
+  border: 1px solid var(--bq-hairline);
+  border-radius: var(--bq-radius-2);
+  background: var(--bq-surface-sunken);
+}
+
+.VPLocalSearchBox .search-input {
+  font-family: var(--bq-font-mono);
+  font-size: 0.875rem;
+}
+
+.VPLocalSearchBox .result {
+  border: 1px solid transparent;
+  border-radius: var(--bq-radius-2);
+}
+
+.VPLocalSearchBox .result.selected {
+  border-color: var(--bq-steel-400);
+  background: var(--vp-c-brand-soft);
+}
+
+.VPLocalSearchBox .titles {
+  font-family: var(--bq-font-sans);
+}
+
+.VPLocalSearchBox .title-icon,
+.VPLocalSearchBox .vp-doc h1,
+.VPLocalSearchBox .vp-doc h2 {
+  color: var(--vp-c-text-3);
+}
+
+/* Social links + appearance toggle share the panel language. */
+.VPSocialLink {
+  border-radius: var(--bq-radius-2);
+  color: var(--vp-c-text-2);
+}
+
+.VPSocialLink:hover {
+  color: var(--vp-c-brand-1);
+}
+
+.VPSwitch {
+  border-radius: var(--bq-radius-2);
+  background: var(--bq-surface-sunken);
+  border: 1px solid var(--bq-hairline);
+}
+
+.VPSwitch .check {
+  border-radius: var(--bq-radius-1);
+  background: var(--vp-c-bg);
+  box-shadow: none;
+  border: 1px solid var(--bq-hairline);
+}
+
+/* Mobile breadcrumb bar above the content. */
+.VPLocalNav {
+  border-bottom: 1px solid var(--bq-hairline);
+  background: color-mix(in srgb, var(--vp-c-bg) 88%, transparent);
+  backdrop-filter: blur(12px);
+}
+
+.VPLocalNav .menu-text,
+.VPLocalNavOutlineDropdown .outline-title,
+.VPLocalNavOutlineDropdown button span {
+  font-family: var(--bq-font-mono);
+  font-size: 0.8125rem;
+}
+
+/* Full-screen mobile nav. */
+.VPNavScreen {
+  background: var(--vp-c-bg);
+}
+
+.VPNavScreenMenuLink,
+.VPNavScreenMenuGroupLink,
+.VPNavScreenMenuGroupSection .title,
+.VPNavScreenMenuGroup .button-text {
+  font-family: var(--bq-font-mono);
+  letter-spacing: -0.01em;
+}
+
+/* ---------------------------------------------------------------------------
+ * Tablet range (768–959px): the full nav row does not fit next to an expanded
+ * search field, and the overflow shows up as a horizontal page scrollbar.
+ * Tighten the links and collapse the search field to its icon instead.
+ * ------------------------------------------------------------------------ */
+
+@media (min-width: 768px) and (max-width: 959px) {
+  .VPNavBarMenuLink {
+    padding: 0 8px !important;
+    font-size: 0.78125rem !important;
+  }
+
+  .VPNavBarMenuGroup .VPFlyout .button {
+    font-size: 0.78125rem !important;
+  }
+
+  .VPNavBarSearch .DocSearch-Button-Placeholder,
+  .VPNavBarSearch .DocSearch-Button-Keys {
+    display: none;
+  }
+
+  .VPNavBarSearch .DocSearch-Button {
+    padding: 0 9px;
+  }
+}
