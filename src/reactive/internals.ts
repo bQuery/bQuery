@@ -3,7 +3,7 @@
  * @internal
  */
 
-import { getScheduler } from './config';
+import { getScheduler, setPendingDrain } from './config';
 
 export type Observer = () => void;
 export type CleanupFn = () => void;
@@ -122,6 +122,10 @@ export const flushSyncInternal = (): void => {
   endBatch();
 };
 
+// So `configureReactive` can deliver queued work before the scheduler
+// changes under it, without importing this module (that would cycle).
+setPendingDrain(flushSyncInternal);
+
 /**
  * Upper bound on flush passes. Observers re-queued during a flush are drained
  * in follow-up passes so transitive updates stay batched; a cyclic update
@@ -131,6 +135,14 @@ export const flushSyncInternal = (): void => {
 const MAX_FLUSH_PASSES = 100;
 
 let isFlushing = false;
+
+/**
+ * Whether a flush is running right now — i.e. whether the caller is inside
+ * an observer. `flushSyncInternal` cannot do anything in that case, so the
+ * public wrapper warns instead of silently doing nothing.
+ * @internal
+ */
+export const isFlushingNow = (): boolean => isFlushing;
 
 /** Remove and return the pending observers matching `predicate`. */
 const takePending = (predicate: (observer: Observer) => boolean): Observer[] => {
@@ -178,8 +190,17 @@ const flushObservers = (): void => {
       let pendingDerivations = takePending((observer) => derivations.has(observer));
       while (pendingDerivations.length > 0) {
         if (++derivationPasses > MAX_FLUSH_PASSES) {
+          // Abort the whole flush, as the outer guard does for the same
+          // situation. Breaking out of the inner loop instead dropped the
+          // taken derivations unrun *and* fell through to the effect phase,
+          // running effects against a knowingly half-settled graph — the
+          // exact glitch this ordering exists to prevent. It also let one
+          // flush do up to MAX_FLUSH_PASSES² observer runs and emit a
+          // warning per outer pass, because `derivationPasses` resets each
+          // time round.
+          pendingObservers.clear();
           warnUnsettled();
-          break;
+          return;
         }
         runObservers(pendingDerivations);
         pendingDerivations = takePending((observer) => derivations.has(observer));

@@ -2,7 +2,7 @@
  * Batched reactive updates.
  */
 
-import { beginBatch, endBatch, flushSyncInternal } from './internals';
+import { beginBatch, endBatch, flushSyncInternal, isFlushingNow } from './internals';
 
 /**
  * Batches multiple signal updates into a single notification cycle.
@@ -30,7 +30,11 @@ export const batch = (fn: () => void): void => {
  * queued, so it does nothing.
  *
  * Inside a `batch()` the work stays with the enclosing batch, so calling it
- * there cannot break the batch open.
+ * there cannot break the batch open. The same is true **inside an observer**
+ * — an effect, a `watch` callback, or a component hook running within one:
+ * a flush is already in progress, so there is nothing this call can drain
+ * and the pending work lands when that flush reaches it. That case warns,
+ * because the call otherwise looks like it worked.
  *
  * @example
  * ```ts
@@ -42,5 +46,15 @@ export const batch = (fn: () => void): void => {
  * ```
  */
 export const flushSync = (): void => {
+  // Warned unconditionally, like the other diagnostics in this module: the
+  // call reads as though it worked, and the failure is otherwise invisible.
+  if (isFlushingNow()) {
+    console.warn(
+      'bQuery reactive: flushSync() was called from inside an observer, where a flush is ' +
+        'already running. It cannot drain anything there; the pending work runs as part of ' +
+        'the flush already in progress.'
+    );
+    return;
+  }
   flushSyncInternal();
 };

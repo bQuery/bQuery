@@ -29,6 +29,21 @@ const config: ReactiveConfig = {
 };
 
 /**
+ * Delivers anything queued under the outgoing scheduler.
+ *
+ * Registered by `internals.ts` rather than imported from it: `internals`
+ * already imports this module for {@link getScheduler}, so importing back
+ * would be a cycle.
+ * @internal
+ */
+let drainPending: (() => void) | null = null;
+
+/** @internal */
+export const setPendingDrain = (drain: () => void): void => {
+  drainPending = drain;
+};
+
+/**
  * Update the global reactive configuration.
  *
  * @example Opt into glitch-free, auto-batched effects
@@ -39,7 +54,15 @@ const config: ReactiveConfig = {
  * ```
  */
 export const configureReactive = (options: Partial<ReactiveConfig>): void => {
-  if (options.scheduler !== undefined) config.scheduler = options.scheduler;
+  if (options.scheduler === undefined || options.scheduler === config.scheduler) return;
+
+  // Hand over cleanly. Switching back to `'sync'` while work is queued left
+  // the earlier write's microtask in flight, so it replayed an observer a
+  // later synchronous write had already notified — one logical change, two
+  // effect runs. Effects are not required to be idempotent: that is a
+  // duplicate POST, analytics event or list append.
+  drainPending?.();
+  config.scheduler = options.scheduler;
 };
 
 /** A snapshot of the current reactive configuration. */

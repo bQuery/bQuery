@@ -150,7 +150,7 @@ describe('batched scheduler: one run per tick', () => {
     expect(runs).toBe(4); // creation + one per tick
   });
 
-  it('does not run an effect at all when the value settles back', async () => {
+  it('still runs the effect once when the value settles back within a tick', async () => {
     configureReactive({ scheduler: 'batched' });
     const count = signal(0);
     let runs = 0;
@@ -367,5 +367,80 @@ describe('switching schedulers', () => {
 
     // The queued microtask still drains what was pending.
     expect(runs).toEqual([0, 1]);
+  });
+});
+
+describe('scheduler handover', () => {
+  it('does not replay a queued notification after switching back to sync', async () => {
+    // The microtask from the earlier write used to survive the switch and
+    // fire after a later synchronous write had already notified the same
+    // observer: one logical change, two effect runs. Effects are not
+    // required to be idempotent.
+    configureReactive({ scheduler: 'batched' });
+
+    const count = signal(0);
+    const runs: number[] = [];
+    effect(() => {
+      runs.push(count.value);
+    });
+
+    count.value = 1; // queued, microtask scheduled
+    configureReactive({ scheduler: 'sync' });
+    count.value = 2; // runs synchronously
+
+    await Promise.resolve();
+
+    expect(runs).toEqual([0, 1, 2]);
+  });
+
+  it('ignores a configure call that does not change the scheduler', () => {
+    configureReactive({ scheduler: 'batched' });
+    const count = signal(0);
+    const runs: number[] = [];
+    effect(() => {
+      runs.push(count.value);
+    });
+
+    count.value = 1;
+    configureReactive({ scheduler: 'batched' }); // no change, must not drain
+
+    expect(runs).toEqual([0]);
+  });
+});
+
+describe('flushSync re-entrancy', () => {
+  it('warns instead of silently doing nothing inside an observer', () => {
+    configureReactive({ scheduler: 'batched' });
+
+    const original = console.warn;
+    const warnings: string[] = [];
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args.join(' '));
+    };
+
+    try {
+      const a = signal(0);
+      const b = signal(0);
+      const seenB: number[] = [];
+
+      effect(() => {
+        seenB.push(b.value);
+      });
+      effect(() => {
+        if (a.value > 0) {
+          b.value = a.value;
+          flushSync();
+        }
+      });
+
+      a.value = 5;
+      flushSync();
+
+      expect(warnings.some((warning) => warning.includes('flushSync() was called'))).toBe(true);
+      // The work still lands, via the flush already in progress.
+      expect(seenB).toEqual([0, 5]);
+    } finally {
+      console.warn = original;
+    }
   });
 });
