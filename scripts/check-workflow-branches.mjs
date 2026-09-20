@@ -33,21 +33,65 @@ function git(args) {
       cwd: repoRoot,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
+      // Without this a hung network stalls `bun run check` indefinitely.
+      timeout: 15_000,
     });
   } catch {
     return null;
   }
 }
 
+/** The upstream repository this check is about. */
+const UPSTREAM = 'bQuery/bQuery';
+
+/** A branch every clone of the upstream has; its absence means a fork. */
+const SENTINEL_BRANCH = 'main';
+
+/**
+ * The remote that points at the upstream repository.
+ *
+ * `origin` is *not* it for anyone working from a fork, which is the normal
+ * outside-contributor flow — and a fork routinely carries only its default
+ * branch. Resolving against it reported every `branches: dev` trigger as
+ * missing and failed `bun run check` on a clean tree.
+ */
+export function upstreamRemote(list = git(['remote', '-v'])) {
+  if (!list) return 'origin';
+
+  const matches = (name) =>
+    list
+      .split('\n')
+      .some(
+        (line) =>
+          line.startsWith(`${name}\t`) && line.toLowerCase().includes(UPSTREAM.toLowerCase())
+      );
+
+  if (matches('upstream')) return 'upstream';
+  if (matches('origin')) return 'origin';
+
+  // Any remote whose URL names the upstream repository.
+  for (const line of list.split('\n')) {
+    if (!line.toLowerCase().includes(UPSTREAM.toLowerCase())) continue;
+    const name = line.split('\t')[0];
+    if (name) return name;
+  }
+
+  return 'origin';
+}
+
 /** Branch names this repository has, preferring the remote over local refs. */
 export function knownBranches() {
-  const remote = git(['ls-remote', '--heads', 'origin']);
+  const remote = git(['ls-remote', '--heads', upstreamRemote()]);
   if (remote) {
     const names = remote
       .split('\n')
       .map((line) => line.split('refs/heads/')[1])
       .filter(Boolean);
-    if (names.length > 0) return new Set(names);
+    // A branch set without the repository's own default branch is not this
+    // repository's — a fork, or a single-branch clone. Reporting every
+    // trigger as missing would be a wall of false positives, so treat it as
+    // "cannot resolve" and take the documented skip path instead.
+    if (names.length > 0 && names.includes(SENTINEL_BRANCH)) return new Set(names);
   }
 
   const local = git([
@@ -61,7 +105,10 @@ export function knownBranches() {
     .split('\n')
     .map((line) => line.trim().replace(/^origin\//, ''))
     .filter((line) => line && line !== 'HEAD');
-  return names.length > 0 ? new Set(names) : null;
+  // Same sentinel as above. A shallow `actions/checkout` leaves essentially
+  // one ref, so without this the offline path flags `main` as missing
+  // instead of skipping with a note.
+  return names.includes(SENTINEL_BRANCH) ? new Set(names) : null;
 }
 
 /** Strip a YAML scalar's quotes and trailing comment. */
@@ -71,40 +118,110 @@ function scalar(raw) {
 }
 
 /**
- * Collect literal branch names from a workflow's `branches:` blocks, in both
- * the inline (`branches: ['main', 'dev']`) and block-sequence forms.
+ * Whether a line opens the top-level `on:` block.
+ *
+ * The scan used to match `branches:` anywhere in the file, so a `branches:`
+ * inside a `run: |` literal block, a heredoc, or a third-party action's
+ * `with:` input was parsed as a trigger list and reported as a nonexistent
+ * branch. Several release and labeler actions take a `branches` input.
+ */
+const ON_KEY = /^(?:on|"on"|'on'):\s*(.*)$/;
+
+/** A key at column 0 — the end of the `on:` block. */
+const TOP_LEVEL_KEY = /^\S/;
+
+/**
+ * Collect literal branch names from a workflow's `branches:` blocks.
+ *
+ * Handles every shape GitHub accepts: an inline flow sequence, a flow
+ * sequence spread over several lines, a block sequence (indented deeper than
+ * its key *or* at the same column, which YAML allows and workflows commonly
+ * use), and a bare scalar. Anything that looks like a list but cannot be
+ * parsed is reported rather than skipped — a silent pass is exactly the
+ * failure this guard exists to prevent.
  */
 export function extractBranchRefs(source) {
   const refs = [];
+  const parseProblems = [];
   const lines = source.split('\n');
 
+  let inOnBlock = false;
+
   for (let i = 0; i < lines.length; i++) {
-    const match = BRANCH_KEY.exec(lines[i]);
+    const line = lines[i];
+
+    // Track the `on:` block so only real triggers are scanned.
+    const onMatch = ON_KEY.exec(line);
+    if (onMatch) {
+      inOnBlock = true;
+      // `on: push` or `on: [push, pull_request]` carries no branch filter.
+      continue;
+    }
+    if (inOnBlock && TOP_LEVEL_KEY.test(line) && !line.startsWith('#')) {
+      inOnBlock = false;
+    }
+    if (!inOnBlock) continue;
+
+    const match = BRANCH_KEY.exec(line);
     if (!match) continue;
     const [, indent, key, rest] = match;
 
     const inline = rest.trim();
+
     if (inline.startsWith('[')) {
-      const body = inline.slice(1, inline.lastIndexOf(']'));
-      for (const entry of body.split(',')) {
+      // A flow sequence may span lines; `slice(1, lastIndexOf(']'))` on a
+      // lone `[` degrades to `slice(1, -1)` and silently yields nothing.
+      let body = inline;
+      let end = i;
+      while (!body.includes(']') && end + 1 < lines.length) {
+        end++;
+        body += ' ' + lines[end].trim();
+      }
+      if (!body.includes(']')) {
+        parseProblems.push({
+          line: i + 1,
+          reason: `unterminated flow sequence after \`${key}:\``,
+        });
+        continue;
+      }
+      for (const entry of body.slice(1, body.lastIndexOf(']')).split(',')) {
         const name = scalar(entry);
         if (name) refs.push({ name, key, line: i + 1 });
       }
+      i = end;
       continue;
     }
-    if (inline && !inline.startsWith('#')) continue; // an anchor or alias — not a list
 
+    if (inline && !inline.startsWith('#')) {
+      // A bare scalar: `branches: dev`. Valid YAML, and GitHub accepts it.
+      const name = scalar(inline);
+      if (name) refs.push({ name, key, line: i + 1 });
+      continue;
+    }
+
+    // Block sequence. A YAML sequence item may sit at or below its parent
+    // key's column; requiring a deeper indent made the very common
+    // same-column style yield nothing at all.
+    let sawItem = false;
     for (let j = i + 1; j < lines.length; j++) {
-      const line = lines[j];
-      if (!line.trim() || line.trim().startsWith('#')) continue;
-      const item = /^(\s*)-\s+(.*)$/.exec(line);
-      if (!item || item[1].length <= indent.length) break;
+      const candidate = lines[j];
+      if (!candidate.trim() || candidate.trim().startsWith('#')) continue;
+      const item = /^(\s*)-\s+(.*)$/.exec(candidate);
+      if (!item || item[1].length < indent.length) break;
+      sawItem = true;
       const name = scalar(item[2]);
       if (name) refs.push({ name, key, line: j + 1 });
     }
+
+    if (!sawItem) {
+      parseProblems.push({
+        line: i + 1,
+        reason: `\`${key}:\` has no entries this parser recognizes`,
+      });
+    }
   }
 
-  return refs;
+  return { refs, parseProblems };
 }
 
 export async function auditWorkflowBranches() {
@@ -117,8 +234,21 @@ export async function auditWorkflowBranches() {
   for (const entry of entries) {
     const path = join(workflowDir, entry);
     const source = await readFile(path, 'utf8');
-    for (const ref of extractBranchRefs(source)) {
+    const { refs, parseProblems } = extractBranchRefs(source);
+
+    for (const problem of parseProblems) {
+      problems.push(`${relative(repoRoot, path)}:${problem.line} — ${problem.reason}.`);
+    }
+
+    for (const ref of refs) {
       if (GLOB.test(ref.name)) continue;
+      // `branches-ignore` carries the opposite meaning: a stale exclusion is
+      // harmless by construction — the trigger still fires, it just excludes
+      // nothing. Only `branches` has the silent-never-fires failure this
+      // guard exists to catch, and holding the standard
+      // `branches-ignore: [gh-pages]` to a must-exist rule fails a correct
+      // workflow.
+      if (ref.key === 'branches-ignore') continue;
       refCount++;
       if (branches && !branches.has(ref.name)) {
         problems.push(
