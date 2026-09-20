@@ -41,9 +41,13 @@ describe('security/generateNonce', () => {
     expect(nonces.size).toBe(50);
   });
 
-  it('builds a correct string past the 8192-byte chunk boundary', () => {
-    // The implementation chunks String.fromCharCode calls to stay under the
-    // argument limit; the joins between chunks are what this exercises.
+  it('encodes the longest accepted nonce correctly', () => {
+    // Not a chunk-boundary test, despite what the implementation's chunking
+    // suggests: `CHUNK_SIZE` is 8192 while `MAX_NONCE_LENGTH` is 1024, so
+    // the loop in `generateNonce` always runs exactly once for any accepted
+    // length and the joins between chunks are unreachable. Mutating
+    // `binaryString +=` to `=` leaves this whole file green, so claiming
+    // coverage of that path would be false.
     const nonce = generateNonce(1024);
     expect(nonce).toMatch(/^[A-Za-z0-9_-]+$/);
     expect(nonce.length).toBe(Math.ceil((1024 * 4) / 3));

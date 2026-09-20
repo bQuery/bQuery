@@ -25,11 +25,20 @@ interface Summary {
 interface CheckModule {
   parseLcov: (source: string) => FileRecord[];
   summarize: (files: FileRecord[]) => Summary;
-  auditCoverage: (summary: Summary) => {
+  auditCoverage: (
+    summary: Summary,
+    unreported?: string[]
+  ) => {
     problems: string[];
     graduated: string[];
     belowFloor: string[];
   };
+  hasRuntimeCode: (source: string) => boolean;
+  unreportedSources: (
+    summary: Summary,
+    sources?: string[],
+    read?: (path: string, encoding: string) => string
+  ) => string[];
 }
 
 interface PolicyModule {
@@ -41,7 +50,9 @@ interface PolicyModule {
   floorFor: (path: string) => number;
 }
 
-const { parseLcov, summarize, auditCoverage } = (await import(checkUrl)) as unknown as CheckModule;
+const { parseLcov, summarize, auditCoverage, hasRuntimeCode, unreportedSources } = (await import(
+  checkUrl
+)) as unknown as CheckModule;
 const { EXEMPT, FILE_FLOOR, GLOBAL_FLOOR, ENFORCED_PREFIXES, isEnforced, floorFor } = (await import(
   policyUrl
 )) as unknown as PolicyModule;
@@ -242,5 +253,54 @@ describe('coverage policy data', () => {
     expect(ENFORCED_PREFIXES).toHaveLength(5);
     expect(isEnforced('src/motion/flip.ts')).toBe(false);
     expect(isEnforced('src/security/csp.ts')).toBe(true);
+  });
+});
+
+describe('unreported source files', () => {
+  it('treats a module with runtime code as required to appear in the report', () => {
+    // Bun's lcov records only modules a test loaded, so an entirely untested
+    // module is absent rather than at 0% — invisible to the global floor.
+    const summary = { global: { lines: 100, functions: 100 }, perFile: [] };
+    const read = (path: string) =>
+      path.endsWith('brandnew.ts') ? 'export const f = (): number => 1;' : 'export type T = 1;';
+
+    const unreported = unreportedSources(summary, ['src/brandnew.ts', 'src/types.ts'], read);
+
+    expect(unreported).toEqual(['src/brandnew.ts']);
+  });
+
+  it('does not require a coverage record for a type-only module', () => {
+    const summary = { global: { lines: 100, functions: 100 }, perFile: [] };
+    const read = () => 'export interface A { x: number }\nexport type B = A | null;';
+
+    expect(unreportedSources(summary, ['src/types.ts'], read)).toEqual([]);
+  });
+
+  it('fails the audit for an unreported module', () => {
+    const summary = { global: { lines: 100, functions: 100 }, perFile: [] };
+
+    const { problems } = auditCoverage(summary, ['src/brandnew.ts']);
+    // An empty `perFile` also trips the stale-EXEMPT check, so assert on the
+    // problem this test is about rather than on the count.
+    const unreportedProblem = problems.find((problem) => problem.includes('src/brandnew.ts'));
+
+    expect(unreportedProblem).toBeDefined();
+    expect(unreportedProblem).toContain('no test loads it');
+  });
+});
+
+describe('hasRuntimeCode', () => {
+  it('detects value, function and class declarations', () => {
+    expect(hasRuntimeCode('export const a = 1;')).toBe(true);
+    expect(hasRuntimeCode('export function f() {}')).toBe(true);
+    expect(hasRuntimeCode('export class C {}')).toBe(true);
+    expect(hasRuntimeCode('let x = 1;')).toBe(true);
+  });
+
+  it('ignores declarations that only appear in comments', () => {
+    expect(hasRuntimeCode('/** export const a = 1; */\nexport type T = 1;')).toBe(false);
+    expect(hasRuntimeCode('// export function f() {}\nexport interface I { a: number }')).toBe(
+      false
+    );
   });
 });
