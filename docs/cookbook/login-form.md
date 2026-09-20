@@ -54,8 +54,14 @@ app.post('/login', handleLogin, [
   rateLimit({
     window: 15 * 60_000,
     max: 5,
-    keyBy: (ctx) => ctx.session?.$id ?? null,
+    // Behind a proxy, key on the address it reports. Do not key on
+    // `ctx.session?.$id` here: it is `null` until a session is written, and a
+    // `null` key skips the limit — so a script that simply sends no cookie
+    // would get unlimited attempts. Without a proxy, use a counted fallback
+    // such as `keyBy: (ctx) => ctx.session?.$id ?? 'anon'`.
+    trustProxy: true,
     // A correct password should not spend budget — only failures count.
+    // Note this refunds 2xx only, so a redirect-on-failure form still counts.
     skipSuccessfulRequests: true,
   }),
 ]);

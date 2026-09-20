@@ -245,11 +245,33 @@ describe('server/rateLimit with trustProxy', () => {
     ).toBe(429);
   });
 
-  it('skips a request with no forwarded address rather than lumping them together', async () => {
+  it('counts a request with no forwarded address rather than letting it through', async () => {
+    // Fail closed: anything reaching the origin off-proxy would otherwise be
+    // unlimited while the app still reports itself as protected.
     const app = proxied();
 
     expect((await app.handle('/p')).status).toBe(200);
-    expect((await app.handle('/p')).status).toBe(200);
+    expect((await app.handle('/p')).status).toBe(429);
+  });
+
+  it('is not bypassable by rotating X-Forwarded-For behind a proxy', async () => {
+    // Cloudflare and nginx append to XFF, so its leftmost entry stays
+    // client-controlled — the proxy's own header has to win.
+    const app = proxied();
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 5; i++) {
+      statuses.push(
+        (
+          await app.handle({
+            url: '/p',
+            headers: { 'x-forwarded-for': `9.9.9.${i}`, 'cf-connecting-ip': '7.7.7.7' },
+          })
+        ).status
+      );
+    }
+
+    expect(statuses).toEqual([200, 429, 429, 429, 429]);
   });
 });
 
@@ -275,16 +297,27 @@ describe('forwardedAddress', () => {
     expect(forwardedAddress(ctxWith({ 'true-client-ip': '6.6.6.6' }))).toBe('6.6.6.6');
   });
 
-  it('prefers X-Forwarded-For over the others', () => {
+  it('prefers the headers a proxy sets over X-Forwarded-For', () => {
+    // XFF is appended to by Cloudflare and stock nginx, so its leftmost entry
+    // is client-controlled even behind a trusted proxy.
+    expect(
+      forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1', 'cf-connecting-ip': '5.5.5.5' }))
+    ).toBe('5.5.5.5');
+    expect(
+      forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1', 'true-client-ip': '6.6.6.6' }))
+    ).toBe('6.6.6.6');
     expect(
       forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1', 'x-real-ip': '4.4.4.4' }))
-    ).toBe('1.1.1.1');
+    ).toBe('4.4.4.4');
   });
 
-  it('returns null when nothing is present or the value is empty', () => {
-    expect(forwardedAddress(ctxWith({}))).toBeNull();
-    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '' }))).toBeNull();
-    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  ,  ' }))).toBeNull();
+  it('returns a shared bucket, never null, when no header is usable', () => {
+    // A null here would mean "skip the limit", so an off-proxy request would
+    // be unlimited. They are indistinguishable, so they share one counter.
+    const shared = forwardedAddress(ctxWith({}));
+    expect(shared).not.toBeNull();
+    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '' }))).toBe(shared);
+    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  ,  ' }))).toBe(shared);
   });
 });
 
@@ -383,5 +416,105 @@ describe('withRateLimitHeaders', () => {
       expect(response.status).toBe(status);
       expect(response.body).toBeNull();
     }
+  });
+});
+
+describe('concurrency', () => {
+  const counting = (max: number) => {
+    const app = createServer();
+    app.get('/c', (ctx) => ctx.text('ok'), [
+      rateLimit({ window: 60_000, max, keyBy: () => 'shared' }),
+    ]);
+    return app;
+  };
+
+  it('holds the limit when requests for one key arrive in parallel', async () => {
+    // `consume()` reads, awaits, then writes. Without per-key serialization
+    // every concurrent request reads the same counter and the limit does not
+    // hold — and parallel connections are the normal shape of a brute force.
+    const app = counting(2);
+
+    const statuses = (await Promise.all(Array.from({ length: 10 }, () => app.handle('/c')))).map(
+      (response) => response.status
+    );
+
+    expect(statuses.filter((status) => status === 200)).toHaveLength(2);
+    expect(statuses.filter((status) => status === 429)).toHaveLength(8);
+  });
+
+  it('keeps counting after a handler throws', async () => {
+    // The per-key chain must not be poisoned by one failed request.
+    const app = createServer();
+    let fail = true;
+    app.get(
+      '/c',
+      () => {
+        if (fail) throw new Error('boom');
+        return new Response('ok');
+      },
+      [rateLimit({ window: 60_000, max: 2, keyBy: () => 'shared' })]
+    );
+
+    expect((await app.handle('/c')).status).toBe(500);
+    fail = false;
+    expect((await app.handle('/c')).status).toBe(200);
+    expect((await app.handle('/c')).status).toBe(429);
+  });
+});
+
+describe('skipSuccessfulRequests', () => {
+  const redirecting = () => {
+    const app = createServer();
+    app.post('/login', (ctx) => ctx.redirect('/login?error=1', 302), [
+      rateLimit({
+        window: 60_000,
+        max: 2,
+        keyBy: () => 'k',
+        skipSuccessfulRequests: true,
+      }),
+    ]);
+    return app;
+  };
+
+  it('still counts a redirect, so a redirect-on-failure form stays limited', async () => {
+    // POST/redirect/GET answers a *failed* login with a 302. Refunding 3xx
+    // would disable the limit on the shape the recipe is about.
+    const app = redirecting();
+
+    const statuses: number[] = [];
+    for (let i = 0; i < 4; i++) {
+      statuses.push((await app.handle({ url: '/login', method: 'POST' })).status);
+    }
+
+    expect(statuses).toEqual([302, 302, 429, 429]);
+  });
+
+  it('refunds a 2xx', async () => {
+    const app = createServer();
+    app.post('/ok', (ctx) => ctx.text('ok'), [
+      rateLimit({ window: 60_000, max: 2, keyBy: () => 'k', skipSuccessfulRequests: true }),
+    ]);
+
+    for (let i = 0; i < 5; i++) {
+      expect((await app.handle({ url: '/ok', method: 'POST' })).status).toBe(200);
+    }
+  });
+});
+
+describe('Retry-After', () => {
+  it('is sent on a rejection even when headers are disabled', async () => {
+    // `Retry-After` is part of a 429, not one of the informational
+    // `RateLimit-*` headers, so `headers: false` must not strip it.
+    const app = createServer();
+    app.get('/r', (ctx) => ctx.text('ok'), [
+      rateLimit({ window: 60_000, max: 1, keyBy: () => 'k', headers: false }),
+    ]);
+
+    await app.handle('/r');
+    const denied = await app.handle('/r');
+
+    expect(denied.status).toBe(429);
+    expect(denied.headers.get('retry-after')).not.toBeNull();
+    expect(denied.headers.get('ratelimit-limit')).toBeNull();
   });
 });

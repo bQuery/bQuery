@@ -18,8 +18,28 @@ import { memoryStore } from './session';
 import type { SessionData, SessionStore } from './session';
 import type { ServerContext, ServerHandler, ServerMiddleware } from './types';
 
-/** Headers a proxy may use to report the originating client, in priority order. */
-const FORWARDED_HEADERS = ['x-forwarded-for', 'x-real-ip', 'cf-connecting-ip', 'true-client-ip'];
+/**
+ * Headers a proxy may use to report the originating client, in priority order.
+ *
+ * The single-value headers a proxy sets itself come first, and
+ * `x-forwarded-for` last. Cloudflare and nginx's stock
+ * `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` **append** to
+ * that header rather than overwriting it, so its leftmost entry stays
+ * client-controlled even behind a trusted proxy — preferring it would leave
+ * `trustProxy` bypassable by rotating one header.
+ */
+const FORWARDED_HEADERS = ['cf-connecting-ip', 'true-client-ip', 'x-real-ip', 'x-forwarded-for'];
+
+/**
+ * Bucket for requests that reach the origin with no forwarding header at all
+ * while `trustProxy` is on. They are indistinguishable from one another, so
+ * they share one counter — skipping them instead would let anything bypassing
+ * the proxy through unlimited.
+ */
+const UNKNOWN_FORWARDED_KEY = '@@no-forwarded-header';
+
+/** Cap on the default counter store, so attacker-rotated keys cannot exhaust memory. */
+const DEFAULT_MAX_ENTRIES = 10_000;
 
 /** Options for {@link rateLimit}. */
 export interface RateLimitOptions {
@@ -32,6 +52,13 @@ export interface RateLimitOptions {
   /**
    * Identity the limit is counted against — usually a client address, a
    * session id or a user id. Return `null` to skip the limit for a request.
+   *
+   * **A `null` key fails open.** Pick one that exists for the caller you most
+   * want to throttle: `ctx.session?.$id` is `null` until a session is written,
+   * so on a login route it skips the limit for every cookie-less request —
+   * that is, for the brute-force script. Either key on something an
+   * unauthenticated request always carries, or fall back to a shared bucket
+   * (`ctx.session?.$id ?? 'anon'`) so the request is still counted.
    *
    * Required unless {@link RateLimitOptions.trustProxy} is set; see the note
    * on that option for why there is no safe default.
@@ -46,13 +73,25 @@ export interface RateLimitOptions {
    * are set by the client unless a proxy you control overwrites them. Keying
    * on a spoofable value gives a limiter that is trivially bypassed with a
    * random header per request — worse than no limiter, because it looks like
-   * protection. Only enable this behind a proxy that overwrites the header.
+   * protection.
+   *
+   * Headers a proxy sets itself (`CF-Connecting-IP`, `True-Client-IP`,
+   * `X-Real-IP`) are preferred over `X-Forwarded-For`, because Cloudflare and
+   * nginx's stock configuration *append* to the latter, leaving its leftmost
+   * entry client-controlled. A request that arrives with none of them shares
+   * a single bucket rather than escaping the limit.
    */
   trustProxy?: boolean;
 
   /**
-   * Where counters are kept. Defaults to a process-local {@link memoryStore},
-   * which only limits per process — pass a shared store for more than one.
+   * Where counters are kept. Defaults to a process-local {@link memoryStore}
+   * bounded at 10 000 keys, which only limits per process — pass a shared
+   * store for more than one.
+   *
+   * The bound matters: rate-limit keys are attacker-chosen and usually seen
+   * once, so an unbounded store turns the limiter into a memory-exhaustion
+   * vector. Passing your *session* store here is not advised for the same
+   * reason — counter churn would evict live sessions.
    */
   store?: SessionStore;
 
@@ -78,7 +117,14 @@ export interface RateLimitOptions {
    */
   onLimit?: ServerHandler;
 
-  /** Do not count requests that ended in a 2xx/3xx response. Default: `false`. */
+  /**
+   * Do not count requests that ended in a 2xx response. Default: `false`.
+   *
+   * 2xx only, deliberately. A POST/redirect/GET login form reports a *failed*
+   * attempt with a 302, so refunding redirects would leave that form
+   * unlimited. The refund is also skipped if the window rolled over while the
+   * handler ran, so it cannot steal budget from the next window.
+   */
   skipSuccessfulRequests?: boolean;
 }
 
@@ -113,20 +159,26 @@ const isCounter = (value: SessionData | null): value is CounterRecord =>
   Number.isFinite(value.resetAt);
 
 /**
- * Read the first address from a forwarding header chain.
+ * Read the originating address from a forwarding header.
  *
- * `X-Forwarded-For` accumulates left to right, so the leftmost entry is the
- * originating client as reported by the first proxy in the chain.
+ * Headers a proxy sets itself are preferred; `X-Forwarded-For` is consulted
+ * last and its leftmost entry taken, which is the originating client *only*
+ * when the proxy overwrites the header rather than appending to it.
+ *
+ * Never returns `null`: a request with no forwarding header shares
+ * {@link UNKNOWN_FORWARDED_KEY} rather than escaping the limit, because
+ * anything reaching the origin off-proxy would otherwise be unlimited while
+ * the app still reports itself as protected.
  * @internal
  */
-export const forwardedAddress = (ctx: ServerContext): string | null => {
+export const forwardedAddress = (ctx: ServerContext): string => {
   for (const header of FORWARDED_HEADERS) {
     const value = ctx.request.headers.get(header);
     if (!value) continue;
     const first = value.split(',')[0]?.trim();
     if (first) return first;
   }
-  return null;
+  return UNKNOWN_FORWARDED_KEY;
 };
 
 /**
@@ -146,6 +198,9 @@ export const consume = async (
   now: number
 ): Promise<RateLimitState> => {
   const existing = await store.get(key);
+  // NOTE: read-modify-write. Callers must serialize per key — see
+  // `serializeByKey`, which `rateLimit` wraps every call in. `SessionStore`
+  // has no atomic increment, so this is the level the guarantee lives at.
   const record: CounterRecord =
     isCounter(existing) && existing.resetAt > now
       ? { count: existing.count + 1, resetAt: existing.resetAt }
@@ -162,16 +217,56 @@ export const consume = async (
   };
 };
 
+/**
+ * Serialize async work per key, so a read-modify-write cannot interleave.
+ *
+ * `consume()` reads the counter, awaits, then writes it back. Concurrent
+ * requests for one key all read the same value and the limit does not hold —
+ * and parallel connections are the normal shape of the traffic a limiter
+ * defends against, so this is a bypass rather than a rounding error. The
+ * chain is process-local: it closes the single-process case the default
+ * {@link memoryStore} runs in. A limit shared across processes still needs a
+ * store with an atomic increment.
+ * @internal
+ */
+export const serializeByKey = (): (<T>(key: string, work: () => Promise<T>) => Promise<T>) => {
+  const chains = new Map<string, Promise<unknown>>();
+
+  return <T>(key: string, work: () => Promise<T>): Promise<T> => {
+    const previous = chains.get(key) ?? Promise.resolve();
+    // Swallow the predecessor's rejection: one failed request must not
+    // poison every later request for the same key.
+    const run = previous.then(work, work);
+    const tail = run.then(
+      () => undefined,
+      () => undefined
+    );
+    chains.set(key, tail);
+    // Drop the entry once nothing is queued behind it, so the map tracks
+    // in-flight work only and cannot grow with the key space.
+    void tail.then(() => {
+      if (chains.get(key) === tail) chains.delete(key);
+    });
+    return run;
+  };
+};
+
 /** Apply the `RateLimit-*` headers to a response, preserving its body. @internal */
 export const withRateLimitHeaders = (
   response: Response,
   state: RateLimitState,
-  includeRetryAfter: boolean
+  includeRetryAfter: boolean,
+  includeRateLimitHeaders = true
 ): Response => {
   const headers = new Headers(response.headers);
-  headers.set('ratelimit-limit', String(state.limit));
-  headers.set('ratelimit-remaining', String(state.remaining));
-  headers.set('ratelimit-reset', String(state.resetSeconds));
+  if (includeRateLimitHeaders) {
+    headers.set('ratelimit-limit', String(state.limit));
+    headers.set('ratelimit-remaining', String(state.remaining));
+    headers.set('ratelimit-reset', String(state.resetSeconds));
+  }
+  // `Retry-After` is a standard part of a 429, not one of the informational
+  // `RateLimit-*` headers, so `headers: false` must not strip it — a client
+  // would have nothing to back off on.
   if (includeRetryAfter) headers.set('retry-after', String(state.resetSeconds));
 
   // A 304 or 204 must stay body-less, and `Response` rejects a body for those.
@@ -194,15 +289,21 @@ export const withRateLimitHeaders = (
  * const loginLimit = rateLimit({
  *   window: 15 * 60_000,
  *   max: 5,
- *   keyBy: (ctx) => ctx.session?.$id ?? null,
+ *   // Behind a proxy, key on the address it reports. A session id would be
+ *   // `null` for the cookie-less request a brute-force script sends, and a
+ *   // `null` key skips the limit.
+ *   trustProxy: true,
+ *   skipSuccessfulRequests: true,
  * });
  *
  * app.post('/login', handleLogin, [loginLimit]);
  * ```
  *
- * @example Behind a proxy that overwrites `X-Forwarded-For`
+ * @example Without a proxy, counting authenticated and anonymous separately
  * ```ts
- * app.use(rateLimit({ window: 60_000, max: 100, trustProxy: true }));
+ * // `?? 'anon'` matters: it keeps unauthenticated callers in one counted
+ * // bucket instead of skipping the limit for all of them.
+ * app.use(rateLimit({ window: 60_000, max: 100, keyBy: (ctx) => ctx.session?.$id ?? 'anon' }));
  * ```
  */
 export const rateLimit = (options: RateLimitOptions): ServerMiddleware => {
@@ -211,7 +312,7 @@ export const rateLimit = (options: RateLimitOptions): ServerMiddleware => {
     max,
     keyBy,
     trustProxy = false,
-    store = memoryStore(),
+    store = memoryStore({ maxEntries: DEFAULT_MAX_ENTRIES }),
     prefix = 'rl:',
     headers: emitHeaders = true,
     status = 429,
@@ -238,6 +339,7 @@ export const rateLimit = (options: RateLimitOptions): ServerMiddleware => {
   }
 
   const resolveKey = keyBy ?? forwardedAddress;
+  const withKeyLock = serializeByKey();
 
   return async (ctx, next) => {
     if (skip && (await skip(ctx))) return next();
@@ -246,29 +348,38 @@ export const rateLimit = (options: RateLimitOptions): ServerMiddleware => {
     if (identity === null || identity === undefined || identity === '') return next();
 
     const key = `${prefix}${identity}`;
-    const state = await consume(store, key, max, window, Date.now());
+    const state = await withKeyLock(key, () => consume(store, key, max, window, Date.now()));
 
     // Compare the raw count, not `remaining`: the latter is clamped at zero,
     // so it cannot tell the `max`-th request from the one after it.
     if (state.count > max) {
       const denied = onLimit ? await onLimit(ctx) : ctx.text(message, { status });
-      return emitHeaders ? withRateLimitHeaders(denied, state, true) : denied;
+      return withRateLimitHeaders(denied, state, true, emitHeaders);
     }
 
     const response = await next();
 
     // Refunding a successful request keeps a burst of valid traffic from
     // locking a user out, while failures still count toward the limit.
-    if (skipSuccessfulRequests && response.status < 400) {
-      const current = await store.get(key);
-      if (isCounter(current) && current.count > 0) {
-        await store.set(
-          key,
-          { ...current, count: current.count - 1 },
-          Math.max(1, current.resetAt - Date.now())
-        );
-      }
-      state.remaining = Math.min(state.limit, state.remaining + 1);
+    //
+    // 2xx only. A redirect is how the POST/redirect/GET login form reports a
+    // *failed* attempt, so refunding 3xx would disable the limit on exactly
+    // the shape this middleware exists to protect.
+    if (skipSuccessfulRequests && response.status >= 200 && response.status < 300) {
+      await withKeyLock(key, async () => {
+        const current = await store.get(key);
+        // Only refund within the window the request was counted in: if it
+        // rolled over while the handler ran, decrementing would steal a
+        // request from the new window and let it allow `max + 1`.
+        if (isCounter(current) && current.count > 0 && current.resetAt === state.resetAt) {
+          await store.set(
+            key,
+            { ...current, count: current.count - 1 },
+            Math.max(1, current.resetAt - Date.now())
+          );
+          state.remaining = Math.min(state.limit, state.remaining + 1);
+        }
+      });
     }
 
     return emitHeaders ? withRateLimitHeaders(response, state, false) : response;

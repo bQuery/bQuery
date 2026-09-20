@@ -379,7 +379,10 @@ app.post('/login', handleLogin, [
   rateLimit({
     window: 15 * 60_000,
     max: 5,
-    keyBy: (ctx) => ctx.session?.$id ?? null,
+    // Behind a proxy, key on the address it reports. A session id is `null`
+    // for the cookie-less request a brute-force script sends — and a `null`
+    // key skips the limit, so it would protect nothing here.
+    trustProxy: true,
     skipSuccessfulRequests: true, // a valid login should not use up the budget
   }),
 ]);
@@ -387,7 +390,8 @@ app.post('/login', handleLogin, [
 
 Under the limit, responses carry `RateLimit-Limit`, `RateLimit-Remaining` and
 `RateLimit-Reset`. Over it, the request is answered `429 Too Many Requests`
-with `Retry-After`.
+with `Retry-After` — and `Retry-After` is sent even with `headers: false`,
+since a client needs something to back off on.
 
 #### Choosing `keyBy`
 
@@ -399,35 +403,69 @@ than no limiter, because it looks like protection.
 
 So pick the identity that is actually meaningful for the route:
 
-| `keyBy`                                         | Good for                                             |
-| ----------------------------------------------- | ---------------------------------------------------- |
-| `(ctx) => ctx.session?.$id ?? null`             | Per-browser limits on session-bearing routes         |
-| `(ctx) => (ctx.state.user as User)?.id ?? null` | Per-account limits after auth                        |
-| `(ctx) => ctx.request.headers.get('x-api-key')` | Per-API-key quotas                                   |
-| `trustProxy: true` (instead of `keyBy`)         | Behind a proxy that **overwrites** `X-Forwarded-For` |
+| `keyBy`                                                   | Good for                                     |
+| --------------------------------------------------------- | -------------------------------------------- |
+| `(ctx) => ctx.session?.$id ?? 'anon'`                     | Per-browser limits on session-bearing routes |
+| `(ctx) => (ctx.state.user as User)?.id ?? 'anon'`         | Per-account limits after auth                |
+| `(ctx) => ctx.request.headers.get('x-api-key') ?? 'anon'` | Per-API-key quotas                           |
+| `trustProxy: true` (instead of `keyBy`)                   | Behind a proxy (see below)                   |
 
-Returning `null` skips the limit for that request.
+::: warning A `null` key fails open
+Returning `null` skips the limit **entirely** for that request. Every value in
+the table above is `null` for exactly the caller you most want to throttle —
+`ctx.session?.$id` before a session exists, `ctx.state.user?.id` before
+authentication, a missing `x-api-key` header. Written as
+`?? null`, a cookie-less brute-force script gets unlimited attempts.
+
+The `?? 'anon'` fallbacks keep those requests in one counted bucket instead.
+That bucket is shared, so size `max` for it accordingly, or use `trustProxy`
+behind a proxy to separate callers by address.
+:::
+
+#### `trustProxy` and which header wins
+
+`trustProxy` prefers the headers a proxy sets itself — `CF-Connecting-IP`,
+`True-Client-IP`, `X-Real-IP` — and only then falls back to the leftmost
+`X-Forwarded-For` entry. That order is not cosmetic: Cloudflare and nginx's
+stock `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`
+**append** to `X-Forwarded-For` rather than overwriting it, so its leftmost
+entry stays client-controlled even behind a trusted proxy. Preferring it
+would leave the limit bypassable by rotating one header.
+
+A request that reaches the origin with none of those headers — the origin
+port exposed alongside the CDN, an internal hop, a proxy misconfigured after
+a deploy — is counted in a single shared bucket rather than skipped, so it
+cannot slip past the limit unnoticed.
 
 #### Options
 
-| Option                   | Default         | Notes                                                           |
-| ------------------------ | --------------- | --------------------------------------------------------------- |
-| `window`                 | _(required)_    | Window length in milliseconds.                                  |
-| `max`                    | _(required)_    | Requests allowed per key per window.                            |
-| `keyBy`                  | _(required\*)_  | Identity to count against. `null` skips. \*Or set `trustProxy`. |
-| `trustProxy`             | `false`         | Derive the key from `X-Forwarded-For` and friends.              |
-| `store`                  | `memoryStore()` | Any `SessionStore`. The default is per process.                 |
-| `prefix`                 | `'rl:'`         | Store-key prefix, so counters cannot collide with sessions.     |
-| `headers`                | `true`          | Emit the `RateLimit-*` headers.                                 |
-| `status` / `message`     | `429` / text    | The default rejection response.                                 |
-| `skip`                   | —               | Skip a request entirely, without consuming budget.              |
-| `onLimit`                | —               | Handle rejection yourself; the headers are still applied.       |
-| `skipSuccessfulRequests` | `false`         | Refund requests that ended below 400.                           |
+| Option                   | Default                 | Notes                                                                                                  |
+| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `window`                 | _(required)_            | Window length in milliseconds.                                                                         |
+| `max`                    | _(required)_            | Requests allowed per key per window.                                                                   |
+| `keyBy`                  | _(required\*)_          | Identity to count against. `null` skips — see the warning above. \*Or set `trustProxy`.                |
+| `trustProxy`             | `false`                 | Derive the key from the proxy's address headers.                                                       |
+| `store`                  | bounded `memoryStore()` | Any `SessionStore`. The default is per process, capped at 10 000 keys.                                 |
+| `prefix`                 | `'rl:'`                 | Store-key prefix, so counters cannot collide with sessions.                                            |
+| `headers`                | `true`                  | Emit the `RateLimit-*` headers. `Retry-After` is sent either way.                                      |
+| `status` / `message`     | `429` / text            | The default rejection response.                                                                        |
+| `skip`                   | —                       | Skip a request entirely, without consuming budget.                                                     |
+| `onLimit`                | —                       | Handle rejection yourself; the headers are still applied.                                              |
+| `skipSuccessfulRequests` | `false`                 | Refund requests that ended 2xx. A 3xx still counts, so a redirect-on-failure login form stays limited. |
 
 ::: warning The default store only limits one process
 `memoryStore()` is process-local, so with several instances behind a load
 balancer each enforces its own count. Pass a shared `SessionStore` — the same
 interface sessions use — to make the limit hold across all of them.
+
+The default is bounded at 10 000 keys, because rate-limit keys are
+attacker-chosen and usually seen once: an unbounded store would turn the
+limiter into a memory-exhaustion vector. For the same reason, do not pass
+your _session_ store here — counter churn would evict live sessions.
+
+Within one process the counter is serialized per key, so concurrent requests
+cannot all read the same value and slip past the limit. Across processes that
+guarantee needs a store with an atomic increment.
 :::
 
 The window is **fixed**, not sliding: the first request starts it and the
