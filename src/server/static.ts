@@ -117,6 +117,7 @@ interface FsModule {
 
 interface FsPromisesModule {
   stat: typeof import('node:fs/promises').stat;
+  realpath: typeof import('node:fs/promises').realpath;
 }
 
 interface StreamModule {
@@ -170,11 +171,71 @@ export const fileEtag = (size: number, mtimeMs: number): string =>
   `W/"${size.toString(16)}-${Math.floor(mtimeMs).toString(16)}"`;
 
 /**
+ * Distinguish a precompressed representation's validator from the identity
+ * one. Two representations of a URL that share an ETag are indistinguishable
+ * to a cache, which is how compressed bytes end up served as identity.
+ * @internal
+ */
+export const encodedEtag = (etag: string, encoding: string): string =>
+  etag.endsWith('"') ? `${etag.slice(0, -1)}-${encoding}"` : `${etag}-${encoding}`;
+
+/**
+ * Parse `Accept-Encoding` into the set of encodings the client will take.
+ *
+ * A substring test cannot see quality values, and `q=0` means "not
+ * acceptable" (RFC 9110 §12.5.3) — it is exactly how a client says *do not
+ * send me brotli*. Matching on the token alone answered `gzip;q=1.0, br;q=0`
+ * with brotli, an encoding the client had just refused.
+ * @internal
+ */
+export const parseAcceptEncoding = (header: string | null): Map<string, number> => {
+  const qualities = new Map<string, number>();
+  if (!header) return qualities;
+
+  for (const part of header.split(',')) {
+    const [rawToken, ...parameters] = part.split(';');
+    const token = rawToken?.trim().toLowerCase();
+    if (!token) continue;
+
+    const match = parameters
+      .map((parameter) => /^\s*q=([\d.]+)\s*$/i.exec(parameter))
+      .find((found) => found !== null);
+    const quality = match ? Number.parseFloat(match[1] as string) : 1;
+
+    qualities.set(token, Number.isNaN(quality) ? 0 : quality);
+  }
+
+  return qualities;
+};
+
+/**
+ * Whether the client will accept an encoding, honouring `q=0` and `*`.
+ *
+ * An explicit entry always beats the `*` wildcard, so `br;q=0, *` refuses
+ * brotli while still accepting anything else.
+ * @internal
+ */
+export const acceptsEncoding = (qualities: Map<string, number>, encoding: string): boolean =>
+  (qualities.get(encoding) ?? qualities.get('*') ?? 0) > 0;
+
+/**
+ * Why {@link resolveAssetPath} declined to serve a path.
+ *
+ * The distinction matters to the caller: an escape attempt is answered `403`,
+ * but a dotfile or an undecodable path is simply not ours to serve, so the
+ * request falls through to the routes. Collapsing them made global
+ * `serveStatic()` veto `/.well-known/acme-challenge/<token>` and any URL with
+ * a stray `%`, neither of which is an attack.
+ */
+export type AssetPathRejection = 'escape' | 'not-ours';
+
+/**
  * Decode a URL path segment-wise and reject anything that escapes the root.
  *
- * Returns null when the path is unsafe. Traversal is checked on the decoded
- * form, so `%2e%2e%2f` is caught along with a literal `../`, and the resolved
- * path is re-checked against the root afterwards as a second line of defence.
+ * Returns a rejection reason instead of a path when the path cannot be
+ * served. Traversal is checked on the decoded form, so `%2e%2e%2f` is caught
+ * along with a literal `../`, and the resolved path is re-checked against the
+ * root afterwards as a second line of defence.
  * @internal
  */
 export const resolveAssetPath = (
@@ -182,22 +243,22 @@ export const resolveAssetPath = (
   relativePath: string,
   path: PathModule,
   allowDotfiles: boolean
-): string | null => {
+): string | AssetPathRejection => {
   let decoded: string;
   try {
     decoded = decodeURIComponent(relativePath);
   } catch {
-    return null; // malformed percent-encoding
+    return 'not-ours'; // malformed percent-encoding — let the routes try
   }
 
   // A NUL byte can truncate a path in some syscalls.
-  if (decoded.includes('\0')) return null;
+  if (decoded.includes('\0')) return 'escape';
 
   const segments = decoded.split(/[/\\]+/).filter((segment) => segment.length > 0);
   for (const segment of segments) {
-    if (segment === '..') return null;
+    if (segment === '..') return 'escape';
     if (segment === '.') continue;
-    if (!allowDotfiles && segment.startsWith('.')) return null;
+    if (!allowDotfiles && segment.startsWith('.')) return 'not-ours';
   }
 
   const rootAbsolute = path.resolve(root);
@@ -206,9 +267,35 @@ export const resolveAssetPath = (
   // Belt and braces: even with the segment check above, confirm the resolved
   // path is inside the root — symlinked or oddly-normalized roots included.
   const rootWithSep = rootAbsolute.endsWith(path.sep) ? rootAbsolute : rootAbsolute + path.sep;
-  if (candidate !== rootAbsolute && !candidate.startsWith(rootWithSep)) return null;
+  if (candidate !== rootAbsolute && !candidate.startsWith(rootWithSep)) return 'escape';
 
   return candidate;
+};
+
+/**
+ * Whether a path, with symlinks resolved, is still inside the root.
+ *
+ * {@link resolveAssetPath}'s containment check is lexical, but `stat()`
+ * follows symlinks — so a link *inside* the root pointing outside it passed
+ * both layers and served the outside file, contradicting the documented
+ * guarantee. Build outputs are a realistic place for such links to appear.
+ * @internal
+ */
+export const isInsideRoot = async (
+  root: string,
+  candidate: string,
+  fsp: FsPromisesModule,
+  path: PathModule
+): Promise<boolean> => {
+  try {
+    const realRoot = await fsp.realpath(path.resolve(root));
+    const realCandidate = await fsp.realpath(candidate);
+    const withSep = realRoot.endsWith(path.sep) ? realRoot : realRoot + path.sep;
+    return realCandidate === realRoot || realCandidate.startsWith(withSep);
+  } catch {
+    // A path we cannot resolve is not one we will serve.
+    return false;
+  }
 };
 
 /**
@@ -365,8 +452,12 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
 
     const resolved = resolveAssetPath(root, relative, path, dotfiles);
     // A traversal attempt is not a routing miss — say so rather than falling
-    // through to a route that might serve something.
-    if (resolved === null) throw new ServerHttpError(403, 'Forbidden');
+    // through to a route that might serve something. A dotfile or an
+    // undecodable path is a different matter: this middleware simply does not
+    // own it, so the routes still get their turn. Answering 403 there made a
+    // root-mounted `serveStatic()` veto `/.well-known/...` app-wide.
+    if (resolved === 'escape') throw new ServerHttpError(403, 'Forbidden');
+    if (resolved === 'not-ours') return next();
 
     let filePath = resolved;
     let stats: Awaited<ReturnType<FsPromisesModule['stat']>>;
@@ -396,6 +487,13 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
 
     if (!stats.isFile()) return next();
 
+    // `resolveAssetPath`'s containment check is lexical and `stat()` follows
+    // symlinks, so a link inside the root pointing outside it would otherwise
+    // be served — which the `root` option promises never happens.
+    if (!(await isInsideRoot(root, filePath, fsp, path))) {
+      throw new ServerHttpError(403, 'Forbidden');
+    }
+
     const contentType = contentTypeFor(filePath, path.extname, contentTypes, defaultContentType);
     const etag = fileEtag(stats.size, stats.mtimeMs);
 
@@ -424,16 +522,24 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
     let bodySize = stats.size;
 
     if (precompressed) {
-      const accepted = ctx.request.headers.get('accept-encoding') ?? '';
+      // Always vary, not only when a sidecar is chosen: the identity response
+      // is one of several representations of this URL, so a shared cache must
+      // key on the encoding for it too.
+      headers.set('vary', 'Accept-Encoding');
+      const accepted = parseAcceptEncoding(ctx.request.headers.get('accept-encoding'));
       for (const { encoding, suffix } of ENCODINGS) {
-        if (!accepted.toLowerCase().includes(encoding)) continue;
+        if (!acceptsEncoding(accepted, encoding)) continue;
         try {
           const sidecar = await fsp.stat(`${filePath}${suffix}`);
           if (!sidecar.isFile()) continue;
           bodyPath = `${filePath}${suffix}`;
           bodySize = sidecar.size;
           headers.set('content-encoding', encoding);
-          headers.set('vary', 'Accept-Encoding');
+          // Distinguish the representations. Sharing the identity file's
+          // validator let a cache revalidate the brotli variant on behalf of
+          // a client that does not accept `br`, get a bare 304, and hand back
+          // compressed bytes with no `Content-Encoding` — a corrupt body.
+          headers.set('etag', encodedEtag(etag, encoding));
           break;
         } catch {
           // No sidecar for this encoding; try the next one.
@@ -449,8 +555,13 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
     const range = rangeable ? parseRange(ctx.request.headers.get('range'), bodySize) : null;
 
     if (range === 'unsatisfiable') {
+      // Returned, not thrown: `ServerHttpError` carries no headers and the
+      // default `onError` builds a fresh response, so throwing dropped the
+      // `Content-Range` that RFC 9110 requires on a 416 — the only way a
+      // resuming client learns the current length.
       headers.set('content-range', `bytes */${bodySize}`);
-      throw new ServerHttpError(416, 'Range Not Satisfiable');
+      headers.delete('content-length');
+      return new Response(null, { status: 416, headers });
     }
 
     if (!rangeable) headers.delete('accept-ranges');

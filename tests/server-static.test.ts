@@ -8,7 +8,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createServer, serveStatic, ServerHttpError } from '../src/server/index';
@@ -43,6 +43,9 @@ beforeAll(async () => {
   await writeFile(join(root, 'compressed.js.br'), 'brotli body');
   await writeFile(join(root, 'compressed.js.gz'), 'gzip body');
   await writeFile(join(outside, 'secret.txt'), 'do not serve me');
+  // A symlink *inside* the root pointing outside it: the lexical containment
+  // check passes, so only a realpath check keeps it from being served.
+  await symlink(join(outside, 'secret.txt'), join(root, 'link.txt'));
 });
 
 afterAll(async () => {
@@ -181,9 +184,29 @@ describe('server/serveStatic path traversal', () => {
     expect(response.status).toBe(403);
   });
 
-  it('refuses a dotfile by default', async () => {
+  it('does not serve a dotfile by default, and lets routes have it', async () => {
+    // Not 403: a dotted path is not an attack, and vetoing it app-wide broke
+    // `/.well-known/acme-challenge/<token>` for a root-mounted serveStatic.
     const response = await appFor().handle('/.env');
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
+  });
+
+  it('lets a route answer a dotted path the middleware skipped', async () => {
+    const app = appFor();
+    app.get('/.well-known/acme-challenge/tok', (ctx) => ctx.text('challenge'));
+
+    const response = await app.handle('/.well-known/acme-challenge/tok');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('challenge');
+  });
+
+  it('lets a route answer a path with malformed percent-encoding', async () => {
+    const app = appFor();
+    app.get('/*', (ctx) => ctx.text('catchall'));
+
+    const response = await app.handle('/%ZZ');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe('catchall');
   });
 
   it('serves a dotfile when explicitly allowed', async () => {
@@ -366,27 +389,27 @@ describe('serveStatic helpers', () => {
       );
     });
 
-    it('refuses traversal, encoded or not', () => {
+    it('reports traversal as an escape, encoded or not', () => {
       for (const attempt of ['/../x', '/a/../../x', '/%2e%2e/x', '/..%2fx']) {
-        expect(resolveAssetPath('/srv/pub', attempt, path, false), attempt).toBeNull();
+        expect(resolveAssetPath('/srv/pub', attempt, path, false), attempt).toBe('escape');
       }
     });
 
-    it('refuses malformed percent-encoding', () => {
-      expect(resolveAssetPath('/srv/pub', '/%ZZ', path, false)).toBeNull();
+    it('treats malformed percent-encoding as not ours, not as an attack', () => {
+      expect(resolveAssetPath('/srv/pub', '/%ZZ', path, false)).toBe('not-ours');
     });
 
-    it('refuses a NUL byte', () => {
-      expect(resolveAssetPath('/srv/pub', '/a%00.js', path, false)).toBeNull();
+    it('reports a NUL byte as an escape', () => {
+      expect(resolveAssetPath('/srv/pub', '/a%00.js', path, false)).toBe('escape');
     });
 
-    it('refuses dotfiles unless allowed', () => {
-      expect(resolveAssetPath('/srv/pub', '/.env', path, false)).toBeNull();
+    it('treats a dotfile as not ours unless allowed', () => {
+      expect(resolveAssetPath('/srv/pub', '/.env', path, false)).toBe('not-ours');
       expect(resolveAssetPath('/srv/pub', '/.env', path, true)).toBe(join('/srv/pub', '.env'));
     });
 
     it('treats a backslash as a separator', () => {
-      expect(resolveAssetPath('/srv/pub', '/a\\..\\..\\x', path, false)).toBeNull();
+      expect(resolveAssetPath('/srv/pub', '/a\\..\\..\\x', path, false)).toBe('escape');
     });
   });
 
@@ -533,5 +556,88 @@ describe('global middleware on unmatched routes', () => {
     });
 
     expect((await app.handle('/missing')).status).toBe(418);
+  });
+});
+
+describe('server/serveStatic containment and caching', () => {
+  it('refuses a symlink that escapes the root', async () => {
+    // `resolveAssetPath` is lexical and `stat()` follows links, so without a
+    // realpath check the outside file was served with 200.
+    const response = await appFor().handle('/link.txt');
+    expect(response.status).toBe(403);
+    expect(await response.text()).not.toContain('do not serve me');
+  });
+
+  it('keeps Content-Range on a 416', async () => {
+    // RFC 9110 §15.5.17: it is the only way a resuming client learns the
+    // current length. Throwing a ServerHttpError discarded it.
+    const response = await appFor().handle({
+      url: '/app.js',
+      headers: { range: 'bytes=9999-' },
+    });
+
+    expect(response.status).toBe(416);
+    expect(response.headers.get('content-range')).toBe(`bytes */${BODY.length}`);
+  });
+
+  it('honours q=0 in Accept-Encoding', async () => {
+    const app = appFor({ precompressed: true });
+
+    const response = await app.handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'gzip;q=1.0, br;q=0' },
+    });
+
+    expect(response.headers.get('content-encoding')).toBe('gzip');
+    expect(await response.text()).toBe('gzip body');
+  });
+
+  it('does not let the * wildcard override an explicit q=0', async () => {
+    const app = appFor({ precompressed: true });
+
+    const response = await app.handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br;q=0, *' },
+    });
+
+    expect(response.headers.get('content-encoding')).toBe('gzip');
+  });
+
+  it('gives each representation its own ETag and always varies', async () => {
+    const app = appFor({ precompressed: true });
+
+    const identity = await app.handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity' },
+    });
+    const brotli = await app.handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+
+    expect(identity.headers.get('vary')).toBe('Accept-Encoding');
+    expect(brotli.headers.get('vary')).toBe('Accept-Encoding');
+    expect(brotli.headers.get('etag')).not.toBe(identity.headers.get('etag'));
+  });
+
+  it('does not answer 304 across representations', async () => {
+    // A cache holding the brotli variant must not revalidate on behalf of a
+    // client that cannot decode it and be handed a bare 304.
+    const app = appFor({ precompressed: true });
+
+    const brotli = await app.handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const revalidated = await app.handle({
+      url: '/compressed.js',
+      headers: {
+        'accept-encoding': 'identity',
+        'if-none-match': brotli.headers.get('etag') as string,
+      },
+    });
+
+    expect(revalidated.status).toBe(200);
+    expect(await revalidated.text()).toBe('identity body');
   });
 });

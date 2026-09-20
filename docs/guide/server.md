@@ -466,22 +466,25 @@ see those requests.
 
 ### Options
 
-| Option               | Default                      | Notes                                                              |
-| -------------------- | ---------------------------- | ------------------------------------------------------------------ |
-| `root`               | _(required)_                 | Directory to serve. Nothing outside it is reachable.               |
-| `prefix`             | `'/'`                        | URL mount point; stripped before resolving against `root`.         |
-| `maxAge`             | `0`                          | `Cache-Control` max-age in seconds. `0` emits `no-cache`.          |
-| `immutable`          | `false`                      | Adds `immutable`. Only correct for content-hashed filenames.       |
-| `index`              | `'index.html'`               | File served for a directory. `false` disables directory indexes.   |
-| `precompressed`      | `false`                      | Serve a `.br`/`.gz` sidecar when the client accepts that encoding. |
-| `dotfiles`           | `false`                      | Serve dotfiles. Off by default so `.env` is not exposed.           |
-| `contentTypes`       | —                            | Extra or overriding extension → MIME mappings.                     |
-| `defaultContentType` | `'application/octet-stream'` | Fallback MIME type.                                                |
+| Option               | Default                      | Notes                                                                                           |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| `root`               | _(required)_                 | Directory to serve. Nothing outside it is reachable, symlinks included.                         |
+| `prefix`             | `'/'`                        | URL mount point; stripped before resolving against `root`.                                      |
+| `maxAge`             | `0`                          | `Cache-Control` max-age in seconds. `0` emits `no-cache`.                                       |
+| `immutable`          | `false`                      | Adds `immutable`. Only correct for content-hashed filenames.                                    |
+| `index`              | `'index.html'`               | File served for a directory. `false` disables directory indexes.                                |
+| `precompressed`      | `false`                      | Serve a `.br`/`.gz` sidecar when the client accepts that encoding (`q=0` is honoured).          |
+| `dotfiles`           | `false`                      | Serve dotfiles. Off by default so `.env` is not exposed; a dotted path is skipped, not refused. |
+| `contentTypes`       | —                            | Extra or overriding extension → MIME mappings.                                                  |
+| `defaultContentType` | `'application/octet-stream'` | Fallback MIME type.                                                                             |
 
 ### What it handles for you
 
 - **Caching.** A weak `ETag` from size and mtime, plus `Last-Modified`.
-  `If-None-Match` and `If-Modified-Since` are answered with `304`.
+  `If-None-Match` and `If-Modified-Since` are answered with `304`. With
+  `precompressed`, every response carries `Vary: Accept-Encoding` and each
+  encoding gets its own `ETag`, so a cache cannot hand compressed bytes to a
+  client that asked for identity.
 - **Ranges.** Single byte ranges — closed, open-ended and suffix — answered
   with `206` and `Content-Range`; out-of-range requests get `416`. Multi-range
   requests fall back to the whole body. Ranges are not offered over a
@@ -492,7 +495,14 @@ see those requests.
 - **Path traversal.** Rejected with `403`. Paths are decoded and checked
   segment by segment, and the resolved path is re-checked against `root`.
   Encoded traversal (`%2e%2e`), backslash separators and NUL bytes are all
-  covered.
+  covered. Symlinks are resolved before serving, so a link inside `root`
+  pointing outside it is refused too — build outputs are a realistic place
+  for those to appear.
+- **Dotfiles and undecodable paths are _not_ traversal.** They are skipped
+  with `next()`, not answered `403`, so a root-mounted `serveStatic()` does
+  not veto them for the whole app. That keeps `/.well-known/...` — ACME
+  HTTP-01 renewal, `security.txt` — answerable by a route, and a URL with a
+  stray `%` reaches your catch-all.
 
 ::: warning `immutable` is a promise about your filenames
 `immutable` tells caches never to revalidate for the whole `maxAge`. That is
