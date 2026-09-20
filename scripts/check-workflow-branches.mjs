@@ -44,54 +44,53 @@ function git(args) {
 /** The upstream repository this check is about. */
 const UPSTREAM = 'bQuery/bQuery';
 
-/** A branch every clone of the upstream has; its absence means a fork. */
-const SENTINEL_BRANCH = 'main';
-
 /**
- * The remote that points at the upstream repository.
+ * The remote that points at the upstream repository, or null when none does.
  *
- * `origin` is *not* it for anyone working from a fork, which is the normal
- * outside-contributor flow — and a fork routinely carries only its default
- * branch. Resolving against it reported every `branches: dev` trigger as
- * missing and failed `bun run check` on a clean tree.
+ * `origin` is *not* the upstream for anyone working from a fork, which is
+ * the normal outside-contributor flow. A fork's branch list is its own, so
+ * auditing against it reported every `branches: dev` trigger as missing and
+ * failed `bun run check` on a clean tree.
+ *
+ * Returning null rather than guessing is deliberate: this check is a
+ * statement about the upstream repository's branches, so without the
+ * upstream there is nothing to check and the caller takes the skip path. A
+ * fork's own `main` is not evidence that the branch set is the right one.
  */
 export function upstreamRemote(list = git(['remote', '-v'])) {
-  if (!list) return 'origin';
+  if (!list) return null;
 
-  const matches = (name) =>
-    list
-      .split('\n')
-      .some(
-        (line) =>
-          line.startsWith(`${name}\t`) && line.toLowerCase().includes(UPSTREAM.toLowerCase())
-      );
+  const isUpstream = (line) => line.toLowerCase().includes(UPSTREAM.toLowerCase());
+  const named = (name) =>
+    list.split('\n').some((line) => line.startsWith(`${name}\t`) && isUpstream(line));
 
-  if (matches('upstream')) return 'upstream';
-  if (matches('origin')) return 'origin';
+  if (named('upstream')) return 'upstream';
+  if (named('origin')) return 'origin';
 
-  // Any remote whose URL names the upstream repository.
   for (const line of list.split('\n')) {
-    if (!line.toLowerCase().includes(UPSTREAM.toLowerCase())) continue;
+    if (!isUpstream(line)) continue;
     const name = line.split('\t')[0];
     if (name) return name;
   }
 
-  return 'origin';
+  return null;
 }
 
 /** Branch names this repository has, preferring the remote over local refs. */
 export function knownBranches() {
-  const remote = git(['ls-remote', '--heads', upstreamRemote()]);
-  if (remote) {
-    const names = remote
+  const remote = upstreamRemote();
+  // No upstream remote — a fork, or a clone that renamed its remotes. There
+  // is no branch set to audit against, so skip rather than emit a wall of
+  // false positives.
+  if (remote === null) return null;
+
+  const listed = git(['ls-remote', '--heads', remote]);
+  if (listed) {
+    const names = listed
       .split('\n')
       .map((line) => line.split('refs/heads/')[1])
       .filter(Boolean);
-    // A branch set without the repository's own default branch is not this
-    // repository's — a fork, or a single-branch clone. Reporting every
-    // trigger as missing would be a wall of false positives, so treat it as
-    // "cannot resolve" and take the documented skip path instead.
-    if (names.length > 0 && names.includes(SENTINEL_BRANCH)) return new Set(names);
+    if (names.length > 0) return new Set(names);
   }
 
   const local = git([
@@ -105,10 +104,10 @@ export function knownBranches() {
     .split('\n')
     .map((line) => line.trim().replace(/^origin\//, ''))
     .filter((line) => line && line !== 'HEAD');
-  // Same sentinel as above. A shallow `actions/checkout` leaves essentially
-  // one ref, so without this the offline path flags `main` as missing
-  // instead of skipping with a note.
-  return names.includes(SENTINEL_BRANCH) ? new Set(names) : null;
+  // A shallow `actions/checkout` leaves essentially one ref, so a local set
+  // that does not even contain the repository's default branch is not a
+  // usable answer — skip with a note instead of flagging `main` as missing.
+  return names.includes('main') ? new Set(names) : null;
 }
 
 /** Strip a YAML scalar's quotes and trailing comment. */
