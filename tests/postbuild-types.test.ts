@@ -103,4 +103,37 @@ describe('rewriteSource', () => {
   it('returns null when there is nothing to change', () => {
     expect(rewriteSource("export * from './core/index.js';", '/dist', exists)).toBeNull();
   });
+
+  it('leaves specifiers inside JSDoc alone', () => {
+    // The pass is otherwise comment-blind. Harmless for a `{@link}`, but an
+    // `@example` showing consumer code would be rewritten to bQuery's
+    // internal dist layout and shipped into IDE hover docs.
+    const source = [
+      '/**',
+      " * Can be either a plain string or a {@link import('./types').Thing}.",
+      ' *',
+      ' * @example',
+      " * import { thing } from './core/index';",
+      ' */',
+      "export * from './core/index';",
+    ].join('\n');
+
+    const result = rewriteSource(source, '/dist', exists);
+
+    expect(result?.changed).toBe(1);
+    expect(result?.source).toContain("{@link import('./types').Thing}");
+    expect(result?.source).toContain(" * import { thing } from './core/index';");
+    expect(result?.source).toContain("export * from './core/index.js';");
+  });
+
+  it('still rewrites a line-comment-free statement that follows a comment', () => {
+    const source = ["// keep './types' as written", "export * from './types';"].join('\n');
+
+    const result = rewriteSource(source, '/dist', exists);
+
+    expect(result?.changed).toBe(1);
+    expect(result?.source).toBe(
+      ["// keep './types' as written", "export * from './types.js';"].join('\n')
+    );
+  });
 });

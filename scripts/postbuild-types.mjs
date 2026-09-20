@@ -39,6 +39,24 @@ const distDir = join(repoRoot, 'dist');
 /** `from '…'`, `import('…')` and bare `import '…'`, single or double quoted. */
 const SPECIFIER = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"]*)\2/g;
 
+/**
+ * A line that is comment text rather than code.
+ *
+ * The rewrite is otherwise comment-blind, and that is not hypothetical: it
+ * turned `{@link import('./css')}` in `src/component/types.ts` into
+ * `'./css.js'` in the emitted declaration. Harmless there, but an `@example`
+ * block showing *consumer* code — `from './core'` — would be rewritten to
+ * bQuery's internal dist layout and shipped into IDE hover docs.
+ *
+ * Line-level is the right granularity here: `tsc` preserves JSDoc in the
+ * ` * …` continuation form and never splits a real import statement across a
+ * comment, so matching the leading token is enough.
+ */
+const isCommentLine = (line) => {
+  const trimmed = line.trimStart();
+  return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
+};
+
 /** Already has an extension we must not touch. */
 const HAS_EXTENSION = /\.(js|mjs|cjs|json|node)$/;
 
@@ -69,12 +87,18 @@ export function resolveSpecifier(specifier, fromDir, exists = existsSync) {
 /** Rewrite one declaration file's specifiers. Returns the new source, or null. */
 export function rewriteSource(source, fromDir, exists = existsSync) {
   let changed = 0;
-  const next = source.replace(SPECIFIER, (match, prefix, quote, specifier) => {
-    const rewritten = resolveSpecifier(specifier, fromDir, exists);
-    if (rewritten === null) return match;
-    changed++;
-    return `${prefix}${quote}${rewritten}${quote}`;
-  });
+  const next = source
+    .split('\n')
+    .map((line) => {
+      if (isCommentLine(line)) return line;
+      return line.replace(SPECIFIER, (match, keyword, quote, specifier) => {
+        const rewritten = resolveSpecifier(specifier, fromDir, exists);
+        if (rewritten === null) return match;
+        changed++;
+        return `${keyword}${quote}${rewritten}${quote}`;
+      });
+    })
+    .join('\n');
   return changed > 0 ? { source: next, changed } : null;
 }
 
@@ -102,6 +126,17 @@ export async function main() {
   }
 
   const { fileCount, filesChanged, specifiersChanged } = await fixDeclarationExtensions();
+
+  // Finding nothing is a build problem, not a no-op. A changed `outDir` or a
+  // `vite build` with `emptyOutDir` reordered after `build:types` would leave
+  // the declarations unrewritten and ship the extensionless imports this
+  // script exists to fix — with `bun run build` still green. The same rule
+  // `check:full-bundle` states: silently skipping is not allowed.
+  if (fileCount === 0) {
+    console.error('✗ No .d.ts files under dist/ — the type build emitted nothing to rewrite.');
+    process.exit(1);
+  }
+
   console.log(
     `✓ Declaration imports: rewrote ${specifiersChanged} specifier(s) across ` +
       `${filesChanged} of ${fileCount} .d.ts files.`

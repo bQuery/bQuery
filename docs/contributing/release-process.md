@@ -46,8 +46,8 @@ of the current build, and also runs from `prepublishOnly` and from the publish
 workflow (#218):
 
 - **[`publint`](https://publint.dev)** — checks the `exports` map and the
-  tarball's contents. The map has 25 entries and is hand-edited on every new
-  module, so it drifts easily.
+  tarball's contents. The map is hand-edited on every new module, so it
+  drifts easily.
 - **[`@arethetypeswrong/cli`](https://arethetypeswrong.github.io)** — resolves
   every entry point under `node10`, `node16` (from CJS and from ESM) and
   `bundler`, and reports where the published types misrepresent the JavaScript.
@@ -59,18 +59,26 @@ declaration used extensionless relative imports (315 problems), which is a hard
 `TS2834` for any consumer with `skipLibCheck: false`. The declarations are now
 rewritten on the way out of the build by `scripts/postbuild-types.mjs`.
 
-**Three attw results are ignored on purpose**, all consequences of the ESM-only
+**Two attw results are ignored on purpose**, both consequences of the ESM-only
 policy in the [module format](/guide/getting-started#module-format) docs:
 
-| Ignored                          | Why                                                                                                                                                                                                                                                                                                      |
-| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `node10` resolution failures     | `node10` means TypeScript before 4.7, which predates `exports`. Supporting it needs `typesVersions`, and this package targets modern resolvers.                                                                                                                                                          |
-| CJS-resolves-to-ESM on sub-paths | The documented policy: sub-paths are ESM-only.                                                                                                                                                                                                                                                           |
-| `false-esm` on the root          | `require('@bquery/bquery')` works at runtime, but its types are ESM-shaped. TypeScript CommonJS consumers should use ESM or a dynamic import. Fixing it properly needs a parallel `.d.cts` declaration tree — a copied `.d.cts` does **not** work, since its re-exports still point at ESM declarations. |
+| Ignored                          | Why                                                                                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node10` resolution failures     | `node10` means TypeScript before 4.7, which predates `exports`. Supporting it needs `typesVersions`, and this package targets modern resolvers. |
+| CJS-resolves-to-ESM on sub-paths | The documented policy: sub-paths are ESM-only.                                                                                                  |
 
-The first two are handled by `attw --profile esm-only`, the third by
-`--ignore-rules false-esm`. `publint` still prints the third as a warning; that
-is deliberate, so the gap stays visible.
+Both are handled by `attw --profile esm-only`. Nothing else is ignored:
+`--ignore-rules` is deliberately **not** used, because it applies package-wide
+and would mask the same class of problem on a sub-path that later grew a
+`require` condition.
+
+There used to be a third exemption, `false-esm` on the root: `require()`
+worked at runtime while its types resolved to the ESM declaration, which a
+`module: node16` CommonJS consumer rejects with `TS1479`. That is fixed rather
+than ignored — `scripts/postbuild-cts.mjs` emits a parallel `.d.cts` tree and
+the `require` branches point at it (#219). A _copied_ `.d.cts` does not work;
+the whole tree has to exist, with relative specifiers resolved to their `.cjs`
+twins. `publint` now reports **All good!**.
 
 ### `check:full-bundle`
 
