@@ -68,4 +68,8 @@ jobs:
         run: bun run format:check
 
       - name: Run repository checks
+        # `check:workflow-branches` resolves trigger names against the
+        # upstream remote. On a fork that remote is absent, so the check
+        # skips itself with a note rather than reporting every `dev` trigger
+        # as missing — this job stays green on fork pushes.
         run: bun run check
