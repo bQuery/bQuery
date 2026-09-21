@@ -21,11 +21,18 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const repoRoot = resolve(__dirname, '..');
 
-/** Ceilings, with headroom over the measured 1.1 MB / 4.6 MB / 924 files. */
+/**
+ * Ceilings, with headroom over the measured 1.3 MB / 5.2 MB / 1211 files.
+ *
+ * The count rose from 924 to 1211 with #219, 284 of those files being the
+ * parallel `.d.cts` tree that makes `require('@bquery/bquery')` type-check.
+ * They carry almost no bytes, so packed and unpacked size barely moved —
+ * which is why only this ceiling needed raising.
+ */
 export const BUDGET = {
   packedBytes: 1.6 * 1024 * 1024,
   unpackedBytes: 6 * 1024 * 1024,
-  fileCount: 1100,
+  fileCount: 1400,
 };
 
 const mb = (bytes) => `${(bytes / 1024 / 1024).toFixed(2)} MB`;
