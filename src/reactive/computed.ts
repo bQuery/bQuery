@@ -5,6 +5,7 @@
 import {
   clearDependencies,
   getCurrentObserver,
+  markDerivation,
   registerDependency,
   scheduleObserver,
   track,
@@ -81,7 +82,16 @@ export class Computed<T> implements ReactiveSource {
    * Creates a new computed value.
    * @param compute - Function that computes the value
    */
-  constructor(private readonly compute: () => T) {}
+  constructor(private readonly compute: () => T) {
+    // Both of this computed's observers propagate through the graph rather
+    // than producing a side effect, so the flush must settle them before it
+    // runs any effect. `markDirty` is what downstream computeds subscribe
+    // with, and `revalidate` is what it schedules in turn — marking only one
+    // of them leaves the other queued alongside effects, which is exactly the
+    // ordering that lets an effect read a stale value (#210).
+    markDerivation(this.markDirty);
+    markDerivation(this.revalidate);
+  }
 
   private recompute(): void {
     // Cleared before running so re-entrant reads see the cached value

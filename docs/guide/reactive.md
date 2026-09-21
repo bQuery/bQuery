@@ -122,6 +122,79 @@ batch(() => {
 });
 ```
 
+## Scheduler
+
+By default a signal write notifies its observers **synchronously**. That makes
+effect timing easy to reason about, and it is the default for all of 1.x — but
+it has two costs, both visible in a diamond dependency graph:
+
+```ts
+const a = signal(0);
+const b = computed(() => a.value + 1);
+const c = computed(() => a.value * 2);
+const d = computed(() => b.value + c.value);
+
+effect(() => console.log(d.value));
+
+a.value = 1; // logs 2, then 4
+a.value = 2; // logs 5, then 7
+```
+
+The `2` and `5` are **glitches**: states where `b` had recomputed but `c` had
+not, so the effect saw a `d` that was never logically true. The effect also
+ran once per upstream computed rather than once per settled graph.
+
+`configureReactive({ scheduler: 'batched' })` coalesces writes onto a
+microtask, the same way an explicit `batch()` does:
+
+```ts
+import { configureReactive } from '@bquery/bquery/reactive';
+
+configureReactive({ scheduler: 'batched' });
+
+a.value = 1;
+a.value = 2;
+await Promise.resolve();
+// logs 7, once — no 2, no 4, no 5
+```
+
+|                       | `'sync'` (default)   | `'batched'`    |
+| --------------------- | -------------------- | -------------- |
+| Effect timing         | Immediately on write | On a microtask |
+| Diamond graph         | Observes glitches    | Glitch-free    |
+| 1000 writes in a tick | 1000 effect runs     | 1 effect run   |
+
+The saving is not marginal. 1000 writes to one signal with 1000 subscribed
+effects, measured on Bun 1.3.11:
+
+| Scheduler   | Time    | Effect invocations |
+| ----------- | ------- | ------------------ |
+| `'sync'`    | 1314 ms | 1,000,000          |
+| `'batched'` | 44 ms   | 1,000              |
+
+### `flushSync()`
+
+Under `'batched'`, use `flushSync()` when you need the update to have landed
+before the next statement — chiefly in tests:
+
+```ts
+count.value = 1;
+flushSync();
+expect(render).toHaveBeenCalled(); // no `await` needed
+```
+
+Inside a `batch()` it leaves the work with the enclosing batch, so it cannot
+break a batch open. Under `'sync'` nothing is ever queued, so it does nothing.
+
+`getReactiveConfig()` reports the scheduler currently in force, which is handy
+in a test helper that has to restore it afterwards.
+
+::: tip Why this is opt-in
+Effect timing is observable, so flipping the default is a breaking change even
+though it fixes a bug. `'sync'` stays the default for all of 1.x; the default
+flips in 2.0. Set `'batched'` once at startup, before creating effects.
+:::
+
 ## Persisted signals
 
 `persistedSignal` syncs a signal to `localStorage`.
