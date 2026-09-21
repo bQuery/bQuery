@@ -70,7 +70,12 @@ export default defineConfig({
     },
     outDir: 'dist',
     emptyOutDir: false, // Don't clear, we add to existing ESM builds
-    sourcemap: true,
+    // 'hidden' emits the .map files without a `sourceMappingURL` comment in
+    // the bundle. The maps stay in `dist/` for local debugging and for
+    // uploading to an error tracker, but they are excluded from the published
+    // package (`files` in package.json), so dropping them leaves no dangling
+    // reference for a browser to chase (#220).
+    sourcemap: 'hidden',
     minify: 'esbuild',
     target: 'es2020',
     rollupOptions: {
