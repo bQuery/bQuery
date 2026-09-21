@@ -1177,15 +1177,13 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
       try {
         const route = resolveMatchingRoute(routes, context.method, context.path, context);
 
-        if (!route) {
-          return await notFound(context);
-        }
-
-        const stack: PipelineHandler[] = [
-          ...middlewares,
-          ...route.middlewares,
-          async (ctx) => await route.handler(ctx),
-        ];
+        // Global middleware runs even when no route matches, with `notFound`
+        // as the terminal handler. Short-circuiting to 404 before the stack
+        // meant middleware that must see every request — CORS, logging,
+        // security headers, static assets (#222) — silently skipped 404s.
+        const stack: PipelineHandler[] = route
+          ? [...middlewares, ...route.middlewares, async (ctx) => await route.handler(ctx)]
+          : [...middlewares];
 
         const result = await runPipeline(context, stack, async () => {
           return await notFound(context);
