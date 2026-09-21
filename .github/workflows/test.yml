@@ -102,9 +102,7 @@ jobs:
 
   # Everything that needs a current `dist/`. `bun run build` is the
   # expensive part, so these are steps in one job rather than a job each
-  # repeating the checkout, install and build. `check:package` from #220
-  # belongs here too and folds in once #243 raises its file-count ceiling,
-  # which the `.d.cts` tree from #219 currently exceeds.
+  # repeating the checkout, install and build.
   package:
     name: Build-dependent checks
     runs-on: ubuntu-latest
@@ -135,3 +133,10 @@ jobs:
       # budgets in scripts/bundle-budgets.mjs (#216).
       - name: Check bundle size budgets
         run: bun run check:size
+
+      # Keeps the tarball from re-inflating (#220). It only ran from
+      # `prepublishOnly` and the publish workflow before, so a PR could
+      # break it and nothing went red until release time — which is how
+      # #243 happened.
+      - name: Check published package size
+        run: bun run check:package
