@@ -78,6 +78,7 @@ Runtime helpers:
 | `guard()`                                 | Predicate-based route guard middleware (1.15.0).                                                     |
 | `basicAuth()` / `bearerAuth()`            | `Authorization`-header auth helpers with a `verify` hook (1.15.0).                                   |
 | `rateLimit()`                             | Fixed-window request throttling with `RateLimit-*` headers and a pluggable store.                    |
+| `serveStatic()`                           | Serve files from disk, with ETag/`304`, `Range`, and precompressed sidecars.                         |
 | `signValue()` / `unsignValue()`           | HMAC-SHA-256 sign/verify with secret rotation (1.15.0).                                              |
 | `timingSafeEqual()`                       | Constant-time string comparison (1.15.0).                                                            |
 | `randomToken()` / `randomId()`            | CSPRNG-backed token and id generation (1.15.0).                                                      |
@@ -544,6 +545,83 @@ Use `socket.send(...)` for raw frames or `socket.sendJson(...)` for JSON payload
 Middleware still runs for WebSocket routes, so auth, logging, and per-request state can be shared between HTTP and upgrade flows. Middleware may also short-circuit a WebSocket request by returning a normal `Response`.
 
 HTTP middleware registered with `app.use()` is adapted for WebSocket routes. If it calls `next()`, the WebSocket route can continue resolving to a session; if it returns a `Response`, the upgrade is blocked before any socket lifecycle callback runs.
+
+---
+
+## Static assets
+
+`serveStatic()` sends files from disk, so an app can deliver its own
+`client.js` without a reverse proxy in front of it.
+
+```ts
+import { createServer, serveStatic } from '@bquery/bquery/server';
+
+const app = createServer();
+
+app.use(
+  serveStatic({
+    root: './dist/client',
+    prefix: '/assets',
+    maxAge: 31_536_000,
+    immutable: true, // content-hashed filenames only
+    precompressed: true,
+  })
+);
+
+app.get('/', (ctx) => ctx.render('<div bq-text="title"></div>', { title: 'Home' }));
+```
+
+It is middleware, not a route: it answers `GET` and `HEAD` for paths that
+resolve to a file under `root`, and calls `next()` for everything else — a
+missing file, another method, a path outside `prefix` — so your routes still
+see those requests.
+
+### Options
+
+| Option               | Default                      | Notes                                                                                           |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| `root`               | _(required)_                 | Directory to serve. Nothing outside it is reachable, symlinks included.                         |
+| `prefix`             | `'/'`                        | URL mount point; stripped before resolving against `root`.                                      |
+| `maxAge`             | `0`                          | `Cache-Control` max-age in seconds. `0` emits `no-cache`.                                       |
+| `immutable`          | `false`                      | Adds `immutable`. Only correct for content-hashed filenames.                                    |
+| `index`              | `'index.html'`               | File served for a directory. `false` disables directory indexes.                                |
+| `precompressed`      | `false`                      | Serve a `.br`/`.gz` sidecar when the client accepts that encoding (`q=0` is honoured).          |
+| `dotfiles`           | `false`                      | Serve dotfiles. Off by default so `.env` is not exposed; a dotted path is skipped, not refused. |
+| `contentTypes`       | —                            | Extra or overriding extension → MIME mappings.                                                  |
+| `defaultContentType` | `'application/octet-stream'` | Fallback MIME type.                                                                             |
+
+### What it handles for you
+
+- **Caching.** A weak `ETag` from size and mtime, plus `Last-Modified`.
+  `If-None-Match` and `If-Modified-Since` are answered with `304`. With
+  `precompressed`, every response carries `Vary: Accept-Encoding` and each
+  encoding gets its own `ETag`, so a cache cannot hand compressed bytes to a
+  client that asked for identity.
+- **Ranges.** Single byte ranges — closed, open-ended and suffix — answered
+  with `206` and `Content-Range`; out-of-range requests get `416`. Multi-range
+  requests fall back to the whole body. Ranges are not offered over a
+  precompressed body, since those bytes are not the identity representation
+  the client asked to slice.
+- **Directory redirects.** `/dir` redirects to `/dir/` with `308`, so relative
+  links inside the index resolve.
+- **Path traversal.** Rejected with `403`. Paths are decoded and checked
+  segment by segment, and the resolved path is re-checked against `root`.
+  Encoded traversal (`%2e%2e`), backslash separators and NUL bytes are all
+  covered. Symlinks are resolved before serving, so a link inside `root`
+  pointing outside it is refused too — build outputs are a realistic place
+  for those to appear.
+- **Dotfiles and undecodable paths are _not_ traversal.** They are skipped
+  with `next()`, not answered `403`, so a root-mounted `serveStatic()` does
+  not veto them for the whole app. That keeps `/.well-known/...` — ACME
+  HTTP-01 renewal, `security.txt` — answerable by a route, and a URL with a
+  stray `%` reaches your catch-all.
+
+::: warning `immutable` is a promise about your filenames
+`immutable` tells caches never to revalidate for the whole `maxAge`. That is
+only true when the URL changes whenever the content does — content-hashed
+build output. On a stable filename like `/assets/app.js`, clients can be stuck
+with a stale copy for as long as `maxAge`.
+:::
 
 ---
 

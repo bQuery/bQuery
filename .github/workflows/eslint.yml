@@ -6,15 +6,24 @@
 # found in ECMAScript/JavaScript code.
 # More details at https://github.com/eslint/eslint
 # and https://eslint.org
+#
+# This workflow exists to publish SARIF results to GitHub code scanning. It is
+# NOT the lint gate — that is the `quality` job in `test.yml`, which runs on
+# every push and on every PR into `main` or `dev` (#212). A PR into a feature
+# branch (a stacked PR) is outside that filter and gets no lint gate.
+#
+# The step below is therefore non-blocking on every event: a lint error is
+# reported once, by the `quality` job, rather than failing two workflows and
+# running `eslint .` twice for the same push.
 
 name: ESLint
 
 on:
   push:
-    branches: ['main', 'development']
+    branches: ['main', 'dev']
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: ['main', 'development']
+    branches: ['main', 'dev']
   schedule:
     - cron: '43 16 * * 1'
 
@@ -39,7 +48,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Run ESLint
-        continue-on-error: ${{ github.event_name == 'schedule' }}
+        continue-on-error: true
         run: |
           bunx eslint . \
             --format json \
