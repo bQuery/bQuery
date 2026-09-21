@@ -7,7 +7,7 @@ on:
   push:
     branches:
       - main
-      - development
+      - dev
     paths:
       - 'docs/**'
       - '.github/workflows/docs-link-check.yml'
@@ -15,7 +15,7 @@ on:
   pull_request:
     branches:
       - main
-      - development
+      - dev
     paths:
       - 'docs/**'
       - '.github/workflows/docs-link-check.yml'
