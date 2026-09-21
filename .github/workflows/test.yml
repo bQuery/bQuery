@@ -34,3 +34,42 @@ jobs:
 
       - name: Run tests
         run: bun test
+
+  quality:
+    name: Lint, format and repo checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # `check:workflow-branches` resolves branch triggers against the
+          # remote, which a shallow single-branch clone cannot see.
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Type-check sources
+        run: bun run lint:types
+
+      - name: Lint
+        # `bun run lint` passes `--fix`, which must not rewrite files in CI.
+        run: bunx eslint .
+
+      - name: Check formatting
+        run: bun run format:check
+
+      - name: Run repository checks
+        # `check:workflow-branches` resolves trigger names against the
+        # upstream remote. On a fork that remote is absent, so the check
+        # skips itself with a note rather than reporting every `dev` trigger
+        # as missing — this job stays green on fork pushes.
+        run: bun run check
