@@ -59,9 +59,10 @@ If you ever need published JS source maps, prefer a separate
 `@bquery/bquery-sourcemaps` package over re-adding 6.4 MB to every install.
 
 `bun run check:package` enforces all of the above against the real `npm pack`
-file list. It needs a current `dist/`, and runs both in the publish
-workflow's `build` job — so a re-inflated tarball fails at PR time rather
-than mid-release — and again from `prepublishOnly` as a last gate.
+file list. It needs a current `dist/`, so it runs as a step of the
+`Build-dependent checks` job in `test.yml` — which is what makes a
+re-inflated tarball fail at PR time rather than mid-release — and again in
+the publish workflow's `build` job and from `prepublishOnly` as last gates.
 
 It also verifies the invariant the exclusion rests on: that no shipped bundle
 carries a `sourceMappingURL` comment. Dropping the maps is only safe while
