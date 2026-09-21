@@ -86,6 +86,39 @@ Prefer these over hand-rolled stubs so refactors stay safe.
 
 `bun run lint` covers `tests/` too. Tests can use the same import style as `src/`.
 
+## Coverage floor
+
+`bun run test:coverage` writes `coverage/lcov.info`; `bun run check:coverage`
+holds it to the policy in `scripts/coverage-policy.mjs`. Both run in CI
+(#215).
+
+- **The global floor is enforced.** It is measured over `src/` only, so it
+  reads lower than the figure in `bun test --coverage`'s own footer, which
+  also counts `scripts/` and `tests/` — a well-tested build script should not
+  mask a thin source file.
+- **The per-file floor is reported, not enforced**, and the reason is a Bun
+  reporter bug rather than a policy choice:
+
+  ```console
+  $ bun test --coverage tests/store-utils.test.ts
+    src/store/utils.ts | 100.00 | 100.00
+  $ bun test --coverage tests/store-utils.test.ts tests/store.test.ts
+    src/store/utils.ts |  20.00 |   5.08     # same tests, both orders
+  ```
+
+  Adding a test file cannot lower a file's coverage, so the whole-suite
+  per-file numbers understate any file that two test files load. Gating on
+  them would fail builds for reasons unrelated to test quality. The floors are
+  recorded so the gate can be switched on once the reporter is fixed, and
+  `bun run check:coverage -- --report` prints the current standings.
+
+Since the global figure sums those understated per-file records, it is
+conservative rather than wrong — a floor that can only be beaten by genuinely
+adding tests.
+
+Raising a floor or deleting an entry from `EXEMPT` is the intended direction.
+Adding an entry should come with a reason in the PR that does it.
+
 ## See also
 
 - [Testing module guide](/guide/testing)

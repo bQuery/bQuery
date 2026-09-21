@@ -10,6 +10,7 @@ and this project adheres to Semantic Versioning.
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
     - [Added (Unreleased)](#added-unreleased)
+    - [Changed (Unreleased)](#changed-unreleased)
     - [Fixed (Unreleased)](#fixed-unreleased)
     - [Removed (Unreleased)](#removed-unreleased)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
@@ -111,6 +112,11 @@ and this project adheres to Semantic Versioning.
 ### Added (Unreleased)
 
 - **Reactive**: `configureReactive({ scheduler: 'sync' | 'batched' })` plus `getReactiveConfig()` and `flushSync()` ([#210](https://github.com/bQuery/bQuery/issues/210)). Under the new `'batched'` scheduler a signal write is coalesced onto a microtask instead of notifying synchronously, which makes a diamond dependency graph glitch-free and collapses a burst of writes in one tick into a single effect run. Measured on Bun 1.3.11, 1000 writes to one signal with 1000 subscribed effects go from 1314 ms / 1,000,000 effect invocations to 44 ms / 1000. `flushSync()` drains pending updates immediately for tests and for code that needs the synchronous timing. **`'sync'` remains the default for all of 1.x** — effect timing is observable, so flipping it is semver-major even though it fixes a bug.
+- **Server**: `serveStatic()` serves files from disk ([#222](https://github.com/bQuery/bQuery/issues/222)). The server module had sessions, CSRF, guards, auth, cookies, errors, file routes and WebSocket sessions, but no way to send a file — so every app needed a reverse proxy just to deliver its own `client.js`. The middleware handles weak `ETag`/`Last-Modified` with `304`, single-byte `Range` requests with `206`/`416`, directory indexes with a `308` redirect for the missing trailing slash, content-type mapping, optional `.br`/`.gz` sidecars, and path-traversal rejection (decoded segment checks plus a resolved-path re-check; dotfiles are off by default). It calls `next()` for anything it does not serve, so routes still see those requests. File access goes through `node:fs`, which every runtime `listen()` supports.
+
+### Changed (Unreleased)
+
+- **Server**: global middleware registered with `app.use()` now runs for requests that match no route, with the `notFound` handler as the end of the chain ([#222](https://github.com/bQuery/bQuery/issues/222)). Previously an unmatched path returned 404 before the middleware stack ran at all, so middleware that must see every request — CORS, logging, security headers, and static-asset serving — was silently skipped on exactly the responses where it often matters most. Middleware that calls `next()` is unaffected: the 404 still comes from the same handler.
 
 ### Fixed (Unreleased)
 
