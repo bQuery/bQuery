@@ -194,6 +194,71 @@ sanitizeHtml('<a href="/internal">Link</a>');
 
 ---
 
+## Runtime backends
+
+`sanitizeHtml()` and `stripTags()` work on any runtime, with or without a DOM.
+Two backends implement the same policy, and the right one is picked
+automatically:
+
+| Backend    | Used when                                | How it parses                      |
+| ---------- | ---------------------------------------- | ---------------------------------- |
+| `'dom'`    | `document` and `DOMParser` both exist    | `DOMParser` into an inert document |
+| `'string'` | Anywhere else — Bun, Node, Deno, workers | A DOM-free scanner                 |
+
+Before this existed, calling `sanitizeHtml()` on a server threw
+`ReferenceError: document is not defined` — sanitizing user HTML server-side
+meant installing `linkedom` or `happy-dom` and wiring globals.
+
+### `configureSanitizer()`
+
+Pin the backend when you do not want it inferred.
+
+```ts
+function configureSanitizer(options: { backend?: 'auto' | 'dom' | 'string' }): void;
+function getSanitizerConfig(): { backend: 'auto' | 'dom' | 'string' };
+```
+
+```ts
+import { configureSanitizer } from '@bquery/bquery/security';
+
+// Identical output on the server and in the browser — useful when sanitized
+// HTML is rendered on the server and hydrated on the client.
+configureSanitizer({ backend: 'string' });
+
+// Force the DOM backend after installing a DOM implementation's globals.
+configureSanitizer({ backend: 'dom' });
+```
+
+`'dom'` throws where no DOM exists; that is the point of asking for it
+explicitly. `'auto'` is the default and never throws.
+
+### Differences between the backends
+
+Both enforce exactly the same policy — the allow lists, URL checks,
+DOM-clobbering protection, `rel="noopener noreferrer"` handling and the
+mutation-XSS guard all live in one shared module, so they cannot drift.
+
+They can differ on **malformed** input, because the string backend is a
+scanner rather than a full HTML5 parser with error recovery. Where they
+differ, the string backend is the more conservative of the two: it escapes
+what it cannot interpret instead of guessing, and it drops anything it cannot
+serialize safely rather than emitting markup whose meaning depends on how
+forgiving the reader's parser is. For example,
+`<div><scr<script>ipt>alert(1)</script></div>` yields `<div></div>` under the
+DOM backend and `<div>ipt&amp;gt;alert(1)</div>` under the string backend —
+inert either way, one as nothing and one as escaped text.
+
+On **well-formed** input the two agree, including the cases where that is not
+obvious: a disallowed element takes its subtree with it under both backends
+(`<unknown><b>hi</b></unknown>` yields nothing, not `<b>hi</b>`), and a whole
+document is reduced to its body content under both, so `<head>` never leaks
+into the output.
+
+If byte-identical output across environments matters to you, pin
+`backend: 'string'` everywhere.
+
+---
+
 ## HTML Escaping
 
 ### `escapeHtml()`
