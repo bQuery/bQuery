@@ -77,6 +77,7 @@ Runtime helpers:
 | `csrf()` / `csrfToken()`                  | Double-submit CSRF protection and per-request token accessor (1.15.0).                               |
 | `guard()`                                 | Predicate-based route guard middleware (1.15.0).                                                     |
 | `basicAuth()` / `bearerAuth()`            | `Authorization`-header auth helpers with a `verify` hook (1.15.0).                                   |
+| `rateLimit()`                             | Fixed-window request throttling with `RateLimit-*` headers and a pluggable store.                    |
 | `serveStatic()`                           | Serve files from disk, with ETag/`304`, `Range`, and precompressed sidecars.                         |
 | `signValue()` / `unsignValue()`           | HMAC-SHA-256 sign/verify with secret rotation (1.15.0).                                              |
 | `timingSafeEqual()`                       | Constant-time string comparison (1.15.0).                                                            |
@@ -362,6 +363,117 @@ app.use(bearerAuth({ verify: (token) => verifyJwt(token) }));
 const requireUser = guard((ctx) => Boolean(ctx.state.user), { status: 401 });
 app.get('/me', (ctx) => ctx.json({ user: ctx.state.user }), [requireUser]);
 ```
+
+### Rate limiting
+
+`rateLimit()` caps how many requests one key may make per window. Pair it with
+the auth helpers above: an unprotected login route is a brute-force target, and
+that is exactly where a limit belongs.
+
+```ts
+import { createServer, rateLimit, session } from '@bquery/bquery/server';
+
+const app = createServer();
+app.use(session({ secret: process.env.SECRET! }));
+
+app.post('/login', handleLogin, [
+  rateLimit({
+    window: 15 * 60_000,
+    max: 5,
+    // Behind a proxy, key on the address it reports. A session id is `null`
+    // for the cookie-less request a brute-force script sends — and a `null`
+    // key skips the limit, so it would protect nothing here.
+    trustProxy: true,
+    skipSuccessfulRequests: true, // a valid login should not use up the budget
+  }),
+]);
+```
+
+Under the limit, responses carry `RateLimit-Limit`, `RateLimit-Remaining` and
+`RateLimit-Reset`. Over it, the request is answered `429 Too Many Requests`
+with `Retry-After` — and `Retry-After` is sent even with `headers: false`,
+since a client needs something to back off on.
+
+#### Choosing `keyBy`
+
+**`keyBy` is required**, and that is deliberate. The obvious default — the
+client's address from `X-Forwarded-For` — is a header the _client_ sets unless
+a proxy you control overwrites it. Keying on it without that proxy gives a
+limiter an attacker bypasses by sending a different header per request: worse
+than no limiter, because it looks like protection.
+
+So pick the identity that is actually meaningful for the route:
+
+| `keyBy`                                                   | Good for                                     |
+| --------------------------------------------------------- | -------------------------------------------- |
+| `(ctx) => ctx.session?.$id ?? 'anon'`                     | Per-browser limits on session-bearing routes |
+| `(ctx) => (ctx.state.user as User)?.id ?? 'anon'`         | Per-account limits after auth                |
+| `(ctx) => ctx.request.headers.get('x-api-key') ?? 'anon'` | Per-API-key quotas                           |
+| `trustProxy: true` (instead of `keyBy`)                   | Behind a proxy (see below)                   |
+
+::: warning A `null` key fails open
+Returning `null` skips the limit **entirely** for that request. Every value in
+the table above is `null` for exactly the caller you most want to throttle —
+`ctx.session?.$id` before a session exists, `ctx.state.user?.id` before
+authentication, a missing `x-api-key` header. Written as
+`?? null`, a cookie-less brute-force script gets unlimited attempts.
+
+The `?? 'anon'` fallbacks keep those requests in one counted bucket instead.
+That bucket is shared, so size `max` for it accordingly, or use `trustProxy`
+behind a proxy to separate callers by address.
+:::
+
+#### `trustProxy` and which header wins
+
+`trustProxy` prefers the headers a proxy sets itself — `CF-Connecting-IP`,
+`True-Client-IP`, `X-Real-IP` — and only then falls back to the leftmost
+`X-Forwarded-For` entry. That order is not cosmetic: Cloudflare and nginx's
+stock `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`
+**append** to `X-Forwarded-For` rather than overwriting it, so its leftmost
+entry stays client-controlled even behind a trusted proxy. Preferring it
+would leave the limit bypassable by rotating one header.
+
+A request that reaches the origin with none of those headers — the origin
+port exposed alongside the CDN, an internal hop, a proxy misconfigured after
+a deploy — is counted in a single shared bucket rather than skipped, so it
+cannot slip past the limit unnoticed.
+
+#### Options
+
+| Option                   | Default                 | Notes                                                                                                  |
+| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `window`                 | _(required)_            | Window length in milliseconds.                                                                         |
+| `max`                    | _(required)_            | Requests allowed per key per window.                                                                   |
+| `keyBy`                  | _(required\*)_          | Identity to count against. `null` skips — see the warning above. \*Or set `trustProxy`.                |
+| `trustProxy`             | `false`                 | Derive the key from the proxy's address headers.                                                       |
+| `store`                  | bounded `memoryStore()` | Any `SessionStore`. The default is per process, capped at 10 000 keys.                                 |
+| `prefix`                 | `'rl:'`                 | Store-key prefix, so counters cannot collide with sessions.                                            |
+| `headers`                | `true`                  | Emit the `RateLimit-*` headers. `Retry-After` is sent either way.                                      |
+| `status` / `message`     | `429` / text            | The default rejection response.                                                                        |
+| `skip`                   | —                       | Skip a request entirely, without consuming budget.                                                     |
+| `onLimit`                | —                       | Handle rejection yourself; the headers are still applied.                                              |
+| `skipSuccessfulRequests` | `false`                 | Refund requests that ended 2xx. A 3xx still counts, so a redirect-on-failure login form stays limited. |
+
+::: warning The default store only limits one process
+`memoryStore()` is process-local, so with several instances behind a load
+balancer each enforces its own count. Pass a shared `SessionStore` — the same
+interface sessions use — to make the limit hold across all of them.
+
+The default is bounded at 10 000 keys, because rate-limit keys are
+attacker-chosen and usually seen once: an unbounded store would turn the
+limiter into a memory-exhaustion vector. For the same reason, do not pass
+your _session_ store here — counter churn would evict live sessions.
+
+Within one process the counter is serialized per key, so concurrent requests
+cannot all read the same value and slip past the limit. Across processes that
+guarantee needs a store with an atomic increment.
+:::
+
+The window is **fixed**, not sliding: the first request starts it and the
+counter resets wholesale when it ends. That allows a burst of up to `2 × max`
+across a window boundary, which is the standard trade-off — a sliding window
+needs per-request timestamps in the store, a much larger write cost for a
+limiter whose job is to be cheap.
 
 ### Signing utilities
 
