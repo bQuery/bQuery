@@ -48,8 +48,8 @@ entire module, so tree-shaking brings it in under the figure shown.
 
 | Entry point                    | Minified | Minified + gzip | Budget   |
 | ------------------------------ | -------- | --------------- | -------- |
-| `@bquery/bquery`               | 389.3 kB | **125.3 kB**    | 144.0 kB |
-| `@bquery/bquery/full`          | 392.1 kB | **126.3 kB**    | 145.3 kB |
+| `@bquery/bquery`               | 397.0 kB | **128.1 kB**    | 144.0 kB |
+| `@bquery/bquery/full`          | 399.8 kB | **129.1 kB**    | 145.3 kB |
 | `@bquery/bquery/core`          | 36.3 kB  | **12.2 kB**     | 14.1 kB  |
 | `@bquery/bquery/reactive`      | 33.1 kB  | **11.3 kB**     | 13.1 kB  |
 | `@bquery/bquery/concurrency`   | 30.3 kB  | **9.4 kB**      | 10.8 kB  |
@@ -72,7 +72,7 @@ entire module, so tree-shaking brings it in under the figure shown.
 | `@bquery/bquery/devtools`      | 7.1 kB   | **3.0 kB**      | 3.5 kB   |
 | `@bquery/bquery/testing`       | 17.3 kB  | **6.6 kB**      | 7.6 kB   |
 | `@bquery/bquery/ssr`           | 98.3 kB  | **32.8 kB**     | 37.7 kB  |
-| `@bquery/bquery/server`        | 91.4 kB  | **30.4 kB**     | 35.0 kB  |
+| `@bquery/bquery/server`        | 99.1 kB  | **33.2 kB**     | 35.0 kB  |
 
 `bun run check:size` enforces the budget column and runs in CI, so a
 regression fails the build rather than showing up on Bundlephobia weeks later.

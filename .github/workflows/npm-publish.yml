@@ -30,6 +30,9 @@ jobs:
         # re-inflated tarball mid-release, after the Release exists.
         run: bun run check:package
 
+      - name: Validate package exports and types
+        run: bun run check:publish
+
   build-docs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -63,6 +66,8 @@ jobs:
 
       - run: bun install --frozen-lockfile
       - run: bun run build
+      - name: Validate package exports and types
+        run: bun run check:publish
       - name: Publish to npm (Trusted Publisher)
         run: npm publish --access public --provenance
 

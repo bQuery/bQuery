@@ -196,7 +196,7 @@
     "build": "bun run build:lib && bun run build:umd && bun run build:types",
     "build:lib": "vite build",
     "build:umd": "vite build --config vite.umd.config.ts",
-    "build:types": "tsc --emitDeclarationOnly --outDir dist && bun scripts/postbuild-cts.mjs",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist && bun scripts/postbuild-types.mjs && bun scripts/postbuild-cts.mjs",
     "check": "bun run check:ai-guidance && bun run check:full-bundle && bun run check:stability && bun run check:doc-exports && bun run check:theme-links && bun run check:workflow-branches",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
@@ -204,6 +204,9 @@
     "check:doc-exports": "bun scripts/check-doc-exports.mjs",
     "check:theme-links": "bun scripts/check-theme-links.mjs",
     "check:workflow-branches": "bun scripts/check-workflow-branches.mjs",
+    "check:publint": "publint",
+    "check:attw": "attw --pack . --profile esm-only",
+    "check:publish": "bun run check:publint && bun run check:attw",
     "check:package": "bun scripts/check-package-size.mjs",
     "check:size": "bun scripts/check-bundle-size.mjs",
     "check:coverage": "bun scripts/check-coverage.mjs",
@@ -218,7 +221,7 @@
     "format:check": "prettier --check .",
     "docs:api": "typedoc",
     "clean": "rimraf dist",
-    "prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package"
+    "prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package && bun run check:publish"
   },
   "keywords": [
     "dom",
@@ -239,7 +242,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/bQuery/bQuery.git"
+    "url": "git+https://github.com/bQuery/bQuery.git"
   },
   "homepage": "https://bquery.js.org",
   "bugs": {
@@ -254,6 +257,7 @@
     "bun": ">=1.4.0"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@storybook/addon-docs": "^10.5.10",
     "@storybook/web-components-vite": "^10.5.10",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
@@ -265,6 +269,7 @@
     "globals": "^17.11.0",
     "happy-dom": "^20.11.6",
     "prettier": "^3.9.6",
+    "publint": "^0.3.24",
     "rimraf": "^6.1.3",
     "storybook": "^10.5.10",
     "typedoc": "^0.28.20",
