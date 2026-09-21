@@ -45,6 +45,11 @@ belong in `files`** — adding one to `.npmignore` has no effect at all, and
 Excluding the JS source maps took the package from **2.8 MB / 11.3 MB unpacked
 / 972 files** to **1.1 MB / 4.6 MB / 924 files**.
 
+The file count has since risen to **1211**, 284 of which are the parallel
+`.d.cts` declaration tree #219 added so that `require('@bquery/bquery')`
+type-checks. Those files carry almost no bytes — packed size went to 1.3 MB
+and unpacked to 5.2 MB — so only the file-count ceiling moved, to 1400.
+
 Both Vite configs therefore use `sourcemap: 'hidden'`: the `.map` files are
 still written to `dist/` — for local debugging, and so a release can upload
 them to an error tracker — but no `sourceMappingURL` comment is emitted, so
