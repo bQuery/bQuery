@@ -171,6 +171,9 @@
   },
   "files": [
     "dist",
+    "!dist/**/*.js.map",
+    "!dist/**/*.mjs.map",
+    "!dist/**/*.cjs.map",
     "src",
     "bin",
     "README.md",
@@ -204,9 +207,12 @@
     "check:publint": "publint",
     "check:attw": "attw --pack . --profile esm-only",
     "check:publish": "bun run check:publint && bun run check:attw",
+    "check:package": "bun scripts/check-package-size.mjs",
+    "check:coverage": "bun scripts/check-coverage.mjs",
     "docs:check": "bun scripts/check-doc-exports.mjs && bun scripts/check-theme-links.mjs",
     "test": "bun test",
     "test:types": "tsc -p tsconfig.component-test.json --noEmit",
+    "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text",
     "test:watch": "bun test --watch",
     "lint": "eslint . --fix",
     "lint:types": "tsc --noEmit",
@@ -214,7 +220,7 @@
     "format:check": "prettier --check .",
     "docs:api": "typedoc",
     "clean": "rimraf dist",
-    "prepublishOnly": "bun run clean && bun run build && bun test && bun run check:publish"
+    "prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package && bun run check:publish"
   },
   "keywords": [
     "dom",

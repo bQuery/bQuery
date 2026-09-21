@@ -22,6 +22,48 @@ A bQuery release produces:
 - **Updated docs** including a new `docs/release-notes/<minor>.md` page for minors and majors.
 - **Custom domain `bquery.js.org`** redeployed from the new `docs/` content (via the docs site CI).
 
+### What ships in the tarball
+
+The `files` field in `package.json` is a deliberate list, not a default. Three
+decisions are worth knowing before you change it (#220).
+
+::: warning `.npmignore` is inert while `files` exists
+npm ignores the root `.npmignore` entirely when `files` is set, and it is set.
+Everything `.npmignore` still lists (`docs/`, `scripts/`, `tests/`, …) is
+already excluded by `files`, which is why nobody has noticed. **Exclusions
+belong in `files`** — adding one to `.npmignore` has no effect at all, and
+`check:package` would flag the resulting size without hinting why.
+:::
+
+| Content                                | Shipped | Why                                                                                      |
+| -------------------------------------- | ------- | ---------------------------------------------------------------------------------------- |
+| `dist/` bundles and `.d.ts`            | ✅      | The package.                                                                             |
+| `dist/**/*.d.ts.map` (~0.33 MB)        | ✅      | Makes "go to definition" land on the real `src/` file instead of the declaration stub.   |
+| `src/` (~1.85 MB)                      | ✅      | The target those declaration maps point at. Dropping one without the other is pointless. |
+| `dist/**/*.{js,mjs,cjs}.map` (~6.4 MB) | ❌      | 62% of the old tarball. Runtime debugging of a minified bundle is the rarest use.        |
+
+Excluding the JS source maps took the package from **2.8 MB / 11.3 MB unpacked
+/ 972 files** to **1.1 MB / 4.6 MB / 924 files**.
+
+Both Vite configs therefore use `sourcemap: 'hidden'`: the `.map` files are
+still written to `dist/` — for local debugging, and so a release can upload
+them to an error tracker — but no `sourceMappingURL` comment is emitted, so
+omitting them from the tarball leaves nothing for a browser to chase.
+
+If you ever need published JS source maps, prefer a separate
+`@bquery/bquery-sourcemaps` package over re-adding 6.4 MB to every install.
+
+`bun run check:package` enforces all of the above against the real `npm pack`
+file list. It needs a current `dist/`, and runs both in the publish
+workflow's `build` job — so a re-inflated tarball fails at PR time rather
+than mid-release — and again from `prepublishOnly` as a last gate.
+
+It also verifies the invariant the exclusion rests on: that no shipped bundle
+carries a `sourceMappingURL` comment. Dropping the maps is only safe while
+both vite configs use `sourcemap: 'hidden'`; a revert to `sourcemap: true`
+would otherwise ship bundles pointing at maps that 404, with the check still
+green.
+
 ## Validation gates
 
 Before publishing, the following must pass:
@@ -31,9 +73,8 @@ bun run lint
 bun run lint:types
 bun run build
 bun test
-bun run check:full-bundle
-bun run check:ai-guidance
-bun run check:stability
+bun run check
+bun run check:package   # needs a current dist/
 bun run check:publish   # needs a current dist/
 ```
 
@@ -119,7 +160,7 @@ The publish step is automated via `prepublishOnly`:
 
 ```bash
 # In package.json:
-"prepublishOnly": "bun run clean && bun run build && bun test && bun run check:publish"
+"prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package && bun run check:publish"
 ```
 
 A maintainer runs `npm publish` (or the configured release action). The custom domain `bquery.js.org` is redeployed from the latest `docs/` build.
