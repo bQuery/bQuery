@@ -39,15 +39,27 @@ export const BUNDLE_BUDGETS = [
   { subpath: './core', gzip: 14400 },
   { subpath: './reactive', gzip: 13400 },
   { subpath: './concurrency', gzip: 11100 },
-  { subpath: './component', gzip: 12600 },
+  {
+    subpath: './component',
+    gzip: 14900,
+    note: 'Sanitizes its own DOM writes, so it carries the security module (#229).',
+  },
   { subpath: './motion', gzip: 12600 },
-  { subpath: './security', gzip: 3300 },
+  {
+    subpath: './security',
+    gzip: 5400,
+    note: 'Ships both sanitizer backends — the DOM one and the DOM-free string scanner (#229) — because which one runs is decided at runtime, not at bundle time.',
+  },
   { subpath: './platform', gzip: 4500 },
   { subpath: './router', gzip: 10500 },
   { subpath: './store', gzip: 5100 },
   { subpath: './view', gzip: 15800 },
   { subpath: './view/compiler', gzip: 5700 },
-  { subpath: './storybook', gzip: 4500 },
+  {
+    subpath: './storybook',
+    gzip: 6400,
+    note: 'Re-exports the sanitizer for unsafeHtml(), so it grew with #229.',
+  },
   { subpath: './forms', gzip: 11600 },
   { subpath: './i18n', gzip: 4800 },
   { subpath: './i18n/extract', gzip: 2900 },
@@ -58,7 +70,11 @@ export const BUNDLE_BUDGETS = [
   { subpath: './devtools', gzip: 3600 },
   { subpath: './testing', gzip: 7800 },
   { subpath: './ssr', gzip: 38600, note: 'Pulls in the view renderer and the HTML parser.' },
-  { subpath: './server', gzip: 35800, note: 'Pulls in the router, SSR and the sanitizer.' },
+  {
+    subpath: './server',
+    gzip: 41300,
+    note: 'Pulls in the router, SSR and the sanitizer, so it grew with #229 too.',
+  },
 ];
 
 /** Budgets keyed by subpath. */

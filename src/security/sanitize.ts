@@ -5,10 +5,12 @@
  * @module bquery/security
  */
 
-import { sanitizeHtmlCore } from './sanitize-core';
+import { sanitizeHtmlCore, stripTagsCore } from './sanitize-core';
 import { toSanitizedHtml } from './trusted-html';
 import type { SanitizedHtml } from './trusted-html';
 import type { SanitizeOptions } from './types';
+export { configureSanitizer, getSanitizerConfig } from './config';
+export type { SanitizerBackend } from './config';
 export { generateNonce } from './csp';
 export { isTrustedTypesSupported } from './trusted-types';
 export { trusted } from './trusted-html';
@@ -70,7 +72,7 @@ export const escapeHtml = (text: string): string => {
  * @returns Plain text content
  */
 export const stripTags = (html: string): string => {
-  return sanitizeHtmlCore(html, { stripAllTags: true });
+  return stripTagsCore(html);
 };
 
 export type { SanitizeOptions } from './types';
