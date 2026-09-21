@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
+import { createServer as createNodeServer } from 'node:net';
 import type { ServerWebSocketPeer } from '../src/server/index';
 import {
   badRequest,
@@ -10,6 +11,27 @@ import {
 import { createStore, destroyStore, listStores } from '../src/store/index';
 
 const SSR_TEST_STORE_ID = 'server-ssr-test';
+
+/**
+ * Probe loopback IPv6 once (#213). Containers without IPv6 cannot bind `::1`,
+ * and the runtime's error code for that is not portable — Bun's `node:http`
+ * shim reports the unavailable bind as `EADDRINUSE`, which is indistinguishable
+ * from a real collision by code alone. Probing is unambiguous.
+ */
+const hasIpv6Loopback = await new Promise<boolean>((resolve) => {
+  const probe = createNodeServer();
+  const settle = (available: boolean): void => {
+    probe.removeAllListeners();
+    probe.close(() => resolve(available));
+  };
+  probe.once('error', () => settle(false));
+  probe.once('listening', () => settle(true));
+  try {
+    probe.listen(0, '::1');
+  } catch {
+    settle(false);
+  }
+});
 
 afterEach(() => {
   if (listStores().includes(SSR_TEST_STORE_ID)) {
@@ -664,27 +686,15 @@ describe('server/createServer', () => {
     }
   });
 
-  it('returns a valid URL for IPv6 node listen addresses', async () => {
+  it.skipIf(!hasIpv6Loopback)('returns a valid URL for IPv6 node listen addresses', async () => {
     const app = createServer();
     app.get('/health', (ctx) => ctx.text('ok'));
 
-    const handle = await app
-      .listen({
-        hostname: '::1',
-        port: 0,
-        runtime: 'node',
-      })
-      .catch((error: unknown) => {
-        const code = (error as { code?: string }).code;
-        if (code === 'EADDRNOTAVAIL' || code === 'EAFNOSUPPORT') {
-          return null;
-        }
-        throw error;
-      });
-
-    if (!handle) {
-      return;
-    }
+    const handle = await app.listen({
+      hostname: '::1',
+      port: 0,
+      runtime: 'node',
+    });
 
     try {
       expect(handle.url.startsWith('http://[')).toBe(true);
