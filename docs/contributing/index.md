@@ -34,7 +34,7 @@ Supported tooling: **Node ≥ 24** and **Bun ≥ 1.4.0**. See [Supported Runtime
 ## Workflow at a glance
 
 1. **Open an issue first** for non-trivial changes — this avoids wasted work.
-2. **Branch** from `main` (or `development` for in-flight work).
+2. **Branch** from `main` (or `dev` for in-flight work).
 3. **Make the smallest change that fully addresses the request.** Add or update tests and docs.
 4. **Run the local validation suite**: `bun run lint`, `bun run build`, `bun test`, and `bun run check:full-bundle` for any public-export change.
 5. **Open a PR** using the [PR template](https://github.com/bQuery/bQuery/blob/main/.github/pull_request_template.md). Conventional Commits are required (`feat(module): …`).
