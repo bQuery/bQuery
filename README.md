@@ -53,25 +53,26 @@ pnpm add @bquery/bquery
 </script>
 ```
 
-#### UMD (global variable)
-
-```html
-<script src="https://unpkg.com/@bquery/bquery@1/dist/full.umd.js"></script>
-<script>
-  const { $, signal } = bQuery;
-  const count = signal(0);
-</script>
-```
-
-#### IIFE (self-executing)
+#### Classic script tag (global variable)
 
 ```html
 <script src="https://unpkg.com/@bquery/bquery@1/dist/full.iife.js"></script>
 <script>
-  const { $, $$ } = bQuery;
+  const { $, $$, signal } = bQuery;
+  const count = signal(0);
   $$('.items').addClass('loaded');
 </script>
 ```
+
+#### From CommonJS
+
+```js
+const { $, signal } = require('@bquery/bquery');
+```
+
+Only the root and `/full` entries have a `require` condition; the sub-path
+entries are ESM-only. See
+[Module format](https://bquery.js.org/guide/getting-started#module-format).
 
 ## Import Strategies
 

@@ -1,116 +1,173 @@
 {
   "name": "@bquery/bquery",
   "version": "1.16.1",
-  "description": "bQuery.js — batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
+  "description": "bQuery.js \u2014 batteries-included TypeScript framework for the modern web: signals, SSR, Web Components, routing, and more, with a jQuery-inspired API.",
   "type": "module",
-  "main": "./dist/full.umd.js",
+  "main": "./dist/full.umd.cjs",
   "module": "./dist/index.es.mjs",
   "types": "./dist/index.d.ts",
-  "unpkg": "./dist/full.umd.js",
-  "jsdelivr": "./dist/full.umd.js",
+  "unpkg": "./dist/full.iife.js",
+  "jsdelivr": "./dist/full.iife.js",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.es.mjs",
-      "require": "./dist/full.umd.js"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.es.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/full.umd.cjs"
+      }
     },
     "./full": {
-      "types": "./dist/full.d.ts",
-      "import": "./dist/full.es.mjs",
-      "require": "./dist/full.umd.js"
+      "import": {
+        "types": "./dist/full.d.ts",
+        "default": "./dist/full.es.mjs"
+      },
+      "require": {
+        "types": "./dist/full.d.cts",
+        "default": "./dist/full.umd.cjs"
+      }
     },
     "./core": {
-      "import": "./dist/core.es.mjs",
-      "types": "./dist/core/index.d.ts"
+      "import": {
+        "types": "./dist/core/index.d.ts",
+        "default": "./dist/core.es.mjs"
+      }
     },
     "./reactive": {
-      "import": "./dist/reactive.es.mjs",
-      "types": "./dist/reactive/index.d.ts"
+      "import": {
+        "types": "./dist/reactive/index.d.ts",
+        "default": "./dist/reactive.es.mjs"
+      }
     },
     "./concurrency": {
-      "import": "./dist/concurrency.es.mjs",
-      "types": "./dist/concurrency/index.d.ts"
+      "import": {
+        "types": "./dist/concurrency/index.d.ts",
+        "default": "./dist/concurrency.es.mjs"
+      }
     },
     "./component": {
-      "import": "./dist/component.es.mjs",
-      "types": "./dist/component/index.d.ts"
+      "import": {
+        "types": "./dist/component/index.d.ts",
+        "default": "./dist/component.es.mjs"
+      }
     },
     "./motion": {
-      "import": "./dist/motion.es.mjs",
-      "types": "./dist/motion/index.d.ts"
+      "import": {
+        "types": "./dist/motion/index.d.ts",
+        "default": "./dist/motion.es.mjs"
+      }
     },
     "./security": {
-      "import": "./dist/security.es.mjs",
-      "types": "./dist/security/index.d.ts"
+      "import": {
+        "types": "./dist/security/index.d.ts",
+        "default": "./dist/security.es.mjs"
+      }
     },
     "./platform": {
-      "import": "./dist/platform.es.mjs",
-      "types": "./dist/platform/index.d.ts"
+      "import": {
+        "types": "./dist/platform/index.d.ts",
+        "default": "./dist/platform.es.mjs"
+      }
     },
     "./router": {
-      "import": "./dist/router.es.mjs",
-      "types": "./dist/router/index.d.ts"
+      "import": {
+        "types": "./dist/router/index.d.ts",
+        "default": "./dist/router.es.mjs"
+      }
     },
     "./store": {
-      "import": "./dist/store.es.mjs",
-      "types": "./dist/store/index.d.ts"
+      "import": {
+        "types": "./dist/store/index.d.ts",
+        "default": "./dist/store.es.mjs"
+      }
     },
     "./view": {
-      "import": "./dist/view.es.mjs",
-      "types": "./dist/view/index.d.ts"
+      "import": {
+        "types": "./dist/view/index.d.ts",
+        "default": "./dist/view.es.mjs"
+      }
     },
     "./view/compiler": {
-      "import": "./dist/view-compiler.es.mjs",
-      "types": "./dist/view/compiler/index.d.ts"
+      "import": {
+        "types": "./dist/view/compiler/index.d.ts",
+        "default": "./dist/view-compiler.es.mjs"
+      }
     },
     "./storybook": {
-      "import": "./dist/storybook.es.mjs",
-      "types": "./dist/storybook/index.d.ts"
+      "import": {
+        "types": "./dist/storybook/index.d.ts",
+        "default": "./dist/storybook.es.mjs"
+      }
     },
     "./forms": {
-      "import": "./dist/forms.es.mjs",
-      "types": "./dist/forms/index.d.ts"
+      "import": {
+        "types": "./dist/forms/index.d.ts",
+        "default": "./dist/forms.es.mjs"
+      }
     },
     "./i18n": {
-      "import": "./dist/i18n.es.mjs",
-      "types": "./dist/i18n/index.d.ts"
+      "import": {
+        "types": "./dist/i18n/index.d.ts",
+        "default": "./dist/i18n.es.mjs"
+      }
     },
     "./i18n/extract": {
-      "import": "./dist/i18n-extract.es.mjs",
-      "types": "./dist/i18n/extract/index.d.ts"
+      "import": {
+        "types": "./dist/i18n/extract/index.d.ts",
+        "default": "./dist/i18n-extract.es.mjs"
+      }
     },
     "./a11y": {
-      "import": "./dist/a11y.es.mjs",
-      "types": "./dist/a11y/index.d.ts"
+      "import": {
+        "types": "./dist/a11y/index.d.ts",
+        "default": "./dist/a11y.es.mjs"
+      }
     },
     "./dnd": {
-      "import": "./dist/dnd.es.mjs",
-      "types": "./dist/dnd/index.d.ts"
+      "import": {
+        "types": "./dist/dnd/index.d.ts",
+        "default": "./dist/dnd.es.mjs"
+      }
     },
     "./media": {
-      "import": "./dist/media.es.mjs",
-      "types": "./dist/media/index.d.ts"
+      "import": {
+        "types": "./dist/media/index.d.ts",
+        "default": "./dist/media.es.mjs"
+      }
     },
     "./plugin": {
-      "import": "./dist/plugin.es.mjs",
-      "types": "./dist/plugin/index.d.ts"
+      "import": {
+        "types": "./dist/plugin/index.d.ts",
+        "default": "./dist/plugin.es.mjs"
+      }
     },
     "./devtools": {
-      "import": "./dist/devtools.es.mjs",
-      "types": "./dist/devtools/index.d.ts"
+      "import": {
+        "types": "./dist/devtools/index.d.ts",
+        "default": "./dist/devtools.es.mjs"
+      }
     },
     "./testing": {
-      "import": "./dist/testing.es.mjs",
-      "types": "./dist/testing/index.d.ts"
+      "import": {
+        "types": "./dist/testing/index.d.ts",
+        "default": "./dist/testing.es.mjs"
+      }
     },
     "./ssr": {
-      "import": "./dist/ssr.es.mjs",
-      "types": "./dist/ssr/index.d.ts"
+      "import": {
+        "types": "./dist/ssr/index.d.ts",
+        "default": "./dist/ssr.es.mjs"
+      }
     },
     "./server": {
-      "import": "./dist/server.es.mjs",
-      "types": "./dist/server/index.d.ts"
-    }
+      "import": {
+        "types": "./dist/server/index.d.ts",
+        "default": "./dist/server.es.mjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "dist",
@@ -139,7 +196,7 @@
     "build": "bun run build:lib && bun run build:umd && bun run build:types",
     "build:lib": "vite build",
     "build:umd": "vite build --config vite.umd.config.ts",
-    "build:types": "tsc --emitDeclarationOnly --outDir dist",
+    "build:types": "tsc --emitDeclarationOnly --outDir dist && bun scripts/postbuild-cts.mjs",
     "check": "bun run check:ai-guidance && bun run check:full-bundle && bun run check:stability && bun run check:doc-exports && bun run check:theme-links && bun run check:workflow-branches",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
