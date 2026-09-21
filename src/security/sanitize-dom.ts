@@ -30,18 +30,25 @@ const parseHtmlDocument = (htmlContent: string): Document => {
   const parser = new DOMParser();
   // Parse as a full HTML document in an inert context; scripts won't execute.
   //
-  // CodeQL flags this as `js/xss-through-dom` ("DOM text reinterpreted as
-  // HTML") because of the mutation-XSS guard in `sanitizeHtmlDom`: that reads
-  // the sanitized fragment back out through `innerHTML` and re-parses it here
-  // to check the markup is stable across a second parse. Parsing untrusted
-  // HTML is what a sanitizer is for, and `DOMParser.parseFromString` is the
-  // safe way to do it — the document it builds is inert, so nothing executes
-  // and no resource is fetched. Every node then goes through the allow lists
-  // in `sanitize-policy.ts` before anything is returned to a caller.
+  // CodeQL reports `js/xss-through-dom` ("DOM text reinterpreted as HTML")
+  // against this call. The flow it traces is the mutation-XSS guard in
+  // `sanitizeHtmlDom`: that reads the sanitized fragment back out through
+  // `innerHTML` and re-parses it here to check the markup is stable across a
+  // second parse. That round trip is the point of the guard — the string a
+  // caller assigns to an HTML sink has to be the string we verified — so the
+  // flow cannot be removed without deleting the check.
   //
-  // Removing the re-parse to satisfy the query would delete the mXSS check and
-  // make the sanitizer weaker, so the alert is suppressed rather than dodged.
-  return parser.parseFromString(htmlContent, 'text/html'); // codeql[js/xss-through-dom]
+  // It is safe: `DOMParser.parseFromString` builds an inert document, so
+  // nothing executes and no resource is fetched, and every node then goes
+  // through the allow lists in `sanitize-policy.ts` before anything reaches a
+  // caller.
+  //
+  // Do not try to silence it with a `// codeql[js/xss-through-dom]` comment.
+  // One was here and did not work: GitHub code scanning does not honour
+  // inline suppression comments, so the only effect was to suggest the alert
+  // was handled when it was not. It is resolved by dismissing the alert in
+  // the code-scanning UI.
+  return parser.parseFromString(htmlContent, 'text/html');
 };
 
 /**
