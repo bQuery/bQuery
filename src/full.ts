@@ -16,22 +16,20 @@
  * </script>
  * ```
  *
- * @example CDN Usage (UMD/Global)
- * ```html
- * <script src="https://unpkg.com/bquery@1/dist/full.umd.js"></script>
- * <script>
- *   const { $, signal } = bQuery;
- *   const count = signal(0);
- * </script>
- * ```
- *
- * @example CDN Usage (IIFE)
+ * @example CDN Usage (classic script tag, global variable)
  * ```html
  * <script src="https://unpkg.com/bquery@1/dist/full.iife.js"></script>
  * <script>
  *   // bQuery is available as a global variable
- *   const { $, $$ } = bQuery;
+ *   const { $, $$, signal } = bQuery;
+ *   const count = signal(0);
  * </script>
+ * ```
+ *
+ * @example CommonJS
+ * ```js
+ * // Resolves to dist/full.umd.cjs. Sub-path entries are ESM-only.
+ * const { $, signal } = require('@bquery/bquery');
  * ```
  */
 
@@ -1300,6 +1298,7 @@ export {
   notFound,
   randomId,
   randomToken,
+  serveStatic,
   session,
   signValue,
   timingSafeEqual,
@@ -1315,6 +1314,7 @@ export type {
   FileRouteServerOptions,
   GuardOptions,
   MemoryStoreOptions,
+  ServeStaticOptions,
   ServerApp,
   ServerCookieOptions,
   ServerContext,

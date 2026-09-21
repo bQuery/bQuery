@@ -21,6 +21,8 @@ export { memoryStore, session } from './session';
 export { csrf, csrfToken } from './csrf';
 export { guard } from './guard';
 export { basicAuth, bearerAuth } from './auth';
+export { serveStatic } from './static';
+export type { ServeStaticOptions } from './static';
 export {
   base64UrlDecode,
   base64UrlEncode,
