@@ -100,8 +100,13 @@ jobs:
       - name: Check coverage floor
         run: bun run check:coverage
 
+  # Everything that needs a current `dist/`. `bun run build` is the
+  # expensive part, so these are steps in one job rather than a job each
+  # repeating the checkout, install and build. `check:package` from #220
+  # belongs here too and folds in once #243 raises its file-count ceiling,
+  # which the `.d.cts` tree from #219 currently exceeds.
   package:
-    name: Validate published package
+    name: Build-dependent checks
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -125,3 +130,8 @@ jobs:
       # types resolve under each module-resolution mode (#218).
       - name: Validate package exports and types
         run: bun run check:publish
+
+      # Measures the transitive cost of each public entry point against the
+      # budgets in scripts/bundle-budgets.mjs (#216).
+      - name: Check bundle size budgets
+        run: bun run check:size
