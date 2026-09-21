@@ -80,9 +80,51 @@ bun run build
 bun test
 bun run check
 bun run check:package   # needs a current dist/
+bun run check:publish   # needs a current dist/
 ```
 
 CI runs the equivalent steps automatically on PRs and on `main`.
+
+### `check:publish`
+
+`bun run check:publish` runs two external validators against a real `npm pack`
+of the current build, and also runs from `prepublishOnly` and from the publish
+workflow (#218):
+
+- **[`publint`](https://publint.dev)** — checks the `exports` map and the
+  tarball's contents. The map is hand-edited on every new module, so it
+  drifts easily.
+- **[`@arethetypeswrong/cli`](https://arethetypeswrong.github.io)** — resolves
+  every entry point under `node10`, `node16` (from CJS and from ESM) and
+  `bundler`, and reports where the published types misrepresent the JavaScript.
+
+Both were added after they caught three real problems in one run: the 23
+`types`-ordering errors from #219, and two the audit had missed — that
+`require('@bquery/bquery')` returned an empty object, and that every emitted
+declaration used extensionless relative imports (315 problems), which is a hard
+`TS2834` for any consumer with `skipLibCheck: false`. The declarations are now
+rewritten on the way out of the build by `scripts/postbuild-types.mjs`.
+
+**Two attw results are ignored on purpose**, both consequences of the ESM-only
+policy in the [module format](/guide/getting-started#module-format) docs:
+
+| Ignored                          | Why                                                                                                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `node10` resolution failures     | `node10` means TypeScript before 4.7, which predates `exports`. Supporting it needs `typesVersions`, and this package targets modern resolvers. |
+| CJS-resolves-to-ESM on sub-paths | The documented policy: sub-paths are ESM-only.                                                                                                  |
+
+Both are handled by `attw --profile esm-only`. Nothing else is ignored:
+`--ignore-rules` is deliberately **not** used, because it applies package-wide
+and would mask the same class of problem on a sub-path that later grew a
+`require` condition.
+
+There used to be a third exemption, `false-esm` on the root: `require()`
+worked at runtime while its types resolved to the ESM declaration, which a
+`module: node16` CommonJS consumer rejects with `TS1479`. That is fixed rather
+than ignored — `scripts/postbuild-cts.mjs` emits a parallel `.d.cts` tree and
+the `require` branches point at it (#219). A _copied_ `.d.cts` does not work;
+the whole tree has to exist, with relative specifiers resolved to their `.cjs`
+twins. `publint` now reports **All good!**.
 
 ### `check:full-bundle`
 
@@ -123,7 +165,7 @@ The publish step is automated via `prepublishOnly`:
 
 ```bash
 # In package.json:
-"prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package"
+"prepublishOnly": "bun run clean && bun run build && bun test && bun run check:package && bun run check:publish"
 ```
 
 A maintainer runs `npm publish` (or the configured release action). The custom domain `bquery.js.org` is redeployed from the latest `docs/` build.
