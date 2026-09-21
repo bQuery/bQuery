@@ -8,11 +8,11 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [\[Unreleased\]](#unreleased)
-    - [Added (Unreleased)](#added-unreleased)
-    - [Changed (Unreleased)](#changed-unreleased)
-    - [Fixed (Unreleased)](#fixed-unreleased)
-    - [Removed (Unreleased)](#removed-unreleased)
+  - [\[1.17.0\] - 2026-09-21](#1170---2026-09-21)
+    - [Added (1.17.0)](#added-1170)
+    - [Changed (1.17.0)](#changed-1170)
+    - [Fixed (1.17.0)](#fixed-1170)
+    - [Removed (1.17.0)](#removed-1170)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
     - [Changed (1.16.1)](#changed-1161)
     - [Fixed (1.16.1)](#fixed-1161)
@@ -107,24 +107,32 @@ and this project adheres to Semantic Versioning.
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
-## [Unreleased]
+## [1.17.0] - 2026-09-21
 
-### Added (Unreleased)
+A feature release for the server and security modules, plus the packaging fixes that make the published tarball resolve correctly for the first time.
+
+**Upgrading:** one path changed. `dist/full.umd.js` no longer exists — it ships as `dist/full.umd.cjs`, and the CDN fields now point at `dist/full.iife.js`. A pinned `unpkg.com/@bquery/bquery@1/dist/full.umd.js` URL will 404; switch it to `full.iife.js`, which sets the same `window.bQuery` global. Package specifiers (`@bquery/bquery`, `@bquery/bquery/*`) are unaffected and now resolve better than before.
+
+### Added (1.17.0)
 
 - **Server**: `rateLimit()` throttles incoming requests ([#223](https://github.com/bQuery/bQuery/issues/223)). No server-side throttling primitive existed, so any public endpoint was unprotected against brute force by default — including the login route in the `login-form` cookbook recipe, which now shows the limit. (`createRequestQueue` in `reactive` is the client-side mirror image: it limits outgoing parallel requests, not incoming ones.) Counters live in a `SessionStore`, the same abstraction sessions use, so a Redis-backed store plugs in the same way and the limit holds across processes. Responses carry `RateLimit-Limit`/`-Remaining`/`-Reset`, and a rejected request gets `429` with `Retry-After`. `keyBy` is required rather than defaulting to the client address: `X-Forwarded-For` is client-supplied unless a trusted proxy overwrites it, so an implicit default would produce a limiter that is bypassed by varying the header — `trustProxy: true` opts into that behaviour explicitly.
 - **Reactive**: `configureReactive({ scheduler: 'sync' | 'batched' })` plus `getReactiveConfig()` and `flushSync()` ([#210](https://github.com/bQuery/bQuery/issues/210)). Under the new `'batched'` scheduler a signal write is coalesced onto a microtask instead of notifying synchronously, which makes a diamond dependency graph glitch-free and collapses a burst of writes in one tick into a single effect run. Measured on Bun 1.3.11, 1000 writes to one signal with 1000 subscribed effects go from 1314 ms / 1,000,000 effect invocations to 44 ms / 1000. `flushSync()` drains pending updates immediately for tests and for code that needs the synchronous timing. **`'sync'` remains the default for all of 1.x** — effect timing is observable, so flipping it is semver-major even though it fixes a bug.
 - **Security**: `sanitizeHtml()` and `stripTags()` now work on runtimes without a DOM ([#229](https://github.com/bQuery/bQuery/issues/229)). They previously threw `ReferenceError: document is not defined` on Bun, Node and Deno, so server code that needed to sanitize user-generated HTML — the most common place to need it — had to install `linkedom` or `happy-dom` and wire up globals. A DOM-free string backend is now selected automatically when no DOM is present, mirroring how `src/ssr` picks a renderer. New `configureSanitizer({ backend: 'auto' | 'dom' | 'string' })` and `getSanitizerConfig()` pin the choice, which is useful when server and browser output must match byte for byte. Both backends share a single policy module, so the allow lists, URL checks, DOM-clobbering protection and mutation-XSS guard cannot drift between them; they can differ on malformed input, where the string backend escapes rather than guesses. No behaviour changes in the browser.
 - **Server**: `serveStatic()` serves files from disk ([#222](https://github.com/bQuery/bQuery/issues/222)). The server module had sessions, CSRF, guards, auth, cookies, errors, file routes and WebSocket sessions, but no way to send a file — so every app needed a reverse proxy just to deliver its own `client.js`. The middleware handles weak `ETag`/`Last-Modified` with `304`, single-byte `Range` requests with `206`/`416`, directory indexes with a `308` redirect for the missing trailing slash, content-type mapping, optional `.br`/`.gz` sidecars, and path-traversal rejection (decoded segment checks plus a resolved-path re-check; dotfiles are off by default). It calls `next()` for anything it does not serve, so routes still see those requests. File access goes through `node:fs`, which every runtime `listen()` supports.
 
-### Changed (Unreleased)
+### Changed (1.17.0)
+
+- **Packaging**: `require('@bquery/bquery')` returns the framework instead of an empty object ([#219](https://github.com/bQuery/bQuery/issues/219)). The package is `"type": "module"` and the UMD bundle shipped as `dist/full.umd.js`, so Node read it as ESM; under `require(esm)` the UMD wrapper's `typeof exports == "object"` branch never ran and nothing was assigned. There was no error — just 638 missing exports. The bundle now ships as `dist/full.umd.cjs` and `main` plus both `require` conditions point at it. **`dist/full.umd.js` no longer exists**, so a pinned CDN URL for that path will 404; `unpkg` and `jsdelivr` now point at `dist/full.iife.js`, which is the build actually intended for script tags and sets the same `window.bQuery` global.
+- **Packaging**: `types` is declared first in all 23 sub-path entries, `"./package.json": "./package.json"` is exported, and the emitted declarations use explicit `.js` extensions on relative imports — previously a hard `TS2834` for any consumer with `skipLibCheck: false` ([#218](https://github.com/bQuery/bQuery/issues/218), [#219](https://github.com/bQuery/bQuery/issues/219)). A parallel `.d.cts` declaration tree makes the root entry type-check from CommonJS under `module: node16`. Sub-paths remain ESM-only, which is now documented in the getting-started guide rather than surfacing as a bare `ERR_PACKAGE_PATH_NOT_EXPORTED`.
+- **Packaging**: JS source maps are no longer published ([#220](https://github.com/bQuery/bQuery/issues/220)). The tarball goes from 2.8 MB / 11.3 MB unpacked to 1.3 MB / 5.2 MB. Declaration maps and `src/` still ship, so "go to definition" still lands on the real source. Both Vite configs use `sourcemap: 'hidden'`, so no shipped bundle carries a `sourceMappingURL` pointing at a file that is not there. If you need published JS source maps, open an issue — a separate `@bquery/bquery-sourcemaps` package is the intended answer.
 
 - **Server**: global middleware registered with `app.use()` now runs for requests that match no route, with the `notFound` handler as the end of the chain ([#222](https://github.com/bQuery/bQuery/issues/222)). Previously an unmatched path returned 404 before the middleware stack ran at all, so middleware that must see every request — CORS, logging, security headers, and static-asset serving — was silently skipped on exactly the responses where it often matters most. Middleware that calls `next()` is unaffected: the 404 still comes from the same handler.
 
-### Fixed (Unreleased)
+### Fixed (1.17.0)
 
 - **Reactive**: a flush now settles every derived value before running any effect ([#210](https://github.com/bQuery/bQuery/issues/210)). Previously the pending-observer queue mixed computed revalidations with effects in insertion order, so in a chain like `a → double → quadruple` an effect reading both `double` and `quadruple` could run between the two recomputations and observe a fresh `double` beside a stale `quadruple`. This affected explicit `batch()` under the default scheduler too, so the fix applies there as well.
 
-### Removed (Unreleased)
+### Removed (1.17.0)
 
 - **DevTools extension**: The reference `extension/` folder has been removed from this repository. The DevTools browser extension is now developed and released from [`bQuery/devtools-extension`](https://github.com/bQuery/devtools-extension) ([#205](https://github.com/bQuery/bQuery/issues/205)), so it can follow browser-store review cycles independently of the npm release train. No runtime behaviour changed — the only edit under `src/` is a doc comment in `src/devtools/index.ts` pointing at the new repository. `@bquery/bquery/devtools` still exports the same stable bridge protocol (`connectDevtoolsBridge`, `createBridgeServer`, `BRIDGE_PROTOCOL_VERSION` v1), which is the contract the extension consumes as an external package.
 

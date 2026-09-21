@@ -6,7 +6,9 @@ You are working on bQuery.js (`@bquery/bquery`), a batteries-included TypeScript
 
 bQuery.js is not a utility library; its broad module surface is the product. The reactive module now also covers HTTP clients, polling, pagination, WebSocket / SSE, REST helpers, request queues, and request deduplication.
 
-Current release baseline: **1.16.1**.
+Current release baseline: **1.17.0**.
+
+Version `1.17.0` is a feature release for `server` and `security` plus the packaging fixes that make the published tarball resolve correctly. `@bquery/bquery/server` gains `serveStatic()` (ETag/`304`, `Range`, precompressed sidecars, `realpath`-checked traversal rejection) and `rateLimit()` (fixed window over `SessionStore`, `RateLimit-*` headers, `429` + `Retry-After`, **`keyBy` required** because `ServerContext` exposes no peer address); `app.use()` middleware now also runs for requests matching no route. `@bquery/bquery/security` sanitizes without a DOM via an automatically selected string backend, pinnable with `configureSanitizer({ backend })`. `@bquery/bquery/reactive` gains `configureReactive({ scheduler })`, `getReactiveConfig()` and `flushSync()` (`'sync'` stays the 1.x default), and a flush now settles derivations before effects — which changes `batch()` ordering under the default scheduler too. One path break: `dist/full.umd.js` is now `dist/full.umd.cjs` and the CDN fields point at `dist/full.iife.js`.
 
 Version `1.16.1` is a toolchain-and-build maintenance patch with no source, API, or module status changes: the Bun floor moves from `1.3.13` to `1.4.0` (Node.js stays `>=24.0.0`), dev dependencies are refreshed (Storybook `10.5.10`, `@typescript-eslint/*` `8.68.0`, `eslint` `10.9.1`, `happy-dom` `20.11.6`, `vite` `8.2.2`), and both Vite configs build warning-free — `import.meta.dirname` instead of `__dirname` for `configLoader: 'native'`, plus a throwing `node:*` stub in the UMD/IIFE build so the unreachable `node:http` import in `createServer().listen()` stops triggering Vite's browser-externalized warning.
 
