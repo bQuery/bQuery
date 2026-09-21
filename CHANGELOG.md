@@ -10,6 +10,7 @@ and this project adheres to Semantic Versioning.
   - [Releases](#releases)
   - [\[Unreleased\]](#unreleased)
     - [Added (Unreleased)](#added-unreleased)
+    - [Changed (Unreleased)](#changed-unreleased)
     - [Removed (Unreleased)](#removed-unreleased)
   - [\[1.16.1\] - 2026-08-26](#1161---2026-08-26)
     - [Changed (1.16.1)](#changed-1161)
@@ -110,6 +111,11 @@ and this project adheres to Semantic Versioning.
 ### Added (Unreleased)
 
 - **Security**: `sanitizeHtml()` and `stripTags()` now work on runtimes without a DOM ([#229](https://github.com/bQuery/bQuery/issues/229)). They previously threw `ReferenceError: document is not defined` on Bun, Node and Deno, so server code that needed to sanitize user-generated HTML — the most common place to need it — had to install `linkedom` or `happy-dom` and wire up globals. A DOM-free string backend is now selected automatically when no DOM is present, mirroring how `src/ssr` picks a renderer. New `configureSanitizer({ backend: 'auto' | 'dom' | 'string' })` and `getSanitizerConfig()` pin the choice, which is useful when server and browser output must match byte for byte. Both backends share a single policy module, so the allow lists, URL checks, DOM-clobbering protection and mutation-XSS guard cannot drift between them; they can differ on malformed input, where the string backend escapes rather than guesses. No behaviour changes in the browser.
+- **Server**: `serveStatic()` serves files from disk ([#222](https://github.com/bQuery/bQuery/issues/222)). The server module had sessions, CSRF, guards, auth, cookies, errors, file routes and WebSocket sessions, but no way to send a file — so every app needed a reverse proxy just to deliver its own `client.js`. The middleware handles weak `ETag`/`Last-Modified` with `304`, single-byte `Range` requests with `206`/`416`, directory indexes with a `308` redirect for the missing trailing slash, content-type mapping, optional `.br`/`.gz` sidecars, and path-traversal rejection (decoded segment checks plus a resolved-path re-check; dotfiles are off by default). It calls `next()` for anything it does not serve, so routes still see those requests. File access goes through `node:fs`, which every runtime `listen()` supports.
+
+### Changed (Unreleased)
+
+- **Server**: global middleware registered with `app.use()` now runs for requests that match no route, with the `notFound` handler as the end of the chain ([#222](https://github.com/bQuery/bQuery/issues/222)). Previously an unmatched path returned 404 before the middleware stack ran at all, so middleware that must see every request — CORS, logging, security headers, and static-asset serving — was silently skipped on exactly the responses where it often matters most. Middleware that calls `next()` is unaffected: the 404 still comes from the same handler.
 
 ### Removed (Unreleased)
 
