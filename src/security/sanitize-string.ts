@@ -73,8 +73,10 @@ const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title', 'xmp'
  * and everything up to `</script>` is its raw text — so honouring it for any
  * element let `<script/>alert(1)</script>` escape raw-text consumption and
  * surface `alert(1)` as ordinary text. `svg` and `math` are the exception:
- * they switch the tree builder into foreign content, where a self-closing
- * start tag is acknowledged.
+ * they switch the tree builder into foreign content, where every self-closing
+ * start tag is acknowledged — the roots' descendants (`<path/>`) included.
+ * Only the roots are listed because both are always-dropped tags: their whole
+ * subtree is removed, so how the descendants nest never reaches the output.
  */
 const SELF_CLOSING_ELEMENTS = new Set([...VOID_ELEMENTS, 'svg', 'math']);
 
