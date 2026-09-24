@@ -505,41 +505,59 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       'accept-ranges': 'bytes',
     });
 
-    if (
-      isNotModified(
-        ctx.request.headers.get('if-none-match'),
-        ctx.request.headers.get('if-modified-since'),
-        etag,
-        stats.mtimeMs
-      )
-    ) {
-      return new Response(null, { status: 304, headers });
+    // Set before the conditional check, not after: `Vary` describes the URL,
+    // not the body, so a 304 has to carry the same one as the 200 it
+    // revalidates. A shared cache that saw only the 304 would otherwise store
+    // the entry without an encoding in its key and serve one client's
+    // representation to another.
+    if (precompressed) {
+      headers.set('vary', 'Accept-Encoding');
     }
 
     // A precompressed sidecar replaces the body but keeps the original's
     // content type, and varies on Accept-Encoding so caches stay correct.
     let bodyPath = filePath;
     let bodySize = stats.size;
+    // The validators describe the bytes sent, so a sidecar brings its own.
+    let bodyMtimeMs = stats.mtimeMs;
 
+    // Resolved *before* the conditional check, because picking a sidecar
+    // rewrites the ETag. Checking first compared the client's validator
+    // against the identity ETag while the response would ship the encoded
+    // one, so a precompressed asset could never revalidate: every conditional
+    // request re-sent the whole compressed body.
     if (precompressed) {
-      // Always vary, not only when a sidecar is chosen: the identity response
-      // is one of several representations of this URL, so a shared cache must
-      // key on the encoding for it too.
-      headers.set('vary', 'Accept-Encoding');
       const accepted = parseAcceptEncoding(ctx.request.headers.get('accept-encoding'));
-      for (const { encoding, suffix } of ENCODINGS) {
-        if (!acceptsEncoding(accepted, encoding)) continue;
+      // Ordered by the client's stated preference, not by our own list. The
+      // qualities are already parsed, and `gzip;q=1.0, br;q=0.1` is a client
+      // asking for gzip for a reason — decode cost on a constrained device, a
+      // proxy tuned for CPU. Ties keep `ENCODINGS` order, so the common
+      // `gzip, br` (no q-values) still prefers brotli.
+      const qualityOf = (encoding: string): number =>
+        accepted.get(encoding) ?? accepted.get('*') ?? 0;
+      const candidates = ENCODINGS.filter(({ encoding }) =>
+        acceptsEncoding(accepted, encoding)
+      ).sort((a, b) => qualityOf(b.encoding) - qualityOf(a.encoding));
+
+      for (const { encoding, suffix } of candidates) {
         try {
           const sidecar = await fsp.stat(`${filePath}${suffix}`);
           if (!sidecar.isFile()) continue;
           bodyPath = `${filePath}${suffix}`;
           bodySize = sidecar.size;
+          bodyMtimeMs = sidecar.mtimeMs;
           headers.set('content-encoding', encoding);
           // Distinguish the representations. Sharing the identity file's
           // validator let a cache revalidate the brotli variant on behalf of
           // a client that does not accept `br`, get a bare 304, and hand back
           // compressed bytes with no `Content-Encoding` — a corrupt body.
-          headers.set('etag', encodedEtag(etag, encoding));
+          //
+          // Built from the sidecar's own size and mtime, not the identity
+          // file's: a sidecar rebuilt on its own — a stale one replaced after
+          // a bad deploy — would otherwise keep the old validator, and every
+          // cache holding the old bytes would keep revalidating them as fresh.
+          headers.set('etag', encodedEtag(fileEtag(sidecar.size, sidecar.mtimeMs), encoding));
+          headers.set('last-modified', new Date(sidecar.mtimeMs).toUTCString());
           break;
         } catch {
           // No sidecar for this encoding; try the next one.
@@ -551,7 +569,32 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
     // sidecar those are the compressed bytes, which a client asking for a
     // range of the identity representation would not expect — so ranges are
     // only offered when the body is the file itself.
+    //
+    // Decided before the conditional check, because a 304's headers are
+    // merged into the cached entry (RFC 9111 §4.3.4): a 304 still carrying
+    // `Accept-Ranges: bytes` would advertise ranges on a stored compressed
+    // body that its own 200 had declined to offer them on.
     const rangeable = bodyPath === filePath;
+    if (!rangeable) headers.delete('accept-ranges');
+
+    // Against the validators actually being sent, which the sidecar block
+    // above may have replaced.
+    if (
+      isNotModified(
+        ctx.request.headers.get('if-none-match'),
+        ctx.request.headers.get('if-modified-since'),
+        headers.get('etag') ?? etag,
+        bodyMtimeMs
+      )
+    ) {
+      // The encoded ETag and `Vary` stay — they are what a cache updates its
+      // entry from. `Content-Encoding` does not: RFC 9110 §15.4.5 lists the
+      // representation metadata a 304 may carry, and it is not among them.
+      // Resolving the sidecar before this check is what put it here.
+      headers.delete('content-encoding');
+      return new Response(null, { status: 304, headers });
+    }
+
     const range = rangeable ? parseRange(ctx.request.headers.get('range'), bodySize) : null;
 
     if (range === 'unsatisfiable') {
@@ -563,8 +606,6 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       headers.delete('content-length');
       return new Response(null, { status: 416, headers });
     }
-
-    if (!rangeable) headers.delete('accept-ranges');
 
     const start = range ? range.start : 0;
     const end = range ? range.end : bodySize - 1;

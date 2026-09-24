@@ -210,6 +210,12 @@ describe('server/rateLimit configuration errors', () => {
 
   it('accepts trustProxy instead of keyBy', () => {
     expect(() => rateLimit({ window: 1000, max: 1, trustProxy: true })).not.toThrow();
+    expect(() => rateLimit({ window: 1000, max: 1, trustProxy: 'cf-connecting-ip' })).not.toThrow();
+  });
+
+  it('rejects a trustProxy string that cannot name a header', () => {
+    expect(() => rateLimit({ window: 1000, max: 1, trustProxy: 'x real ip' })).toThrow(TypeError);
+    expect(() => rateLimit({ window: 1000, max: 1, trustProxy: '   ' })).toThrow(/trustProxy/);
   });
 
   it('rejects a non-positive window', () => {
@@ -245,6 +251,37 @@ describe('server/rateLimit with trustProxy', () => {
     ).toBe(429);
   });
 
+  it('cannot be escaped by rotating a header the proxy does not set', async () => {
+    // A proxy that appends to X-Forwarded-For leaves CF-Connecting-IP and
+    // friends untouched. If the limiter read whichever of them turned up, a
+    // client would mint a fresh bucket per request by varying one.
+    const app = proxied();
+    const attempt = (client: string) =>
+      app.handle({
+        url: '/p',
+        headers: { 'x-forwarded-for': '7.7.7.7', 'cf-connecting-ip': client, 'x-real-ip': client },
+      });
+
+    expect((await attempt('spoof-1')).status).toBe(200);
+    expect((await attempt('spoof-2')).status).toBe(429);
+  });
+
+  it('keys on the named header when one is given', async () => {
+    const app = createServer();
+    app.get('/p', (ctx) => ctx.text('ok'), [
+      rateLimit({ window: 60_000, max: 1, trustProxy: 'cf-connecting-ip' }),
+    ]);
+    const attempt = (client: string) =>
+      app.handle({
+        url: '/p',
+        headers: { 'x-forwarded-for': '7.7.7.7', 'cf-connecting-ip': client },
+      });
+
+    expect((await attempt('5.5.5.5')).status).toBe(200);
+    expect((await attempt('6.6.6.6')).status).toBe(200);
+    expect((await attempt('5.5.5.5')).status).toBe(429);
+  });
+
   it('counts a request with no forwarded address rather than letting it through', async () => {
     // Fail closed: anything reaching the origin off-proxy would otherwise be
     // unlimited while the app still reports itself as protected.
@@ -254,9 +291,10 @@ describe('server/rateLimit with trustProxy', () => {
     expect((await app.handle('/p')).status).toBe(429);
   });
 
-  it('is not bypassable by rotating X-Forwarded-For behind a proxy', async () => {
-    // Cloudflare and nginx append to XFF, so its leftmost entry stays
-    // client-controlled — the proxy's own header has to win.
+  it('is not bypassable by rotating the client-supplied part of X-Forwarded-For', async () => {
+    // Cloudflare and nginx append to XFF, so whatever the client sent stays
+    // in place on the left and the proxy's own observation lands on the
+    // right. Only the rightmost entry may decide the bucket.
     const app = proxied();
 
     const statuses: number[] = [];
@@ -265,7 +303,7 @@ describe('server/rateLimit with trustProxy', () => {
         (
           await app.handle({
             url: '/p',
-            headers: { 'x-forwarded-for': `9.9.9.${i}`, 'cf-connecting-ip': '7.7.7.7' },
+            headers: { 'x-forwarded-for': `9.9.9.${i}, 7.7.7.7` },
           })
         ).status
       );
@@ -275,40 +313,99 @@ describe('server/rateLimit with trustProxy', () => {
   });
 });
 
+describe('server/rateLimit across middleware instances', () => {
+  it('serializes two limiters that share a store', async () => {
+    // Each `rateLimit()` used to build its own `serializeByKey` chain, so two
+    // limiters over one store never queued behind each other: concurrent
+    // requests read the same counter and wrote the same increment, and `max`
+    // became `max x instances` for anyone opening parallel connections.
+    const store = memoryStore({ maxEntries: 100 });
+    const app = createServer();
+    const limiter = () => rateLimit({ window: 60_000, max: 1, store, keyBy: () => 'same' });
+    app.get('/a', (ctx) => ctx.text('a'), [limiter()]);
+    app.get('/b', (ctx) => ctx.text('b'), [limiter()]);
+
+    const [first, second] = await Promise.all([app.handle('/a'), app.handle('/b')]);
+
+    expect([first.status, second.status].sort()).toEqual([200, 429]);
+  });
+
+  it('keeps limiters with separate stores independent', async () => {
+    // The lock is keyed on the store because the store is the scope the
+    // counter lives in. Two limiters with their own stores share no state and
+    // must not queue behind one another.
+    const app = createServer();
+    const limiter = () =>
+      rateLimit({
+        window: 60_000,
+        max: 1,
+        store: memoryStore({ maxEntries: 10 }),
+        keyBy: () => 'same',
+      });
+    app.get('/a', (ctx) => ctx.text('a'), [limiter()]);
+    app.get('/b', (ctx) => ctx.text('b'), [limiter()]);
+
+    const [first, second] = await Promise.all([app.handle('/a'), app.handle('/b')]);
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+  });
+});
+
 describe('forwardedAddress', () => {
   const ctxWith = (headers: Record<string, string>): ServerContext =>
     ({ request: new Request('http://localhost/', { headers }) }) as ServerContext;
 
-  it('reads the leftmost X-Forwarded-For entry', () => {
+  it('reads the rightmost X-Forwarded-For entry', () => {
+    // The list grows left-to-right as it is forwarded, so only the rightmost
+    // entry was added by the proxy closest to us. Everything further left may
+    // have been sent by the client.
     expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2, 3.3.3.3' }))).toBe(
-      '1.1.1.1'
+      '3.3.3.3'
     );
   });
 
-  it('trims whitespace', () => {
-    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  1.1.1.1  , 2.2.2.2' }))).toBe(
-      '1.1.1.1'
+  it('ignores a client-supplied X-Forwarded-For prefix', () => {
+    // An appending proxy (Cloudflare, nginx) leaves whatever the client sent
+    // in place and adds the observed address on the right. Keying on the
+    // leftmost entry would let a client rotate it and escape the limit.
+    const spoofed = forwardedAddress(ctxWith({ 'x-forwarded-for': 'evil-1, 9.9.9.9' }));
+    const rotated = forwardedAddress(ctxWith({ 'x-forwarded-for': 'evil-2, 9.9.9.9' }));
+    expect(spoofed).toBe('9.9.9.9');
+    expect(rotated).toBe(spoofed);
+  });
+
+  it('trims whitespace and skips empty hops', () => {
+    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  1.1.1.1  , 2.2.2.2  ' }))).toBe(
+      '2.2.2.2'
+    );
+    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2, ,' }))).toBe('2.2.2.2');
+  });
+
+  it('takes a named single-value header whole', () => {
+    expect(forwardedAddress(ctxWith({ 'x-real-ip': '4.4.4.4' }), 'x-real-ip')).toBe('4.4.4.4');
+    expect(forwardedAddress(ctxWith({ 'cf-connecting-ip': '5.5.5.5' }), 'cf-connecting-ip')).toBe(
+      '5.5.5.5'
+    );
+    expect(forwardedAddress(ctxWith({ 'true-client-ip': ' 6.6.6.6 ' }), 'true-client-ip')).toBe(
+      '6.6.6.6'
     );
   });
 
-  it('falls back through the other headers in order', () => {
-    expect(forwardedAddress(ctxWith({ 'x-real-ip': '4.4.4.4' }))).toBe('4.4.4.4');
-    expect(forwardedAddress(ctxWith({ 'cf-connecting-ip': '5.5.5.5' }))).toBe('5.5.5.5');
-    expect(forwardedAddress(ctxWith({ 'true-client-ip': '6.6.6.6' }))).toBe('6.6.6.6');
-  });
-
-  it('prefers the headers a proxy sets over X-Forwarded-For', () => {
-    // XFF is appended to by Cloudflare and stock nginx, so its leftmost entry
-    // is client-controlled even behind a trusted proxy.
-    expect(
-      forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1', 'cf-connecting-ip': '5.5.5.5' }))
-    ).toBe('5.5.5.5');
-    expect(
-      forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1', 'true-client-ip': '6.6.6.6' }))
-    ).toBe('6.6.6.6');
-    expect(
-      forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1', 'x-real-ip': '4.4.4.4' }))
-    ).toBe('4.4.4.4');
+  it('reads only the header it was given', () => {
+    // No preference list: a proxy that sets CF-Connecting-IP need not strip
+    // X-Real-IP, so falling back through the others would hand the client its
+    // own bucket by sending a header the proxy never writes.
+    const headers = {
+      'x-forwarded-for': '1.1.1.1',
+      'cf-connecting-ip': '5.5.5.5',
+      'true-client-ip': '6.6.6.6',
+      'x-real-ip': '4.4.4.4',
+    };
+    expect(forwardedAddress(ctxWith(headers))).toBe('1.1.1.1');
+    expect(forwardedAddress(ctxWith(headers), 'cf-connecting-ip')).toBe('5.5.5.5');
+    expect(forwardedAddress(ctxWith({ 'cf-connecting-ip': '5.5.5.5' }))).toBe(
+      forwardedAddress(ctxWith({}))
+    );
   });
 
   it('returns a shared bucket, never null, when no header is usable', () => {
@@ -318,6 +415,7 @@ describe('forwardedAddress', () => {
     expect(shared).not.toBeNull();
     expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '' }))).toBe(shared);
     expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  ,  ' }))).toBe(shared);
+    expect(forwardedAddress(ctxWith({ 'x-real-ip': '   ' }), 'x-real-ip')).toBe(shared);
   });
 });
 

@@ -28,16 +28,18 @@
  * @internal
  */
 
-import { DANGEROUS_TAGS } from './constants';
 import {
   escapeHtmlText,
   isAllowedTag,
   isAttributeAllowed,
+  isValidAttributeName,
   relForAnchor,
   resolvePolicy,
+  suppressesTextContent,
   type SanitizePolicy,
 } from './sanitize-policy';
 import type { SanitizeOptions } from './types';
+import { loadEntities } from './entities';
 
 /** Elements that never have a closing tag. */
 const VOID_ELEMENTS = new Set([
@@ -64,14 +66,21 @@ const VOID_ELEMENTS = new Set([
  */
 const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title', 'xmp']);
 
-const TAG_NAME = /^[a-zA-Z][a-zA-Z0-9:-]*/;
-
 /**
- * An attribute name safe to serialize into a tag. Deliberately stricter than
- * what the HTML spec tolerates: anything outside this shape is dropped rather
- * than emitted, so the output cannot depend on a consumer's error recovery.
+ * Elements whose start tag may close itself with a trailing slash.
+ *
+ * Only these. HTML ignores the `/` in `<script/>` — the element still opens,
+ * and everything up to `</script>` is its raw text — so honouring it for any
+ * element let `<script/>alert(1)</script>` escape raw-text consumption and
+ * surface `alert(1)` as ordinary text. `svg` and `math` are the exception:
+ * they switch the tree builder into foreign content, where every self-closing
+ * start tag is acknowledged — the roots' descendants (`<path/>`) included.
+ * Only the roots are listed because both are always-dropped tags: their whole
+ * subtree is removed, so how the descendants nest never reaches the output.
  */
-const VALID_ATTRIBUTE_NAME = /^[a-zA-Z_:][a-zA-Z0-9_:.-]*$/;
+const SELF_CLOSING_ELEMENTS = new Set([...VOID_ELEMENTS, 'svg', 'math']);
+
+const TAG_NAME = /^[a-zA-Z][a-zA-Z0-9:-]*/;
 
 /**
  * Document-structure elements a real HTML parser absorbs rather than nests.
@@ -103,39 +112,96 @@ const IMPLIED_END_TAGS: Record<string, ReadonlySet<string>> = {
   thead: new Set(['thead', 'tbody', 'tfoot', 'tr', 'td', 'th']),
 };
 
-const NAMED_ENTITIES: Record<string, string> = {
-  amp: '&',
-  lt: '<',
-  gt: '>',
-  quot: '"',
-  apos: "'",
-  nbsp: ' ',
-};
+/** The longest legacy name (`frac12`, `Ccedil`, …), which bounds the prefix search. */
+const LEGACY_MAX_LENGTH = 6;
 
 /**
- * Decode HTML entities in text content.
+ * What a browser substitutes for `&#128;`–`&#159;`: those are C1 controls in
+ * Unicode, but the spec reads them as windows-1252, as legacy pages meant.
+ */
+const C1_REPLACEMENTS: Readonly<Record<number, number>> = {
+  0x80: 0x20ac,
+  0x82: 0x201a,
+  0x83: 0x0192,
+  0x84: 0x201e,
+  0x85: 0x2026,
+  0x86: 0x2020,
+  0x87: 0x2021,
+  0x88: 0x02c6,
+  0x89: 0x2030,
+  0x8a: 0x0160,
+  0x8b: 0x2039,
+  0x8c: 0x0152,
+  0x8e: 0x017d,
+  0x91: 0x2018,
+  0x92: 0x2019,
+  0x93: 0x201c,
+  0x94: 0x201d,
+  0x95: 0x2022,
+  0x96: 0x2013,
+  0x97: 0x2014,
+  0x98: 0x02dc,
+  0x99: 0x2122,
+  0x9a: 0x0161,
+  0x9b: 0x203a,
+  0x9c: 0x0153,
+  0x9e: 0x017e,
+  0x9f: 0x0178,
+};
+
+const decodeNumeric = (digits: string, radix: number): string => {
+  const num = Number.parseInt(digits, radix);
+  if (num === 0 || num > 0x10ffff || (num >= 0xd800 && num <= 0xdfff)) return '\ufffd';
+  return String.fromCodePoint(C1_REPLACEMENTS[num] ?? num);
+};
+
+const ATTRIBUTE_BLOCKER = /[=a-zA-Z0-9]/;
+
+/**
+ * Decode character references the way an HTML parser does.
  *
  * Decoding matters for safety, not convenience: the policy checks run on
  * decoded values, so `href="javas&#99;ript:alert(1)"` is compared against the
  * dangerous-protocol list as `javascript:alert(1)` rather than slipping past
  * as an unrecognized string. Everything is re-escaped on the way out.
+ *
+ * It follows the tokenizer's rules rather than approximating them, because
+ * the DOM backend gets those rules from the browser and the two must agree:
+ *
+ * - names are case-sensitive (`&Eacute;` is not `&eacute;`);
+ * - only the legacy names decode without a `;`, and they match as a prefix,
+ *   longest first (`&notit;` is `¬it;`);
+ * - `inAttribute` applies the rule that keeps query strings intact: a legacy
+ *   name without `;` followed by `=` or an alphanumeric stays literal, so
+ *   `href="?a=1&copy=2"` is not rewritten to `?a=1©=2`.
+ *
+ * Names outside `ENTITY_RUNS` stay literal — see `entities.ts` for why the
+ * table is a subset and why that can only fall short of a browser, never
+ * contradict it.
  * @internal
  */
-export const decodeEntities = (input: string): string => {
+export const decodeEntities = (input: string, inAttribute = false): string => {
   if (!input.includes('&')) return input;
-  return input.replace(/&(#[xX]?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);?/g, (match, code: string) => {
-    if (code[0] === '#') {
-      const isHex = code[1] === 'x' || code[1] === 'X';
-      const num = Number.parseInt(code.slice(isHex ? 2 : 1), isHex ? 16 : 10);
-      if (!Number.isFinite(num) || num < 0 || num > 0x10ffff) return match;
-      try {
-        return String.fromCodePoint(num);
-      } catch {
-        return match;
+  const { named, legacy } = loadEntities();
+  return input.replace(
+    /&(?:#(?:[xX]([0-9a-fA-F]+)|([0-9]+));?|([a-zA-Z0-9]+)(;?))/g,
+    (match, hex: string, dec: string, name: string, semi: string, offset: number) => {
+      if (hex !== undefined) return decodeNumeric(hex, 16);
+      if (dec !== undefined) return decodeNumeric(dec, 10);
+      if (semi && named.has(name)) return named.get(name) as string;
+      for (let length = Math.min(name.length, LEGACY_MAX_LENGTH); length >= 2; length--) {
+        const prefix = name.slice(0, length);
+        if (!legacy.has(prefix)) continue;
+        // `name` is a maximal alphanumeric run, so when the prefix is all of it
+        // the next character is whatever follows the match (`;` was ruled out
+        // above: every legacy name also exists with one).
+        const next = length < name.length ? name[length] : input[offset + match.length];
+        if (inAttribute && next !== undefined && ATTRIBUTE_BLOCKER.test(next)) return match;
+        return (named.get(prefix) as string) + name.slice(length) + semi;
       }
+      return match;
     }
-    return NAMED_ENTITIES[code.toLowerCase()] ?? match;
-  });
+  );
 };
 
 /** Escape a value for use inside a double-quoted attribute. */
@@ -245,7 +311,7 @@ const readAttributes = (
       }
     }
 
-    attributes.push({ name, value: decodeEntities(value) });
+    attributes.push({ name, value: decodeEntities(value, true) });
   }
 
   return { attributes, end: pos, selfClosing };
@@ -318,7 +384,14 @@ export const tokenize = (html: string): Token[] => {
 
     flushText(lt);
     const tag = match[0].toLowerCase();
-    const { attributes, end, selfClosing } = readAttributes(html, lt + 1 + match[0].length);
+    const {
+      attributes,
+      end,
+      selfClosing: slashed,
+    } = readAttributes(html, lt + 1 + match[0].length);
+    // A trailing slash only closes a tag that is allowed to close itself; on
+    // anything else HTML drops it, and so do we.
+    const selfClosing = slashed && SELF_CLOSING_ELEMENTS.has(tag);
     tokens.push({ kind: 'open', tag, attributes, selfClosing });
     pos = end;
     textStart = pos;
@@ -375,7 +448,7 @@ const renderAttributes = (
     // emits markup whose meaning depends on how forgiving the consumer's
     // parser is; happy-dom, this repo's own DOM, splits it back into a live
     // event handler. Never emit a name we cannot quote safely.
-    if (!VALID_ATTRIBUTE_NAME.test(name)) continue;
+    if (!isValidAttributeName(name)) continue;
     if (seenNames.has(name)) continue; // first wins, as the DOM does
     seenNames.add(name);
     if (!isAttributeAllowed(name, attr.value, policy, seenIds)) continue;
@@ -409,11 +482,12 @@ const sanitizePass = (html: string, policy: SanitizePolicy): string => {
   if (policy.stripAllTags) {
     let text = '';
     // Drop the content of dangerous elements entirely rather than surfacing
-    // script source as "text".
+    // script source as "text". `suppressesTextContent` owns the rule so the
+    // DOM backend drops exactly the same subtrees.
     let suppressDepth = 0;
     let suppressTag: string | null = null;
     for (const token of tokens) {
-      if (token.kind === 'open' && DANGEROUS_TAGS.has(token.tag) && !token.selfClosing) {
+      if (token.kind === 'open' && suppressesTextContent(token.tag) && !token.selfClosing) {
         if (suppressDepth === 0) suppressTag = token.tag;
         if (token.tag === suppressTag) suppressDepth++;
         continue;
@@ -530,7 +604,11 @@ export const sanitizeHtmlString = (html: string, options: SanitizeOptions = {}):
 
   const policy = resolvePolicy(options);
   const firstPass = sanitizePass(input, policy);
-  if (policy.stripAllTags) return firstPass;
+  // Escaped, unlike `stripTagsString`: this return value is branded
+  // `SanitizedHtml` and callers assign it to HTML sinks, and extracted text
+  // can carry live markup once its entities are decoded. The mXSS fallback
+  // below escapes for exactly the same reason.
+  if (policy.stripAllTags) return escapeHtmlText(firstPass);
 
   const secondPass = sanitizePass(firstPass, policy);
   if (firstPass !== secondPass) {

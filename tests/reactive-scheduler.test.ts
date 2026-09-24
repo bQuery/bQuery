@@ -163,8 +163,10 @@ describe('batched scheduler: one run per tick', () => {
     count.value = 0; // back to where it started
     await Promise.resolve();
 
-    // The signal's own Object.is check means the second write is a no-op, and
-    // the queued observer sees an unchanged value.
+    // Both writes land on the signal — the second is not a no-op, it restores
+    // the original value. What collapses them into one effect run is the
+    // pending-observer set deduplicating the notification, so the queued
+    // effect runs once and reads the final value.
     expect(runs).toBe(2);
   });
 });
@@ -211,6 +213,9 @@ describe('batched scheduler: effects that write signals still settle', () => {
     // The MAX_FLUSH_PASSES guard stops it; the point is that it terminates.
     expect(Number.isFinite(a.value)).toBe(true);
     expect(Number.isFinite(b.value)).toBe(true);
+    // Terminating is not enough on its own: without this the test would still
+    // pass if warnUnsettled() were removed and the cycle ended silently.
+    expect(warnings.length).toBeGreaterThan(0);
   });
 });
 

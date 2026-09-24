@@ -10,7 +10,9 @@
  *
  * Glob patterns (`**`, `release/*`, …) and negations are skipped; only literal
  * branch names are resolved. When no branch list can be obtained (no network
- * and no local refs) the check passes with a warning rather than failing.
+ * and no local refs) the existence check is skipped with a note — but a
+ * trigger the parser cannot read still fails, because finding that needs no
+ * branch list.
  *
  * Usage: bun scripts/check-workflow-branches.mjs
  */
@@ -223,20 +225,31 @@ export function extractBranchRefs(source) {
   return { refs, parseProblems };
 }
 
-export async function auditWorkflowBranches() {
-  const branches = knownBranches();
-  const entries = (await readdir(workflowDir)).filter((file) => /\.ya?ml$/.test(file)).sort();
+/**
+ * Audit every workflow in `dir` against `branches` (`null`: no branch list).
+ *
+ * Parse problems and missing branches are returned apart because only the
+ * second needs a branch list: without one, a trigger this parser cannot read
+ * is still a finding — it is the silent-pass failure mode the guard exists
+ * for — while a branch name simply cannot be checked.
+ */
+export async function auditWorkflowBranches({
+  dir = workflowDir,
+  branches = knownBranches(),
+} = {}) {
+  const entries = (await readdir(dir)).filter((file) => /\.ya?ml$/.test(file)).sort();
 
-  const problems = [];
+  const parseProblems = [];
+  const missing = [];
   let refCount = 0;
 
   for (const entry of entries) {
-    const path = join(workflowDir, entry);
+    const path = join(dir, entry);
     const source = await readFile(path, 'utf8');
-    const { refs, parseProblems } = extractBranchRefs(source);
+    const { refs, parseProblems: unreadable } = extractBranchRefs(source);
 
-    for (const problem of parseProblems) {
-      problems.push(`${relative(repoRoot, path)}:${problem.line} — ${problem.reason}.`);
+    for (const problem of unreadable) {
+      parseProblems.push(`${relative(repoRoot, path)}:${problem.line} — ${problem.reason}.`);
     }
 
     for (const ref of refs) {
@@ -250,39 +263,68 @@ export async function auditWorkflowBranches() {
       if (ref.key === 'branches-ignore') continue;
       refCount++;
       if (branches && !branches.has(ref.name)) {
-        problems.push(
+        missing.push(
           `${relative(repoRoot, path)}:${ref.line} — \`${ref.key}: ${ref.name}\` has no remote branch.`
         );
       }
     }
   }
 
-  return { problems, refCount, workflowCount: entries.length, resolved: branches !== null };
+  return {
+    problems: [...parseProblems, ...missing],
+    parseProblems,
+    missing,
+    refCount,
+    workflowCount: entries.length,
+    resolved: branches !== null,
+  };
+}
+
+/**
+ * What `main()` prints and exits with, for an audit result.
+ *
+ * The skip path used to exit 0 before looking at anything, which discarded
+ * parse problems along with the branch check they do not depend on — so on
+ * a fork, offline, or a shallow checkout, an unreadable `branches:` block
+ * passed silently.
+ */
+export function verdict({ parseProblems, missing, refCount, workflowCount, resolved }) {
+  const stdout = [];
+  const stderr = [];
+
+  if (parseProblems.length > 0) {
+    stderr.push('✗ Workflow triggers this check cannot read:');
+    for (const problem of parseProblems) stderr.push(`  - ${problem}`);
+    stderr.push(
+      '\nA branch list the parser does not recognise yields no refs, so nothing in it is checked — rewrite it in a shape the parser reads.'
+    );
+  }
+
+  if (!resolved) {
+    stdout.push(
+      '• Workflow branch existence check skipped: no branch list available (no network and no local refs).'
+    );
+  } else if (missing.length > 0) {
+    if (stderr.length > 0) stderr.push('');
+    stderr.push('✗ Workflow triggers reference branches that do not exist:');
+    for (const problem of missing) stderr.push(`  - ${problem}`);
+    stderr.push(
+      '\nA trigger on a missing branch never fires — update the workflow or create the branch.'
+    );
+  } else if (parseProblems.length === 0) {
+    stdout.push(
+      `✓ Workflow branch triggers all resolve (${refCount} refs across ${workflowCount} workflows).`
+    );
+  }
+
+  return { exitCode: stderr.length > 0 ? 1 : 0, stdout, stderr };
 }
 
 export async function main() {
-  const { problems, refCount, workflowCount, resolved } = await auditWorkflowBranches();
-
-  if (!resolved) {
-    console.log(
-      '• Workflow branch check skipped: no branch list available (no network and no local refs).'
-    );
-    process.exit(0);
-  }
-
-  if (problems.length === 0) {
-    console.log(
-      `✓ Workflow branch triggers all resolve (${refCount} refs across ${workflowCount} workflows).`
-    );
-    process.exit(0);
-  }
-
-  console.error('✗ Workflow triggers reference branches that do not exist:');
-  for (const problem of problems) console.error(`  - ${problem}`);
-  console.error(
-    '\nA trigger on a missing branch never fires — update the workflow or create the branch.'
-  );
-  process.exit(1);
+  const { exitCode, stdout, stderr } = verdict(await auditWorkflowBranches());
+  for (const line of stdout) console.log(line);
+  for (const line of stderr) console.error(line);
+  process.exit(exitCode);
 }
 
 export function isDirectExecution(argvEntry = process.argv[1]) {

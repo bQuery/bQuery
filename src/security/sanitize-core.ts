@@ -11,7 +11,7 @@
  */
 
 import { resolveSanitizerBackend } from './config';
-import { sanitizeHtmlDom } from './sanitize-dom';
+import { sanitizeHtmlDom, stripTagsDom } from './sanitize-dom';
 import { sanitizeHtmlString, stripTagsString } from './sanitize-string';
 import type { SanitizeOptions } from './types';
 
@@ -26,9 +26,13 @@ export const sanitizeHtmlCore = (html: string, options: SanitizeOptions = {}): s
 
 /**
  * Strip all markup, leaving text.
+ *
+ * Routed to the backends' text extractors rather than through
+ * `sanitizeHtml(..., { stripAllTags: true })`, because the two differ on
+ * purpose: `stripTags()` is documented to return plain text and returns it
+ * raw, while the `sanitizeHtml` path is branded `SanitizedHtml` and escapes
+ * so the value is inert in an HTML sink.
  * @internal
  */
 export const stripTagsCore = (html: string): string =>
-  resolveSanitizerBackend() === 'dom'
-    ? sanitizeHtmlDom(html, { stripAllTags: true })
-    : stripTagsString(html);
+  resolveSanitizerBackend() === 'dom' ? stripTagsDom(html) : stripTagsString(html);

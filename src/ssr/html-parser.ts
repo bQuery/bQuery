@@ -14,6 +14,8 @@
  * @internal
  */
 
+import { isValidAttributeName, isValidTagName } from '../security/sanitize-policy';
+
 const VOID_ELEMENTS = new Set([
   'area',
   'base',
@@ -344,8 +346,19 @@ export const serializeTree = (node: SSRNode): string => {
   }
 
   const el = node;
+
+  // A malformed tag name cannot be escaped into safety — it would still open
+  // or close markup — so an element whose name is outside the valid shape is
+  // dropped whole, as the sanitizer drops a disallowed element. `readTagName`
+  // ends a name at whitespace, `>` and `/` but not at a quote, so this is
+  // reachable from ordinary input, not just from a hand-built tree.
+  if (!isValidTagName(el.tag)) return '';
+
   let attrs = '';
   for (const name of el.attributeOrder) {
+    // Values are escaped; names cannot be, so they are validated instead.
+    // `readAttrName` has the same blind spot for quotes as `readTagName`.
+    if (!isValidAttributeName(name)) continue;
     const value = el.attributes[name];
     attrs += ` ${name}="${escapeAttr(value)}"`;
   }

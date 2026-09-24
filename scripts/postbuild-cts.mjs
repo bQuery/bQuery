@@ -74,10 +74,36 @@ export const toCjsSpecifier = (specifier, fromDir, exists = existsSync) => {
   return null;
 };
 
+/**
+ * Character offsets covered by comment lines.
+ *
+ * The guard has to be applied without splitting the source: `SPECIFIER`'s
+ * `\\s*` and `\\s+` match newlines, so a wrapped `import(\\n  './x.js')`
+ * only matches against the whole text. Splitting into lines to skip comments
+ * would silently stop rewriting those.
+ */
+const commentRanges = (source) => {
+  const ranges = [];
+  let offset = 0;
+  for (const line of source.split('\n')) {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+      ranges.push([offset, offset + line.length]);
+    }
+    offset += line.length + 1;
+  }
+  return ranges;
+};
+
+/** Whether an offset falls inside a comment line. */
+const inComment = (ranges, index) => ranges.some(([start, end]) => index >= start && index < end);
+
 /** Rewrite one declaration's specifiers for the CommonJS tree. */
 export const toCjsDeclaration = (source, fromDir, exists = existsSync) => {
   let changed = 0;
-  const output = source.replace(SPECIFIER, (match, prefix, quote, specifier) => {
+  const ranges = commentRanges(source);
+  const output = source.replace(SPECIFIER, (match, prefix, quote, specifier, index) => {
+    if (inComment(ranges, index)) return match;
     const rewritten = toCjsSpecifier(specifier, fromDir, exists);
     if (rewritten === null) return match;
     changed++;

@@ -8,7 +8,7 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
-import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { createServer, serveStatic, ServerHttpError } from '../src/server/index';
@@ -302,6 +302,92 @@ describe('server/serveStatic precompressed sidecars', () => {
     expect(await response.text()).toBe('brotli body');
   });
 
+  it('sets Vary on the 304 as well as the 200', async () => {
+    // `Vary` describes the URL, not the body. A shared cache that only ever
+    // saw the 304 would otherwise key the entry without the encoding and hand
+    // one client's representation to another.
+    const first = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity' },
+    });
+    const etag = first.headers.get('etag');
+    expect(etag).toBeTruthy();
+
+    const revalidated = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity', 'if-none-match': etag as string },
+    });
+
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get('vary')).toBe('Accept-Encoding');
+  });
+
+  it('revalidates a precompressed sidecar with 304', async () => {
+    // The conditional check used to run against the identity ETag while the
+    // response shipped the encoded one, so the two could never match and
+    // every revalidation re-sent the whole compressed body.
+    const first = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const etag = first.headers.get('etag');
+    expect(first.status).toBe(200);
+    expect(etag).toContain('-br"');
+
+    const revalidated = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br', 'if-none-match': etag as string },
+    });
+
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get('etag')).toBe(etag);
+    expect(revalidated.headers.get('vary')).toBe('Accept-Encoding');
+    // RFC 9110 §15.4.5: a 304 carries the validator, not the representation's
+    // Content-Encoding.
+    expect(revalidated.headers.get('content-encoding')).toBeNull();
+  });
+
+  it('does not answer 304 when the client asks for a different encoding', async () => {
+    // The identity and brotli representations have distinct validators, so a
+    // brotli ETag must not satisfy a request that will be served identity.
+    const brotli = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const brotliEtag = brotli.headers.get('etag') as string;
+
+    const identity = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity', 'if-none-match': brotliEtag },
+    });
+
+    expect(identity.status).toBe(200);
+    expect(await identity.text()).toBe('identity body');
+  });
+
+  it('honours the q-value ranking rather than its own order', async () => {
+    // Both sidecars exist and both are acceptable. `ENCODINGS` lists brotli
+    // first, but the client ranked gzip higher and RFC 9110 §12.5.3 makes
+    // that a relative preference, not a tie.
+    const response = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'gzip;q=1.0, br;q=0.1' },
+    });
+
+    expect(response.headers.get('content-encoding')).toBe('gzip');
+    expect(await response.text()).toBe('gzip body');
+  });
+
+  it('still prefers brotli when no q-values distinguish them', async () => {
+    const response = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'gzip, br' },
+    });
+
+    expect(response.headers.get('content-encoding')).toBe('br');
+    expect(await response.text()).toBe('brotli body');
+  });
+
   it('falls back to gzip when brotli is not accepted', async () => {
     const response = await appFor({ precompressed: true }).handle({
       url: '/compressed.js',
@@ -329,6 +415,86 @@ describe('server/serveStatic precompressed sidecars', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('accept-ranges')).toBeNull();
     expect(await response.text()).toBe('brotli body');
+  });
+
+  it('does not offer ranges on the 304 of a compressed body either', async () => {
+    // A 304's headers are merged into the cached entry (RFC 9111 §4.3.4), so
+    // `Accept-Ranges: bytes` there would advertise ranges on stored
+    // compressed bytes that the 200 declined to offer them on.
+    const first = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const revalidated = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br', 'if-none-match': first.headers.get('etag') as string },
+    });
+
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get('accept-ranges')).toBeNull();
+
+    // The identity representation still offers them, on the 304 as on the 200.
+    const identity = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity' },
+    });
+    const identityRevalidated = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: {
+        'accept-encoding': 'identity',
+        'if-none-match': identity.headers.get('etag') as string,
+      },
+    });
+    expect(identityRevalidated.status).toBe(304);
+    expect(identityRevalidated.headers.get('accept-ranges')).toBe('bytes');
+  });
+
+  it('takes the validators of a sidecar from the sidecar itself', async () => {
+    // Deriving them from the identity file meant a sidecar rebuilt on its
+    // own — a stale one replaced after a bad deploy — kept the old ETag and
+    // Last-Modified, so caches holding the stale bytes revalidated them as
+    // fresh indefinitely.
+    const identityTime = new Date('2024-01-01T00:00:00Z');
+    await writeFile(join(root, 'rebuilt.js'), 'identity body');
+    await utimes(join(root, 'rebuilt.js'), identityTime, identityTime);
+    await writeFile(join(root, 'rebuilt.js.br'), 'stale brotli');
+    const staleTime = new Date('2024-02-01T00:00:00Z');
+    await utimes(join(root, 'rebuilt.js.br'), staleTime, staleTime);
+
+    const stale = await appFor({ precompressed: true }).handle({
+      url: '/rebuilt.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const staleEtag = stale.headers.get('etag') as string;
+    expect(stale.headers.get('last-modified')).toBe(staleTime.toUTCString());
+
+    // Rebuild only the sidecar; the identity file is untouched.
+    await writeFile(join(root, 'rebuilt.js.br'), 'fresh brotli body');
+    const freshTime = new Date('2024-03-01T00:00:00Z');
+    await utimes(join(root, 'rebuilt.js.br'), freshTime, freshTime);
+
+    const byEtag = await appFor({ precompressed: true }).handle({
+      url: '/rebuilt.js',
+      headers: { 'accept-encoding': 'br', 'if-none-match': staleEtag },
+    });
+    expect(byEtag.status).toBe(200);
+    expect(byEtag.headers.get('etag')).not.toBe(staleEtag);
+    expect(byEtag.headers.get('etag')).toContain('-br"');
+    expect(byEtag.headers.get('last-modified')).toBe(freshTime.toUTCString());
+    expect(await byEtag.text()).toBe('fresh brotli body');
+
+    const byDate = await appFor({ precompressed: true }).handle({
+      url: '/rebuilt.js',
+      headers: { 'accept-encoding': 'br', 'if-modified-since': staleTime.toUTCString() },
+    });
+    expect(byDate.status).toBe(200);
+
+    // And the sidecar's own date still revalidates it.
+    const current = await appFor({ precompressed: true }).handle({
+      url: '/rebuilt.js',
+      headers: { 'accept-encoding': 'br', 'if-modified-since': freshTime.toUTCString() },
+    });
+    expect(current.status).toBe(304);
   });
 
   it('serves the identity body when precompressed is off', async () => {

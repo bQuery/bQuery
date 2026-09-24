@@ -238,21 +238,65 @@ Both enforce exactly the same policy — the allow lists, URL checks,
 DOM-clobbering protection, `rel="noopener noreferrer"` handling and the
 mutation-XSS guard all live in one shared module, so they cannot drift.
 
-They can differ on **malformed** input, because the string backend is a
-scanner rather than a full HTML5 parser with error recovery. Where they
-differ, the string backend is the more conservative of the two: it escapes
-what it cannot interpret instead of guessing, and it drops anything it cannot
-serialize safely rather than emitting markup whose meaning depends on how
-forgiving the reader's parser is. For example,
-`<div><scr<script>ipt>alert(1)</script></div>` yields `<div></div>` under the
-DOM backend and `<div>ipt&amp;gt;alert(1)</div>` under the string backend —
-inert either way, one as nothing and one as escaped text.
+What they can differ on is **tree construction**, because the string backend
+is a scanner rather than a full HTML5 parser. HTML's parsing algorithm inserts
+and closes elements that were never written, and a scanner does not:
 
-On **well-formed** input the two agree, including the cases where that is not
-obvious: a disallowed element takes its subtree with it under both backends
-(`<unknown><b>hi</b></unknown>` yields nothing, not `<b>hi</b>`), and a whole
-document is reduced to its body content under both, so `<head>` never leaks
-into the output.
+```ts
+sanitizeHtml('<div><p>a<div>b</p></div>');
+// dom:    '<div><p>a</p><div>b</div></div>'   `<div>` implies `</p>`
+// string: '<div><p>a<div>b</div></p></div>'   nesting as written
+
+sanitizeHtml('<table><tr><td>x</td></tr></table>');
+// dom:    '<table><tbody><tr><td>x</td></tr></tbody></table>'   implied <tbody>
+// string: '<table><tr><td>x</td></tr></table>'
+
+stripTags('<head><title>t</title></head><body>b</body>');
+// dom:    'b'    DOMParser sorts <title> into the head, which is discarded
+// string: 'tb'   a token scanner has no notion of head and body
+```
+
+Both outputs are safe in every case — the policy is what decides that, and the
+policy is shared. What differs is structure, so the difference matters when
+server and client output must match byte for byte, not when deciding whether
+something is inert.
+
+The same applies, more visibly, to **malformed** input, where the string
+backend is the more conservative of the two: it escapes what it cannot
+interpret instead of guessing, and drops anything it cannot serialize safely
+rather than emitting markup whose meaning depends on how forgiving the
+reader's parser is.
+
+Policy behaviour does **not** differ, including where that is not obvious: a
+disallowed element takes its subtree with it under both backends
+(`<unknown><b>hi</b></unknown>` yields nothing, not `<b>hi</b>`), and text
+extraction drops the content of `<script>` and `<style>` under both
+(`stripTags('<script>alert(1)</script>')` is `''`, not `'alert(1)'`).
+
+`sanitizeHtml()` reduces a whole document to its body content under both, so
+`<head>` never reaches the output. `stripTags()` is where the third example
+above comes from and does **not** share that guarantee: the DOM backend
+discards the head because `DOMParser` built one, while the string backend has
+no head to discard and returns its text along with the body's.
+
+**Character references** are the one other place they can differ. The DOM
+backend decodes them with the browser's parser; the string backend — and the
+DOM backend's shortcut for input with no tags, which never reaches
+`DOMParser` — decode with the same rules (case-sensitive names, `;` required
+except for the legacy names, the attribute rule that keeps `?a=1&copy=2`
+intact) but a smaller table: every HTML 4.01 name, every name whose value is
+ASCII, and every legacy name. A name outside it, such as the HTML5-only
+`&star;`, stays literal:
+
+```ts
+sanitizeHtml('caf&eacute; &mdash; &colon;'); // 'café — :' under both
+sanitizeHtml('<b>&star;</b>');
+// dom:    '<b>☆</b>'
+// string: '<b>&amp;star;</b>'   shown as the reference, never mis-decoded
+```
+
+The full HTML5 table would add about 7 kB gzipped to every module that
+sanitizes, including `core`.
 
 If byte-identical output across environments matters to you, pin
 `backend: 'string'` everywhere.
@@ -518,7 +562,7 @@ document.head.appendChild(script);
 
 ## Notes
 
-- `sanitizeHtml()` uses DOMParser internally for reliable parsing.
+- `sanitizeHtml()` parses with `DOMParser` under the `'dom'` backend. Under `'auto'` — the default — the DOM-free string backend is selected instead when no `document` exists, so on Bun, Node and Deno no `DOMParser` is involved. See [Runtime backends](#runtime-backends).
 - bQuery's standard core HTML-writing methods sanitize untrusted content by default with `sanitizeHtml()`. Explicit escape hatches such as `htmlUnsafe()` and other raw DOM writes bypass sanitization, so use them only with content you already trust.
 - The sanitizer handles nested and recursive attack vectors.
 - `trusted()` should only be used with values you have already sanitized — never with raw user input.

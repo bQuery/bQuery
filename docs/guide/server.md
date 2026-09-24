@@ -423,20 +423,56 @@ That bucket is shared, so size `max` for it accordingly, or use `trustProxy`
 behind a proxy to separate callers by address.
 :::
 
-#### `trustProxy` and which header wins
+#### `trustProxy` and which header it reads
 
-`trustProxy` prefers the headers a proxy sets itself — `CF-Connecting-IP`,
-`True-Client-IP`, `X-Real-IP` — and only then falls back to the leftmost
-`X-Forwarded-For` entry. That order is not cosmetic: Cloudflare and nginx's
-stock `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`
-**append** to `X-Forwarded-For` rather than overwriting it, so its leftmost
-entry stays client-controlled even behind a trusted proxy. Preferring it
-would leave the limit bypassable by rotating one header.
+`trustProxy: true` reads the **rightmost** `X-Forwarded-For` entry, and that
+header only. The list grows left to right as a request is forwarded, so the
+rightmost entry is the address the proxy closest to you observed — and it is
+there whether that proxy appends (Cloudflare, and nginx's stock
+`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`) or overwrites.
+Everything further left is whatever the client sent, so keying on the leftmost
+entry would leave the limit bypassable by rotating one header.
 
-A request that reaches the origin with none of those headers — the origin
-port exposed alongside the CDN, an internal hop, a proxy misconfigured after
-a deploy — is counted in a single shared bucket rather than skipped, so it
-cannot slip past the limit unnoticed.
+```ts
+rateLimit({ window: 60_000, max: 10, trustProxy: true }); // rightmost XFF hop
+rateLimit({ window: 60_000, max: 10, trustProxy: 'cf-connecting-ip' }); // that header, whole
+```
+
+`CF-Connecting-IP`, `True-Client-IP` and `X-Real-IP` are **not** read unless
+you name one. Reading whichever of them happened to be present would reopen
+the same bypass from the other side: a proxy that sets `CF-Connecting-IP` does
+not necessarily strip `X-Real-IP`, so a client could pick its own bucket by
+sending a header the proxy never writes.
+
+::: warning Name a header only if your proxy sets it on every request
+`trustProxy: 'x-real-ip'` is safe when your proxy writes `X-Real-IP` itself,
+overwriting whatever arrived. If it merely passes the header through, the
+value is client-controlled and the limiter is bypassable. When in doubt,
+`trustProxy: true` is the safe choice: the rightmost `X-Forwarded-For` entry
+is proxy-written by construction.
+:::
+
+Behind a **chain** of proxies the rightmost entry is the inner proxy rather
+than the client, so those requests share a bucket. That over-limits rather
+than under-limits; a deployment that needs per-client buckets behind a chain
+should name the header its edge sets, or pass its own `keyBy`.
+
+A request that reaches the origin without the header — an internal hop, a
+proxy misconfigured after a deploy — is counted in a single shared bucket
+rather than skipped, so it cannot slip past the limit unnoticed.
+
+::: danger The origin must be reachable only through the proxy
+That shared bucket catches requests arriving with **no** forwarding header. It
+does nothing about a client that reaches the origin directly and sends one: the
+rightmost hop is then the client's own invention, no proxy having appended
+anything, so rotating it mints a fresh counter per request and the limit stops
+applying.
+
+`trustProxy` is a statement about the network path, not just about the header.
+Firewall the origin to the proxy's addresses. An origin port left listening
+alongside the CDN is the usual way this is lost — and from the outside the app
+still looks protected.
+:::
 
 #### Options
 
@@ -445,7 +481,7 @@ cannot slip past the limit unnoticed.
 | `window`                 | _(required)_            | Window length in milliseconds.                                                                         |
 | `max`                    | _(required)_            | Requests allowed per key per window.                                                                   |
 | `keyBy`                  | _(required\*)_          | Identity to count against. `null` skips — see the warning above. \*Or set `trustProxy`.                |
-| `trustProxy`             | `false`                 | Derive the key from the proxy's address headers.                                                       |
+| `trustProxy`             | `false`                 | `true` keys on the rightmost `X-Forwarded-For` hop; a header name keys on that header. See above.      |
 | `store`                  | bounded `memoryStore()` | Any `SessionStore`. The default is per process, capped at 10 000 keys.                                 |
 | `prefix`                 | `'rl:'`                 | Store-key prefix, so counters cannot collide with sessions.                                            |
 | `headers`                | `true`                  | Emit the `RateLimit-*` headers. `Retry-After` is sent either way.                                      |
@@ -596,12 +632,14 @@ see those requests.
   `If-None-Match` and `If-Modified-Since` are answered with `304`. With
   `precompressed`, every response carries `Vary: Accept-Encoding` and each
   encoding gets its own `ETag`, so a cache cannot hand compressed bytes to a
-  client that asked for identity.
+  client that asked for identity. A sidecar's `ETag` and `Last-Modified` come
+  from the sidecar file, so rebuilding only the `.br`/`.gz` still invalidates
+  cached copies of it.
 - **Ranges.** Single byte ranges — closed, open-ended and suffix — answered
   with `206` and `Content-Range`; out-of-range requests get `416`. Multi-range
   requests fall back to the whole body. Ranges are not offered over a
   precompressed body, since those bytes are not the identity representation
-  the client asked to slice.
+  the client asked to slice — on its `304` as well as its `200`.
 - **Directory redirects.** `/dir` redirects to `/dir/` with `308`, so relative
   links inside the index resolve.
 - **Path traversal.** Rejected with `403`. Paths are decoded and checked

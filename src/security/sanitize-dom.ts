@@ -10,7 +10,14 @@
  */
 
 import { DANGEROUS_TAGS } from './constants';
-import { escapeHtmlText, isAttributeAllowed, relForAnchor, resolvePolicy } from './sanitize-policy';
+import {
+  escapeHtmlText,
+  isAttributeAllowed,
+  relForAnchor,
+  resolvePolicy,
+  suppressesTextContent,
+} from './sanitize-policy';
+import { decodeEntities } from './sanitize-string';
 import type { SanitizeOptions } from './types';
 
 /**
@@ -85,7 +92,21 @@ const parseHtmlSafely = (html: string): DocumentFragment => {
   // This explicitly prevents "DOM text reinterpreted as HTML" for purely textual inputs.
   const containsHtmlSyntax = normalizedHtml.includes('<') || normalizedHtml.includes('>');
   if (!containsHtmlSyntax) {
-    fragment.appendChild(document.createTextNode(normalizedHtml));
+    // Decoded, because a Text node built from the raw string keeps entities as
+    // literal characters: `Tom &amp; Jerry` came back out of `stripTags()` with
+    // the `&amp;` intact, and serialization escaped it a second time, so
+    // `sanitizeHtml()` returned `Tom &amp;amp; Jerry`. The string backend
+    // decodes here, which is why the two disagreed on input this branch was
+    // added to handle.
+    //
+    // `decodeEntities` is a pure string transform — no parser is involved, so
+    // the property this branch exists for still holds: text with no HTML
+    // syntax never reaches `DOMParser`. The decoded value goes into a Text
+    // node, where markup cannot come alive, and is re-escaped on the way out.
+    // It is also the string backend's decoder, so this branch and that backend
+    // agree by construction; where either stops short of `DOMParser` (a name
+    // outside the table in `entities.ts`), the reference stays literal.
+    fragment.appendChild(document.createTextNode(decodeEntities(normalizedHtml)));
     return fragment;
   }
 
@@ -109,6 +130,43 @@ const parseHtmlSafely = (html: string): DocumentFragment => {
   return fragment;
 };
 
+const TEXT_NODE = 3;
+const ELEMENT_NODE = 1;
+
+/**
+ * The text of a subtree, minus the elements whose content is not prose.
+ *
+ * `Node.textContent` would do this in one property read, but it includes the
+ * body of every `<script>` and `<style>` it passes, which is the one thing
+ * text extraction must not surface — see `suppressesTextContent`, which owns
+ * the rule for both backends.
+ * @internal
+ */
+const extractText = (node: Node): string => {
+  let text = '';
+  for (const child of Array.from(node.childNodes)) {
+    if (child.nodeType === TEXT_NODE) {
+      text += child.nodeValue ?? '';
+      continue;
+    }
+    if (child.nodeType !== ELEMENT_NODE) continue;
+    if (suppressesTextContent((child as Element).tagName.toLowerCase())) continue;
+    text += extractText(child);
+  }
+  return text;
+};
+
+/**
+ * Plain-text extraction with a DOM. The counterpart of `stripTagsString`.
+ *
+ * Returns text, not markup, so it is deliberately *not* escaped — `stripTags()`
+ * documents its return value as plain text. The HTML-sink path
+ * (`sanitizeHtml(..., { stripAllTags: true })`) escapes instead; see
+ * `sanitizeHtmlDom`.
+ * @internal
+ */
+export const stripTagsDom = (html: string): string => extractText(parseHtmlSafely(html));
+
 /**
  * Core sanitization logic (without Trusted Types wrapper).
  * @internal
@@ -120,7 +178,12 @@ export const sanitizeHtmlDom = (html: string, options: SanitizeOptions = {}): st
   const fragment = parseHtmlSafely(html);
 
   if (policy.stripAllTags) {
-    return fragment.textContent ?? '';
+    // Escaped, unlike `stripTagsDom`: this return value is branded
+    // `SanitizedHtml` and callers assign it to HTML sinks, and extracted text
+    // can carry live markup once the parser has decoded its entities
+    // (`&lt;img onerror=...&gt;` becomes `<img onerror=...>`). The mXSS
+    // fallback below escapes for exactly the same reason.
+    return escapeHtmlText(extractText(fragment));
   }
 
   // Walk the DOM tree
@@ -202,7 +265,7 @@ export const sanitizeHtmlDom = (html: string, options: SanitizeOptions = {}): st
     // Callers assign this return value to HTML sinks (innerHTML etc.), so the
     // text fallback must be HTML-escaped: entity-decoded text nodes can contain
     // live markup (e.g. `&lt;img onerror=...&gt;` decoded to `<img onerror=...>`).
-    return escapeHtmlText(fragment.textContent ?? '');
+    return escapeHtmlText(extractText(fragment));
   }
 
   return secondPass;

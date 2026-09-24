@@ -19,16 +19,25 @@ import type { SessionData, SessionStore } from './session';
 import type { ServerContext, ServerHandler, ServerMiddleware } from './types';
 
 /**
- * Headers a proxy may use to report the originating client, in priority order.
+ * The forwarding header `trustProxy: true` reads.
  *
- * The single-value headers a proxy sets itself come first, and
- * `x-forwarded-for` last. Cloudflare and nginx's stock
- * `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for` **append** to
- * that header rather than overwriting it, so its leftmost entry stays
- * client-controlled even behind a trusted proxy — preferring it would leave
- * `trustProxy` bypassable by rotating one header.
+ * `X-Forwarded-For` alone, because it is the only one a proxy necessarily
+ * writes: both the appending convention (Cloudflare, nginx's stock
+ * `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`) and an
+ * overwriting one put the address the proxy itself observed at the **end** of
+ * the list, so its rightmost entry is proxy-vouched whatever the client sent.
+ *
+ * `CF-Connecting-IP`, `True-Client-IP` and `X-Real-IP` are deliberately *not*
+ * consulted unless named. A proxy that sets one of them does not necessarily
+ * strip the others, so reading whichever happens to be present means a client
+ * picks the bucket by sending a header the proxy never touched — the exact
+ * bypass `trustProxy` exists to close. Name the one your proxy sets
+ * (`trustProxy: 'cf-connecting-ip'`) to key on it instead.
  */
-const FORWARDED_HEADERS = ['cf-connecting-ip', 'true-client-ip', 'x-real-ip', 'x-forwarded-for'];
+const DEFAULT_FORWARDED_HEADER = 'x-forwarded-for';
+
+/** RFC 9110 field name (a token). Anything else cannot name a header. */
+const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
 
 /**
  * Bucket for requests that reach the origin with no forwarding header at all
@@ -66,8 +75,7 @@ export interface RateLimitOptions {
   keyBy?: (ctx: ServerContext) => string | null | Promise<string | null>;
 
   /**
-   * Derive the key from a forwarding header (`X-Forwarded-For` and friends)
-   * when no `keyBy` is given.
+   * Derive the key from a forwarding header when no `keyBy` is given.
    *
    * Off by default, and deliberately not the default behaviour: those headers
    * are set by the client unless a proxy you control overwrites them. Keying
@@ -75,13 +83,27 @@ export interface RateLimitOptions {
    * random header per request — worse than no limiter, because it looks like
    * protection.
    *
-   * Headers a proxy sets itself (`CF-Connecting-IP`, `True-Client-IP`,
-   * `X-Real-IP`) are preferred over `X-Forwarded-For`, because Cloudflare and
-   * nginx's stock configuration *append* to the latter, leaving its leftmost
-   * entry client-controlled. A request that arrives with none of them shares
-   * a single bucket rather than escaping the limit.
+   * `true` reads the **rightmost** `X-Forwarded-For` entry, and only that
+   * header. It is the one value a proxy necessarily writes: appending and
+   * overwriting configurations alike put the address the proxy observed at
+   * the end of the list.
+   *
+   * Pass a header name to key on that header's whole value instead — for a
+   * proxy that reports the client in one of its own:
+   *
+   * ```ts
+   * rateLimit({ window: 60_000, max: 10, trustProxy: 'cf-connecting-ip' });
+   * ```
+   *
+   * Only do that for a header your proxy **sets on every request**, thereby
+   * overwriting whatever the client sent. A header the proxy merely passes
+   * through is client-controlled, and keying on it reopens the bypass this
+   * option exists to close.
+   *
+   * A request that arrives without the header shares a single bucket rather
+   * than escaping the limit.
    */
-  trustProxy?: boolean;
+  trustProxy?: boolean | string;
 
   /**
    * Where counters are kept. Defaults to a process-local {@link memoryStore}
@@ -161,9 +183,28 @@ const isCounter = (value: SessionData | null): value is CounterRecord =>
 /**
  * Read the originating address from a forwarding header.
  *
- * Headers a proxy sets itself are preferred; `X-Forwarded-For` is consulted
- * last and its leftmost entry taken, which is the originating client *only*
- * when the proxy overwrites the header rather than appending to it.
+ * `X-Forwarded-For` — the default — is a list, and its **rightmost** entry is
+ * taken. Any other header is a single value and is taken whole.
+ *
+ * One header, not a preference list over several: a proxy that sets
+ * `CF-Connecting-IP` does not necessarily strip `X-Real-IP`, so falling back
+ * through the others would let a client choose its own bucket by sending one
+ * the proxy never writes. The deployment names the header its proxy controls.
+ *
+ * Rightmost, not leftmost, because the list grows left-to-right as it is
+ * forwarded: the rightmost entry is the hop the closest proxy appended and is
+ * therefore the only one that proxy vouches for. Cloudflare and nginx append
+ * rather than overwrite, so with leftmost parsing a client that sends its own
+ * `X-Forwarded-For` controls the value the limiter keys on and bypasses the
+ * limit by rotating it — the exact failure {@link RateLimitOptions.keyBy}
+ * being required is meant to prevent. RFC 9110 §7.6.1 and the MDN guidance on
+ * security uses of `X-Forwarded-For` both say to use only what a trusted
+ * proxy added.
+ *
+ * With more than one trusted proxy the rightmost entry is the inner proxy
+ * rather than the client, so those requests share a bucket. That over-limits
+ * rather than under-limits; a deployment that needs per-client buckets behind
+ * a chain should pass its own `keyBy`.
  *
  * Never returns `null`: a request with no forwarding header shares
  * {@link UNKNOWN_FORWARDED_KEY} rather than escaping the limit, because
@@ -171,12 +212,21 @@ const isCounter = (value: SessionData | null): value is CounterRecord =>
  * the app still reports itself as protected.
  * @internal
  */
-export const forwardedAddress = (ctx: ServerContext): string => {
-  for (const header of FORWARDED_HEADERS) {
-    const value = ctx.request.headers.get(header);
-    if (!value) continue;
-    const first = value.split(',')[0]?.trim();
-    if (first) return first;
+export const forwardedAddress = (
+  ctx: ServerContext,
+  header: string = DEFAULT_FORWARDED_HEADER
+): string => {
+  const value = ctx.request.headers.get(header);
+  if (!value) return UNKNOWN_FORWARDED_KEY;
+
+  if (header.toLowerCase() !== DEFAULT_FORWARDED_HEADER) {
+    return value.trim() || UNKNOWN_FORWARDED_KEY;
+  }
+
+  const hops = value.split(',');
+  for (let i = hops.length - 1; i >= 0; i--) {
+    const hop = hops[i]?.trim();
+    if (hop) return hop;
   }
   return UNKNOWN_FORWARDED_KEY;
 };
@@ -249,6 +299,37 @@ export const serializeByKey = (): (<T>(key: string, work: () => Promise<T>) => P
     });
     return run;
   };
+};
+
+/**
+ * The per-key lock for a store, shared by every limiter that writes to it.
+ *
+ * `serializeByKey` closes over its own chain map, so one chain per middleware
+ * instance means two limiters over the same store do not serialize against
+ * each other. That is not hypothetical: a login limiter and a global limiter
+ * both keyed on the client address, both on the app's shared store, let
+ * concurrent requests read the same counter and write the same increment —
+ * `max` becomes `max × instances` for anyone who opens parallel connections,
+ * which is the traffic shape a limiter exists to stop.
+ *
+ * Keyed on the store, not global, because the store *is* the scope the
+ * counter lives in: two limiters with separate stores share no state and must
+ * not queue behind one another. A `WeakMap` so a discarded store takes its
+ * chain with it.
+ *
+ * This closes the single-process case only, as `serializeByKey` documents. A
+ * limit shared across processes still needs a store with an atomic increment.
+ * @internal
+ */
+const storeLocks = new WeakMap<SessionStore, ReturnType<typeof serializeByKey>>();
+
+/** The lock for a store, created on first use. @internal */
+export const lockForStore = (store: SessionStore): ReturnType<typeof serializeByKey> => {
+  const existing = storeLocks.get(store);
+  if (existing) return existing;
+  const created = serializeByKey();
+  storeLocks.set(store, created);
+  return created;
 };
 
 /** Apply the `RateLimit-*` headers to a response, preserving its body. @internal */
@@ -332,14 +413,22 @@ export const rateLimit = (options: RateLimitOptions): ServerMiddleware => {
     throw new TypeError(
       'rateLimit: pass `keyBy` to choose what the limit counts against (a session id, a user ' +
         'id, an address your runtime exposes), or set `trustProxy: true` if a proxy you control ' +
-        'overwrites X-Forwarded-For. There is no safe default: keying on a client-supplied ' +
-        'header without a trusted proxy yields a limiter that is bypassed by sending a ' +
-        'different header each request.'
+        'appends to or overwrites X-Forwarded-For. There is no safe default: keying on a ' +
+        'client-supplied header without a trusted proxy yields a limiter that is bypassed by ' +
+        'sending a different header each request.'
     );
   }
 
-  const resolveKey = keyBy ?? forwardedAddress;
-  const withKeyLock = serializeByKey();
+  const forwardedHeader =
+    typeof trustProxy === 'string' ? trustProxy.trim().toLowerCase() : DEFAULT_FORWARDED_HEADER;
+  if (!HEADER_NAME.test(forwardedHeader)) {
+    throw new TypeError(
+      `rateLimit: \`trustProxy\` must be true or a header name, not ${JSON.stringify(trustProxy)}.`
+    );
+  }
+
+  const resolveKey = keyBy ?? ((ctx: ServerContext) => forwardedAddress(ctx, forwardedHeader));
+  const withKeyLock = lockForStore(store);
 
   return async (ctx, next) => {
     if (skip && (await skip(ctx))) return next();

@@ -87,6 +87,58 @@ export const isAllowedAttribute = (
 };
 
 /**
+ * An attribute name safe to serialize into a tag. Deliberately stricter than
+ * what the HTML spec tolerates: anything outside this shape is dropped rather
+ * than emitted, so the output cannot depend on a consumer's error recovery.
+ *
+ * Shared by every serializer — the string sanitizer backend and the SSR
+ * renderer — because an emitter that trusts its parser to have rejected a
+ * hostile name inherits that parser's blind spots. `src/ssr/html-parser.ts`
+ * stops an attribute name at whitespace, `=`, `>` and `/`, but not at a quote,
+ * so a name can carry one. Validating at the point of emission means no such
+ * gap can reach output.
+ * @internal
+ */
+export const VALID_ATTRIBUTE_NAME = /^[a-zA-Z_:][a-zA-Z0-9_:.-]*$/;
+
+/**
+ * Whether an attribute name is safe to serialize into a tag.
+ * @internal
+ */
+export const isValidAttributeName = (name: string): boolean => VALID_ATTRIBUTE_NAME.test(name);
+
+/**
+ * A tag name safe to serialize. Covers HTML elements and custom elements,
+ * and nothing that could close or open a tag on its own.
+ * @internal
+ */
+export const VALID_TAG_NAME = /^[a-zA-Z][a-zA-Z0-9._:-]*$/;
+
+/**
+ * Whether a tag name is safe to serialize.
+ * @internal
+ */
+export const isValidTagName = (tag: string): boolean => VALID_TAG_NAME.test(tag);
+
+/**
+ * Whether an element's text content is dropped during text extraction.
+ *
+ * `stripTags()` and `stripAllTags` answer "what does this markup say", and a
+ * `<script>` body does not say anything — it *is* the payload. Surfacing
+ * `alert(1)` as the text of `<script>alert(1)</script>` hands the caller
+ * attacker-authored source under the name of prose, which then flows into a
+ * log line, a search index or a `<title>`.
+ *
+ * The rule lives here rather than in either backend because the two used to
+ * disagree on it: the DOM one returned `textContent` (script source included)
+ * and the DOM-free one suppressed the subtree, so `stripTags()` produced
+ * different output on the server and in the browser for the same well-formed
+ * input — under the default `'auto'` backend, in the same app.
+ * @internal
+ */
+export const suppressesTextContent = (tagName: string): boolean => DANGEROUS_TAGS.has(tagName);
+
+/**
  * Escape HTML entities so text is inert when assigned to an HTML sink.
  * @internal
  */

@@ -481,6 +481,35 @@ describe('pure renderer (DOM-free)', () => {
     );
   });
 
+  it('drops an attribute whose name carries a quote', () => {
+    // `readAttrName` ends a name at whitespace, `=`, `>` and `/` — but not at
+    // a quote — so the parser really does produce the name `a"b` here. The
+    // serializer escapes values but cannot escape a name, so emitting it raw
+    // would put a stray quote inside the tag and leave the meaning of the
+    // markup to the consumer's error recovery.
+    const tree = parseTemplate('<div a"b="c" id="keep">hi</div>');
+    const root = tree.children[0];
+
+    if (!root || root.type !== 'element') {
+      throw new Error('expected element root');
+    }
+
+    expect(Object.keys(root.attributes)).toContain('a"b');
+    expect(serializeTree(tree)).toBe('<div id="keep">hi</div>');
+  });
+
+  it('drops an element whose tag name carries a quote', () => {
+    // `readTagName` has the same blind spot. A malformed tag name cannot be
+    // escaped into safety, so the element is dropped whole rather than emitted.
+    const tree = parseTemplate('<x"y>hi</x"y>');
+    expect(serializeTree(tree)).toBe('');
+  });
+
+  it('keeps ordinary, namespaced and dashed names', () => {
+    const tree = parseTemplate('<my-widget id="x" data-k="1" xml:lang="en"></my-widget>');
+    expect(serializeTree(tree)).toBe('<my-widget id="x" data-k="1" xml:lang="en"></my-widget>');
+  });
+
   it('sanitizes bq-html without relying on DOM globals', () => {
     configureSSR({ backend: 'pure' });
     const result = renderToString('<div><span bq-html="content"></span></div>', {
