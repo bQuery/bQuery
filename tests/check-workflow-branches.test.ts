@@ -9,7 +9,10 @@
  * therefore about the shapes, not about the happy path.
  */
 
-import { describe, expect, it } from 'bun:test';
+import { afterAll, describe, expect, it } from 'bun:test';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const checkScriptUrl = new URL('../scripts/check-workflow-branches.mjs', import.meta.url).href;
 
@@ -27,15 +30,23 @@ interface ParseProblem {
 interface CheckModule {
   extractBranchRefs: (source: string) => { refs: BranchRef[]; parseProblems: ParseProblem[] };
   upstreamRemote: (list?: string | null) => string | null;
-  auditWorkflowBranches: () => Promise<{
-    problems: string[];
-    refCount: number;
-    workflowCount: number;
-    resolved: boolean;
-  }>;
+  auditWorkflowBranches: (options?: {
+    dir?: string;
+    branches?: Set<string> | null;
+  }) => Promise<Audit>;
+  verdict: (audit: Audit) => { exitCode: number; stdout: string[]; stderr: string[] };
 }
 
-const { extractBranchRefs, upstreamRemote, auditWorkflowBranches } = (await import(
+interface Audit {
+  problems: string[];
+  parseProblems: string[];
+  missing: string[];
+  refCount: number;
+  workflowCount: number;
+  resolved: boolean;
+}
+
+const { extractBranchRefs, upstreamRemote, auditWorkflowBranches, verdict } = (await import(
   checkScriptUrl
 )) as unknown as CheckModule;
 
@@ -183,5 +194,67 @@ describe('auditWorkflowBranches', () => {
     if (!resolved) return; // no network and no local refs — nothing to assert against
     expect(refCount).toBeGreaterThan(0);
     expect(problems).toEqual([]);
+  });
+});
+
+describe('verdict', () => {
+  const dirs: string[] = [];
+  afterAll(async () => {
+    for (const dir of dirs) await rm(dir, { recursive: true, force: true });
+  });
+
+  const workflows = async (files: Record<string, string>): Promise<string> => {
+    const dir = await mkdtemp(join(tmpdir(), 'bq-workflows-'));
+    dirs.push(dir);
+    for (const [name, source] of Object.entries(files)) await writeFile(join(dir, name), source);
+    return dir;
+  };
+
+  const unreadable = ['on:', '  push:', '    branches: [main,', '      dev'].join('\n');
+  const readable = ['on:', '  push:', '    branches: [main, gone]'].join('\n');
+
+  it('fails on an unreadable trigger even when there is no branch list', async () => {
+    // The skip path exited 0 before looking at anything, so on a fork, offline
+    // or in a shallow checkout an unterminated `branches: [` passed silently —
+    // and finding it needs no branch list at all.
+    const dir = await workflows({ 'broken.yml': unreadable });
+    const result = verdict(await auditWorkflowBranches({ dir, branches: null }));
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.join('\n')).toContain('unterminated flow sequence');
+    expect(result.stdout.join('\n')).toContain('existence check skipped');
+  });
+
+  it('still skips, with exit 0, when every trigger is readable and there is no branch list', async () => {
+    const dir = await workflows({ 'ok.yml': readable });
+    const result = verdict(await auditWorkflowBranches({ dir, branches: null }));
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stderr).toEqual([]);
+    expect(result.stdout.join('\n')).toContain('existence check skipped');
+  });
+
+  it('reports parse problems and missing branches under their own headings', async () => {
+    const dir = await workflows({ 'broken.yml': unreadable, 'ok.yml': readable });
+    const audit = await auditWorkflowBranches({ dir, branches: new Set(['main']) });
+    const result = verdict(audit);
+
+    expect(audit.parseProblems).toHaveLength(1);
+    expect(audit.missing).toHaveLength(1);
+    expect(audit.missing[0]).toContain('`branches: gone`');
+    expect(result.exitCode).toBe(1);
+    const stderr = result.stderr.join('\n');
+    expect(stderr).toContain('cannot read');
+    expect(stderr).toContain('reference branches that do not exist');
+  });
+
+  it('passes when every branch resolves', async () => {
+    const dir = await workflows({ 'ok.yml': readable });
+    const result = verdict(
+      await auditWorkflowBranches({ dir, branches: new Set(['main', 'gone']) })
+    );
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout.join('\n')).toContain('2 refs across 1 workflows');
   });
 });
