@@ -1,11 +1,17 @@
 /**
  * Vite configuration for UMD/IIFE builds (CDN usage with script tags).
  *
- * This creates a single full.umd.js bundle for use with script tags.
+ * Two bundles come out of this config, one per consumer:
+ *
+ * - `full.umd.cjs` — the `require()` target. The `.cjs` extension is load
+ *   bearing: this package is `"type": "module"`, so a `.js` UMD file is read
+ *   as ESM by Node, the wrapper's CommonJS branch never runs, and
+ *   `require('@bquery/bquery')` yields an empty object (#219).
+ * - `full.iife.js` — the `<script src>` target, which sets `window.bQuery`.
  *
  * @example
  * ```html
- * <script src="https://unpkg.com/bquery@1/dist/full.umd.js"></script>
+ * <script src="https://unpkg.com/bquery@1/dist/full.iife.js"></script>
  * <script>
  *   const { $, signal } = bQuery;
  * </script>
@@ -59,11 +65,17 @@ export default defineConfig({
       entry: resolve(rootDir, 'src/full.ts'),
       name: 'bQuery',
       formats: ['umd', 'iife'],
-      fileName: (format) => `full.${format}.js`,
+      // `.cjs` for UMD so Node reads it as CommonJS despite `"type": "module"`.
+      fileName: (format) => (format === 'umd' ? 'full.umd.cjs' : `full.${format}.js`),
     },
     outDir: 'dist',
     emptyOutDir: false, // Don't clear, we add to existing ESM builds
-    sourcemap: true,
+    // 'hidden' emits the .map files without a `sourceMappingURL` comment in
+    // the bundle. The maps stay in `dist/` for local debugging and for
+    // uploading to an error tracker, but they are excluded from the published
+    // package (`files` in package.json), so dropping them leaves no dangling
+    // reference for a browser to chase (#220).
+    sourcemap: 'hidden',
     minify: 'esbuild',
     target: 'es2020',
     rollupOptions: {

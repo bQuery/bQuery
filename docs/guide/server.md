@@ -77,6 +77,8 @@ Runtime helpers:
 | `csrf()` / `csrfToken()`                  | Double-submit CSRF protection and per-request token accessor (1.15.0).                               |
 | `guard()`                                 | Predicate-based route guard middleware (1.15.0).                                                     |
 | `basicAuth()` / `bearerAuth()`            | `Authorization`-header auth helpers with a `verify` hook (1.15.0).                                   |
+| `rateLimit()`                             | Fixed-window request throttling with `RateLimit-*` headers and a pluggable store.                    |
+| `serveStatic()`                           | Serve files from disk, with ETag/`304`, `Range`, and precompressed sidecars.                         |
 | `signValue()` / `unsignValue()`           | HMAC-SHA-256 sign/verify with secret rotation (1.15.0).                                              |
 | `timingSafeEqual()`                       | Constant-time string comparison (1.15.0).                                                            |
 | `randomToken()` / `randomId()`            | CSPRNG-backed token and id generation (1.15.0).                                                      |
@@ -362,6 +364,153 @@ const requireUser = guard((ctx) => Boolean(ctx.state.user), { status: 401 });
 app.get('/me', (ctx) => ctx.json({ user: ctx.state.user }), [requireUser]);
 ```
 
+### Rate limiting
+
+`rateLimit()` caps how many requests one key may make per window. Pair it with
+the auth helpers above: an unprotected login route is a brute-force target, and
+that is exactly where a limit belongs.
+
+```ts
+import { createServer, rateLimit, session } from '@bquery/bquery/server';
+
+const app = createServer();
+app.use(session({ secret: process.env.SECRET! }));
+
+app.post('/login', handleLogin, [
+  rateLimit({
+    window: 15 * 60_000,
+    max: 5,
+    // Behind a proxy, key on the address it reports. A session id is `null`
+    // for the cookie-less request a brute-force script sends — and a `null`
+    // key skips the limit, so it would protect nothing here.
+    trustProxy: true,
+    skipSuccessfulRequests: true, // a valid login should not use up the budget
+  }),
+]);
+```
+
+Under the limit, responses carry `RateLimit-Limit`, `RateLimit-Remaining` and
+`RateLimit-Reset`. Over it, the request is answered `429 Too Many Requests`
+with `Retry-After` — and `Retry-After` is sent even with `headers: false`,
+since a client needs something to back off on.
+
+#### Choosing `keyBy`
+
+**`keyBy` is required**, and that is deliberate. The obvious default — the
+client's address from `X-Forwarded-For` — is a header the _client_ sets unless
+a proxy you control overwrites it. Keying on it without that proxy gives a
+limiter an attacker bypasses by sending a different header per request: worse
+than no limiter, because it looks like protection.
+
+So pick the identity that is actually meaningful for the route:
+
+| `keyBy`                                                   | Good for                                     |
+| --------------------------------------------------------- | -------------------------------------------- |
+| `(ctx) => ctx.session?.$id ?? 'anon'`                     | Per-browser limits on session-bearing routes |
+| `(ctx) => (ctx.state.user as User)?.id ?? 'anon'`         | Per-account limits after auth                |
+| `(ctx) => ctx.request.headers.get('x-api-key') ?? 'anon'` | Per-API-key quotas                           |
+| `trustProxy: true` (instead of `keyBy`)                   | Behind a proxy (see below)                   |
+
+::: warning A `null` key fails open
+Returning `null` skips the limit **entirely** for that request. Every value in
+the table above is `null` for exactly the caller you most want to throttle —
+`ctx.session?.$id` before a session exists, `ctx.state.user?.id` before
+authentication, a missing `x-api-key` header. Written as
+`?? null`, a cookie-less brute-force script gets unlimited attempts.
+
+The `?? 'anon'` fallbacks keep those requests in one counted bucket instead.
+That bucket is shared, so size `max` for it accordingly, or use `trustProxy`
+behind a proxy to separate callers by address.
+:::
+
+#### `trustProxy` and which header it reads
+
+`trustProxy: true` reads the **rightmost** `X-Forwarded-For` entry, and that
+header only. The list grows left to right as a request is forwarded, so the
+rightmost entry is the address the proxy closest to you observed — and it is
+there whether that proxy appends (Cloudflare, and nginx's stock
+`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for`) or overwrites.
+Everything further left is whatever the client sent, so keying on the leftmost
+entry would leave the limit bypassable by rotating one header.
+
+```ts
+rateLimit({ window: 60_000, max: 10, trustProxy: true }); // rightmost XFF hop
+rateLimit({ window: 60_000, max: 10, trustProxy: 'cf-connecting-ip' }); // that header, whole
+```
+
+`CF-Connecting-IP`, `True-Client-IP` and `X-Real-IP` are **not** read unless
+you name one. Reading whichever of them happened to be present would reopen
+the same bypass from the other side: a proxy that sets `CF-Connecting-IP` does
+not necessarily strip `X-Real-IP`, so a client could pick its own bucket by
+sending a header the proxy never writes.
+
+::: warning Name a header only if your proxy sets it on every request
+`trustProxy: 'x-real-ip'` is safe when your proxy writes `X-Real-IP` itself,
+overwriting whatever arrived. If it merely passes the header through, the
+value is client-controlled and the limiter is bypassable. When in doubt,
+`trustProxy: true` is the safe choice: the rightmost `X-Forwarded-For` entry
+is proxy-written by construction.
+:::
+
+Behind a **chain** of proxies the rightmost entry is the inner proxy rather
+than the client, so those requests share a bucket. That over-limits rather
+than under-limits; a deployment that needs per-client buckets behind a chain
+should name the header its edge sets, or pass its own `keyBy`.
+
+A request that reaches the origin without the header — an internal hop, a
+proxy misconfigured after a deploy — is counted in a single shared bucket
+rather than skipped, so it cannot slip past the limit unnoticed.
+
+::: danger The origin must be reachable only through the proxy
+That shared bucket catches requests arriving with **no** forwarding header. It
+does nothing about a client that reaches the origin directly and sends one: the
+rightmost hop is then the client's own invention, no proxy having appended
+anything, so rotating it mints a fresh counter per request and the limit stops
+applying.
+
+`trustProxy` is a statement about the network path, not just about the header.
+Firewall the origin to the proxy's addresses. An origin port left listening
+alongside the CDN is the usual way this is lost — and from the outside the app
+still looks protected.
+:::
+
+#### Options
+
+| Option                   | Default                 | Notes                                                                                                  |
+| ------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------ |
+| `window`                 | _(required)_            | Window length in milliseconds.                                                                         |
+| `max`                    | _(required)_            | Requests allowed per key per window.                                                                   |
+| `keyBy`                  | _(required\*)_          | Identity to count against. `null` skips — see the warning above. \*Or set `trustProxy`.                |
+| `trustProxy`             | `false`                 | `true` keys on the rightmost `X-Forwarded-For` hop; a header name keys on that header. See above.      |
+| `store`                  | bounded `memoryStore()` | Any `SessionStore`. The default is per process, capped at 10 000 keys.                                 |
+| `prefix`                 | `'rl:'`                 | Store-key prefix, so counters cannot collide with sessions.                                            |
+| `headers`                | `true`                  | Emit the `RateLimit-*` headers. `Retry-After` is sent either way.                                      |
+| `status` / `message`     | `429` / text            | The default rejection response.                                                                        |
+| `skip`                   | —                       | Skip a request entirely, without consuming budget.                                                     |
+| `onLimit`                | —                       | Handle rejection yourself; the headers are still applied.                                              |
+| `skipSuccessfulRequests` | `false`                 | Refund requests that ended 2xx. A 3xx still counts, so a redirect-on-failure login form stays limited. |
+
+::: warning The default store only limits one process
+`memoryStore()` is process-local, so with several instances behind a load
+balancer each enforces its own count. Pass a shared `SessionStore` — the same
+interface sessions use — to make the limit hold across all of them.
+
+The default is bounded at 10 000 keys, because rate-limit keys are
+attacker-chosen and usually seen once: an unbounded store would turn the
+limiter into a memory-exhaustion vector. For the same reason, do not pass
+your _session_ store here — counter churn would evict live sessions.
+
+Within one process the counter is serialized per key, so concurrent requests
+cannot all read the same value and slip past the limit. Across processes that
+guarantee needs a store with an atomic increment.
+:::
+
+The window is **fixed**, not sliding: the first request starts it and the
+counter resets wholesale when it ends. That allows a burst of up to `2 × max`
+across a window boundary, which is the standard trade-off — a sliding window
+needs per-request timestamps in the store, a much larger write cost for a
+limiter whose job is to be cheap.
+
 ### Signing utilities
 
 The primitives above build on small, cross-runtime Web-Crypto helpers that are also exported for custom token logic: `signValue` / `unsignValue` (HMAC-SHA-256 sign/verify with secret rotation), `timingSafeEqual` (constant-time compare), `randomToken` / `randomId` (CSPRNG ids), and the `base64UrlEncode` / `base64UrlDecode` codecs they use.
@@ -432,6 +581,85 @@ Use `socket.send(...)` for raw frames or `socket.sendJson(...)` for JSON payload
 Middleware still runs for WebSocket routes, so auth, logging, and per-request state can be shared between HTTP and upgrade flows. Middleware may also short-circuit a WebSocket request by returning a normal `Response`.
 
 HTTP middleware registered with `app.use()` is adapted for WebSocket routes. If it calls `next()`, the WebSocket route can continue resolving to a session; if it returns a `Response`, the upgrade is blocked before any socket lifecycle callback runs.
+
+---
+
+## Static assets
+
+`serveStatic()` sends files from disk, so an app can deliver its own
+`client.js` without a reverse proxy in front of it.
+
+```ts
+import { createServer, serveStatic } from '@bquery/bquery/server';
+
+const app = createServer();
+
+app.use(
+  serveStatic({
+    root: './dist/client',
+    prefix: '/assets',
+    maxAge: 31_536_000,
+    immutable: true, // content-hashed filenames only
+    precompressed: true,
+  })
+);
+
+app.get('/', (ctx) => ctx.render('<div bq-text="title"></div>', { title: 'Home' }));
+```
+
+It is middleware, not a route: it answers `GET` and `HEAD` for paths that
+resolve to a file under `root`, and calls `next()` for everything else — a
+missing file, another method, a path outside `prefix` — so your routes still
+see those requests.
+
+### Options
+
+| Option               | Default                      | Notes                                                                                           |
+| -------------------- | ---------------------------- | ----------------------------------------------------------------------------------------------- |
+| `root`               | _(required)_                 | Directory to serve. Nothing outside it is reachable, symlinks included.                         |
+| `prefix`             | `'/'`                        | URL mount point; stripped before resolving against `root`.                                      |
+| `maxAge`             | `0`                          | `Cache-Control` max-age in seconds. `0` emits `no-cache`.                                       |
+| `immutable`          | `false`                      | Adds `immutable`. Only correct for content-hashed filenames.                                    |
+| `index`              | `'index.html'`               | File served for a directory. `false` disables directory indexes.                                |
+| `precompressed`      | `false`                      | Serve a `.br`/`.gz` sidecar when the client accepts that encoding (`q=0` is honoured).          |
+| `dotfiles`           | `false`                      | Serve dotfiles. Off by default so `.env` is not exposed; a dotted path is skipped, not refused. |
+| `contentTypes`       | —                            | Extra or overriding extension → MIME mappings.                                                  |
+| `defaultContentType` | `'application/octet-stream'` | Fallback MIME type.                                                                             |
+
+### What it handles for you
+
+- **Caching.** A weak `ETag` from size and mtime, plus `Last-Modified`.
+  `If-None-Match` and `If-Modified-Since` are answered with `304`. With
+  `precompressed`, every response carries `Vary: Accept-Encoding` and each
+  encoding gets its own `ETag`, so a cache cannot hand compressed bytes to a
+  client that asked for identity. A sidecar's `ETag` and `Last-Modified` come
+  from the sidecar file, so rebuilding only the `.br`/`.gz` still invalidates
+  cached copies of it.
+- **Ranges.** Single byte ranges — closed, open-ended and suffix — answered
+  with `206` and `Content-Range`; out-of-range requests get `416`. Multi-range
+  requests fall back to the whole body. Ranges are not offered over a
+  precompressed body, since those bytes are not the identity representation
+  the client asked to slice — on its `304` as well as its `200`.
+- **Directory redirects.** `/dir` redirects to `/dir/` with `308`, so relative
+  links inside the index resolve.
+- **Path traversal.** Rejected with `403`. Paths are decoded and checked
+  segment by segment, and the resolved path is re-checked against `root`.
+  Encoded traversal (`%2e%2e`), backslash separators and NUL bytes are all
+  covered. Symlinks are resolved before serving, so a link inside `root`
+  pointing outside it is refused too — build outputs are a realistic place
+  for those to appear.
+- **Dotfiles and undecodable paths are _not_ traversal.** They are skipped
+  with `next()`, not answered `403`, so a root-mounted `serveStatic()` does
+  not veto them for the whole app. That keeps `/.well-known/...` — ACME
+  HTTP-01 renewal, `security.txt` — answerable by a route, and a URL with a
+  stray `%` reaches your catch-all.
+
+::: warning `immutable` is a promise about your filenames
+`immutable` tells caches never to revalidate for the whole `maxAge`. That is
+only true when the URL changes whenever the content does — content-hashed
+build output. On a stable filename like `/assets/app.js`, clients can be stuck
+with a stale copy for as long as `maxAge`.
+:::
 
 ---
 

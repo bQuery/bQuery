@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.16.1
+- Version: 1.17.0
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,14 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.4.0`
+
+## Version 1.17.0 Highlights
+
+- Feature release for `server` and `security`, plus the packaging fixes that make the published tarball resolve correctly. One path break: `dist/full.umd.js` is now `dist/full.umd.cjs` and the CDN fields point at `dist/full.iife.js`, so a pinned `full.umd.js` URL 404s. Package specifiers are unaffected.
+- `@bquery/bquery/server` — `serveStatic({ root, prefix, maxAge, immutable, index })` serves files from disk with weak `ETag`/`Last-Modified` and `304`, `Range` with `206`/`416`, directory indexes, content-type mapping, optional `.br`/`.gz` sidecars, and traversal rejection that re-checks the `realpath` so a symlink out of `root` cannot escape. `rateLimit({ window, max, keyBy, store })` does fixed-window throttling over the same `SessionStore` sessions use, with `RateLimit-*` headers and `429` + `Retry-After`. `keyBy` is **required**: `ServerContext` exposes no peer address, so the only "client address" available is `X-Forwarded-For`, which the client sets unless a proxy overwrites it — `trustProxy: true` opts into that explicitly.
+- `@bquery/bquery/security` — `sanitizeHtml()` and `stripTags()` work without a DOM; they previously threw `ReferenceError: document is not defined` on Bun, Node and Deno. A string backend is selected automatically when no DOM is present, and `configureSanitizer({ backend: 'auto' | 'dom' | 'string' })` / `getSanitizerConfig()` pin it. Both backends share one policy module, so allow lists and URL checks cannot drift; they can differ on malformed input, where the string backend escapes rather than guesses. `./security` grows from 2.8 kB to 4.5 kB gzipped because both backends ship — the choice is made at runtime, so bundling cannot drop the unused one.
+- `@bquery/bquery/reactive` — `configureReactive({ scheduler: 'sync' | 'batched' })`, `getReactiveConfig()` and `flushSync()`; `'sync'` stays the default for all of 1.x. A flush now settles every derived value before running any effect, which fixes effects observing a fresh computed beside a stale one. **This ordering change applies to explicit `batch()` under the default scheduler too.**
+- `@bquery/bquery/server` — global middleware registered with `app.use()` now runs for requests that match no route, with `notFound` as the end of the chain. Previously an unmatched path returned 404 before the middleware stack ran at all, so CORS, logging, security headers and static-asset serving were skipped on exactly those responses.
 
 ## Version 1.16.1 Highlights
 

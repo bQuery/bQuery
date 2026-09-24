@@ -4,7 +4,7 @@ You are working on bQuery.js, a batteries-included TypeScript full-stack web fra
 
 > Derived snapshot for Cursor. If this file conflicts with `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files in that order and then realign this one.
 
-Current release baseline: **1.16.1**.
+Current release baseline: **1.17.0**.
 
 Version `1.15.0` graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, `server` — so every module is now Stable, with no Beta or Experimental tiers (canonical record: `STABILITY.md`, enforced by `bun run check:stability`). Additive APIs this cycle: `@bquery/bquery/view` enter/leave/move transitions + the optional `@bquery/bquery/view/compiler` (no `'unsafe-eval'`); `@bquery/bquery/forms` `formAction`/`useFormStatus`/`optimistic`; `@bquery/bquery/i18n` ICU MessageFormat + `@bquery/bquery/i18n/extract` (`bquery-i18n` CLI); an opt-in file-route convention (`createFileRoutes`, `mountFileRoutes`) with typed `load`/`action`; `@bquery/bquery/server` `session`/`csrf`/`guard`/`basicAuth`/`bearerAuth`; `@bquery/bquery/ssr` production `hydrate`/`detectHydrationMismatches` + resumable boundaries; a versioned `@bquery/bquery/devtools` bridge protocol + reference extension; and `definePlugin()`. No breaking changes.
 
@@ -23,6 +23,10 @@ bQuery.js is not a utility library; treat its broad module surface as the produc
 - Signal `.value` tracks dependencies → use `.peek()` to avoid tracking.
 - `useSignal()`, `useComputed()`, and `useEffect()` from `@bquery/bquery/component` must be called from component lifecycle hooks, not from `render()`.
 - When version, engine, or repo guidance files change, run `bun run check:ai-guidance` before finishing.
+
+## 1.17.0 API Notes
+
+- Version `1.17.0` is a feature release for `server` and `security` plus the packaging fixes that make the published tarball resolve correctly. `@bquery/bquery/server` gains `serveStatic()` (ETag/`304`, `Range`, precompressed sidecars, `realpath`-checked traversal rejection) and `rateLimit()` (fixed window over `SessionStore`, `RateLimit-*` headers, `429` + `Retry-After`, **`keyBy` required** because `ServerContext` exposes no peer address); `app.use()` middleware now also runs for requests matching no route. `@bquery/bquery/security` sanitizes without a DOM via an automatically selected string backend, pinnable with `configureSanitizer({ backend })`. `@bquery/bquery/reactive` gains `configureReactive({ scheduler })`, `getReactiveConfig()` and `flushSync()` (`'sync'` stays the 1.x default), and a flush now settles derivations before effects — which changes `batch()` ordering under the default scheduler too. One path break: `dist/full.umd.js` is now `dist/full.umd.cjs` and the CDN fields point at `dist/full.iife.js`.
 
 ## 1.16.1 API Notes
 

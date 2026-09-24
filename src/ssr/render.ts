@@ -10,6 +10,7 @@
 
 import { checkBoundAttribute } from '../security/bind-guard';
 import { DANGEROUS_PROTOCOLS } from '../security/constants';
+import { isValidAttributeName } from '../security/sanitize-policy';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
 import { evaluateExpression } from './expression';
@@ -106,6 +107,14 @@ const serializeSSRNode = (node: Node): string => {
       continue;
     }
     if (isUnsafeUrlAttribute(attrName) && isUnsafeUrlValue(attr.value)) {
+      continue;
+    }
+    // The value is escaped; the name is not, so it has to be validated instead.
+    // `src/ssr/html-parser.ts` ends an attribute name at whitespace, `=`, `>`
+    // or `/` — but not at a quote, so a name can carry one and break out of
+    // the tag we are building. Drop anything outside the shared shape rather
+    // than trust the parser's stop set to stay exhaustive.
+    if (!isValidAttributeName(attr.name)) {
       continue;
     }
     attrs += ` ${attr.name}="${escapeHtmlAttribute(attr.value)}"`;
