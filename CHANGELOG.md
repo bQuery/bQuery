@@ -8,7 +8,7 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [\[1.17.0\] - 2026-09-21](#1170---2026-09-21)
+  - [\[1.17.0\] - 2026-09-25](#1170---2026-09-25)
     - [Added (1.17.0)](#added-1170)
     - [Changed (1.17.0)](#changed-1170)
     - [Fixed (1.17.0)](#fixed-1170)
@@ -107,7 +107,7 @@ and this project adheres to Semantic Versioning.
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
-## [1.17.0] - 2026-09-21
+## [1.17.0] - 2026-09-25
 
 A feature release for the server and security modules, plus the packaging fixes that make the published tarball resolve correctly for the first time.
 
