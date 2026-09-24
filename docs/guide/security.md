@@ -269,10 +269,15 @@ reader's parser is.
 
 Policy behaviour does **not** differ, including where that is not obvious: a
 disallowed element takes its subtree with it under both backends
-(`<unknown><b>hi</b></unknown>` yields nothing, not `<b>hi</b>`), text
+(`<unknown><b>hi</b></unknown>` yields nothing, not `<b>hi</b>`), and text
 extraction drops the content of `<script>` and `<style>` under both
-(`stripTags('<script>alert(1)</script>')` is `''`, not `'alert(1)'`), and a
-whole document is reduced to its body content under both.
+(`stripTags('<script>alert(1)</script>')` is `''`, not `'alert(1)'`).
+
+`sanitizeHtml()` reduces a whole document to its body content under both, so
+`<head>` never reaches the output. `stripTags()` is where the third example
+above comes from and does **not** share that guarantee: the DOM backend
+discards the head because `DOMParser` built one, while the string backend has
+no head to discard and returns its text along with the body's.
 
 If byte-identical output across environments matters to you, pin
 `backend: 'string'` everywhere.

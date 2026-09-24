@@ -457,10 +457,22 @@ than the client, so those requests share a bucket. That over-limits rather
 than under-limits; a deployment that needs per-client buckets behind a chain
 should name the header its edge sets, or pass its own `keyBy`.
 
-A request that reaches the origin without the header — the origin port exposed
-alongside the CDN, an internal hop, a proxy misconfigured after a deploy — is
-counted in a single shared bucket rather than skipped, so it cannot slip past
-the limit unnoticed.
+A request that reaches the origin without the header — an internal hop, a
+proxy misconfigured after a deploy — is counted in a single shared bucket
+rather than skipped, so it cannot slip past the limit unnoticed.
+
+::: danger The origin must be reachable only through the proxy
+That shared bucket catches requests arriving with **no** forwarding header. It
+does nothing about a client that reaches the origin directly and sends one: the
+rightmost hop is then the client's own invention, no proxy having appended
+anything, so rotating it mints a fresh counter per request and the limit stops
+applying.
+
+`trustProxy` is a statement about the network path, not just about the header.
+Firewall the origin to the proxy's addresses. An origin port left listening
+alongside the CDN is the usual way this is lost — and from the outside the app
+still looks protected.
+:::
 
 #### Options
 
