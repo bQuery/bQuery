@@ -16,7 +16,7 @@ import {
   stripTags,
 } from '../src/security/index';
 import { hasDomSupport, resolveSanitizerBackend } from '../src/security/config';
-import { sanitizeHtmlDom } from '../src/security/sanitize-dom';
+import { sanitizeHtmlDom, stripTagsDom } from '../src/security/sanitize-dom';
 import {
   decodeEntities,
   sanitizeHtmlString,
@@ -253,6 +253,58 @@ describe('DOM-free sanitizer', () => {
 
   it('strips all tags on request, without leaking script source', () => {
     expect(stripTagsString('<div>a<script>evil()</script>b</div>')).toBe('ab');
+  });
+});
+
+describe('text extraction is one rule across both backends', () => {
+  // The two used to disagree here on *well-formed* input: the DOM backend
+  // returned `textContent`, which includes the body of a <script>, while the
+  // string backend suppressed the subtree. Under the default 'auto' backend
+  // that meant `stripTags()` produced different text on the server and in the
+  // browser for the same input.
+  const cases = [
+    ['<script>alert(1)</script>', ''],
+    ['a<script>alert(1)</script>b', 'ab'],
+    ['<style>body{}</style>hello', 'hello'],
+    ['<iframe>nope</iframe>ok', 'ok'],
+    ['<noscript>x</noscript>', ''],
+    ['<script>a</script><script>b</script>tail', 'tail'],
+    ['<style>x</style><script>y</script>z', 'z'],
+    ['<p>hello <b>world</b></p>', 'hello world'],
+    ['<div>a<span>b</span>c</div>', 'abc'],
+  ] as const;
+
+  for (const [html, expected] of cases) {
+    it(`agrees on ${JSON.stringify(html)}`, () => {
+      expect(stripTagsDom(html)).toBe(expected);
+      expect(stripTagsString(html)).toBe(expected);
+    });
+  }
+});
+
+describe('stripAllTags output is safe for an HTML sink', () => {
+  // `stripTags()` is documented to return plain text and returns it raw.
+  // `sanitizeHtml(..., { stripAllTags: true })` is branded SanitizedHtml and
+  // goes to innerHTML, so it must escape — the parser has already decoded the
+  // entities by then, so the "text" can carry live markup.
+  const encoded = '<p>&lt;img src=x onerror=alert(1)&gt;</p>';
+
+  it('escapes on the DOM backend', () => {
+    const out = sanitizeHtmlDom(encoded, { stripAllTags: true });
+    expect(out).not.toContain('<img');
+    expect(out).toBe('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('escapes on the string backend', () => {
+    const out = sanitizeHtmlString(encoded, { stripAllTags: true });
+    expect(out).not.toContain('<img');
+    expect(out).toBe('&lt;img src=x onerror=alert(1)&gt;');
+  });
+
+  it('leaves stripTags() as raw plain text', () => {
+    // Not escaped, deliberately: the return value is text, not markup.
+    expect(stripTagsDom(encoded)).toBe('<img src=x onerror=alert(1)>');
+    expect(stripTagsString(encoded)).toBe('<img src=x onerror=alert(1)>');
   });
 });
 

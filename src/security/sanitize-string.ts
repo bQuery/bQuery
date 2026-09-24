@@ -28,7 +28,6 @@
  * @internal
  */
 
-import { DANGEROUS_TAGS } from './constants';
 import {
   escapeHtmlText,
   isAllowedTag,
@@ -36,6 +35,7 @@ import {
   isValidAttributeName,
   relForAnchor,
   resolvePolicy,
+  suppressesTextContent,
   type SanitizePolicy,
 } from './sanitize-policy';
 import type { SanitizeOptions } from './types';
@@ -403,11 +403,12 @@ const sanitizePass = (html: string, policy: SanitizePolicy): string => {
   if (policy.stripAllTags) {
     let text = '';
     // Drop the content of dangerous elements entirely rather than surfacing
-    // script source as "text".
+    // script source as "text". `suppressesTextContent` owns the rule so the
+    // DOM backend drops exactly the same subtrees.
     let suppressDepth = 0;
     let suppressTag: string | null = null;
     for (const token of tokens) {
-      if (token.kind === 'open' && DANGEROUS_TAGS.has(token.tag) && !token.selfClosing) {
+      if (token.kind === 'open' && suppressesTextContent(token.tag) && !token.selfClosing) {
         if (suppressDepth === 0) suppressTag = token.tag;
         if (token.tag === suppressTag) suppressDepth++;
         continue;
@@ -524,7 +525,11 @@ export const sanitizeHtmlString = (html: string, options: SanitizeOptions = {}):
 
   const policy = resolvePolicy(options);
   const firstPass = sanitizePass(input, policy);
-  if (policy.stripAllTags) return firstPass;
+  // Escaped, unlike `stripTagsString`: this return value is branded
+  // `SanitizedHtml` and callers assign it to HTML sinks, and extracted text
+  // can carry live markup once its entities are decoded. The mXSS fallback
+  // below escapes for exactly the same reason.
+  if (policy.stripAllTags) return escapeHtmlText(firstPass);
 
   const secondPass = sanitizePass(firstPass, policy);
   if (firstPass !== secondPass) {

@@ -121,6 +121,24 @@ export const VALID_TAG_NAME = /^[a-zA-Z][a-zA-Z0-9._:-]*$/;
 export const isValidTagName = (tag: string): boolean => VALID_TAG_NAME.test(tag);
 
 /**
+ * Whether an element's text content is dropped during text extraction.
+ *
+ * `stripTags()` and `stripAllTags` answer "what does this markup say", and a
+ * `<script>` body does not say anything — it *is* the payload. Surfacing
+ * `alert(1)` as the text of `<script>alert(1)</script>` hands the caller
+ * attacker-authored source under the name of prose, which then flows into a
+ * log line, a search index or a `<title>`.
+ *
+ * The rule lives here rather than in either backend because the two used to
+ * disagree on it: the DOM one returned `textContent` (script source included)
+ * and the DOM-free one suppressed the subtree, so `stripTags()` produced
+ * different output on the server and in the browser for the same well-formed
+ * input — under the default `'auto'` backend, in the same app.
+ * @internal
+ */
+export const suppressesTextContent = (tagName: string): boolean => DANGEROUS_TAGS.has(tagName);
+
+/**
  * Escape HTML entities so text is inert when assigned to an HTML sink.
  * @internal
  */
