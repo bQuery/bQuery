@@ -65,6 +65,18 @@ const VOID_ELEMENTS = new Set([
  */
 const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title', 'xmp']);
 
+/**
+ * Elements whose start tag may close itself with a trailing slash.
+ *
+ * Only these. HTML ignores the `/` in `<script/>` — the element still opens,
+ * and everything up to `</script>` is its raw text — so honouring it for any
+ * element let `<script/>alert(1)</script>` escape raw-text consumption and
+ * surface `alert(1)` as ordinary text. `svg` and `math` are the exception:
+ * they switch the tree builder into foreign content, where a self-closing
+ * start tag is acknowledged.
+ */
+const SELF_CLOSING_ELEMENTS = new Set([...VOID_ELEMENTS, 'svg', 'math']);
+
 const TAG_NAME = /^[a-zA-Z][a-zA-Z0-9:-]*/;
 
 /**
@@ -312,7 +324,14 @@ export const tokenize = (html: string): Token[] => {
 
     flushText(lt);
     const tag = match[0].toLowerCase();
-    const { attributes, end, selfClosing } = readAttributes(html, lt + 1 + match[0].length);
+    const {
+      attributes,
+      end,
+      selfClosing: slashed,
+    } = readAttributes(html, lt + 1 + match[0].length);
+    // A trailing slash only closes a tag that is allowed to close itself; on
+    // anything else HTML drops it, and so do we.
+    const selfClosing = slashed && SELF_CLOSING_ELEMENTS.has(tag);
     tokens.push({ kind: 'open', tag, attributes, selfClosing });
     pos = end;
     textStart = pos;

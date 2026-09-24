@@ -17,6 +17,7 @@ import {
   resolvePolicy,
   suppressesTextContent,
 } from './sanitize-policy';
+import { decodeEntities } from './sanitize-string';
 import type { SanitizeOptions } from './types';
 
 /**
@@ -91,7 +92,18 @@ const parseHtmlSafely = (html: string): DocumentFragment => {
   // This explicitly prevents "DOM text reinterpreted as HTML" for purely textual inputs.
   const containsHtmlSyntax = normalizedHtml.includes('<') || normalizedHtml.includes('>');
   if (!containsHtmlSyntax) {
-    fragment.appendChild(document.createTextNode(normalizedHtml));
+    // Decoded, because a Text node built from the raw string keeps entities as
+    // literal characters: `Tom &amp; Jerry` came back out of `stripTags()` with
+    // the `&amp;` intact, and serialization escaped it a second time, so
+    // `sanitizeHtml()` returned `Tom &amp;amp; Jerry`. The string backend
+    // decodes here, which is why the two disagreed on input this branch was
+    // added to handle.
+    //
+    // `decodeEntities` is a pure string transform — no parser is involved, so
+    // the property this branch exists for still holds: text with no HTML
+    // syntax never reaches `DOMParser`. The decoded value goes into a Text
+    // node, where markup cannot come alive, and is re-escaped on the way out.
+    fragment.appendChild(document.createTextNode(decodeEntities(normalizedHtml)));
     return fragment;
   }
 

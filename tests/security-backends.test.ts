@@ -282,6 +282,64 @@ describe('text extraction is one rule across both backends', () => {
   }
 });
 
+describe('a trailing slash closes only what HTML lets it close', () => {
+  // `<script/>` does not close a script element — HTML drops the slash and
+  // everything up to `</script>` is still raw text. Honouring it let the
+  // string backend skip raw-text consumption and hand back `alert(1)` as
+  // ordinary prose.
+  const suppressed = [
+    '<script/>alert(1)</script>',
+    '<script />alert(1)</script>',
+    '<style/>body{}</style>',
+    '<iframe/>nope</iframe>',
+    '<template/>text',
+    '<object/>text',
+    '<noscript/>text',
+  ] as const;
+
+  for (const html of suppressed) {
+    it(`suppresses through ${JSON.stringify(html)}`, () => {
+      expect(stripTagsString(html)).toBe('');
+      expect(stripTagsDom(html)).toBe('');
+    });
+  }
+
+  // Void elements self-close by definition, and `svg` switches the tree
+  // builder into foreign content where a self-closing start tag is
+  // acknowledged. Text after these is genuinely outside the element.
+  const closes = ['<link/>text', '<meta/>text', '<embed/>text', '<svg/>text'] as const;
+
+  for (const html of closes) {
+    it(`keeps text after ${JSON.stringify(html)}`, () => {
+      expect(stripTagsString(html)).toBe('text');
+      expect(stripTagsDom(html)).toBe('text');
+    });
+  }
+});
+
+describe('entities decode identically on text-only input', () => {
+  // The DOM backend takes a shortcut for input with no angle brackets: it
+  // builds a Text node rather than parsing, which keeps text away from
+  // `DOMParser`. Building it from the *raw* string left entities as literal
+  // characters, so `stripTags` returned them undecoded and `sanitizeHtml`
+  // escaped them a second time.
+  const cases = [
+    ['Tom &amp; Jerry', 'Tom & Jerry', 'Tom &amp; Jerry'],
+    ['&lt;b&gt;', '<b>', '&lt;b&gt;'],
+    ['a &amp;amp; b', 'a &amp; b', 'a &amp;amp; b'],
+    ['plain', 'plain', 'plain'],
+  ] as const;
+
+  for (const [html, text, markup] of cases) {
+    it(`agrees on ${JSON.stringify(html)}`, () => {
+      expect(stripTagsDom(html)).toBe(text);
+      expect(stripTagsString(html)).toBe(text);
+      expect(sanitizeHtmlDom(html)).toBe(markup);
+      expect(sanitizeHtmlString(html)).toBe(markup);
+    });
+  }
+});
+
 describe('stripAllTags output is safe for an HTML sink', () => {
   // `stripTags()` is documented to return plain text and returns it raw.
   // `sanitizeHtml(..., { stripAllTags: true })` is branded SanitizedHtml and
