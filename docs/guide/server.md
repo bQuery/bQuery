@@ -632,12 +632,14 @@ see those requests.
   `If-None-Match` and `If-Modified-Since` are answered with `304`. With
   `precompressed`, every response carries `Vary: Accept-Encoding` and each
   encoding gets its own `ETag`, so a cache cannot hand compressed bytes to a
-  client that asked for identity.
+  client that asked for identity. A sidecar's `ETag` and `Last-Modified` come
+  from the sidecar file, so rebuilding only the `.br`/`.gz` still invalidates
+  cached copies of it.
 - **Ranges.** Single byte ranges — closed, open-ended and suffix — answered
   with `206` and `Content-Range`; out-of-range requests get `416`. Multi-range
   requests fall back to the whole body. Ranges are not offered over a
   precompressed body, since those bytes are not the identity representation
-  the client asked to slice.
+  the client asked to slice — on its `304` as well as its `200`.
 - **Directory redirects.** `/dir` redirects to `/dir/` with `308`, so relative
   links inside the index resolve.
 - **Path traversal.** Rejected with `403`. Paths are decoded and checked

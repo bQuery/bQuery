@@ -518,6 +518,8 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
     // content type, and varies on Accept-Encoding so caches stay correct.
     let bodyPath = filePath;
     let bodySize = stats.size;
+    // The validators describe the bytes sent, so a sidecar brings its own.
+    let bodyMtimeMs = stats.mtimeMs;
 
     // Resolved *before* the conditional check, because picking a sidecar
     // rewrites the ETag. Checking first compared the client's validator
@@ -543,12 +545,19 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
           if (!sidecar.isFile()) continue;
           bodyPath = `${filePath}${suffix}`;
           bodySize = sidecar.size;
+          bodyMtimeMs = sidecar.mtimeMs;
           headers.set('content-encoding', encoding);
           // Distinguish the representations. Sharing the identity file's
           // validator let a cache revalidate the brotli variant on behalf of
           // a client that does not accept `br`, get a bare 304, and hand back
           // compressed bytes with no `Content-Encoding` — a corrupt body.
-          headers.set('etag', encodedEtag(etag, encoding));
+          //
+          // Built from the sidecar's own size and mtime, not the identity
+          // file's: a sidecar rebuilt on its own — a stale one replaced after
+          // a bad deploy — would otherwise keep the old validator, and every
+          // cache holding the old bytes would keep revalidating them as fresh.
+          headers.set('etag', encodedEtag(fileEtag(sidecar.size, sidecar.mtimeMs), encoding));
+          headers.set('last-modified', new Date(sidecar.mtimeMs).toUTCString());
           break;
         } catch {
           // No sidecar for this encoding; try the next one.
@@ -556,14 +565,26 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       }
     }
 
-    // Against the ETag actually being sent, which the sidecar block above may
-    // have replaced.
+    // Range requests address the bytes actually sent. With a precompressed
+    // sidecar those are the compressed bytes, which a client asking for a
+    // range of the identity representation would not expect — so ranges are
+    // only offered when the body is the file itself.
+    //
+    // Decided before the conditional check, because a 304's headers are
+    // merged into the cached entry (RFC 9111 §4.3.4): a 304 still carrying
+    // `Accept-Ranges: bytes` would advertise ranges on a stored compressed
+    // body that its own 200 had declined to offer them on.
+    const rangeable = bodyPath === filePath;
+    if (!rangeable) headers.delete('accept-ranges');
+
+    // Against the validators actually being sent, which the sidecar block
+    // above may have replaced.
     if (
       isNotModified(
         ctx.request.headers.get('if-none-match'),
         ctx.request.headers.get('if-modified-since'),
         headers.get('etag') ?? etag,
-        stats.mtimeMs
+        bodyMtimeMs
       )
     ) {
       // The encoded ETag and `Vary` stay — they are what a cache updates its
@@ -574,11 +595,6 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       return new Response(null, { status: 304, headers });
     }
 
-    // Range requests address the bytes actually sent. With a precompressed
-    // sidecar those are the compressed bytes, which a client asking for a
-    // range of the identity representation would not expect — so ranges are
-    // only offered when the body is the file itself.
-    const rangeable = bodyPath === filePath;
     const range = rangeable ? parseRange(ctx.request.headers.get('range'), bodySize) : null;
 
     if (range === 'unsatisfiable') {
@@ -590,8 +606,6 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       headers.delete('content-length');
       return new Response(null, { status: 416, headers });
     }
-
-    if (!rangeable) headers.delete('accept-ranges');
 
     const start = range ? range.start : 0;
     const end = range ? range.end : bodySize - 1;
