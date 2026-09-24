@@ -33,6 +33,7 @@ import {
   escapeHtmlText,
   isAllowedTag,
   isAttributeAllowed,
+  isValidAttributeName,
   relForAnchor,
   resolvePolicy,
   type SanitizePolicy,
@@ -65,13 +66,6 @@ const VOID_ELEMENTS = new Set([
 const RAW_TEXT_ELEMENTS = new Set(['script', 'style', 'textarea', 'title', 'xmp']);
 
 const TAG_NAME = /^[a-zA-Z][a-zA-Z0-9:-]*/;
-
-/**
- * An attribute name safe to serialize into a tag. Deliberately stricter than
- * what the HTML spec tolerates: anything outside this shape is dropped rather
- * than emitted, so the output cannot depend on a consumer's error recovery.
- */
-const VALID_ATTRIBUTE_NAME = /^[a-zA-Z_:][a-zA-Z0-9_:.-]*$/;
 
 /**
  * Document-structure elements a real HTML parser absorbs rather than nests.
@@ -375,7 +369,7 @@ const renderAttributes = (
     // emits markup whose meaning depends on how forgiving the consumer's
     // parser is; happy-dom, this repo's own DOM, splits it back into a live
     // event handler. Never emit a name we cannot quote safely.
-    if (!VALID_ATTRIBUTE_NAME.test(name)) continue;
+    if (!isValidAttributeName(name)) continue;
     if (seenNames.has(name)) continue; // first wins, as the DOM does
     seenNames.add(name);
     if (!isAttributeAllowed(name, attr.value, policy, seenIds)) continue;
