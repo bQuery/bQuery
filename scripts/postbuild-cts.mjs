@@ -75,33 +75,40 @@ export const toCjsSpecifier = (specifier, fromDir, exists = existsSync) => {
 };
 
 /**
- * A line that is comment text rather than code.
+ * Character offsets covered by comment lines.
  *
- * Mirrors the guard in `postbuild-types.mjs`. Without it a relative specifier
- * inside a preserved JSDoc example — `{@link import('./css')}` and friends —
- * is rewritten to a `.cjs` path, turning documentation into a claim about the
- * CommonJS tree that the ESM declarations do not make.
+ * The guard has to be applied without splitting the source: `SPECIFIER`'s
+ * `\\s*` and `\\s+` match newlines, so a wrapped `import(\\n  './x.js')`
+ * only matches against the whole text. Splitting into lines to skip comments
+ * would silently stop rewriting those.
  */
-const isCommentLine = (line) => {
-  const trimmed = line.trimStart();
-  return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
+const commentRanges = (source) => {
+  const ranges = [];
+  let offset = 0;
+  for (const line of source.split('\n')) {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+      ranges.push([offset, offset + line.length]);
+    }
+    offset += line.length + 1;
+  }
+  return ranges;
 };
+
+/** Whether an offset falls inside a comment line. */
+const inComment = (ranges, index) => ranges.some(([start, end]) => index >= start && index < end);
 
 /** Rewrite one declaration's specifiers for the CommonJS tree. */
 export const toCjsDeclaration = (source, fromDir, exists = existsSync) => {
   let changed = 0;
-  const output = source
-    .split('\n')
-    .map((line) => {
-      if (isCommentLine(line)) return line;
-      return line.replace(SPECIFIER, (match, prefix, quote, specifier) => {
-        const rewritten = toCjsSpecifier(specifier, fromDir, exists);
-        if (rewritten === null) return match;
-        changed++;
-        return `${prefix}${quote}${rewritten}${quote}`;
-      });
-    })
-    .join('\n');
+  const ranges = commentRanges(source);
+  const output = source.replace(SPECIFIER, (match, prefix, quote, specifier, index) => {
+    if (inComment(ranges, index)) return match;
+    const rewritten = toCjsSpecifier(specifier, fromDir, exists);
+    if (rewritten === null) return match;
+    changed++;
+    return `${prefix}${quote}${rewritten}${quote}`;
+  });
   return { output, changed };
 };
 

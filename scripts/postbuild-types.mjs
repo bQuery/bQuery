@@ -48,14 +48,26 @@ const SPECIFIER = /(\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(['"])(\.{1,2}\/[^'"]
  * block showing *consumer* code — `from './core'` — would be rewritten to
  * bQuery's internal dist layout and shipped into IDE hover docs.
  *
- * Line-level is the right granularity here: `tsc` preserves JSDoc in the
- * ` * …` continuation form and never splits a real import statement across a
- * comment, so matching the leading token is enough.
+ * Applied without splitting the source: `SPECIFIER`'s `\\s*` and `\\s+` match
+ * newlines, so a wrapped `import(\\n  './x')` only matches against the whole
+ * text. Splitting into lines to skip comments would silently stop rewriting
+ * those, which is a rewrite that fails quietly rather than loudly.
  */
-const isCommentLine = (line) => {
-  const trimmed = line.trimStart();
-  return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
+const commentRanges = (source) => {
+  const ranges = [];
+  let offset = 0;
+  for (const line of source.split('\n')) {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*')) {
+      ranges.push([offset, offset + line.length]);
+    }
+    offset += line.length + 1;
+  }
+  return ranges;
 };
+
+/** Whether an offset falls inside a comment line. */
+const inComment = (ranges, index) => ranges.some(([start, end]) => index >= start && index < end);
 
 /** Already has an extension we must not touch. */
 const HAS_EXTENSION = /\.(js|mjs|cjs|json|node)$/;
@@ -87,18 +99,14 @@ export function resolveSpecifier(specifier, fromDir, exists = existsSync) {
 /** Rewrite one declaration file's specifiers. Returns the new source, or null. */
 export function rewriteSource(source, fromDir, exists = existsSync) {
   let changed = 0;
-  const next = source
-    .split('\n')
-    .map((line) => {
-      if (isCommentLine(line)) return line;
-      return line.replace(SPECIFIER, (match, keyword, quote, specifier) => {
-        const rewritten = resolveSpecifier(specifier, fromDir, exists);
-        if (rewritten === null) return match;
-        changed++;
-        return `${keyword}${quote}${rewritten}${quote}`;
-      });
-    })
-    .join('\n');
+  const ranges = commentRanges(source);
+  const next = source.replace(SPECIFIER, (match, keyword, quote, specifier, index) => {
+    if (inComment(ranges, index)) return match;
+    const rewritten = resolveSpecifier(specifier, fromDir, exists);
+    if (rewritten === null) return match;
+    changed++;
+    return `${keyword}${quote}${rewritten}${quote}`;
+  });
   return changed > 0 ? { source: next, changed } : null;
 }
 

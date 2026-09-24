@@ -98,3 +98,27 @@ describe('toCjsDeclaration', () => {
     expect(result.output).toBe(source);
   });
 });
+
+describe('toCjsDeclaration — multiline specifiers', () => {
+  const exists = (path: string) => String(path).endsWith('css.d.ts');
+  const out = (result: unknown, fallback: string): string => {
+    if (result === null || result === undefined) return fallback;
+    const value = result as { output?: string; source?: string };
+    return value.output ?? value.source ?? fallback;
+  };
+
+  it('rewrites a specifier wrapped across lines', () => {
+    // SPECIFIER's `\s*` spans newlines on purpose, so the comment guard must
+    // not be applied by splitting the source into lines first — that would
+    // silently stop rewriting wrapped dynamic imports.
+    const source = ['export type X = import(', "  './css'", ').Css;'].join('\n');
+    expect(out(toCjsDeclaration(source, '/dist', exists), source)).toContain('.cjs');
+  });
+
+  it('still leaves a specifier inside JSDoc alone', () => {
+    const source = [" * {@link import('./css')}", 'export type Y = 1;'].join('\n');
+    expect(out(toCjsDeclaration(source, '/dist', exists), source)).toContain(
+      "{@link import('./css')}"
+    );
+  });
+});
