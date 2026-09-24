@@ -41,27 +41,27 @@ point exports: the entry is bundled standalone with esbuild (minified,
 tree-shaken, Node built-ins external) and the result gzipped. This is
 deliberately not the per-file size the build log prints — an ESM entry
 re-exports shared chunks, so `core.es.mjs` reads as 3.3 kB on disk while
-actually pulling in 12.2 kB gzipped.
+actually pulling in 15.7 kB gzipped.
 
 Treat these as ceilings. A real app imports a handful of symbols, not an
 entire module, so tree-shaking brings it in under the figure shown.
 
 | Entry point                    | Minified | Minified + gzip | Budget   |
 | ------------------------------ | -------- | --------------- | -------- |
-| `@bquery/bquery`               | 402.9 kB | **130.2 kB**    | 144.0 kB |
-| `@bquery/bquery/full`          | 405.7 kB | **131.2 kB**    | 145.3 kB |
-| `@bquery/bquery/core`          | 41.1 kB  | **13.8 kB**     | 14.1 kB  |
+| `@bquery/bquery`               | 406.9 kB | **132.3 kB**    | 144.0 kB |
+| `@bquery/bquery/full`          | 409.8 kB | **133.4 kB**    | 145.3 kB |
+| `@bquery/bquery/core`          | 44.6 kB  | **15.7 kB**     | 18.2 kB  |
 | `@bquery/bquery/reactive`      | 34.0 kB  | **11.7 kB**     | 13.1 kB  |
 | `@bquery/bquery/concurrency`   | 30.8 kB  | **9.6 kB**      | 10.8 kB  |
-| `@bquery/bquery/component`     | 37.6 kB  | **12.6 kB**     | 14.6 kB  |
+| `@bquery/bquery/component`     | 41.1 kB  | **14.5 kB**     | 16.8 kB  |
 | `@bquery/bquery/motion`        | 30.3 kB  | **11.0 kB**     | 12.3 kB  |
-| `@bquery/bquery/security`      | 11.4 kB  | **4.5 kB**      | 5.3 kB   |
+| `@bquery/bquery/security`      | 14.9 kB  | **6.4 kB**      | 7.4 kB   |
 | `@bquery/bquery/platform`      | 11.3 kB  | **4.1 kB**      | 4.4 kB   |
 | `@bquery/bquery/router`        | 25.7 kB  | **9.2 kB**      | 10.3 kB  |
 | `@bquery/bquery/store`         | 12.3 kB  | **4.4 kB**      | 5.0 kB   |
-| `@bquery/bquery/view`          | 40.7 kB  | **15.2 kB**     | 15.4 kB  |
+| `@bquery/bquery/view`          | 44.2 kB  | **17.1 kB**     | 19.7 kB  |
 | `@bquery/bquery/view/compiler` | 12.1 kB  | **4.8 kB**      | 5.6 kB   |
-| `@bquery/bquery/storybook`     | 13.9 kB  | **5.4 kB**      | 6.3 kB   |
+| `@bquery/bquery/storybook`     | 17.4 kB  | **7.3 kB**      | 8.4 kB   |
 | `@bquery/bquery/forms`         | 29.3 kB  | **10.2 kB**     | 11.3 kB  |
 | `@bquery/bquery/i18n`          | 11.7 kB  | **4.5 kB**      | 4.7 kB   |
 | `@bquery/bquery/i18n/extract`  | 5.6 kB   | **2.4 kB**      | 2.8 kB   |
@@ -71,8 +71,8 @@ entire module, so tree-shaking brings it in under the figure shown.
 | `@bquery/bquery/plugin`        | 6.4 kB   | **2.2 kB**      | 2.6 kB   |
 | `@bquery/bquery/devtools`      | 7.1 kB   | **3.0 kB**      | 3.5 kB   |
 | `@bquery/bquery/testing`       | 17.7 kB  | **6.8 kB**      | 7.6 kB   |
-| `@bquery/bquery/ssr`           | 104.0 kB | **34.7 kB**     | 37.7 kB  |
-| `@bquery/bquery/server`        | 104.9 kB | **35.0 kB**     | 40.3 kB  |
+| `@bquery/bquery/ssr`           | 107.6 kB | **36.6 kB**     | 37.7 kB  |
+| `@bquery/bquery/server`        | 108.9 kB | **37.4 kB**     | 40.3 kB  |
 
 `bun run check:size` enforces the budget column and runs in CI, so a
 regression fails the build rather than showing up on Bundlephobia weeks later.

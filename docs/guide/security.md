@@ -279,6 +279,25 @@ above comes from and does **not** share that guarantee: the DOM backend
 discards the head because `DOMParser` built one, while the string backend has
 no head to discard and returns its text along with the body's.
 
+**Character references** are the one other place they can differ. The DOM
+backend decodes them with the browser's parser; the string backend — and the
+DOM backend's shortcut for input with no tags, which never reaches
+`DOMParser` — decode with the same rules (case-sensitive names, `;` required
+except for the legacy names, the attribute rule that keeps `?a=1&copy=2`
+intact) but a smaller table: every HTML 4.01 name, every name whose value is
+ASCII, and every legacy name. A name outside it, such as the HTML5-only
+`&star;`, stays literal:
+
+```ts
+sanitizeHtml('caf&eacute; &mdash; &colon;'); // 'café — :' under both
+sanitizeHtml('<b>&star;</b>');
+// dom:    '<b>☆</b>'
+// string: '<b>&amp;star;</b>'   shown as the reference, never mis-decoded
+```
+
+The full HTML5 table would add about 7 kB gzipped to every module that
+sanitizes, including `core`.
+
 If byte-identical output across environments matters to you, pin
 `backend: 'string'` everywhere.
 

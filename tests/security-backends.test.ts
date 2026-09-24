@@ -16,6 +16,7 @@ import {
   stripTags,
 } from '../src/security/index';
 import { hasDomSupport, resolveSanitizerBackend } from '../src/security/config';
+import { loadEntities } from '../src/security/entities';
 import { sanitizeHtmlDom, stripTagsDom } from '../src/security/sanitize-dom';
 import {
   decodeEntities,
@@ -340,6 +341,75 @@ describe('entities decode identically on text-only input', () => {
   }
 });
 
+describe('character references follow the tokenizer, not a lookup table', () => {
+  // The decoder knew six names, lowercased them, and made `;` optional for all
+  // of them. So `caf&eacute;` came back literal from the DOM backend's
+  // text-only shortcut while `<b>caf&eacute;</b>` decoded through DOMParser,
+  // and `&copy=2` in a query string would have become `©=2` the moment the
+  // table grew. Each case below is what Chromium produces.
+  const text = [
+    ['caf&eacute; &mdash; &rsquo;&hellip;', 'café — ’…'],
+    ['&Eacute; &eacute;', 'É é'],
+    ['&EACUTE;', '&EACUTE;'],
+    ['&notit;', '¬it;'],
+    ['&notin; &notinva;', '∉ ∉'],
+    ['&copyright', '©right'],
+    ['&hellip', '&hellip'],
+    ['&#150; &#x80;', '– €'],
+    ['&#0; &#xD800; &#x110000;', '\ufffd \ufffd \ufffd'],
+    ['&#12ab;', '\fab;'],
+  ] as const;
+
+  for (const [html, decoded] of text) {
+    it(`decodes ${JSON.stringify(html)} as text on both backends and both DOM paths`, () => {
+      expect(decodeEntities(html)).toBe(decoded);
+      expect(stripTagsString(html)).toBe(decoded);
+      expect(stripTagsDom(html)).toBe(decoded);
+      expect(stripTagsString(`<b>${html}</b>`)).toBe(decoded);
+      expect(stripTagsDom(`<b>${html}</b>`)).toBe(decoded);
+    });
+  }
+
+  it('keeps a legacy name without `;` literal in an attribute when `=` or a letter follows', () => {
+    expect(decodeEntities('?a=1&copy=2', true)).toBe('?a=1&copy=2');
+    expect(decodeEntities('&copyright', true)).toBe('&copyright');
+    expect(decodeEntities('&notit;', true)).toBe('&notit;');
+    expect(decodeEntities('&ltques;', true)).toBe('&ltques;');
+    expect(decodeEntities('&copy 2', true)).toBe('© 2');
+    expect(decodeEntities('&copy;2', true)).toBe('©2');
+
+    const link = '<a href="?a=1&copy=2">x</a>';
+    const kept = '<a href="?a=1&amp;copy=2">x</a>';
+    expect(sanitizeHtmlString(link)).toBe(kept);
+    expect(sanitizeHtmlDom(link)).toBe(kept);
+  });
+
+  it('decodes the references that can rewrite a URL scheme on both backends', () => {
+    for (const href of ['javascript&colon;alert(1)', 'java&Tab;script&colon;alert(1)']) {
+      const html = `<a href="${href}">x</a>`;
+      expect(sanitizeHtmlString(html)).toBe('<a>x</a>');
+      expect(sanitizeHtmlDom(html)).toBe('<a>x</a>');
+    }
+  });
+
+  it('carries every legacy name, none longer than the prefix search looks', () => {
+    // The decoder bounds its longest-prefix search at six characters; a
+    // longer legacy name would silently never match without its `;`.
+    const { named, legacy } = loadEntities();
+    expect(legacy.size).toBe(106);
+    expect(Math.max(...[...legacy].map((name) => name.length))).toBe(6);
+    for (const name of legacy) expect(named.has(name)).toBe(true);
+    expect(named.get('fjlig')).toBe('fj');
+  });
+
+  it('leaves a name outside the table literal, and escaped, rather than guessing', () => {
+    // `&star;` is HTML5-only. A browser shows ☆; the string backend and the DOM
+    // backend's text-only path show the reference itself. See entities.ts.
+    expect(sanitizeHtmlString('&star;')).toBe('&amp;star;');
+    expect(sanitizeHtmlDom('&star;')).toBe('&amp;star;');
+  });
+});
+
 describe('stripAllTags output is safe for an HTML sink', () => {
   // `stripTags()` is documented to return plain text and returns it raw.
   // `sanitizeHtml(..., { stripAllTags: true })` is branded SanitizedHtml and
@@ -373,16 +443,19 @@ describe('decodeEntities', () => {
   });
 
   it('leaves unknown and malformed entities untouched', () => {
-    expect(decodeEntities('&notanentity;')).toBe('&notanentity;');
+    expect(decodeEntities('&unknownname;')).toBe('&unknownname;');
     expect(decodeEntities('&#xZZ;')).toBe('&#xZZ;');
+    // Not untouched, although it looks unknown: `&not` is a legacy name and
+    // matches as a prefix, exactly as a browser reads it.
+    expect(decodeEntities('&notanentity;')).toBe('¬anentity;');
   });
 
   it('returns the input unchanged when there is no entity', () => {
     expect(decodeEntities('plain text')).toBe('plain text');
   });
 
-  it('rejects an out-of-range code point', () => {
-    expect(decodeEntities('&#x110000;')).toBe('&#x110000;');
+  it('replaces an out-of-range code point with U+FFFD, as a browser does', () => {
+    expect(decodeEntities('&#x110000;')).toBe('\ufffd');
   });
 });
 

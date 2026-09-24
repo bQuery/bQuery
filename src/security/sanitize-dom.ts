@@ -103,6 +103,9 @@ const parseHtmlSafely = (html: string): DocumentFragment => {
     // the property this branch exists for still holds: text with no HTML
     // syntax never reaches `DOMParser`. The decoded value goes into a Text
     // node, where markup cannot come alive, and is re-escaped on the way out.
+    // It is also the string backend's decoder, so this branch and that backend
+    // agree by construction; where either stops short of `DOMParser` (a name
+    // outside the table in `entities.ts`), the reference stays literal.
     fragment.appendChild(document.createTextNode(decodeEntities(normalizedHtml)));
     return fragment;
   }
