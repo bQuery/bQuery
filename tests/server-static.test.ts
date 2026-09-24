@@ -322,6 +322,72 @@ describe('server/serveStatic precompressed sidecars', () => {
     expect(revalidated.headers.get('vary')).toBe('Accept-Encoding');
   });
 
+  it('revalidates a precompressed sidecar with 304', async () => {
+    // The conditional check used to run against the identity ETag while the
+    // response shipped the encoded one, so the two could never match and
+    // every revalidation re-sent the whole compressed body.
+    const first = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const etag = first.headers.get('etag');
+    expect(first.status).toBe(200);
+    expect(etag).toContain('-br"');
+
+    const revalidated = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br', 'if-none-match': etag as string },
+    });
+
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get('etag')).toBe(etag);
+    expect(revalidated.headers.get('vary')).toBe('Accept-Encoding');
+    // RFC 9110 §15.4.5: a 304 carries the validator, not the representation's
+    // Content-Encoding.
+    expect(revalidated.headers.get('content-encoding')).toBeNull();
+  });
+
+  it('does not answer 304 when the client asks for a different encoding', async () => {
+    // The identity and brotli representations have distinct validators, so a
+    // brotli ETag must not satisfy a request that will be served identity.
+    const brotli = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    const brotliEtag = brotli.headers.get('etag') as string;
+
+    const identity = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity', 'if-none-match': brotliEtag },
+    });
+
+    expect(identity.status).toBe(200);
+    expect(await identity.text()).toBe('identity body');
+  });
+
+  it('honours the q-value ranking rather than its own order', async () => {
+    // Both sidecars exist and both are acceptable. `ENCODINGS` lists brotli
+    // first, but the client ranked gzip higher and RFC 9110 §12.5.3 makes
+    // that a relative preference, not a tie.
+    const response = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'gzip;q=1.0, br;q=0.1' },
+    });
+
+    expect(response.headers.get('content-encoding')).toBe('gzip');
+    expect(await response.text()).toBe('gzip body');
+  });
+
+  it('still prefers brotli when no q-values distinguish them', async () => {
+    const response = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'gzip, br' },
+    });
+
+    expect(response.headers.get('content-encoding')).toBe('br');
+    expect(await response.text()).toBe('brotli body');
+  });
+
   it('falls back to gzip when brotli is not accepted', async () => {
     const response = await appFor({ precompressed: true }).handle({
       url: '/compressed.js',

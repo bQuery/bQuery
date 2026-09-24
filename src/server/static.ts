@@ -514,26 +514,30 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       headers.set('vary', 'Accept-Encoding');
     }
 
-    if (
-      isNotModified(
-        ctx.request.headers.get('if-none-match'),
-        ctx.request.headers.get('if-modified-since'),
-        etag,
-        stats.mtimeMs
-      )
-    ) {
-      return new Response(null, { status: 304, headers });
-    }
-
     // A precompressed sidecar replaces the body but keeps the original's
     // content type, and varies on Accept-Encoding so caches stay correct.
     let bodyPath = filePath;
     let bodySize = stats.size;
 
+    // Resolved *before* the conditional check, because picking a sidecar
+    // rewrites the ETag. Checking first compared the client's validator
+    // against the identity ETag while the response would ship the encoded
+    // one, so a precompressed asset could never revalidate: every conditional
+    // request re-sent the whole compressed body.
     if (precompressed) {
       const accepted = parseAcceptEncoding(ctx.request.headers.get('accept-encoding'));
-      for (const { encoding, suffix } of ENCODINGS) {
-        if (!acceptsEncoding(accepted, encoding)) continue;
+      // Ordered by the client's stated preference, not by our own list. The
+      // qualities are already parsed, and `gzip;q=1.0, br;q=0.1` is a client
+      // asking for gzip for a reason — decode cost on a constrained device, a
+      // proxy tuned for CPU. Ties keep `ENCODINGS` order, so the common
+      // `gzip, br` (no q-values) still prefers brotli.
+      const qualityOf = (encoding: string): number =>
+        accepted.get(encoding) ?? accepted.get('*') ?? 0;
+      const candidates = ENCODINGS.filter(({ encoding }) =>
+        acceptsEncoding(accepted, encoding)
+      ).sort((a, b) => qualityOf(b.encoding) - qualityOf(a.encoding));
+
+      for (const { encoding, suffix } of candidates) {
         try {
           const sidecar = await fsp.stat(`${filePath}${suffix}`);
           if (!sidecar.isFile()) continue;
@@ -550,6 +554,24 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
           // No sidecar for this encoding; try the next one.
         }
       }
+    }
+
+    // Against the ETag actually being sent, which the sidecar block above may
+    // have replaced.
+    if (
+      isNotModified(
+        ctx.request.headers.get('if-none-match'),
+        ctx.request.headers.get('if-modified-since'),
+        headers.get('etag') ?? etag,
+        stats.mtimeMs
+      )
+    ) {
+      // The encoded ETag and `Vary` stay — they are what a cache updates its
+      // entry from. `Content-Encoding` does not: RFC 9110 §15.4.5 lists the
+      // representation metadata a 304 may carry, and it is not among them.
+      // Resolving the sidecar before this check is what put it here.
+      headers.delete('content-encoding');
+      return new Response(null, { status: 304, headers });
     }
 
     // Range requests address the bytes actually sent. With a precompressed
