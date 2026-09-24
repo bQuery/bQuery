@@ -74,15 +74,34 @@ export const toCjsSpecifier = (specifier, fromDir, exists = existsSync) => {
   return null;
 };
 
+/**
+ * A line that is comment text rather than code.
+ *
+ * Mirrors the guard in `postbuild-types.mjs`. Without it a relative specifier
+ * inside a preserved JSDoc example — `{@link import('./css')}` and friends —
+ * is rewritten to a `.cjs` path, turning documentation into a claim about the
+ * CommonJS tree that the ESM declarations do not make.
+ */
+const isCommentLine = (line) => {
+  const trimmed = line.trimStart();
+  return trimmed.startsWith('*') || trimmed.startsWith('//') || trimmed.startsWith('/*');
+};
+
 /** Rewrite one declaration's specifiers for the CommonJS tree. */
 export const toCjsDeclaration = (source, fromDir, exists = existsSync) => {
   let changed = 0;
-  const output = source.replace(SPECIFIER, (match, prefix, quote, specifier) => {
-    const rewritten = toCjsSpecifier(specifier, fromDir, exists);
-    if (rewritten === null) return match;
-    changed++;
-    return `${prefix}${quote}${rewritten}${quote}`;
-  });
+  const output = source
+    .split('\n')
+    .map((line) => {
+      if (isCommentLine(line)) return line;
+      return line.replace(SPECIFIER, (match, prefix, quote, specifier) => {
+        const rewritten = toCjsSpecifier(specifier, fromDir, exists);
+        if (rewritten === null) return match;
+        changed++;
+        return `${prefix}${quote}${rewritten}${quote}`;
+      });
+    })
+    .join('\n');
   return { output, changed };
 };
 

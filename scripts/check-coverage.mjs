@@ -122,7 +122,13 @@ export const summarize = (files) => {
  */
 export const hasRuntimeCode = (source) => {
   const body = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  return /(^|\n)\s*(export\s+)?(const|let|var|function|class)\s/.test(body);
+  // `export async function` and `export enum` both emit runtime code and both
+  // occur in src/, so a file holding only those would otherwise slip past the
+  // ratchet untested. `export default` counts too, unless it is a type-only
+  // default (`interface`/`type`), which emits nothing.
+  return /(^|\n)\s*(?:(?:export\s+)?(?:async\s+)?(?:const|let|var|function|class|enum)\b|export\s+default\s+(?!interface\b|type\b)\S)/.test(
+    body
+  );
 };
 
 /** Every `.ts` file under `src/`, repo-relative and slash-separated. */

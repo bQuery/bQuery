@@ -518,7 +518,7 @@ document.head.appendChild(script);
 
 ## Notes
 
-- `sanitizeHtml()` uses DOMParser internally for reliable parsing.
+- `sanitizeHtml()` parses with `DOMParser` under the `'dom'` backend. Under `'auto'` — the default — the DOM-free string backend is selected instead when no `document` exists, so on Bun, Node and Deno no `DOMParser` is involved. See [Runtime backends](#runtime-backends).
 - bQuery's standard core HTML-writing methods sanitize untrusted content by default with `sanitizeHtml()`. Explicit escape hatches such as `htmlUnsafe()` and other raw DOM writes bypass sanitization, so use them only with content you already trust.
 - The sanitizer handles nested and recursive attack vectors.
 - `trusted()` should only be used with values you have already sanitized — never with raw user input.

@@ -302,6 +302,26 @@ describe('server/serveStatic precompressed sidecars', () => {
     expect(await response.text()).toBe('brotli body');
   });
 
+  it('sets Vary on the 304 as well as the 200', async () => {
+    // `Vary` describes the URL, not the body. A shared cache that only ever
+    // saw the 304 would otherwise key the entry without the encoding and hand
+    // one client's representation to another.
+    const first = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity' },
+    });
+    const etag = first.headers.get('etag');
+    expect(etag).toBeTruthy();
+
+    const revalidated = await appFor({ precompressed: true }).handle({
+      url: '/compressed.js',
+      headers: { 'accept-encoding': 'identity', 'if-none-match': etag as string },
+    });
+
+    expect(revalidated.status).toBe(304);
+    expect(revalidated.headers.get('vary')).toBe('Accept-Encoding');
+  });
+
   it('falls back to gzip when brotli is not accepted', async () => {
     const response = await appFor({ precompressed: true }).handle({
       url: '/compressed.js',

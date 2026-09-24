@@ -304,3 +304,28 @@ describe('hasRuntimeCode', () => {
     );
   });
 });
+
+describe('hasRuntimeCode — runtime forms that emit code', () => {
+  for (const [label, source] of [
+    ['export async function', 'export async function f() {}'],
+    ['export default function', 'export default function f() {}'],
+    ['export default class', 'export default class C {}'],
+    ['export enum', 'export enum E { A }'],
+    ['bare enum', 'enum E { A }'],
+    ['export default expression', 'export default definePlugin({});'],
+  ] as const) {
+    it(`counts ${label}`, () => {
+      expect(hasRuntimeCode(source)).toBe(true);
+    });
+  }
+
+  for (const [label, source] of [
+    ['type-only default', 'export default interface I {}'],
+    ['type alias', 'export type T = string;'],
+    ['interface', 'export interface I { a: string }'],
+  ] as const) {
+    it(`does not count ${label}`, () => {
+      expect(hasRuntimeCode(source)).toBe(false);
+    });
+  }
+});

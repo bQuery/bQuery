@@ -161,9 +161,24 @@ const isCounter = (value: SessionData | null): value is CounterRecord =>
 /**
  * Read the originating address from a forwarding header.
  *
- * Headers a proxy sets itself are preferred; `X-Forwarded-For` is consulted
- * last and its leftmost entry taken, which is the originating client *only*
- * when the proxy overwrites the header rather than appending to it.
+ * Single-value headers a proxy sets itself (`CF-Connecting-IP`,
+ * `True-Client-IP`, `X-Real-IP`) are preferred and taken whole.
+ * `X-Forwarded-For` is consulted last and its **rightmost** entry taken.
+ *
+ * Rightmost, not leftmost, because the list grows left-to-right as it is
+ * forwarded: the rightmost entry is the hop the closest proxy appended and is
+ * therefore the only one that proxy vouches for. Cloudflare and nginx append
+ * rather than overwrite, so with leftmost parsing a client that sends its own
+ * `X-Forwarded-For` controls the value the limiter keys on and bypasses the
+ * limit by rotating it — the exact failure {@link RateLimitOptions.keyBy}
+ * being required is meant to prevent. RFC 9110 §7.6.1 and the MDN guidance on
+ * security uses of `X-Forwarded-For` both say to use only what a trusted
+ * proxy added.
+ *
+ * With more than one trusted proxy the rightmost entry is the inner proxy
+ * rather than the client, so those requests share a bucket. That over-limits
+ * rather than under-limits; a deployment that needs per-client buckets behind
+ * a chain should pass its own `keyBy`.
  *
  * Never returns `null`: a request with no forwarding header shares
  * {@link UNKNOWN_FORWARDED_KEY} rather than escaping the limit, because
@@ -175,8 +190,16 @@ export const forwardedAddress = (ctx: ServerContext): string => {
   for (const header of FORWARDED_HEADERS) {
     const value = ctx.request.headers.get(header);
     if (!value) continue;
-    const first = value.split(',')[0]?.trim();
-    if (first) return first;
+    if (header !== 'x-forwarded-for') {
+      const whole = value.trim();
+      if (whole) return whole;
+      continue;
+    }
+    const hops = value.split(',');
+    for (let i = hops.length - 1; i >= 0; i--) {
+      const hop = hops[i]?.trim();
+      if (hop) return hop;
+    }
   }
   return UNKNOWN_FORWARDED_KEY;
 };

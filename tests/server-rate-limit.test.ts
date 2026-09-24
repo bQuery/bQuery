@@ -279,16 +279,30 @@ describe('forwardedAddress', () => {
   const ctxWith = (headers: Record<string, string>): ServerContext =>
     ({ request: new Request('http://localhost/', { headers }) }) as ServerContext;
 
-  it('reads the leftmost X-Forwarded-For entry', () => {
+  it('reads the rightmost X-Forwarded-For entry', () => {
+    // The list grows left-to-right as it is forwarded, so only the rightmost
+    // entry was added by the proxy closest to us. Everything further left may
+    // have been sent by the client.
     expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2, 3.3.3.3' }))).toBe(
-      '1.1.1.1'
+      '3.3.3.3'
     );
   });
 
-  it('trims whitespace', () => {
-    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  1.1.1.1  , 2.2.2.2' }))).toBe(
-      '1.1.1.1'
+  it('ignores a client-supplied X-Forwarded-For prefix', () => {
+    // An appending proxy (Cloudflare, nginx) leaves whatever the client sent
+    // in place and adds the observed address on the right. Keying on the
+    // leftmost entry would let a client rotate it and escape the limit.
+    const spoofed = forwardedAddress(ctxWith({ 'x-forwarded-for': 'evil-1, 9.9.9.9' }));
+    const rotated = forwardedAddress(ctxWith({ 'x-forwarded-for': 'evil-2, 9.9.9.9' }));
+    expect(spoofed).toBe('9.9.9.9');
+    expect(rotated).toBe(spoofed);
+  });
+
+  it('trims whitespace and skips empty hops', () => {
+    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '  1.1.1.1  , 2.2.2.2  ' }))).toBe(
+      '2.2.2.2'
     );
+    expect(forwardedAddress(ctxWith({ 'x-forwarded-for': '1.1.1.1, 2.2.2.2, ,' }))).toBe('2.2.2.2');
   });
 
   it('falls back through the other headers in order', () => {

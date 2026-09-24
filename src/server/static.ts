@@ -505,6 +505,15 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
       'accept-ranges': 'bytes',
     });
 
+    // Set before the conditional check, not after: `Vary` describes the URL,
+    // not the body, so a 304 has to carry the same one as the 200 it
+    // revalidates. A shared cache that saw only the 304 would otherwise store
+    // the entry without an encoding in its key and serve one client's
+    // representation to another.
+    if (precompressed) {
+      headers.set('vary', 'Accept-Encoding');
+    }
+
     if (
       isNotModified(
         ctx.request.headers.get('if-none-match'),
@@ -522,10 +531,6 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
     let bodySize = stats.size;
 
     if (precompressed) {
-      // Always vary, not only when a sidecar is chosen: the identity response
-      // is one of several representations of this URL, so a shared cache must
-      // key on the encoding for it too.
-      headers.set('vary', 'Accept-Encoding');
       const accepted = parseAcceptEncoding(ctx.request.headers.get('accept-encoding'));
       for (const { encoding, suffix } of ENCODINGS) {
         if (!acceptsEncoding(accepted, encoding)) continue;
