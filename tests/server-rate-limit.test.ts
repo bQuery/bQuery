@@ -313,6 +313,44 @@ describe('server/rateLimit with trustProxy', () => {
   });
 });
 
+describe('server/rateLimit across middleware instances', () => {
+  it('serializes two limiters that share a store', async () => {
+    // Each `rateLimit()` used to build its own `serializeByKey` chain, so two
+    // limiters over one store never queued behind each other: concurrent
+    // requests read the same counter and wrote the same increment, and `max`
+    // became `max x instances` for anyone opening parallel connections.
+    const store = memoryStore({ maxEntries: 100 });
+    const app = createServer();
+    const limiter = () => rateLimit({ window: 60_000, max: 1, store, keyBy: () => 'same' });
+    app.get('/a', (ctx) => ctx.text('a'), [limiter()]);
+    app.get('/b', (ctx) => ctx.text('b'), [limiter()]);
+
+    const [first, second] = await Promise.all([app.handle('/a'), app.handle('/b')]);
+
+    expect([first.status, second.status].sort()).toEqual([200, 429]);
+  });
+
+  it('keeps limiters with separate stores independent', async () => {
+    // The lock is keyed on the store because the store is the scope the
+    // counter lives in. Two limiters with their own stores share no state and
+    // must not queue behind one another.
+    const app = createServer();
+    const limiter = () =>
+      rateLimit({
+        window: 60_000,
+        max: 1,
+        store: memoryStore({ maxEntries: 10 }),
+        keyBy: () => 'same',
+      });
+    app.get('/a', (ctx) => ctx.text('a'), [limiter()]);
+    app.get('/b', (ctx) => ctx.text('b'), [limiter()]);
+
+    const [first, second] = await Promise.all([app.handle('/a'), app.handle('/b')]);
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+  });
+});
+
 describe('forwardedAddress', () => {
   const ctxWith = (headers: Record<string, string>): ServerContext =>
     ({ request: new Request('http://localhost/', { headers }) }) as ServerContext;

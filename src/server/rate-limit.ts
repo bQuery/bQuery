@@ -301,6 +301,37 @@ export const serializeByKey = (): (<T>(key: string, work: () => Promise<T>) => P
   };
 };
 
+/**
+ * The per-key lock for a store, shared by every limiter that writes to it.
+ *
+ * `serializeByKey` closes over its own chain map, so one chain per middleware
+ * instance means two limiters over the same store do not serialize against
+ * each other. That is not hypothetical: a login limiter and a global limiter
+ * both keyed on the client address, both on the app's shared store, let
+ * concurrent requests read the same counter and write the same increment —
+ * `max` becomes `max × instances` for anyone who opens parallel connections,
+ * which is the traffic shape a limiter exists to stop.
+ *
+ * Keyed on the store, not global, because the store *is* the scope the
+ * counter lives in: two limiters with separate stores share no state and must
+ * not queue behind one another. A `WeakMap` so a discarded store takes its
+ * chain with it.
+ *
+ * This closes the single-process case only, as `serializeByKey` documents. A
+ * limit shared across processes still needs a store with an atomic increment.
+ * @internal
+ */
+const storeLocks = new WeakMap<SessionStore, ReturnType<typeof serializeByKey>>();
+
+/** The lock for a store, created on first use. @internal */
+export const lockForStore = (store: SessionStore): ReturnType<typeof serializeByKey> => {
+  const existing = storeLocks.get(store);
+  if (existing) return existing;
+  const created = serializeByKey();
+  storeLocks.set(store, created);
+  return created;
+};
+
 /** Apply the `RateLimit-*` headers to a response, preserving its body. @internal */
 export const withRateLimitHeaders = (
   response: Response,
@@ -397,7 +428,7 @@ export const rateLimit = (options: RateLimitOptions): ServerMiddleware => {
   }
 
   const resolveKey = keyBy ?? ((ctx: ServerContext) => forwardedAddress(ctx, forwardedHeader));
-  const withKeyLock = serializeByKey();
+  const withKeyLock = lockForStore(store);
 
   return async (ctx, next) => {
     if (skip && (await skip(ctx))) return next();
