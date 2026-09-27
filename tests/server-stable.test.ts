@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, setSystemTime, spyOn } from 'bun:test';
 import {
   basicAuth,
   bearerAuth,
@@ -120,6 +120,64 @@ describe('server/memoryStore', () => {
     expect(await store.get('a')).toBeNull();
     expect(await store.get('b')).toEqual({ n: 2 });
     expect(await store.get('c')).toEqual({ n: 3 });
+  });
+
+  describe('expired-entry sweeping (#256)', () => {
+    afterEach(() => {
+      setSystemTime();
+    });
+
+    it('sweeps expired sessions on later writes, even if they are never read again', async () => {
+      const start = Date.now();
+      setSystemTime(start);
+      const store = memoryStore();
+      await store.set('abandoned', { n: 1 }, 1_000);
+
+      setSystemTime(start + 60_000);
+      const deleteSpy = spyOn(Map.prototype, 'delete');
+      try {
+        await store.set('fresh', { n: 2 }, 1_000);
+        expect(deleteSpy.mock.calls.some(([key]) => key === 'abandoned')).toBe(true);
+      } finally {
+        deleteSpy.mockRestore();
+      }
+      expect(await store.get('fresh')).toEqual({ n: 2 });
+    });
+
+    it('drops expired entries before evicting a live one to honour maxEntries', async () => {
+      const start = Date.now();
+      setSystemTime(start);
+      const store = memoryStore({ maxEntries: 2 });
+      await store.set('live', { n: 1 }, 3_600_000);
+      await store.set('expiring', { n: 2 }, 1_000);
+
+      setSystemTime(start + 5_000);
+      await store.set('new', { n: 3 }, 3_600_000);
+
+      expect(await store.get('live')).toEqual({ n: 1 });
+      expect(await store.get('new')).toEqual({ n: 3 });
+    });
+  });
+
+  it('evicts the least recently touched entry beyond maxEntries (#256)', async () => {
+    const store = memoryStore({ maxEntries: 2 });
+    await store.set('a', { n: 1 });
+    await store.set('b', { n: 2 });
+    await store.touch?.('a');
+    await store.set('c', { n: 3 });
+    expect(await store.get('a')).toEqual({ n: 1 });
+    expect(await store.get('b')).toBeNull();
+    expect(await store.get('c')).toEqual({ n: 3 });
+  });
+
+  it('treats a read as use when evicting beyond maxEntries (#256)', async () => {
+    const store = memoryStore({ maxEntries: 2 });
+    await store.set('a', { n: 1 });
+    await store.set('b', { n: 2 });
+    await store.get('a');
+    await store.set('c', { n: 3 });
+    expect(await store.get('a')).toEqual({ n: 1 });
+    expect(await store.get('b')).toBeNull();
   });
 
   it('returns a copy, not a live reference', async () => {
