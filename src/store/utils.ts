@@ -72,6 +72,10 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === null || b === null) return false;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
 
+  // A `Date`, `Map` or `Set` has no own enumerable keys, so without this a
+  // kind mismatch fell through to the key comparison and equalled `{}`.
+  if (Object.prototype.toString.call(a) !== Object.prototype.toString.call(b)) return false;
+
   if (a instanceof Date && b instanceof Date) {
     return a.getTime() === b.getTime();
   }

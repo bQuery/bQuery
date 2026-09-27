@@ -145,6 +145,14 @@ describe('store/deepEqual', () => {
     expect(deepEqual({}, null)).toBe(false);
   });
 
+  it('treats values of different built-in kinds as unequal (#246)', () => {
+    expect(deepEqual(new Date(0), {})).toBe(false);
+    expect(deepEqual({}, new Date(0))).toBe(false);
+    expect(deepEqual(new Map([['a', 1]]), {})).toBe(false);
+    expect(deepEqual(new Set([1]), [])).toBe(false);
+    expect(deepEqual({}, [])).toBe(false);
+  });
+
   it('compares Dates by timestamp', () => {
     expect(deepEqual(new Date(0), new Date(0))).toBe(true);
     expect(deepEqual(new Date(0), new Date(1))).toBe(false);
