@@ -505,7 +505,7 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     // comparison below — they have no own enumerable keys, so all of them
     // compared equal to `{}` and to each other.
     if (Array.isArray(left) !== Array.isArray(right)) return false;
-    if (objectTag(left) !== objectTag(right)) return false;
+    if (objectTag(left) !== objectTag(right as object)) return false;
 
     const leftObject = left as object;
     const rightObject = right as object;
