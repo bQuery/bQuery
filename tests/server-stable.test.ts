@@ -533,7 +533,7 @@ describe('server/csrf bound to the session', () => {
     expect(getSetCookies(res)).toEqual([]);
   });
 
-  it('keeps the token valid across $regenerate()', async () => {
+  it('rotates the token on $regenerate() so a fixated session cannot carry it over', async () => {
     const app = appWithSession();
     const { token, cookie } = await mint(app);
 
@@ -546,12 +546,26 @@ describe('server/csrf bound to the session', () => {
     const rotated = cookiePair(login, 'bq.sid');
     expect(rotated).not.toBe(cookie);
 
-    const res = await app.handle({
+    // The pre-login token (known to whoever planted the session) is dead.
+    const stale = await app.handle({
       url: '/x',
       method: 'POST',
       headers: { cookie: rotated, 'x-csrf-token': token },
     });
-    expect(res.status).toBe(200);
+    expect(stale.status).toBe(403);
+
+    // A page rendered after login hands out a working token.
+    const fresh = await mint(app, rotated);
+    expect(fresh.token).not.toBe(token);
+    const ok = await app.handle({
+      url: '/x',
+      method: 'POST',
+      headers: {
+        cookie: fresh.res.headers.get('set-cookie') ? cookiePair(fresh.res, 'bq.sid') : rotated,
+        'x-csrf-token': fresh.token,
+      },
+    });
+    expect(ok.status).toBe(200);
   });
 
   it('rejects unsafe requests in a session that never minted a token', async () => {

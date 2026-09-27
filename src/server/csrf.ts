@@ -56,6 +56,8 @@ export interface CsrfOptions {
    * binds tokens to the session, which the cookie cannot do. The secret is
    * only written to the session once {@link csrfToken} is called, so
    * anonymous requests that never render a form do not create sessions.
+   * `$regenerate()` (e.g. on login) invalidates the secret; pages rendered
+   * afterwards receive a fresh token.
    * Default `true`; set `false` to keep the cookie-based signed double-submit.
    */
   bindToSession?: boolean;
@@ -199,15 +201,28 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
   return async (ctx: ServerContext, next) => {
     const session = signed && bindToSession ? ctx.session : undefined;
     if (session) {
+      // The secret is stored together with the session id it was minted for.
+      // `$regenerate()` keeps the payload but changes the id, so a secret from
+      // before a login no longer matches afterwards: otherwise an attacker who
+      // planted a session cookie (fixation) would already know the CSRF secret
+      // of the session the victim logs into.
       const readSecret = (): string | null => {
-        const value = session[CSRF_SESSION_FIELD];
-        return typeof value === 'string' && value.length > 0 ? value : null;
+        const value = session[CSRF_SESSION_FIELD] as
+          { secret?: unknown; sid?: unknown } | undefined;
+        if (!value || typeof value !== 'object') return null;
+        const { secret, sid } = value;
+        return typeof secret === 'string' && secret.length > 0 && sid === session.$id
+          ? secret
+          : null;
       };
       (ctx.state as Record<PropertyKey, unknown>)[CSRF_TOKEN_KEY] = (): string => {
         let secret = readSecret();
         if (secret === null) {
           secret = randomToken();
-          session[CSRF_SESSION_FIELD] = secret;
+          // The first write assigns an id to a brand-new session; record the
+          // secret against that id with the second.
+          session[CSRF_SESSION_FIELD] = { secret, sid: null };
+          session[CSRF_SESSION_FIELD] = { secret, sid: session.$id };
         }
         return secret;
       };
