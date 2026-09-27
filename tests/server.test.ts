@@ -629,6 +629,22 @@ describe('server/createServer', () => {
     expect(await response.text()).toBe('Not Found');
   });
 
+  it('matches static segments containing characters the URL parser encodes (#248)', async () => {
+    const app = createServer();
+    app.get('/über', (ctx) => ctx.text('umlaut'));
+    app.get('/a b/:id', (ctx) => ctx.text(`space:${ctx.params.id}`));
+    app.get('/emoji/🚀', (ctx) => ctx.text('rocket'));
+
+    expect(await (await app.handle(new Request('http://localhost/über'))).text()).toBe('umlaut');
+    // Escapes keep the case the client sent; lower-case hex must match too.
+    expect(await (await app.handle('/%c3%bcber')).text()).toBe('umlaut');
+    expect(await (await app.handle('/a%20b/J%C3%BCrgen')).text()).toBe('space:Jürgen');
+    expect(await (await app.handle(new Request('http://localhost/emoji/🚀'))).text()).toBe(
+      'rocket'
+    );
+    expect((await app.handle('/uber')).status).toBe(404);
+  });
+
   it('escapes unsafe characters in json responses', async () => {
     const app = createServer();
     app.get('/json', (ctx) => ctx.json({ html: '<script>alert(1)</script>' }));
