@@ -475,6 +475,99 @@ describe('server/csrf', () => {
   });
 });
 
+describe('server/csrf bound to the session', () => {
+  const appWithSession = (csrfOptions: Parameters<typeof csrf>[0] = { secret: SECRET }) => {
+    const app = createServer();
+    app.use(session({ secret: SECRET, store: memoryStore(), cookie: { secure: false } }));
+    app.use(csrf(csrfOptions));
+    app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+    app.get('/plain', (ctx) => ctx.text('no form here'));
+    app.post('/login', (ctx) => {
+      ctx.session!.$regenerate();
+      ctx.session!.user = 'ada';
+      return ctx.json({ ok: true });
+    });
+    app.post('/x', (ctx) => ctx.json({ ok: true }));
+    return app;
+  };
+
+  const mint = async (app: ReturnType<typeof createServer>, cookie?: string) => {
+    const res = await app.handle({ url: '/token', headers: cookie ? { cookie } : {} });
+    const { token } = (await res.json()) as { token: string };
+    return { token, cookie: cookie ?? cookiePair(res, 'bq.sid'), res };
+  };
+
+  it('keeps the secret in the session instead of a cookie', async () => {
+    const app = appWithSession();
+    const { token, cookie, res } = await mint(app);
+
+    expect(getSetCookies(res).some((c) => c.startsWith('bq.csrf='))).toBe(false);
+    const ok = await app.handle({
+      url: '/x',
+      method: 'POST',
+      headers: { cookie, 'x-csrf-token': token },
+    });
+    expect(ok.status).toBe(200);
+  });
+
+  it('rejects a valid token minted for another session (cookie injection)', async () => {
+    const app = appWithSession();
+    const attacker = await mint(app);
+    const victim = await mint(app);
+
+    // Planting a CSRF cookie no longer matters; only the session is consulted.
+    const res = await app.handle({
+      url: '/x',
+      method: 'POST',
+      headers: {
+        cookie: `${victim.cookie}; bq.csrf=${attacker.token}`,
+        'x-csrf-token': attacker.token,
+      },
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('does not create a session for requests that never ask for a token', async () => {
+    const app = appWithSession();
+    const res = await app.handle('/plain');
+    expect(getSetCookies(res)).toEqual([]);
+  });
+
+  it('keeps the token valid across $regenerate()', async () => {
+    const app = appWithSession();
+    const { token, cookie } = await mint(app);
+
+    const login = await app.handle({
+      url: '/login',
+      method: 'POST',
+      headers: { cookie, 'x-csrf-token': token },
+    });
+    expect(login.status).toBe(200);
+    const rotated = cookiePair(login, 'bq.sid');
+    expect(rotated).not.toBe(cookie);
+
+    const res = await app.handle({
+      url: '/x',
+      method: 'POST',
+      headers: { cookie: rotated, 'x-csrf-token': token },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects unsafe requests in a session that never minted a token', async () => {
+    const app = appWithSession();
+    const res = await app.handle({ url: '/x', method: 'POST', headers: { 'x-csrf-token': 'x' } });
+    expect(res.status).toBe(403);
+  });
+
+  it('can opt out with bindToSession: false', async () => {
+    const app = appWithSession({ secret: SECRET, bindToSession: false });
+    const res = await app.handle('/token');
+    expect(() => cookiePair(res, 'bq.csrf')).not.toThrow();
+    expect(getSetCookies(res).some((c) => c.startsWith('bq.sid='))).toBe(false);
+  });
+});
+
 describe('server/guard', () => {
   it('allows when the predicate is truthy', async () => {
     const app = createServer();

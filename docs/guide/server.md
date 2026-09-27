@@ -330,7 +330,14 @@ const redisStore = (client): SessionStore => ({
 
 ### CSRF
 
-`csrf(options)` enforces the OWASP double-submit-cookie pattern. Safe requests (GET/HEAD/OPTIONS) mint a per-client secret cookie and expose the matching token via `csrfToken(ctx)`; state-changing requests must echo that token back in the `x-csrf-token` header (or a `_csrf` body field) or are rejected with `403`. Provide a `secret` to upgrade to **signed** double-submit (defends against sibling-subdomain cookie injection).
+`csrf(options)` enforces the OWASP double-submit-cookie pattern. Safe requests (GET/HEAD/OPTIONS) mint a per-client secret cookie and expose the matching token via `csrfToken(ctx)`; state-changing requests must echo that token back in the `x-csrf-token` header (or a `_csrf` body field) or are rejected with `403`. Provide a `secret` to upgrade to **signed** double-submit.
+
+Signing alone does not stop cookie injection: someone who can set cookies for your users (a sibling subdomain, or a network attacker for a non-`__Host-` cookie) can plant the secret from a validly signed pair minted for themselves. So in signed mode, when `session()` runs **before** `csrf()`, the secret is kept in the server-side session instead of a cookie (synchronizer token): tokens are bound to the session, survive `$regenerate()`, and no CSRF cookie is set. The secret is only written to the session once `csrfToken(ctx)` is called, so requests that never render a form do not create sessions. Pass `bindToSession: false` to keep the cookie-based behaviour. Without a session, consider `cookieName: '__Host-bq.csrf'` so subdomains cannot overwrite the cookie.
+
+```ts
+app.use(session({ secret: process.env.SESSION_SECRET! }));
+app.use(csrf({ secret: process.env.CSRF_SECRET! })); // token bound to the session
+```
 
 ```ts
 import { createServer, csrf, csrfToken } from '@bquery/bquery/server';
