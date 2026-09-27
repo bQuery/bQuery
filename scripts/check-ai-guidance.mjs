@@ -23,7 +23,17 @@ if (!version || !nodeEngine || !bunEngine) {
   process.exit(1);
 }
 
+// SECURITY.md promises fixes for "the latest minor release line", so its
+// table has to move with every minor release — it was left on 1.14.x while
+// 1.17.0 shipped (#258).
+const [major, minor] = version.split('.');
+const supportedLine = `${major}.${minor}`;
+
 const checks = [
+  {
+    filePath: 'SECURITY.md',
+    snippets: [`| ${supportedLine}.x `, `| < ${supportedLine}.0 `],
+  },
   {
     filePath: 'AGENT.md',
     snippets: [
