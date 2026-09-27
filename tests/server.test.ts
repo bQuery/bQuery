@@ -698,7 +698,7 @@ describe('server/createServer', () => {
     }
   });
 
-  it('stops a node server whose signal aborts while it is still binding (#251)', async () => {
+  it('rejects and closes a node server whose signal aborts while it is still binding (#251)', async () => {
     const app = createServer();
     app.get('/health', (ctx) => ctx.text('ok'));
     const controller = new AbortController();
@@ -709,10 +709,9 @@ describe('server/createServer', () => {
       runtime: 'node',
       signal: controller.signal,
     });
-    controller.abort();
-    const handle = await pending;
+    controller.abort(new Error('cancelled while binding'));
 
-    await expect(fetch(new URL('/health', handle.url))).rejects.toThrow();
+    await expect(pending).rejects.toThrow('cancelled while binding');
   });
 
   it.skipIf(!hasIpv6Loopback)('returns a valid URL for IPv6 node listen addresses', async () => {

@@ -1288,8 +1288,13 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
             resolve();
           });
         });
-        // The signal can abort while the socket is still binding; `onAbort`
-        // runs the teardown immediately in that case instead of never.
+        // The signal can abort while the socket is still binding. Tear down and
+        // reject like the pre-aborted case instead of handing back a handle to
+        // an already-closed server (bogus url, close() rejecting).
+        if (listenOptions.signal?.aborted) {
+          await new Promise<void>((resolve) => server.close(() => resolve()));
+          listenOptions.signal.throwIfAborted();
+        }
         onAbort(listenOptions.signal, () => server.close());
         const address = server.address();
         const resolvedAddress =
