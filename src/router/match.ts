@@ -107,23 +107,43 @@ const encodeRoutePathStatics = (path: string): string => {
       continue;
     }
 
-    const codePoint = path.codePointAt(i) as number;
-    const char = String.fromCodePoint(codePoint);
-    encoded += PATH_ENCODED_CHAR.test(char) ? encodeURIComponent(char) : char;
-    i += char.length;
+    const staticEnd = findStaticEnd(path, i);
+    encoded += normalizePercentEncoding(path.slice(i, staticEnd));
+    i = staticEnd;
   }
 
   encodedRoutePathCache.set(path, encoded);
   return encoded;
 };
 
+/** Index of the next param descriptor at or after `startIndex` (or the end). */
+const findStaticEnd = (path: string, startIndex: number): number => {
+  let end = startIndex + 1;
+  while (end < path.length && !(path[end] === ':' && isParamStart(path[end + 1]))) {
+    end++;
+  }
+  return end;
+};
+
 /**
- * Upper-cases the hex digits of every percent-escape, so `%c3%bc` (kept as
- * typed by the URL parser) compares equal to the `%C3%BC` that
- * `encodeURIComponent` produces for route statics.
+ * Brings a path into the canonical form the URL parser produces: characters
+ * from the path percent-encode set are encoded, and the hex digits of every
+ * percent-escape are upper-cased so `%c3%bc` compares equal to `%C3%BC`.
+ * Already-encoded input passes through unchanged (`%` itself is not encoded),
+ * so this accepts both raw paths (e.g. from named-route resolution or hash
+ * mode) and `location.pathname`.
  */
-const normalizePercentEncoding = (path: string): string =>
-  path.includes('%') ? path.replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase()) : path;
+const normalizePercentEncoding = (path: string): string => {
+  let result = '';
+  for (let i = 0; i < path.length;) {
+    const char = String.fromCodePoint(path.codePointAt(i) as number);
+    result += PATH_ENCODED_CHAR.test(char) ? encodeURIComponent(char) : char;
+    i += char.length;
+  }
+  return result.includes('%')
+    ? result.replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase())
+    : result;
+};
 
 /**
  * Decodes a captured param. Matching runs on the encoded pathname, so a param

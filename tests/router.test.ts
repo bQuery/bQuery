@@ -2056,6 +2056,21 @@ describe('Router', () => {
       expect(currentRoute.value.params).toEqual({ id: '7' });
     });
 
+    it('should match encoded static routes from raw paths and lower-case route escapes (#247)', () => {
+      const routes = [
+        { path: '/über/:id', name: 'uber', component: () => null },
+        { path: '/caf%c3%a9', component: () => null },
+      ];
+
+      // Named-route resolution builds the path from raw route statics.
+      expect(matchRoute('/über/7', routes)?.matched.path).toBe('/über/:id');
+      expect(matchRoute('/%C3%BCber/7', routes)?.params).toEqual({ id: '7' });
+
+      // Escapes typed in lower case inside a route still match.
+      expect(matchRoute('/caf%C3%A9', routes)?.matched.path).toBe('/caf%c3%a9');
+      expect(matchRoute('/café', routes)?.matched.path).toBe('/caf%c3%a9');
+    });
+
     it('should match params with \\d+ constraint', async () => {
       router = createRouter({
         routes: [
