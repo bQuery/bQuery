@@ -242,8 +242,11 @@ describe('security/trusted-types policy', () => {
     try {
       const value = mod.trustedHtmlForSink('<img src=x onerror=alert(1)>ok');
       // The policy's createHTML ran (its sanitizer stripped the handler) and
-      // produced a branded value rather than a bare string.
-      expect(created.length).toBe(1);
+      // produced a branded value rather than a bare string. The DOM backend
+      // also routes its own `DOMParser` input through the policy (#253), so
+      // the sanitized result is the last entry rather than the only one.
+      expect(created.length).toBeGreaterThanOrEqual(1);
+      expect(created[created.length - 1]).not.toContain('onerror');
       expect(String(value)).not.toContain('onerror');
       expect((value as unknown as { __brand?: string }).__brand).toBe('TrustedHTML');
     } finally {
@@ -252,6 +255,10 @@ describe('security/trusted-types policy', () => {
       } else {
         (window as unknown as { trustedTypes: unknown }).trustedTypes = original;
       }
+      // The sanitizer's parse step goes through the shared module instance,
+      // which cached the mock policy; do not leak it into later tests.
+      const { __resetTrustedTypesPolicy } = await import('../src/security/trusted-types');
+      __resetTrustedTypesPolicy();
     }
   });
 

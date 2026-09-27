@@ -104,7 +104,10 @@ export const trustedHtmlForSink = (rawHtml: string): string =>
  * again: output bQuery already sanitized with a caller-specific allow list
  * (component render output keeps `<slot>`, `part`, form attributes), or an
  * author-controlled template (`createTemplate()`), which the documented
- * threat model treats as trusted.
+ * threat model treats as trusted. The DOM sanitizer backend also uses it to
+ * hand its input to `DOMParser.parseFromString` (itself a Trusted Types sink),
+ * since the parsed document is inert and only reaches callers after the
+ * allow lists have run.
  *
  * Assigning such a string straight to `innerHTML` throws under an enforced
  * `require-trusted-types-for 'script'` CSP, while routing it through

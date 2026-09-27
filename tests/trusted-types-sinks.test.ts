@@ -20,6 +20,9 @@ type Branded = { __brand: 'TrustedHTML'; toString(): string };
 
 const win = window as unknown as { trustedTypes?: unknown };
 const patched: Array<{ proto: object; descriptor: PropertyDescriptor }> = [];
+const DOMParserProto = (window as unknown as { DOMParser: { prototype: DOMParser } }).DOMParser
+  .prototype;
+const originalParseFromString = DOMParserProto.parseFromString;
 let originalTrustedTypes: unknown;
 let policyCalls: string[];
 
@@ -53,9 +56,22 @@ beforeEach(() => {
   __resetTrustedTypesPolicy();
   enforce((window as unknown as { Element: { prototype: object } }).Element.prototype);
   enforce((window as unknown as { ShadowRoot: { prototype: object } }).ShadowRoot.prototype);
+  // `DOMParser.parseFromString` is a Trusted Types sink too; the DOM sanitizer
+  // backend parses through it.
+  DOMParserProto.parseFromString = function (
+    this: DOMParser,
+    value: unknown,
+    type: DOMParserSupportedType
+  ): Document {
+    if ((value as Branded | null)?.__brand !== 'TrustedHTML') {
+      throw new TypeError("This document requires 'TrustedHTML' assignment.");
+    }
+    return originalParseFromString.call(this, String(value), type);
+  } as DOMParser['parseFromString'];
 });
 
 afterEach(() => {
+  DOMParserProto.parseFromString = originalParseFromString;
   for (const { proto, descriptor } of patched.splice(0)) {
     Object.defineProperty(proto, 'innerHTML', descriptor);
   }
@@ -85,6 +101,13 @@ describe('Trusted Types enforcement (#253)', () => {
     } finally {
       el.remove();
     }
+  });
+
+  it('keeps sanitizing untrusted HTML when DOMParser is enforced too', () => {
+    const host = document.createElement('div');
+    host.innerHTML = trustedHtmlForSink('<b>ok</b><img src=x onerror=alert(1)>');
+    expect(host.querySelector('b')?.textContent).toBe('ok');
+    expect(host.querySelector('img')?.hasAttribute('onerror')).toBe(false);
   });
 
   it('lets createTemplate() parse author templates', () => {
