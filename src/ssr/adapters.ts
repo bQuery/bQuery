@@ -100,8 +100,14 @@ export interface NodeServerResponse {
   setHeader(name: string, value: string | number | readonly string[]): void;
   write(chunk: Uint8Array | string): boolean;
   end(chunk?: Uint8Array | string): void;
-  once?(event: 'drain' | 'error', listener: (error?: unknown) => void): void;
-  on?(event: 'drain' | 'error', listener: (error?: unknown) => void): void;
+  once?(event: 'drain' | 'error' | 'close', listener: (error?: unknown) => void): void;
+  on?(event: 'drain' | 'error' | 'close', listener: (error?: unknown) => void): void;
+  removeListener?(event: 'drain' | 'error' | 'close', listener: (error?: unknown) => void): void;
+  /** Whether the status line and headers were already sent. */
+  headersSent?: boolean;
+  /** Whether every chunk was flushed to the socket after `end()`. */
+  writableFinished?: boolean;
+  destroy?(error?: Error): void;
 }
 
 /** Optional hardening settings for the `node:http` adapter. */
@@ -196,7 +202,8 @@ const buildNodeUrl = (req: NodeIncomingMessage, protocol: string): URL => {
 
 const buildRequestFromNode = async (
   req: NodeIncomingMessage,
-  options: NodeHandlerOptions = {}
+  options: NodeHandlerOptions = {},
+  signal?: AbortSignal
 ): Promise<Request> => {
   // Only honour `x-forwarded-proto` when it advertises a known protocol.
   // This adapter assumes deployment behind a trusted reverse proxy; callers
@@ -228,6 +235,9 @@ const buildRequestFromNode = async (
     method: upperMethod,
     headers,
   };
+  // Lets handlers (and `ctx.sse()` / streaming renders) notice that the
+  // client went away and stop producing work nobody will receive.
+  if (signal) init.signal = signal;
 
   if (shouldReadNodeBody(upperMethod)) {
     init.body = await readNodeBody(req, options.maxBodyBytes);
@@ -249,24 +259,93 @@ const getSetCookieHeaderValues = (headers: Headers): string[] => {
   return fallback ? [fallback] : [];
 };
 
-const waitForNodeDrain = (res: NodeServerResponse): Promise<void> =>
+/**
+ * Wait for `drain` — or for the client to disconnect. A closed socket never
+ * drains, so waiting for `drain` alone parked the write loop forever and the
+ * response stream was never cancelled (an SSE iterator kept running, and its
+ * subscriptions leaked, for every client that went away).
+ */
+const waitForNodeDrain = (res: NodeServerResponse, signal: AbortSignal): Promise<void> =>
   new Promise((resolve, reject) => {
     const once = typeof res.once === 'function' ? res.once.bind(res) : undefined;
     const on = typeof res.on === 'function' ? res.on.bind(res) : undefined;
     const subscribe = once ?? on;
-    if (!subscribe) {
+    if (!subscribe || signal.aborted) {
       resolve();
       return;
     }
-    subscribe('drain', () => resolve());
-    subscribe('error', (error?: unknown) => {
+    const cleanup = (): void => {
+      res.removeListener?.('drain', onDrain);
+      res.removeListener?.('error', onError);
+      signal.removeEventListener('abort', onAbort);
+    };
+    const onDrain = (): void => {
+      cleanup();
+      resolve();
+    };
+    const onAbort = (): void => {
+      cleanup();
+      resolve();
+    };
+    const onError = (error?: unknown): void => {
+      cleanup();
       reject(
         error instanceof Error ? error : new Error('Node response stream errored while draining.')
       );
-    });
+    };
+    subscribe('drain', onDrain);
+    subscribe('error', onError);
+    signal.addEventListener('abort', onAbort, { once: true });
   });
 
-const writeResponseToNode = async (response: Response, res: NodeServerResponse): Promise<void> => {
+/**
+ * An `AbortSignal` that fires when the client disconnects before the
+ * response finished.
+ */
+const trackNodeDisconnect = (res: NodeServerResponse): AbortSignal => {
+  const controller = new AbortController();
+  const subscribe =
+    typeof res.once === 'function'
+      ? res.once.bind(res)
+      : typeof res.on === 'function'
+        ? res.on.bind(res)
+        : undefined;
+  subscribe?.('close', () => {
+    if (res.writableFinished !== true) {
+      controller.abort(new DOMException('The client disconnected.', 'AbortError'));
+    }
+  });
+  return controller.signal;
+};
+
+/**
+ * Last-resort handling for an error escaping the handler. The adapter's
+ * promise is returned to `node:http`, which never awaits it, so a rejection
+ * became an unhandled rejection — and Node terminates the process on those
+ * by default, turning one throwing request into an outage.
+ */
+const failNodeResponse = (res: NodeServerResponse, error: unknown): void => {
+  console.error('bQuery ssr: unhandled error in Node request handler', error);
+  try {
+    if (res.headersSent) {
+      // Too late for a status code; cut the connection so the client does not
+      // mistake a truncated body for a complete one.
+      res.destroy?.(error instanceof Error ? error : undefined);
+      return;
+    }
+    res.statusCode = 500;
+    res.setHeader('content-type', 'text/plain; charset=utf-8');
+    res.end('Internal Server Error');
+  } catch {
+    res.destroy?.();
+  }
+};
+
+const writeResponseToNode = async (
+  response: Response,
+  res: NodeServerResponse,
+  signal: AbortSignal = new AbortController().signal
+): Promise<void> => {
   res.statusCode = response.status;
   const setCookies = getSetCookieHeaderValues(response.headers);
   if (setCookies.length > 0) {
@@ -283,14 +362,35 @@ const writeResponseToNode = async (response: Response, res: NodeServerResponse):
   }
 
   const reader = response.body.getReader();
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    if (value && !res.write(value)) {
-      await waitForNodeDrain(res);
-    }
+  // Cancelling the reader resolves a pending `read()` and propagates to the
+  // body's source, which is how a streamed render or SSE iterator learns to
+  // stop.
+  const cancel = (): void => {
+    reader.cancel(signal.reason).catch(() => undefined);
+  };
+  if (signal.aborted) {
+    cancel();
+    return;
   }
-  res.end();
+  signal.addEventListener('abort', cancel, { once: true });
+  let completed = false;
+  try {
+    while (!signal.aborted) {
+      const { value, done } = await reader.read();
+      if (done) {
+        completed = true;
+        break;
+      }
+      if (value && !res.write(value)) {
+        await waitForNodeDrain(res, signal);
+      }
+    }
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    // A write error (or a disconnect) left the source mid-stream; release it.
+    if (!completed) cancel();
+  }
+  if (completed) res.end();
 };
 
 /**
@@ -313,18 +413,25 @@ export const createNodeHandler = (
   options: NodeHandlerOptions = {}
 ): ((req: NodeIncomingMessage, res: NodeServerResponse) => Promise<void>) => {
   return async (req, res) => {
-    let request: Request;
+    const signal = trackNodeDisconnect(res);
     try {
-      request = await buildRequestFromNode(req, options);
-    } catch (error) {
-      if (error instanceof NodeRequestLimitError) {
-        await writeResponseToNode(new Response(error.message, { status: 413 }), res);
-        return;
+      let request: Request;
+      try {
+        request = await buildRequestFromNode(req, options, signal);
+      } catch (error) {
+        if (error instanceof NodeRequestLimitError) {
+          await writeResponseToNode(new Response(error.message, { status: 413 }), res, signal);
+          return;
+        }
+        throw error;
       }
-      throw error;
+      const response = await Promise.resolve(handler(request));
+      await writeResponseToNode(response, res, signal);
+    } catch (error) {
+      // Never let the returned promise reject: `node:http` ignores it, so a
+      // rejection is an unhandled rejection that terminates the process.
+      failNodeResponse(res, error);
     }
-    const response = await Promise.resolve(handler(request));
-    await writeResponseToNode(response, res);
   };
 };
 
