@@ -561,6 +561,19 @@ describe('core/BQueryElement new methods', () => {
     expect(div.style.display).toBe('none');
   });
 
+  it('toggle hides a [hidden] element whose inline display overrides it', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.hidden = true;
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+    wrapped.toggle();
+    expect(div.style.display).toBe('flex');
+    expect(div.hasAttribute('hidden')).toBe(false);
+  });
+
   it('hide/show restores the previous inline display (#250)', () => {
     const div = document.createElement('div') as HTMLElement;
     div.style.display = 'flex';

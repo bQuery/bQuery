@@ -12,11 +12,14 @@ const displayBeforeHide = new WeakMap<Element, string>();
 
 /**
  * Whether an element is hidden by one of the mechanisms `show()` undoes:
- * the `hidden` attribute or an inline `display: none`.
+ * an inline `display: none`, or the `hidden` attribute when no inline
+ * `display` overrides it (an inline `display: flex` beats `[hidden]`).
  * @internal
  */
-export const isElementHidden = (el: Element): boolean =>
-  el.hasAttribute('hidden') || (el as HTMLElement).style?.display === 'none';
+export const isElementHidden = (el: Element): boolean => {
+  const display = (el as HTMLElement).style?.display;
+  return display === 'none' || (!display && el.hasAttribute('hidden'));
+};
 
 /**
  * Hide an element with an inline `display: none`, remembering the inline
