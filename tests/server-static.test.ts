@@ -46,6 +46,10 @@ beforeAll(async () => {
   // A symlink *inside* the root pointing outside it: the lexical containment
   // check passes, so only a realpath check keeps it from being served.
   await symlink(join(outside, 'secret.txt'), join(root, 'link.txt'));
+  // Same escape through a precompressed sidecar of an in-root file.
+  await writeFile(join(root, 'linked-sidecar.js'), 'identity body');
+  await writeFile(join(root, 'linked-sidecar.js.gz'), 'gzip body');
+  await symlink(join(outside, 'secret.txt'), join(root, 'linked-sidecar.js.br'));
 });
 
 afterAll(async () => {
@@ -732,6 +736,26 @@ describe('server/serveStatic containment and caching', () => {
     const response = await appFor().handle('/link.txt');
     expect(response.status).toBe(403);
     expect(await response.text()).not.toContain('do not serve me');
+  });
+
+  it('never serves a precompressed sidecar that escapes the root', async () => {
+    const app = appFor({ precompressed: true });
+
+    const brOnly = await app.handle({
+      url: '/linked-sidecar.js',
+      headers: { 'accept-encoding': 'br' },
+    });
+    expect(brOnly.status).toBe(200);
+    expect(brOnly.headers.get('content-encoding')).toBeNull();
+    expect(await brOnly.text()).toBe('identity body');
+
+    // The next acceptable in-root sidecar is still used.
+    const withGzip = await app.handle({
+      url: '/linked-sidecar.js',
+      headers: { 'accept-encoding': 'br, gzip' },
+    });
+    expect(withGzip.headers.get('content-encoding')).toBe('gzip');
+    expect(await withGzip.text()).toBe('gzip body');
   });
 
   it('keeps Content-Range on a 416', async () => {
