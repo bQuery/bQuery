@@ -276,7 +276,7 @@ As of 1.15.0 the server module ships first-party, secure-by-default primitives f
 
 ### Sessions
 
-`session(options)` returns middleware that loads, exposes, and persists a request-scoped session. The session id lives in an **HMAC-signed cookie** (tampered cookies are ignored); the payload lives in a **pluggable store** (default: process-local `memoryStore()`), so the cookie never carries session data.
+`session(options)` returns middleware that loads, exposes, and persists a request-scoped session. The session id lives in an **HMAC-signed cookie** (tampered cookies are ignored); the payload lives in a **pluggable store** (default: process-local `memoryStore()`, capped at 10 000 sessions with least-recently-used eviction), so the cookie never carries session data. `memoryStore()` also sweeps expired sessions during writes, so abandoned sessions do not accumulate; for more than one process, plug in a shared store.
 
 ```ts
 import { createServer, session, memoryStore } from '@bquery/bquery/server';

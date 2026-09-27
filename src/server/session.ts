@@ -42,8 +42,9 @@ export interface MemoryStoreOptions {
   /** Default time-to-live in milliseconds. Omit for non-expiring entries. */
   ttlMs?: number;
   /**
-   * Maximum number of stored sessions. When exceeded, the oldest entries are
-   * evicted (insertion order). Omit for unbounded growth.
+   * Maximum number of stored sessions. When exceeded, expired entries are
+   * swept first, then the least recently written or touched entries are
+   * evicted. Omit for unbounded growth.
    */
   maxEntries?: number;
 }
@@ -55,7 +56,10 @@ export interface SessionOptions {
    * secrets: signing always uses the first, verification accepts any.
    */
   secret: string | readonly string[];
-  /** Session store. Defaults to a process-local {@link memoryStore}. */
+  /**
+   * Session store. Defaults to a process-local {@link memoryStore} capped at
+   * 10 000 sessions (least recently used evicted first).
+   */
   store?: SessionStore;
   /** Cookie name. Default `'bq.sid'`. */
   cookieName?: string;
@@ -77,6 +81,18 @@ export interface SessionOptions {
 
 const DEFAULT_SESSION_COOKIE = 'bq.sid';
 const DEFAULT_SESSION_TTL_MS = 86_400_000;
+/**
+ * Cap for the default in-memory store, so a stream of one-off visitors cannot
+ * grow the process without bound. Mirrors the rate limiter's default cap.
+ */
+const DEFAULT_SESSION_MAX_ENTRIES = 10_000;
+
+/**
+ * How often {@link memoryStore} sweeps expired entries during writes.
+ * Expired entries used to be dropped only when their own id was read again,
+ * so sessions of clients that never came back stayed in memory forever.
+ */
+const MEMORY_STORE_SWEEP_INTERVAL_MS = 30_000;
 
 const normalizeSecrets = (secret: SessionOptions['secret']): string[] => {
   const secrets = (Array.isArray(secret) ? secret : [secret]).filter(
@@ -100,6 +116,13 @@ export const memoryStore = (options: MemoryStoreOptions = {}): SessionStore => {
     const ttl = ttlMs ?? options.ttlMs;
     return typeof ttl === 'number' && Number.isFinite(ttl) && ttl > 0 ? Date.now() + ttl : 0;
   };
+  let lastSweep = Date.now();
+  const sweepExpired = (): void => {
+    lastSweep = Date.now();
+    for (const [id, entry] of entries) {
+      if (!isLive(entry)) entries.delete(id);
+    }
+  };
 
   return {
     get(id) {
@@ -116,13 +139,19 @@ export const memoryStore = (options: MemoryStoreOptions = {}): SessionStore => {
     set(id, data, ttlMs) {
       entries.delete(id);
       entries.set(id, { data: { ...data }, expires: expiry(ttlMs) });
+      if (Date.now() - lastSweep >= MEMORY_STORE_SWEEP_INTERVAL_MS) {
+        sweepExpired();
+      }
       if (
         typeof options.maxEntries === 'number' &&
         options.maxEntries > 0 &&
         entries.size > options.maxEntries
       ) {
-        const oldest = entries.keys().next().value;
-        if (typeof oldest === 'string') {
+        // Drop dead entries before evicting a live session to make room.
+        sweepExpired();
+        while (entries.size > options.maxEntries) {
+          const oldest = entries.keys().next().value;
+          if (typeof oldest !== 'string') break;
           entries.delete(oldest);
         }
       }
@@ -134,6 +163,10 @@ export const memoryStore = (options: MemoryStoreOptions = {}): SessionStore => {
       const entry = entries.get(id);
       if (entry && isLive(entry)) {
         entry.expires = expiry(ttlMs);
+        // Re-insert so the map stays in recency order and `maxEntries`
+        // evicts the least recently used session, not an active one.
+        entries.delete(id);
+        entries.set(id, entry);
       }
     },
   };
@@ -296,7 +329,12 @@ const createSessionController = (
  */
 export const session = (options: SessionOptions): ServerMiddleware => {
   const secrets = normalizeSecrets(options.secret);
-  const store = options.store ?? memoryStore({ ttlMs: options.ttlMs ?? DEFAULT_SESSION_TTL_MS });
+  const store =
+    options.store ??
+    memoryStore({
+      ttlMs: options.ttlMs ?? DEFAULT_SESSION_TTL_MS,
+      maxEntries: DEFAULT_SESSION_MAX_ENTRIES,
+    });
   const cookieName = options.cookieName ?? DEFAULT_SESSION_COOKIE;
   const ttlMs = options.ttlMs ?? DEFAULT_SESSION_TTL_MS;
   const rolling = options.rolling ?? false;
