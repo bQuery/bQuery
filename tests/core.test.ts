@@ -1531,6 +1531,8 @@ describe('core/toCssPropertyName', () => {
     expect(toCssPropertyName('font-size')).toBe('font-size');
     expect(toCssPropertyName('WebkitTransition')).toBe('-webkit-transition');
     expect(toCssPropertyName('msTransform')).toBe('-ms-transform');
+    expect(toCssPropertyName('webkitTransition')).toBe('-webkit-transition');
+    expect(toCssPropertyName('Font-Size')).toBe('Font-Size');
     expect(toCssPropertyName('cssFloat')).toBe('float');
     expect(toCssPropertyName('--myVar')).toBe('--myVar');
   });

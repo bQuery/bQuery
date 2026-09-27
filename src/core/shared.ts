@@ -11,14 +11,17 @@ export type ElementList = Element[];
  * migration guide shows — was otherwise ignored without any error. Custom
  * properties (`--brand`) are case-sensitive and passed through untouched;
  * vendor prefixes follow the DOM spelling (`WebkitTransition`,
- * `msTransform` → `-webkit-transition`, `-ms-transform`).
+ * `webkitTransition`, `msTransform` → `-webkit-transition`, `-ms-transform`).
+ * Names that already contain a hyphen are passed through unchanged.
  * @internal
  */
 export const toCssPropertyName = (name: string): string => {
   if (name.startsWith('--')) return name;
   if (name === 'cssFloat') return 'float';
-  if (!/[A-Z]/.test(name)) return name;
-  const prefixed = /^ms[A-Z]/.test(name) ? `-${name}` : name;
+  // Already hyphenated (possibly upper-cased, which CSSOM lowercases itself)
+  // or plain lowercase: leave it for setProperty()/getPropertyValue().
+  if (name.includes('-') || !/[A-Z]/.test(name)) return name;
+  const prefixed = /^(?:ms|webkit|moz)[A-Z]/.test(name) ? `-${name}` : name;
   return prefixed.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
 };
 
