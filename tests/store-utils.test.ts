@@ -153,6 +153,12 @@ describe('store/deepEqual', () => {
     expect(deepEqual({}, [])).toBe(false);
   });
 
+  it('does not flag objects that deepClone flattens as nested mutations', () => {
+    const state = { filter: { pattern: /a/, url: new URL('https://example.com') } };
+    const before = deepClone(state);
+    expect(detectNestedMutations(before, state, new Map([['filter', state.filter]]))).toEqual([]);
+  });
+
   it('compares Dates by timestamp', () => {
     expect(deepEqual(new Date(0), new Date(0))).toBe(true);
     expect(deepEqual(new Date(0), new Date(1))).toBe(false);
