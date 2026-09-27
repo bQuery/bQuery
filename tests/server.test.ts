@@ -645,6 +645,14 @@ describe('server/createServer', () => {
     expect((await app.handle('/uber')).status).toBe(404);
   });
 
+  it('matches routes declared with lower-case percent-escapes', async () => {
+    const app = createServer();
+    app.get('/caf%c3%a9', (ctx) => ctx.text('cafe'));
+
+    expect(await (await app.handle('/caf%c3%a9')).text()).toBe('cafe');
+    expect(await (await app.handle('/caf%C3%A9')).text()).toBe('cafe');
+  });
+
   it('escapes unsafe characters in json responses', async () => {
     const app = createServer();
     app.get('/json', (ctx) => ctx.json({ html: '<script>alert(1)</script>' }));

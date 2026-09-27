@@ -166,7 +166,7 @@ const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'pat
       continue;
     }
 
-    source += escapeRegex(encodeStaticSegment(segment));
+    source += escapeRegex(normalizePercentEncoding(encodeStaticSegment(segment)));
   }
 
   source += '/?$';
