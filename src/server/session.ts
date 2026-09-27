@@ -43,8 +43,8 @@ export interface MemoryStoreOptions {
   ttlMs?: number;
   /**
    * Maximum number of stored sessions. When exceeded, expired entries are
-   * swept first, then the least recently written or touched entries are
-   * evicted. Omit for unbounded growth.
+   * swept first, then the least recently read, written, or touched entries
+   * are evicted. Omit for unbounded growth.
    */
   maxEntries?: number;
 }
@@ -117,10 +117,23 @@ export const memoryStore = (options: MemoryStoreOptions = {}): SessionStore => {
     return typeof ttl === 'number' && Number.isFinite(ttl) && ttl > 0 ? Date.now() + ttl : 0;
   };
   let lastSweep = Date.now();
+  // Lower bound on the earliest expiry in the map (Infinity when nothing can
+  // expire), so a sweep only walks the map when something may be dead.
+  let nextExpiry = Number.POSITIVE_INFINITY;
+  const noteExpiry = (expires: number): void => {
+    if (expires !== 0 && expires < nextExpiry) nextExpiry = expires;
+  };
   const sweepExpired = (): void => {
-    lastSweep = Date.now();
+    const now = Date.now();
+    lastSweep = now;
+    if (now < nextExpiry) return;
+    nextExpiry = Number.POSITIVE_INFINITY;
     for (const [id, entry] of entries) {
-      if (!isLive(entry)) entries.delete(id);
+      if (entry.expires !== 0 && entry.expires <= now) {
+        entries.delete(id);
+      } else {
+        noteExpiry(entry.expires);
+      }
     }
   };
 
@@ -134,11 +147,17 @@ export const memoryStore = (options: MemoryStoreOptions = {}): SessionStore => {
         entries.delete(id);
         return null;
       }
+      // Re-insert so the map stays in recency order and `maxEntries` evicts
+      // the least recently used session, not one that is still being read.
+      entries.delete(id);
+      entries.set(id, entry);
       return { ...entry.data };
     },
     set(id, data, ttlMs) {
+      const expires = expiry(ttlMs);
       entries.delete(id);
-      entries.set(id, { data: { ...data }, expires: expiry(ttlMs) });
+      entries.set(id, { data: { ...data }, expires });
+      noteExpiry(expires);
       if (Date.now() - lastSweep >= MEMORY_STORE_SWEEP_INTERVAL_MS) {
         sweepExpired();
       }
@@ -163,6 +182,7 @@ export const memoryStore = (options: MemoryStoreOptions = {}): SessionStore => {
       const entry = entries.get(id);
       if (entry && isLive(entry)) {
         entry.expires = expiry(ttlMs);
+        noteExpiry(entry.expires);
         // Re-insert so the map stays in recency order and `maxEntries`
         // evicts the least recently used session, not an active one.
         entries.delete(id);

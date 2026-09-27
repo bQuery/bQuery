@@ -170,6 +170,16 @@ describe('server/memoryStore', () => {
     expect(await store.get('c')).toEqual({ n: 3 });
   });
 
+  it('treats a read as use when evicting beyond maxEntries (#256)', async () => {
+    const store = memoryStore({ maxEntries: 2 });
+    await store.set('a', { n: 1 });
+    await store.set('b', { n: 2 });
+    await store.get('a');
+    await store.set('c', { n: 3 });
+    expect(await store.get('a')).toEqual({ n: 1 });
+    expect(await store.get('b')).toBeNull();
+  });
+
   it('returns a copy, not a live reference', async () => {
     const store = memoryStore();
     const data = { a: 1 };
