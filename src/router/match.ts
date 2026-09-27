@@ -78,6 +78,69 @@ const validateRoutePathPattern = (path: string): void => {
   validatedRoutePathCache.add(path);
 };
 
+/**
+ * Characters the WHATWG URL parser percent-encodes in a path: C0 controls,
+ * space, `"`, `#`, `<`, `>`, `?`, `` ` ``, `{`, `}`, DEL and everything
+ * outside ASCII. `location.pathname` always reports them encoded, so a route
+ * written as `/über` has to be compared as `/%C3%BCber`.
+ */
+const PATH_ENCODED_CHAR = /[\u0000-\u0020"#<>?`{}\u007F-\u{10FFFF}]/u;
+
+const encodedRoutePathCache = new Map<string, string>();
+
+/**
+ * Percent-encodes the static text of a route pattern the way the URL parser
+ * encodes a pathname, leaving params, their constraints and `*` untouched.
+ * Matching runs against the encoded pathname, so without this any route with
+ * a non-ASCII or otherwise encoded static character could never match.
+ */
+const encodeRoutePathStatics = (path: string): string => {
+  const cached = encodedRoutePathCache.get(path);
+  if (cached !== undefined) return cached;
+
+  let encoded = '';
+  for (let i = 0; i < path.length;) {
+    const param = readParamDescriptor(path, i);
+    if (param) {
+      encoded += path.slice(i, param.nextIndex);
+      i = param.nextIndex;
+      continue;
+    }
+
+    const codePoint = path.codePointAt(i) as number;
+    const char = String.fromCodePoint(codePoint);
+    encoded += PATH_ENCODED_CHAR.test(char) ? encodeURIComponent(char) : char;
+    i += char.length;
+  }
+
+  encodedRoutePathCache.set(path, encoded);
+  return encoded;
+};
+
+/**
+ * Upper-cases the hex digits of every percent-escape, so `%c3%bc` (kept as
+ * typed by the URL parser) compares equal to the `%C3%BC` that
+ * `encodeURIComponent` produces for route statics.
+ */
+const normalizePercentEncoding = (path: string): string =>
+  path.includes('%') ? path.replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase()) : path;
+
+/**
+ * Decodes a captured param. Matching runs on the encoded pathname, so a param
+ * must be decoded before it is exposed — `resolve()` encodes params, and
+ * `route.params` has to round-trip to the value that was passed in. A
+ * malformed escape (`%E0%A4%A`) is kept as-is rather than failing the whole
+ * navigation.
+ */
+const decodeParamValue = (value: string): string => {
+  if (!value.includes('%')) return value;
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
 const findSegmentBoundary = (value: string, startIndex: number): number => {
   const slashIndex = value.indexOf('/', startIndex);
   return slashIndex === -1 ? value.length : slashIndex;
@@ -230,7 +293,9 @@ const matchPathPattern = (routePath: string, actualPath: string): Record<string,
           };
 
       const paramMatch = iterateCandidateEnds((candidateEnd) => {
-        const candidateValue = actualPath.slice(pathIndex, candidateEnd);
+        // Constraints see the decoded value — the same one `resolve()`
+        // validates — so a constraint cannot pass there and fail here.
+        const candidateValue = decodeParamValue(actualPath.slice(pathIndex, candidateEnd));
 
         if (constraintRegex) {
           if (!constraintRegex.test(candidateValue)) {
@@ -279,9 +344,10 @@ export const matchRoute = (
   path: string,
   routes: RouteDefinition[]
 ): { matched: RouteDefinition; params: Record<string, string> } | null => {
+  const normalizedPath = normalizePercentEncoding(path);
   for (const route of routes) {
     validateRoutePathPattern(route.path);
-    const params = matchPathPattern(route.path, path);
+    const params = matchPathPattern(encodeRoutePathStatics(route.path), normalizedPath);
     if (params) {
       return { matched: route, params };
     }
