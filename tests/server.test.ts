@@ -686,6 +686,35 @@ describe('server/createServer', () => {
     }
   });
 
+  it('rejects listen() without binding when the signal is already aborted (#251)', async () => {
+    const app = createServer();
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled before start'));
+
+    for (const runtime of ['node', 'bun'] as const) {
+      await expect(
+        app.listen({ hostname: '127.0.0.1', port: 0, runtime, signal: controller.signal })
+      ).rejects.toThrow('cancelled before start');
+    }
+  });
+
+  it('stops a node server whose signal aborts while it is still binding (#251)', async () => {
+    const app = createServer();
+    app.get('/health', (ctx) => ctx.text('ok'));
+    const controller = new AbortController();
+
+    const pending = app.listen({
+      hostname: '127.0.0.1',
+      port: 0,
+      runtime: 'node',
+      signal: controller.signal,
+    });
+    controller.abort();
+    const handle = await pending;
+
+    await expect(fetch(new URL('/health', handle.url))).rejects.toThrow();
+  });
+
   it.skipIf(!hasIpv6Loopback)('returns a valid URL for IPv6 node listen addresses', async () => {
     const app = createServer();
     app.get('/health', (ctx) => ctx.text('ok'));
