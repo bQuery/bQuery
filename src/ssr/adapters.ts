@@ -108,6 +108,8 @@ export interface NodeServerResponse {
   /** Whether every chunk was flushed to the socket after `end()`. */
   writableFinished?: boolean;
   destroy?(error?: Error): void;
+  getHeaderNames?(): string[];
+  removeHeader?(name: string): void;
 }
 
 /** Optional hardening settings for the `node:http` adapter. */
@@ -324,7 +326,13 @@ const trackNodeDisconnect = (res: NodeServerResponse): AbortSignal => {
  * became an unhandled rejection — and Node terminates the process on those
  * by default, turning one throwing request into an outage.
  */
-const failNodeResponse = (res: NodeServerResponse, error: unknown): void => {
+const failNodeResponse = (res: NodeServerResponse, error: unknown, signal?: AbortSignal): void => {
+  if (signal?.aborted) {
+    // The client already went away; an abort surfacing from the handler is
+    // expected, not a server fault worth logging or answering.
+    res.destroy?.();
+    return;
+  }
   console.error('bQuery ssr: unhandled error in Node request handler', error);
   try {
     if (res.headersSent) {
@@ -332,6 +340,11 @@ const failNodeResponse = (res: NodeServerResponse, error: unknown): void => {
       // mistake a truncated body for a complete one.
       res.destroy?.(error instanceof Error ? error : undefined);
       return;
+    }
+    // Headers copied from the failed Response (set-cookie, cache-control,
+    // content-length, ...) must not leak onto the 500.
+    if (typeof res.getHeaderNames === 'function' && typeof res.removeHeader === 'function') {
+      for (const name of res.getHeaderNames()) res.removeHeader(name);
     }
     res.statusCode = 500;
     res.setHeader('content-type', 'text/plain; charset=utf-8');
@@ -430,7 +443,7 @@ export const createNodeHandler = (
     } catch (error) {
       // Never let the returned promise reject: `node:http` ignores it, so a
       // rejection is an unhandled rejection that terminates the process.
-      failNodeResponse(res, error);
+      failNodeResponse(res, error, signal);
     }
   };
 };
