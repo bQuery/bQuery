@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { BQueryCollection } from '../src/core/collection';
 import { BQueryElement } from '../src/core/element';
 import { $, $$ } from '../src/core/selector';
+import { toCssPropertyName } from '../src/core/shared';
 
 describe('core/selector', () => {
   it('$ returns BQueryElement instance', () => {
@@ -1476,6 +1477,62 @@ describe('core/BQueryElement css getter', () => {
     expect(result).toBe(wrapped);
     expect(div.style.color).toBe('red');
     expect(div.style.fontSize).toBe('16px');
+  });
+});
+
+describe('core css() property names (#249)', () => {
+  it('BQueryElement accepts camelCase names in every css() form', () => {
+    const div = document.createElement('div') as HTMLElement;
+    document.body.appendChild(div);
+    const wrapped = new BQueryElement(div);
+
+    wrapped.css({ color: 'red', fontSize: '18px' });
+    wrapped.css('backgroundColor', 'blue');
+    expect(div.style.fontSize).toBe('18px');
+    expect(div.style.backgroundColor).toBe('blue');
+    expect(wrapped.css('fontSize')).toBe(getComputedStyle(div).getPropertyValue('font-size'));
+    expect(wrapped.css('fontSize')).not.toBe('');
+
+    div.remove();
+  });
+
+  it('BQueryCollection accepts camelCase names in every css() form', () => {
+    const div1 = document.createElement('div') as HTMLElement;
+    const div2 = document.createElement('div') as HTMLElement;
+    document.body.append(div1, div2);
+    const collection = new BQueryCollection([div1, div2]);
+
+    collection.css({ fontWeight: 'bold' });
+    collection.css('marginTop', '4px');
+    for (const div of [div1, div2]) {
+      expect(div.style.fontWeight).toBe('bold');
+      expect(div.style.marginTop).toBe('4px');
+    }
+    expect(collection.css('marginTop')).toBe('4px');
+
+    div1.remove();
+    div2.remove();
+  });
+
+  it('keeps custom properties and kebab-case names untouched', () => {
+    const div = document.createElement('div') as HTMLElement;
+    const wrapped = new BQueryElement(div);
+
+    wrapped.css({ '--brandColor': 'teal', 'font-size': '12px' });
+    expect(div.style.getPropertyValue('--brandColor')).toBe('teal');
+    expect(div.style.getPropertyValue('--brand-color')).toBe('');
+    expect(div.style.fontSize).toBe('12px');
+  });
+});
+
+describe('core/toCssPropertyName', () => {
+  it('maps DOM-style names to CSS property names', () => {
+    expect(toCssPropertyName('fontSize')).toBe('font-size');
+    expect(toCssPropertyName('font-size')).toBe('font-size');
+    expect(toCssPropertyName('WebkitTransition')).toBe('-webkit-transition');
+    expect(toCssPropertyName('msTransform')).toBe('-ms-transform');
+    expect(toCssPropertyName('cssFloat')).toBe('float');
+    expect(toCssPropertyName('--myVar')).toBe('--myVar');
   });
 });
 

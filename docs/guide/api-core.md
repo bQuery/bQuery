@@ -117,6 +117,9 @@ const color = $('#box').css('color');
 // Set styles (chainable)
 $('#box').css('color', 'red');
 $('#box').css({ color: 'red', 'font-size': '16px' });
+
+// camelCase names work too; custom properties are passed through as-is
+$('#box').css({ fontSize: '16px', '--accent': 'teal' });
 ```
 
 ### Selector Matching

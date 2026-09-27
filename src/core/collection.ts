@@ -8,6 +8,7 @@ import {
   getOuterSize,
   isHTMLElement,
   removeDelegatedListener,
+  toCssPropertyName,
   toElementList,
 } from './shared';
 
@@ -275,8 +276,9 @@ export class BQueryCollection {
   css(property: string | Record<string, string>, value?: string): string | this {
     if (typeof property === 'string') {
       if (value !== undefined) {
+        const name = toCssPropertyName(property);
         applyAll(this.elements, (el) => {
-          (el as HTMLElement).style.setProperty(property, value);
+          (el as HTMLElement).style.setProperty(name, value);
         });
         return this;
       }
@@ -288,10 +290,12 @@ export class BQueryCollection {
       if (!view || typeof view.getComputedStyle !== 'function') {
         return '';
       }
-      return view.getComputedStyle(first).getPropertyValue(property);
+      return view.getComputedStyle(first).getPropertyValue(toCssPropertyName(property));
     }
 
-    const entries = Object.entries(property);
+    const entries = Object.entries(property).map(
+      ([key, val]) => [toCssPropertyName(key), val] as const
+    );
     applyAll(this.elements, (el) => {
       for (const [key, val] of entries) {
         (el as HTMLElement).style.setProperty(key, val);

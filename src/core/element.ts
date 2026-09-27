@@ -5,6 +5,7 @@ import {
   getOuterSize,
   isHTMLElement,
   removeDelegatedListener,
+  toCssPropertyName,
 } from './shared';
 import { isPrototypePollutionKey } from './utils/object';
 
@@ -285,18 +286,18 @@ export class BQueryElement {
   css(property: string | Record<string, string>, value?: string): string | this {
     if (typeof property === 'string') {
       if (value !== undefined) {
-        (this.element as HTMLElement).style.setProperty(property, value);
+        (this.element as HTMLElement).style.setProperty(toCssPropertyName(property), value);
         return this;
       }
       const view = this.element.ownerDocument?.defaultView;
       if (!view || typeof view.getComputedStyle !== 'function') {
         return '';
       }
-      return view.getComputedStyle(this.element).getPropertyValue(property);
+      return view.getComputedStyle(this.element).getPropertyValue(toCssPropertyName(property));
     }
 
     for (const [key, val] of Object.entries(property)) {
-      (this.element as HTMLElement).style.setProperty(key, val);
+      (this.element as HTMLElement).style.setProperty(toCssPropertyName(key), val);
     }
     return this;
   }

@@ -3,6 +3,25 @@
  */
 export type ElementList = Element[];
 
+/**
+ * Normalize a CSS property name for the CSSOM `setProperty()` /
+ * `getPropertyValue()` calls, which only understand the hyphenated form.
+ *
+ * `css({ fontSize: '18px' })` — the jQuery spelling, and the one the
+ * migration guide shows — was otherwise ignored without any error. Custom
+ * properties (`--brand`) are case-sensitive and passed through untouched;
+ * vendor prefixes follow the DOM spelling (`WebkitTransition`,
+ * `msTransform` → `-webkit-transition`, `-ms-transform`).
+ * @internal
+ */
+export const toCssPropertyName = (name: string): string => {
+  if (name.startsWith('--')) return name;
+  if (name === 'cssFloat') return 'float';
+  if (!/[A-Z]/.test(name)) return name;
+  const prefixed = /^ms[A-Z]/.test(name) ? `-${name}` : name;
+  return prefixed.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+};
+
 /** Handler signature for delegated events */
 export type DelegatedHandler = (event: Event, target: Element) => void;
 
