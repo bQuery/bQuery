@@ -4,6 +4,28 @@
 export type ElementList = Element[];
 
 /**
+ * Normalize a CSS property name for the CSSOM `setProperty()` /
+ * `getPropertyValue()` calls, which only understand the hyphenated form.
+ *
+ * `css({ fontSize: '18px' })` — the jQuery spelling, and the one the
+ * migration guide shows — was otherwise ignored without any error. Custom
+ * properties (`--brand`) are case-sensitive and passed through untouched;
+ * vendor prefixes follow the DOM spelling (`WebkitTransition`,
+ * `webkitTransition`, `msTransform` → `-webkit-transition`, `-ms-transform`).
+ * Names that already contain a hyphen are passed through unchanged.
+ * @internal
+ */
+export const toCssPropertyName = (name: string): string => {
+  if (name.startsWith('--')) return name;
+  if (name === 'cssFloat') return 'float';
+  // Already hyphenated (possibly upper-cased, which CSSOM lowercases itself)
+  // or plain lowercase: leave it for setProperty()/getPropertyValue().
+  if (name.includes('-') || !/[A-Z]/.test(name)) return name;
+  const prefixed = /^(?:ms|webkit|moz)[A-Z]/.test(name) ? `-${name}` : name;
+  return prefixed.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+};
+
+/**
  * Inline `display` values stashed by `hide()`, so `show()` can restore
  * `display: flex` (or any other inline value) instead of clearing it.
  * @internal
