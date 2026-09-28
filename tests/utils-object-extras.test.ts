@@ -147,6 +147,19 @@ describe('utils/object extras', () => {
     expect(isEqual).toBe(deepEqual);
   });
 
+  it('deepEqual never equates values of different built-in kinds (#246)', () => {
+    const kinds: unknown[] = [{}, [], new Date(0), new Map(), new Set(), /a/];
+    for (const [i, left] of kinds.entries()) {
+      for (const [j, right] of kinds.entries()) {
+        expect(deepEqual(left, right)).toBe(i === j);
+      }
+    }
+    expect(deepEqual(new Map([[1, 2]]), {})).toBe(false);
+    expect(deepEqual(new Set([1]), [1])).toBe(false);
+    // Null-prototype objects are still plain objects.
+    expect(deepEqual(Object.assign(Object.create(null), { a: 1 }), { a: 1 })).toBe(true);
+  });
+
   it('deepEqual structurally compares Map keys and Set values', () => {
     expect(
       deepEqual(new Map([[{ id: 1 }, { label: 'A' }]]), new Map([[{ id: 1 }, { label: 'A' }]]))

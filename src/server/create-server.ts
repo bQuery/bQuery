@@ -98,6 +98,34 @@ const normalizePath = (path: string): string => {
   return withLeadingSlash;
 };
 
+/**
+ * Characters the WHATWG URL parser percent-encodes in a pathname: C0
+ * controls, space, `"`, `#`, `<`, `>`, `?`, `` ` ``, `{`, `}`, DEL and
+ * everything outside ASCII.
+ */
+const PATH_ENCODED_CHAR = /[\u0000-\u0020"#<>?`{}\u007F-\u{10FFFF}]/u;
+
+/**
+ * Encode a static route segment the way `url.pathname` arrives encoded.
+ * Routes are matched against the encoded pathname, so `/über` has to be
+ * compiled as `/%C3%BCber` or it can never match.
+ */
+const encodeStaticSegment = (segment: string): string => {
+  let encoded = '';
+  for (const char of segment) {
+    encoded += PATH_ENCODED_CHAR.test(char) ? encodeURIComponent(char) : char;
+  }
+  return encoded;
+};
+
+/**
+ * Upper-case every percent-escape's hex digits. The URL parser keeps escapes
+ * as the client sent them, so `%c3%bc` must compare equal to the `%C3%BC`
+ * that {@link encodeStaticSegment} produces.
+ */
+const normalizePercentEncoding = (path: string): string =>
+  path.includes('%') ? path.replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase()) : path;
+
 const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'path' | 'pattern'> => {
   const normalizedPath = normalizePath(path);
 
@@ -138,7 +166,7 @@ const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'pat
       continue;
     }
 
-    source += escapeRegex(segment);
+    source += escapeRegex(normalizePercentEncoding(encodeStaticSegment(segment)));
   }
 
   source += '/?$';
@@ -704,7 +732,7 @@ const matchRoute = (
     return null;
   }
 
-  const match = route.pattern.exec(path);
+  const match = route.pattern.exec(normalizePercentEncoding(path));
   if (!match) {
     return null;
   }
