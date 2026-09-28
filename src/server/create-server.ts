@@ -98,6 +98,34 @@ const normalizePath = (path: string): string => {
   return withLeadingSlash;
 };
 
+/**
+ * Characters the WHATWG URL parser percent-encodes in a pathname: C0
+ * controls, space, `"`, `#`, `<`, `>`, `?`, `` ` ``, `{`, `}`, DEL and
+ * everything outside ASCII.
+ */
+const PATH_ENCODED_CHAR = /[\u0000-\u0020"#<>?`{}\u007F-\u{10FFFF}]/u;
+
+/**
+ * Encode a static route segment the way `url.pathname` arrives encoded.
+ * Routes are matched against the encoded pathname, so `/über` has to be
+ * compiled as `/%C3%BCber` or it can never match.
+ */
+const encodeStaticSegment = (segment: string): string => {
+  let encoded = '';
+  for (const char of segment) {
+    encoded += PATH_ENCODED_CHAR.test(char) ? encodeURIComponent(char) : char;
+  }
+  return encoded;
+};
+
+/**
+ * Upper-case every percent-escape's hex digits. The URL parser keeps escapes
+ * as the client sent them, so `%c3%bc` must compare equal to the `%C3%BC`
+ * that {@link encodeStaticSegment} produces.
+ */
+const normalizePercentEncoding = (path: string): string =>
+  path.includes('%') ? path.replace(/%[0-9a-f]{2}/gi, (escape) => escape.toUpperCase()) : path;
+
 const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'path' | 'pattern'> => {
   const normalizedPath = normalizePath(path);
 
@@ -138,7 +166,7 @@ const compileRoutePath = (path: string): Pick<CompiledRoute, 'paramNames' | 'pat
       continue;
     }
 
-    source += escapeRegex(segment);
+    source += escapeRegex(normalizePercentEncoding(encodeStaticSegment(segment)));
   }
 
   source += '/?$';
@@ -432,6 +460,19 @@ const readRequestBodyBuffer = async (
   return output;
 };
 
+/**
+ * Run `teardown` when `signal` aborts — immediately if it already has, since
+ * an aborted signal never dispatches `abort` again.
+ */
+const onAbort = (signal: AbortSignal | undefined, teardown: () => void): void => {
+  if (!signal) return;
+  if (signal.aborted) {
+    teardown();
+    return;
+  }
+  signal.addEventListener('abort', teardown, { once: true });
+};
+
 const createSseResponse = (
   source: AsyncIterable<ServerSseEvent | string> | Iterable<ServerSseEvent | string>,
   init: ServerSseOptions = {}
@@ -691,7 +732,7 @@ const matchRoute = (
     return null;
   }
 
-  const match = route.pattern.exec(path);
+  const match = route.pattern.exec(normalizePercentEncoding(path));
   if (!match) {
     return null;
   }
@@ -1223,6 +1264,9 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
     },
 
     async listen(listenOptions: ServerListenOptions = {}): Promise<ServerListenHandle> {
+      // An already-aborted signal never fires `abort` again, so binding anyway
+      // would leave a server running that the caller has already cancelled.
+      listenOptions.signal?.throwIfAborted();
       const runtime = listenOptions.runtime ?? 'auto';
       const resolvedRuntime = runtime === 'auto' ? detectRuntime() : runtime;
       const port = listenOptions.port ?? 3000;
@@ -1246,7 +1290,7 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
           hostname,
           port,
         });
-        listenOptions.signal?.addEventListener('abort', () => server.stop(), { once: true });
+        onAbort(listenOptions.signal, () => server.stop());
         const listenUrl = formatListenUrl(server.hostname ?? hostname, server.port ?? port);
         return {
           addresses: [listenUrl],
@@ -1272,7 +1316,14 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
             resolve();
           });
         });
-        listenOptions.signal?.addEventListener('abort', () => server.close(), { once: true });
+        // The signal can abort while the socket is still binding. Tear down and
+        // reject like the pre-aborted case instead of handing back a handle to
+        // an already-closed server (bogus url, close() rejecting).
+        if (listenOptions.signal?.aborted) {
+          await new Promise<void>((resolve) => server.close(() => resolve()));
+          listenOptions.signal.throwIfAborted();
+        }
+        onAbort(listenOptions.signal, () => server.close());
         const address = server.address();
         const resolvedAddress =
           address && typeof address !== 'string'

@@ -3,8 +3,11 @@ import {
   addDelegatedListener,
   getInnerSize,
   getOuterSize,
+  hideElement,
+  isElementHidden,
   isHTMLElement,
   removeDelegatedListener,
+  showElement,
 } from './shared';
 import { isPrototypePollutionKey } from './utils/object';
 
@@ -834,36 +837,39 @@ export class BQueryElement {
   }
 
   /**
-   * Shows the element by removing the hidden attribute and setting display.
+   * Shows the element: removes the `hidden` attribute and restores the
+   * inline `display` it had before `hide()` (e.g. `flex`).
    *
-   * @param display - Optional display value (default: '')
+   * @param display - Optional display value that overrides the restored one
    * @returns The instance for method chaining
    */
-  show(display: string = ''): this {
-    this.element.removeAttribute('hidden');
-    (this.element as HTMLElement).style.display = display;
+  show(display?: string): this {
+    showElement(this.element, display);
     return this;
   }
 
   /**
-   * Hides the element by setting display to 'none'.
+   * Hides the element with `display: none`, remembering its inline
+   * `display` so `show()` can restore it.
    *
    * @returns The instance for method chaining
    */
   hide(): this {
-    (this.element as HTMLElement).style.display = 'none';
+    hideElement(this.element);
     return this;
   }
 
   /**
    * Toggles the visibility of the element.
    *
+   * An element counts as hidden when it has the `hidden` attribute or an
+   * inline `display: none` — the two things `show()` undoes.
+   *
    * @param force - Optional force show (true) or hide (false)
    * @returns The instance for method chaining
    */
   toggle(force?: boolean): this {
-    const isHidden = (this.element as HTMLElement).style.display === 'none';
-    const shouldShow = force ?? isHidden;
+    const shouldShow = force ?? isElementHidden(this.element);
     return shouldShow ? this.show() : this.hide();
   }
 

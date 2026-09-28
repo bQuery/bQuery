@@ -629,6 +629,30 @@ describe('server/createServer', () => {
     expect(await response.text()).toBe('Not Found');
   });
 
+  it('matches static segments containing characters the URL parser encodes (#248)', async () => {
+    const app = createServer();
+    app.get('/über', (ctx) => ctx.text('umlaut'));
+    app.get('/a b/:id', (ctx) => ctx.text(`space:${ctx.params.id}`));
+    app.get('/emoji/🚀', (ctx) => ctx.text('rocket'));
+
+    expect(await (await app.handle(new Request('http://localhost/über'))).text()).toBe('umlaut');
+    // Escapes keep the case the client sent; lower-case hex must match too.
+    expect(await (await app.handle('/%c3%bcber')).text()).toBe('umlaut');
+    expect(await (await app.handle('/a%20b/J%C3%BCrgen')).text()).toBe('space:Jürgen');
+    expect(await (await app.handle(new Request('http://localhost/emoji/🚀'))).text()).toBe(
+      'rocket'
+    );
+    expect((await app.handle('/uber')).status).toBe(404);
+  });
+
+  it('matches routes declared with lower-case percent-escapes', async () => {
+    const app = createServer();
+    app.get('/caf%c3%a9', (ctx) => ctx.text('cafe'));
+
+    expect(await (await app.handle('/caf%c3%a9')).text()).toBe('cafe');
+    expect(await (await app.handle('/caf%C3%A9')).text()).toBe('cafe');
+  });
+
   it('escapes unsafe characters in json responses', async () => {
     const app = createServer();
     app.get('/json', (ctx) => ctx.json({ html: '<script>alert(1)</script>' }));
@@ -684,6 +708,34 @@ describe('server/createServer', () => {
     } finally {
       await handle.close();
     }
+  });
+
+  it('rejects listen() without binding when the signal is already aborted (#251)', async () => {
+    const app = createServer();
+    const controller = new AbortController();
+    controller.abort(new Error('cancelled before start'));
+
+    for (const runtime of ['node', 'bun'] as const) {
+      await expect(
+        app.listen({ hostname: '127.0.0.1', port: 0, runtime, signal: controller.signal })
+      ).rejects.toThrow('cancelled before start');
+    }
+  });
+
+  it('rejects and closes a node server whose signal aborts while it is still binding (#251)', async () => {
+    const app = createServer();
+    app.get('/health', (ctx) => ctx.text('ok'));
+    const controller = new AbortController();
+
+    const pending = app.listen({
+      hostname: '127.0.0.1',
+      port: 0,
+      runtime: 'node',
+      signal: controller.signal,
+    });
+    controller.abort(new Error('cancelled while binding'));
+
+    await expect(pending).rejects.toThrow('cancelled while binding');
   });
 
   it.skipIf(!hasIpv6Loopback)('returns a valid URL for IPv6 node listen addresses', async () => {
