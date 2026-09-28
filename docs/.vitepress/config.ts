@@ -142,6 +142,8 @@ const cookbookItems = [
 
 const releaseNotesItems = [
   { text: 'Overview', link: '/release-notes/' },
+  { text: '1.17.1', link: '/release-notes/1.17.1' },
+  { text: '1.17.0', link: '/release-notes/1.17' },
   { text: '1.16.1', link: '/release-notes/1.16.1' },
   { text: '1.16.0', link: '/release-notes/1.16' },
   { text: '1.15.1', link: '/release-notes/1.15.1' },

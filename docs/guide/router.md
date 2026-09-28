@@ -82,6 +82,8 @@ const router = createRouter({
 console.log(currentRoute.value.params); // { id: '42' }
 ```
 
+Param values are percent-decoded: `/user/J%C3%BCrgen` yields `{ id: 'Jürgen' }`, so there is no need to call `decodeURIComponent()` yourself (as of 1.17.1). Route patterns may contain non-ASCII or other characters the URL encodes — `/über` matches `location.pathname` `/%C3%BCber` — and `resolve()` encodes params, so a resolved path navigates back to the same values.
+
 Regex constraints let you validate params directly in the route pattern:
 
 ```ts

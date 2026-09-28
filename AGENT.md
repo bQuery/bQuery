@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.17.0                                                                                                                                                                                            |
+| Version     | 1.17.1                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -39,6 +39,12 @@ bun run dev           # VitePress docs server
 ## Workspace Prompt Pack
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.17.1 Highlights
+
+- Security-and-correctness patch closing a full-codebase audit of 1.17.0. No API removals, no module status transitions. Security: `serveStatic({ precompressed: true })` applies the `realpath` containment check to `.br`/`.gz` sidecars; the Node adapter (`createNodeHandler`, `listen({ runtime: 'node' })`) answers handler errors with `500` instead of crashing the process via an unhandled rejection, aborts `request.signal` and cancels the response stream on client disconnect; signed `csrf({ secret })` tokens live in the server-side session when `session()` runs first, bound to the session id and rotated on `$regenerate()` (`bindToSession: false` opts out).
+- Fixes: `deepEqual`/`isEqual` no longer equate different built-in kinds; router `route.params` are percent-decoded and encoded static segments match (client and server); `css()` accepts camelCase names; `toggle()` shows `[hidden]` elements and `hide()`/`show()` keep the inline `display`; `http` honours an already-aborted `signal` with `timeout` and `listen({ signal })` rejects when aborted; `email()` is linear-time; component render, `createTemplate()` and the DOM sanitizer work under an enforced Trusted Types CSP; `memoryStore()` sweeps expired sessions, evicts LRU, and the default session store is capped at 10 000 entries.
+- Behaviour changes: decoded router params (drop manual `decodeURIComponent`), no `bq.csrf` cookie and token rotation on login in session-bound CSRF mode, `listen({ signal })` rejects when aborted, default session store eviction beyond 10 000 sessions, `show()` keeps a visible element's inline `display`, stricter `email()`.
 
 ## Version 1.17.0 Highlights
 
