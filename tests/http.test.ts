@@ -459,6 +459,47 @@ describe('http abort', () => {
   });
 });
 
+describe('http abort with an already-aborted signal (#251)', () => {
+  const okFetcher = () => {
+    let calls = 0;
+    const fetcher = asMockFetch(async (_input, init) => {
+      calls += 1;
+      if (init?.signal?.aborted) {
+        throw init.signal.reason ?? new DOMException('aborted', 'AbortError');
+      }
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    });
+    return { fetcher, calls: () => calls };
+  };
+
+  it('rejects with ABORT when a timeout is also configured', async () => {
+    const { fetcher } = okFetcher();
+    const api = createHttp({ fetcher });
+    const controller = new AbortController();
+    controller.abort();
+
+    const error = await api
+      .get('/x', { signal: controller.signal, timeout: 5000 })
+      .catch((err: unknown) => err);
+    expect(error).toBeInstanceOf(HttpError);
+    expect((error as HttpError).code).toBe('ABORT');
+  });
+
+  it('classifies a custom abort reason as ABORT, not NETWORK', async () => {
+    const { fetcher } = okFetcher();
+    const api = createHttp({ fetcher });
+    const controller = new AbortController();
+    controller.abort('user navigated away');
+
+    for (const timeout of [undefined, 5000]) {
+      const error = await api
+        .get('/x', { signal: controller.signal, timeout })
+        .catch((err: unknown) => err);
+      expect((error as HttpError).code).toBe('ABORT');
+    }
+  });
+});
+
 // ---------------------------------------------------------------------------
 // Retry
 // ---------------------------------------------------------------------------
