@@ -63,6 +63,14 @@ export const deepClone = <T>(obj: T): T => {
   return cloned;
 };
 
+const valueKind = (value: object): string => {
+  if (Array.isArray(value)) return 'array';
+  if (value instanceof Date) return 'date';
+  if (value instanceof Map) return 'map';
+  if (value instanceof Set) return 'set';
+  return 'object';
+};
+
 /**
  * Compares two values for deep equality.
  * @internal
@@ -71,6 +79,13 @@ export const deepEqual = (a: unknown, b: unknown): boolean => {
   if (a === b) return true;
   if (a === null || b === null) return false;
   if (typeof a !== 'object' || typeof b !== 'object') return false;
+
+  // A `Date`, `Map` or `Set` has no own enumerable keys, so without this a
+  // kind mismatch fell through to the key comparison and equalled `{}`.
+  // Only the kinds `deepClone()` preserves are distinguished: it turns every
+  // other object (RegExp, URL, class instances, ...) into a plain object, and
+  // `detectNestedMutations()` compares such a clone against the original.
+  if (valueKind(a) !== valueKind(b)) return false;
 
   if (a instanceof Date && b instanceof Date) {
     return a.getTime() === b.getTime();

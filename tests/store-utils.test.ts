@@ -145,6 +145,20 @@ describe('store/deepEqual', () => {
     expect(deepEqual({}, null)).toBe(false);
   });
 
+  it('treats values of different built-in kinds as unequal (#246)', () => {
+    expect(deepEqual(new Date(0), {})).toBe(false);
+    expect(deepEqual({}, new Date(0))).toBe(false);
+    expect(deepEqual(new Map([['a', 1]]), {})).toBe(false);
+    expect(deepEqual(new Set([1]), [])).toBe(false);
+    expect(deepEqual({}, [])).toBe(false);
+  });
+
+  it('does not flag objects that deepClone flattens as nested mutations', () => {
+    const state = { filter: { pattern: /a/, url: new URL('https://example.com') } };
+    const before = deepClone(state);
+    expect(detectNestedMutations(before, state, new Map([['filter', state.filter]]))).toEqual([]);
+  });
+
   it('compares Dates by timestamp', () => {
     expect(deepEqual(new Date(0), new Date(0))).toBe(true);
     expect(deepEqual(new Date(0), new Date(1))).toBe(false);
