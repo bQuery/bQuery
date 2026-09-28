@@ -81,9 +81,9 @@ These helpers mirror standard `classList` / `setAttribute` semantics but stay ch
 - `css(property)` – getter: returns computed style value via `getComputedStyle()`
 - `css(property, value)` – setter: sets a single CSS property
 - `css(properties)` – setter: sets multiple CSS properties from an object
-- `show(display?)` – clears/sets inline `display` and removes the `hidden` attribute
-- `hide()` – sets inline `display: none` (does not add `hidden`)
-- `toggle(force?)` – flips based on the inline `display` value (`BQueryElement` only)
+- `show(display?)` – removes the `hidden` attribute and restores the inline `display` the element had before `hide()` (or sets `display` when given)
+- `hide()` – sets inline `display: none` and remembers the previous inline value (does not add `hidden`)
+- `toggle(force?)` – shows when the element has `hidden` or inline `display: none`, hides otherwise (`BQueryElement` only)
 
 ### Events (Element)
 
