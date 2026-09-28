@@ -686,7 +686,7 @@ export default { fetch: createWebHandler(handler) };
 const wrapped = createSSRHandler(handler);
 ```
 
-`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes. When needed, pass `{ maxBodyBytes }` to reject oversized buffered request bodies with HTTP 413; malformed `Host` headers fall back to `localhost` instead of crashing URL construction.
+`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes. When needed, pass `{ maxBodyBytes }` to reject oversized buffered request bodies with HTTP 413; malformed `Host` headers fall back to `localhost` instead of crashing URL construction. An error thrown by the handler is logged and answered with `500` (or the connection is closed if the response had already started) instead of surfacing as an unhandled rejection. When the client disconnects, `request.signal` aborts and the response body stream is cancelled, so streaming renders and SSE sources stop producing output.
 
 ### CSP & security defaults
 

@@ -7,6 +7,7 @@
 import type { CleanupFn } from '../reactive/signal';
 import { effect, untrack } from '../reactive/signal';
 import { sanitizeHtml } from '../security/sanitize';
+import { trustedPreparedHtmlForSink } from '../security/trusted-types';
 import { applyAdoptedStyles, isComponentStyles } from './css';
 import { cleanupDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
@@ -561,7 +562,9 @@ const createComponentClass = <
         }
 
         cleanupDelegatedHandlers(renderRoot, this.scope);
-        renderRoot.innerHTML = sanitizedMarkup;
+        // Already sanitized with the component allow lists above; wrap it for
+        // an enforced Trusted Types CSP without a second, stricter pass.
+        renderRoot.innerHTML = trustedPreparedHtmlForSink(sanitizedMarkup);
 
         if (stylesText && !usedAdoptedSheet) {
           const styleElement = existingStyleElement ?? document.createElement('style');

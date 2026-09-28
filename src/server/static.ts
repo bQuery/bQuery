@@ -541,9 +541,15 @@ export const serveStatic = (options: ServeStaticOptions): ServerMiddleware => {
 
       for (const { encoding, suffix } of candidates) {
         try {
-          const sidecar = await fsp.stat(`${filePath}${suffix}`);
+          const sidecarPath = `${filePath}${suffix}`;
+          const sidecar = await fsp.stat(sidecarPath);
           if (!sidecar.isFile()) continue;
-          bodyPath = `${filePath}${suffix}`;
+          // The sidecar is a separate path and `stat()` follows symlinks, so
+          // it needs its own realpath containment check — the identity file
+          // passing it says nothing about `app.js.br`. A sidecar that
+          // resolves outside the root is skipped, not served.
+          if (!(await isInsideRoot(root, sidecarPath, fsp, path))) continue;
+          bodyPath = sidecarPath;
           bodySize = sidecar.size;
           bodyMtimeMs = sidecar.mtimeMs;
           headers.set('content-encoding', encoding);

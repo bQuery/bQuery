@@ -167,6 +167,28 @@ describe('forms/validators', () => {
       const v = email('Bad email');
       expect(v('bad')).toBe('Bad email');
     });
+
+    it('rejects empty domain labels', () => {
+      expect(validate('ada@love..co')).toBe('Invalid email address');
+      expect(validate('ada@.love.co')).toBe('Invalid email address');
+      expect(validate('ada@love.co.')).toBe('Invalid email address');
+      expect(validate('a.b+tag@mail.example.co.uk')).toBe(true);
+    });
+
+    it('rejects addresses longer than 254 characters', () => {
+      const local = 'a'.repeat(64);
+      const domain = `${'b'.repeat(60)}.`.repeat(4) + 'com';
+      expect(validate(`${local}@${domain}`)).toBe('Invalid email address');
+      expect(validate(`${local}@${'b'.repeat(60)}.com`)).toBe(true);
+    });
+
+    it('returns quickly on adversarial input (#252)', () => {
+      const start = performance.now();
+      expect(validate(`a@${'.'.repeat(50_000)}@`)).toBe('Invalid email address');
+      expect(validate(`a@${'.'.repeat(250)}@`)).toBe('Invalid email address');
+      expect(validate(`a@${'b.'.repeat(125)}@`)).toBe('Invalid email address');
+      expect(performance.now() - start).toBeLessThan(100);
+    });
   });
 
   describe('url', () => {

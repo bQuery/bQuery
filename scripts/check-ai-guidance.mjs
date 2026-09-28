@@ -23,7 +23,17 @@ if (!version || !nodeEngine || !bunEngine) {
   process.exit(1);
 }
 
+// SECURITY.md promises fixes for "the latest minor release line", so its
+// table has to move with every minor release — it was left on 1.14.x while
+// 1.17.0 shipped (#258).
+const [major, minor] = version.split('.');
+const supportedLine = `${major}.${minor}`;
+
 const checks = [
+  {
+    filePath: 'SECURITY.md',
+    snippets: [`| ${supportedLine}.x `, `| < ${supportedLine}.0 `],
+  },
   {
     filePath: 'AGENT.md',
     snippets: [
@@ -87,6 +97,19 @@ const checks = [
 ];
 
 const failures = [];
+
+// Presence alone is not enough: a stale row left marked as supported (e.g.
+// 1.17.x after 1.18.0 ships) would still satisfy the snippets above.
+const securityText = await readText('SECURITY.md');
+const supportedRows = securityText
+  .split('\n')
+  .filter((line) => line.trimStart().startsWith('|') && line.includes(':white_check_mark:'))
+  .map((line) => line.split('|')[1].trim());
+if (supportedRows.length !== 1 || supportedRows[0] !== `${supportedLine}.x`) {
+  failures.push(
+    `SECURITY.md must mark only ${supportedLine}.x as supported (found: ${supportedRows.join(', ') || 'none'})`
+  );
+}
 
 for (const check of checks) {
   const text = await readText(check.filePath);
