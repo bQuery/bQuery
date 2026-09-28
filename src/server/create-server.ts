@@ -460,6 +460,19 @@ const readRequestBodyBuffer = async (
   return output;
 };
 
+/**
+ * Run `teardown` when `signal` aborts — immediately if it already has, since
+ * an aborted signal never dispatches `abort` again.
+ */
+const onAbort = (signal: AbortSignal | undefined, teardown: () => void): void => {
+  if (!signal) return;
+  if (signal.aborted) {
+    teardown();
+    return;
+  }
+  signal.addEventListener('abort', teardown, { once: true });
+};
+
 const createSseResponse = (
   source: AsyncIterable<ServerSseEvent | string> | Iterable<ServerSseEvent | string>,
   init: ServerSseOptions = {}
@@ -1251,6 +1264,9 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
     },
 
     async listen(listenOptions: ServerListenOptions = {}): Promise<ServerListenHandle> {
+      // An already-aborted signal never fires `abort` again, so binding anyway
+      // would leave a server running that the caller has already cancelled.
+      listenOptions.signal?.throwIfAborted();
       const runtime = listenOptions.runtime ?? 'auto';
       const resolvedRuntime = runtime === 'auto' ? detectRuntime() : runtime;
       const port = listenOptions.port ?? 3000;
@@ -1274,7 +1290,7 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
           hostname,
           port,
         });
-        listenOptions.signal?.addEventListener('abort', () => server.stop(), { once: true });
+        onAbort(listenOptions.signal, () => server.stop());
         const listenUrl = formatListenUrl(server.hostname ?? hostname, server.port ?? port);
         return {
           addresses: [listenUrl],
@@ -1300,7 +1316,14 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
             resolve();
           });
         });
-        listenOptions.signal?.addEventListener('abort', () => server.close(), { once: true });
+        // The signal can abort while the socket is still binding. Tear down and
+        // reject like the pre-aborted case instead of handing back a handle to
+        // an already-closed server (bogus url, close() rejecting).
+        if (listenOptions.signal?.aborted) {
+          await new Promise<void>((resolve) => server.close(() => resolve()));
+          listenOptions.signal.throwIfAborted();
+        }
+        onAbort(listenOptions.signal, () => server.close());
         const address = server.address();
         const resolvedAddress =
           address && typeof address !== 'string'

@@ -418,9 +418,15 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
     const controller = new AbortController();
 
     if (config.signal) {
-      // Compose: abort when *either* the external signal or the timeout fires
-      externalAbortHandler = () => controller.abort(config.signal?.reason);
-      config.signal.addEventListener('abort', externalAbortHandler, { once: true });
+      // Compose: abort when *either* the external signal or the timeout fires.
+      // An already-aborted signal never dispatches `abort` again, so it has
+      // to be carried over up front — listening alone sent the request anyway.
+      if (config.signal.aborted) {
+        controller.abort(config.signal.reason);
+      } else {
+        externalAbortHandler = () => controller.abort(config.signal?.reason);
+        config.signal.addEventListener('abort', externalAbortHandler, { once: true });
+      }
     }
 
     timeoutId = setTimeout(() => {
@@ -477,6 +483,19 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
           isTimeout ? 'TIMEOUT' : 'ABORT'
         );
       }
+    }
+
+    // `fetch` rejects with the signal's reason, which is whatever the caller
+    // passed to `abort(reason)` — not necessarily a DOMException. The signal
+    // itself is the reliable witness that this was a cancellation.
+    if (mergedSignal?.aborted) {
+      const reason: unknown = mergedSignal.reason;
+      const isTimeout = reason instanceof DOMException && reason.name === 'TimeoutError';
+      throw new HttpError(
+        isTimeout ? `Request timeout of ${config.timeout}ms exceeded` : 'Request aborted',
+        config,
+        isTimeout ? 'TIMEOUT' : 'ABORT'
+      );
     }
 
     throw new HttpError(error instanceof Error ? error.message : String(error), config, 'NETWORK');
