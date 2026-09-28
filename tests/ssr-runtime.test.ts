@@ -1446,6 +1446,226 @@ describe('runtime adapters', () => {
     expect(ended).toBe(true);
   });
 
+  describe('createNodeHandler over a real node:http server', () => {
+    const serve = async (
+      handler: Parameters<typeof createNodeHandler>[0]
+    ): Promise<{ url: string; close: () => Promise<void> }> => {
+      const http = await import('node:http');
+      const server = http.createServer(
+        createNodeHandler(handler) as unknown as Parameters<typeof http.createServer>[0]
+      );
+      await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+      const address = server.address() as { port: number };
+      return {
+        url: `http://127.0.0.1:${address.port}`,
+        close: () =>
+          new Promise<void>((resolve) => {
+            server.closeAllConnections?.();
+            server.close(() => resolve());
+          }),
+      };
+    };
+
+    it('answers 500 instead of rejecting when the handler throws', async () => {
+      const originalError = console.error;
+      const logged: unknown[] = [];
+      console.error = (...args: unknown[]) => logged.push(args);
+      const server = await serve(() => {
+        throw new Error('boom');
+      });
+      try {
+        const first = await fetch(`${server.url}/`);
+        expect(first.status).toBe(500);
+        expect(await first.text()).toBe('Internal Server Error');
+        // The server is still alive for the next request.
+        expect((await fetch(`${server.url}/`)).status).toBe(500);
+        expect(logged.length).toBe(2);
+      } finally {
+        console.error = originalError;
+        await server.close();
+      }
+    });
+  });
+
+  it('createNodeHandler drops headers from the failed response before answering 500', async () => {
+    const headers = new Map<string, unknown>();
+    let status = 0;
+    let body: unknown;
+    const res = {
+      statusCode: 0,
+      headersSent: false,
+      setHeader(name: string, value: unknown) {
+        headers.set(name.toLowerCase(), value);
+      },
+      getHeaderNames: () => [...headers.keys()],
+      removeHeader(name: string) {
+        headers.delete(name.toLowerCase());
+      },
+      write() {
+        throw new Error('write must not be reached');
+      },
+      end(chunk?: unknown) {
+        status = res.statusCode;
+        body = chunk;
+      },
+    };
+    const req: NodeIncomingMessage = {
+      url: '/',
+      method: 'GET',
+      headers: { host: 'example.com' },
+      on(): NodeIncomingMessage {
+        return this as NodeIncomingMessage;
+      },
+    };
+    const originalError = console.error;
+    console.error = () => undefined;
+    try {
+      await createNodeHandler(
+        () =>
+          new Response(
+            new ReadableStream({
+              pull() {
+                throw new Error('stream broke before the first chunk');
+              },
+            }),
+            { headers: { 'set-cookie': 'sid=1', 'cache-control': 'public, max-age=600' } }
+          )
+      )(req, res);
+    } finally {
+      console.error = originalError;
+    }
+
+    expect(status).toBe(500);
+    expect(body).toBe('Internal Server Error');
+    expect(headers.has('set-cookie')).toBe(false);
+    expect(headers.has('cache-control')).toBe(false);
+    expect(headers.get('content-type')).toBe('text/plain; charset=utf-8');
+  });
+
+  it('createNodeHandler does not log or answer when the handler fails after a disconnect', async () => {
+    const listeners = new Map<string, Array<() => void>>();
+    let ended = false;
+    let destroyed = false;
+    const res = {
+      statusCode: 0,
+      headersSent: false,
+      writableFinished: false,
+      setHeader() {
+        /* no-op */
+      },
+      write() {
+        return true;
+      },
+      end() {
+        ended = true;
+      },
+      destroy() {
+        destroyed = true;
+      },
+      once(event: string, listener: () => void) {
+        listeners.set(event, [...(listeners.get(event) ?? []), listener]);
+      },
+    };
+    const req: NodeIncomingMessage = {
+      url: '/',
+      method: 'GET',
+      headers: { host: 'example.com' },
+      on(): NodeIncomingMessage {
+        return this as NodeIncomingMessage;
+      },
+    };
+    const logged: unknown[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => logged.push(args);
+    try {
+      await createNodeHandler(async (request) => {
+        for (const listener of listeners.get('close') ?? []) listener(); // client leaves
+        request.signal.throwIfAborted();
+        return new Response('unreachable');
+      })(req, res);
+    } finally {
+      console.error = originalError;
+    }
+
+    expect(logged).toEqual([]);
+    expect(ended).toBe(false);
+    expect(destroyed).toBe(true);
+  });
+
+  it('createNodeHandler cancels the response stream and aborts request.signal on disconnect', async () => {
+    // Bun's node:http shim does not emit `close` for an aborted client, so the
+    // disconnect is driven through a mock response with Node's semantics.
+    const listeners = new Map<string, Array<(error?: unknown) => void>>();
+    const emit = (event: string): void => {
+      for (const listener of listeners.get(event)?.splice(0) ?? []) listener();
+    };
+    let firstWrite: (() => void) | undefined;
+    const firstWriteSeen = new Promise<void>((resolve) => {
+      firstWrite = resolve;
+    });
+    let ended = false;
+    const res = {
+      statusCode: 0,
+      headersSent: false,
+      writableFinished: false,
+      setHeader() {
+        /* no-op */
+      },
+      write() {
+        res.headersSent = true;
+        firstWrite?.();
+        return false; // backpressure: the adapter now waits for `drain`
+      },
+      end() {
+        ended = true;
+      },
+      once(event: string, listener: (error?: unknown) => void) {
+        listeners.set(event, [...(listeners.get(event) ?? []), listener]);
+      },
+      removeListener(event: string, listener: (error?: unknown) => void) {
+        listeners.set(
+          event,
+          (listeners.get(event) ?? []).filter((candidate) => candidate !== listener)
+        );
+      },
+    };
+    const req: NodeIncomingMessage = {
+      url: '/stream',
+      method: 'GET',
+      headers: { host: 'example.com' },
+      on(): NodeIncomingMessage {
+        return this as NodeIncomingMessage;
+      },
+    };
+
+    let cancelled = false;
+    let requestSignal: AbortSignal | undefined;
+    const pending = createNodeHandler((request) => {
+      requestSignal = request.signal;
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          pull(controller) {
+            controller.enqueue(new TextEncoder().encode('tick'));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        })
+      );
+    })(req, res);
+
+    await firstWriteSeen;
+    emit('close'); // client went away mid-stream; `drain` will never come
+    await pending;
+
+    expect(cancelled).toBe(true);
+    expect(requestSignal?.aborted).toBe(true);
+    expect(ended).toBe(false);
+    // No listeners are left behind on the response.
+    expect(listeners.get('drain') ?? []).toEqual([]);
+    expect(listeners.get('error') ?? []).toEqual([]);
+  });
+
   it('createNodeHandler preserves Node request bodies', async () => {
     const res = {
       statusCode: 0,
