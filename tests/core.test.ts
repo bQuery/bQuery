@@ -390,6 +390,19 @@ describe('core/BQueryCollection', () => {
     expect(div.style.display).toBe('');
   });
 
+  it("show restores each element's inline display after hide (#250)", () => {
+    const flex = document.createElement('div') as HTMLElement;
+    const inline = document.createElement('span') as HTMLElement;
+    flex.style.display = 'flex';
+    inline.hidden = true;
+    const collection = new BQueryCollection([flex, inline]);
+
+    collection.hide().show();
+    expect(flex.style.display).toBe('flex');
+    expect(inline.hasAttribute('hidden')).toBe(false);
+    expect(inline.style.display).toBe('');
+  });
+
   it('empty clears content', () => {
     const div = document.createElement('div');
     div.innerHTML = '<span>Content</span>';
@@ -533,6 +546,55 @@ describe('core/BQueryElement new methods', () => {
 
     wrapped.toggle(false);
     expect(div.style.display).toBe('none');
+  });
+
+  it('toggle shows an element hidden with the hidden attribute (#250)', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.hidden = true;
+    const wrapped = new BQueryElement(div);
+
+    wrapped.toggle();
+    expect(div.hasAttribute('hidden')).toBe(false);
+    expect(div.style.display).toBe('');
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+  });
+
+  it('toggle hides a [hidden] element whose inline display overrides it', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.hidden = true;
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+    wrapped.toggle();
+    expect(div.style.display).toBe('flex');
+    expect(div.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('hide/show restores the previous inline display (#250)', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    wrapped.hide();
+    wrapped.hide(); // a second hide must not overwrite the remembered value
+    expect(div.style.display).toBe('none');
+    wrapped.show();
+    expect(div.style.display).toBe('flex');
+
+    wrapped.toggle();
+    wrapped.toggle();
+    expect(div.style.display).toBe('flex');
+
+    // An explicit value still wins, and a visible element keeps its display.
+    wrapped.hide();
+    wrapped.show('grid');
+    expect(div.style.display).toBe('grid');
+    wrapped.show();
+    expect(div.style.display).toBe('grid');
   });
 
   it('once adds one-time event listener', () => {
