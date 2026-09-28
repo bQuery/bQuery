@@ -6,8 +6,10 @@ import {
   applyAll,
   getInnerSize,
   getOuterSize,
+  hideElement,
   isHTMLElement,
   removeDelegatedListener,
+  showElement,
   toCssPropertyName,
   toElementList,
 } from './shared';
@@ -476,26 +478,24 @@ export class BQueryCollection {
   /**
    * Shows all elements.
    *
-   * @param display - Optional display value (default: '')
+   * Removes the `hidden` attribute and restores the inline `display` each
+   * element had before `hide()` (e.g. `flex`).
+   *
+   * @param display - Optional display value that overrides the restored one
    * @returns The instance for method chaining
    */
-  show(display: string = ''): this {
-    applyAll(this.elements, (el) => {
-      el.removeAttribute('hidden');
-      (el as HTMLElement).style.display = display;
-    });
+  show(display?: string): this {
+    applyAll(this.elements, (el) => showElement(el, display));
     return this;
   }
 
   /**
-   * Hides all elements.
+   * Hides all elements, remembering their inline `display` for `show()`.
    *
    * @returns The instance for method chaining
    */
   hide(): this {
-    applyAll(this.elements, (el) => {
-      (el as HTMLElement).style.display = 'none';
-    });
+    applyAll(this.elements, hideElement);
     return this;
   }
 

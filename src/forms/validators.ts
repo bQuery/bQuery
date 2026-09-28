@@ -125,6 +125,9 @@ export const pattern = (regex: RegExp, message = 'Invalid format'): SyncValidato
   };
 };
 
+/** Longest address {@link email} accepts (RFC 5321 forward-path limit). */
+const MAX_EMAIL_LENGTH = 254;
+
 /**
  * RFC 5322–simplified email validation.
  *
@@ -143,10 +146,18 @@ export const pattern = (regex: RegExp, message = 'Invalid format'): SyncValidato
 export const email = (message = 'Invalid email address'): SyncValidator<unknown> => {
   // Intentionally simple — covers the vast majority of valid addresses
   // without re-implementing the full RFC 5322 grammar.
-  const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  //
+  // The domain is written as dot-separated labels that cannot contain a dot
+  // themselves. The previous `[^\s@]+\.[^\s@]+` let both sides of the dot
+  // match dots too, so a long run of dots after the `@` backtracked
+  // quadratically (~5 s for 50 KB). Here every split is unambiguous, so the
+  // match is linear; it also rejects empty labels (`a@b..c`, `a@.b.c`).
+  const re = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/;
   return (value: unknown) => {
     const str = typeof value === 'string' ? value : String(value ?? '');
     if (str === '') return true; // empty is handled by `required`
+    // RFC 5321 caps a forward path at 254 octets; nothing longer is deliverable.
+    if (str.length > MAX_EMAIL_LENGTH) return message;
     return re.test(str) ? true : message;
   };
 };

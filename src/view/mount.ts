@@ -1,4 +1,5 @@
 import type { CleanupFn } from '../reactive/index';
+import { trustedPreparedHtmlForSink } from '../security/trusted-types';
 import {
   createForHandler,
   createIfHandler,
@@ -178,7 +179,10 @@ export const createTemplate = (
 ): ((context: BindingContext) => View) => {
   return (context: BindingContext) => {
     const container = document.createElement('div');
-    container.innerHTML = template.trim();
+    // Templates are author-controlled (see the view threat model), so they are
+    // not sanitized — which would also strip the `bq-*` attributes — but they
+    // still have to be wrapped for an enforced Trusted Types CSP.
+    container.innerHTML = trustedPreparedHtmlForSink(template.trim());
 
     const el = container.firstElementChild;
     if (!el) {
