@@ -76,14 +76,14 @@ These helpers mirror standard `classList` / `setAttribute` semantics but stay ch
 
 ### Style & visibility
 
-`css()` is overloaded: with a single property name it acts as a **getter** that returns the resolved value from `getComputedStyle()` (always a `string`); with a property + value (or an object) it acts as a **setter** that writes to `element.style` and stays chainable. Property names may be kebab-case (`font-size`) or camelCase (`fontSize`); custom properties (`--brand`) are passed through unchanged. `show()` **removes the `hidden` attribute** and restores the inline `display` the element had before `hide()` (or sets the value you pass, e.g. `show('flex')`); `hide()` only sets the inline `display: none` and remembers the previous inline value — it does not add `hidden`. `toggle()` treats an element as hidden when it has an inline `display: none`, or the `hidden` attribute with no inline `display` overriding it; an element hidden only by a stylesheet rule or a class counts as visible and gets hidden. Pass a boolean `force` to set the state explicitly. `toggle()` exists on `BQueryElement` only — collections have `show()`/`hide()` but no `toggle()`.
+`css()` is overloaded: with a single property name it acts as a **getter** that returns the resolved value from `getComputedStyle()` (always a `string`); with a property + value (or an object) it acts as a **setter** that writes to `element.style` and stays chainable. Property names may be kebab-case (`font-size`) or camelCase (`fontSize`); custom properties (`--brand`) are passed through unchanged. `show()` **removes the `hidden` attribute** and restores the inline `display` the element had before `hide()` (or sets the value you pass, e.g. `show('flex')`); `hide()` only sets the inline `display: none` and remembers the previous inline value — it does not add `hidden`. `toggle()` treats an element as hidden when it has an inline `display: none`, or the `hidden` attribute with no inline `display` overriding it (`hidden="until-found"` always counts as hidden, since it hides through `content-visibility`); an element hidden only by a stylesheet rule or a class counts as visible and gets hidden. Pass a boolean `force` to set the state explicitly. `toggle()` exists on `BQueryElement` only — collections have `show()`/`hide()` but no `toggle()`.
 
 - `css(property)` – getter: returns computed style value via `getComputedStyle()`
 - `css(property, value)` – setter: sets a single CSS property
 - `css(properties)` – setter: sets multiple CSS properties from an object
 - `show(display?)` – removes the `hidden` attribute and restores the inline `display` the element had before `hide()` (or sets `display` when given)
 - `hide()` – sets inline `display: none` and remembers the previous inline value (does not add `hidden`)
-- `toggle(force?)` – shows when the element has `hidden` or inline `display: none`, hides otherwise (`BQueryElement` only)
+- `toggle(force?)` – shows when the element has inline `display: none`, `hidden="until-found"`, or `hidden` without an inline `display` overriding it (`hidden` plus inline `display: flex` counts as visible); hides otherwise (`BQueryElement` only)
 
 ### Events (Element)
 
