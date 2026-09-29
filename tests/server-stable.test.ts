@@ -682,6 +682,39 @@ describe('server/csrf bound to the session', () => {
     expect((await post(app, '/x', rotated, fresh.token)).status).toBe(200);
   });
 
+  it('does not carry a planted cookie secret into a session regenerated on login', async () => {
+    const app = appWithSession();
+    // The attacker mints an anonymous pair and plants the cookie on the victim.
+    const planted = await mint(app);
+    const plantedCookie = cookiePair(planted.res, 'bq.csrf');
+
+    // The victim logs in from an anonymous page that carries the planted cookie.
+    const login = await post(app, '/login', plantedCookie, planted.token);
+    expect(login.status).toBe(200);
+    const sid = cookiePair(login, 'bq.sid');
+
+    // The planted token must not work for the authenticated session.
+    expect((await post(app, '/x', `${sid}; ${plantedCookie}`, planted.token)).status).toBe(403);
+    const fresh = await mint(app, sid);
+    expect((await post(app, '/x', sid, fresh.token)).status).toBe(200);
+  });
+
+  it('does not revive a session destroyed by the handler', async () => {
+    const app = appWithSession();
+    app.post('/logout', (ctx) => {
+      ctx.session!.$destroy();
+      return ctx.json({ ok: true });
+    });
+    const sid = await startSession(app);
+    const { token } = await mint(app, sid);
+
+    const logout = await post(app, '/logout', sid, token);
+    expect(logout.status).toBe(200);
+    const cookies = getSetCookies(logout).filter((c) => c.startsWith('bq.sid='));
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]).toMatch(/^bq\.sid=;/);
+  });
+
   it('persists the secret when the token is read after the handler returned', async () => {
     const app = appWithSession();
     const sid = await startSession(app);

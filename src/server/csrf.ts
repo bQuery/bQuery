@@ -240,6 +240,37 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
       return secret;
     };
 
+    // Watch the handler's lifecycle calls. After `$regenerate()` (a login) the
+    // session must not adopt the cookie secret, which a cookie-injecting
+    // attacker may have planted; after `$destroy()` nothing is written back.
+    let regenerated = false;
+    let destroyed = false;
+    ctx.session = new Proxy(session, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver) as unknown;
+        if ((prop === '$regenerate' || prop === '$destroy') && typeof value === 'function') {
+          return (): void => {
+            if (prop === '$regenerate') regenerated = true;
+            else destroyed = true;
+            (value as () => void)();
+          };
+        }
+        if (prop === '$clear' && typeof value === 'function') {
+          return (): void => {
+            destroyed = false;
+            (value as () => void)();
+          };
+        }
+        return value;
+      },
+      set(target, prop, value) {
+        const result = Reflect.set(target, prop, value);
+        // A write after `$destroy()` starts a fresh session.
+        destroyed = false;
+        return result;
+      },
+    });
+
     const stored = session.$id !== null;
     let cookieSecret = stored ? undefined : ctx.cookies[cookieName];
     let issueCookie = false;
@@ -253,14 +284,18 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
       issueCookie = true;
     }
 
+    // A session created during this request adopts the cookie secret, so a
+    // token handed out before the first session write stays valid. A stored or
+    // regenerated session gets a fresh secret instead.
+    const newSecret = (): string =>
+      stored || regenerated ? randomToken() : (cookieSecret as string);
+
     const cookieToken = stored ? null : await tokenFor(cookieSecret as string);
     // The session secret never leaves the server except as the token itself,
     // so it is handed out as is; only the cookie secret needs a signature.
     (ctx.state as Record<PropertyKey, unknown>)[CSRF_TOKEN_KEY] = (): string | null => {
-      if (session.$id === null) return cookieToken;
-      // A session created during this request adopts the cookie secret, so a
-      // token handed out before the first session write stays valid.
-      return readSecret() ?? bindSecret(stored ? randomToken() : (cookieSecret as string));
+      if (session.$id === null || destroyed) return cookieToken;
+      return readSecret() ?? bindSecret(newSecret());
     };
 
     if (!ignoreMethods.has(ctx.method)) {
@@ -286,10 +321,11 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
     }
 
     const response = await next();
-    // A session the handler created: bind the cookie secret while the session
-    // is still being persisted, so its forms verify against the session next.
-    if (!stored && session.$id !== null && readSecret() === null) {
-      bindSecret(cookieSecret as string);
+    // Bind a secret for a session the handler created or regenerated while the
+    // session is still being persisted, so a token read later (streamed body)
+    // and the forms of this response verify against the session next time.
+    if (!destroyed && session.$id !== null && readSecret() === null) {
+      bindSecret(newSecret());
     }
     if (issueCookie) {
       return appendSetCookie(
