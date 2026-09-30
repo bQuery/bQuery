@@ -116,15 +116,18 @@ and this project adheres to Semantic Versioning.
 
 ## [1.17.2] - 2026-09-30
 
-A security patch that completes the CSRF cookie-tossing fix of 1.17.1. No API removals and no module status transitions; the one behaviour change is listed under [Changed](#changed-1172).
+A security patch that closes cookie tossing for the CSRF and session cookies. No API removals and no module status transitions; the behaviour changes are listed under [Changed](#changed-1172).
 
 ### Security (1.17.2)
 
-- **Server**: `csrf()` names its cookie `__Host-bq.csrf` by default ([#274](https://github.com/bQuery/bQuery/pull/274)). 1.17.1 moved the secret into the session for visitors who have one, but forms rendered without a session, such as the login form, still relied on a `bq.csrf` cookie that a sibling subdomain, or a network attacker for a cookie set over HTTP, could plant. Browsers accept a `__Host-` cookie only from the exact host over HTTPS, with `Path=/` and without a `Domain`, so it can no longer be planted or overwritten, and a planted `bq.csrf` is ignored. With `secure: false`, a custom `path` or a `domain` the prefix is not allowed and the name stays `bq.csrf`. An explicit `__Host-` `cookieName` with such attributes now throws at startup instead of every unsafe request failing with `403`. The server guide documents the remaining limitation of unsigned (plain double-submit) mode.
+- **Server**: `csrf()` names its cookie `__Host-bq.csrf` by default ([#274](https://github.com/bQuery/bQuery/pull/274)). 1.17.1 moved the secret into the session for visitors who have one, but forms rendered without a session, such as the login form, still relied on a `bq.csrf` cookie that a sibling subdomain, or a network attacker for a cookie set over HTTP, could plant. Browsers accept a `__Host-` cookie only from the exact host over HTTPS, with `Path=/` and without a `Domain`, so it can no longer be planted or overwritten, and a planted `bq.csrf` is ignored. With `secure: false`, a custom `path` or a `domain` the prefix is not allowed and the name stays `bq.csrf`. The server guide documents the remaining limitation of unsigned (plain double-submit) mode.
+- **Server**: `session()` names its cookie `__Host-bq.sid` by default, under the same attribute rule (falls back to `bq.sid`). An unprefixed session cookie could be planted by a sibling subdomain with a validly signed id for the attacker's own session, so the victim's requests ran in the attacker's account (session swapping); since 1.17.1 the attacker also knew the matching session-bound CSRF token.
+- **Server**: `csrf()` and `session()` throw at startup when a `cookieName` carries a `__Host-` or `__Secure-` prefix its attributes violate. Prefixes are matched case-insensitively, as browsers do; browsers silently drop such a cookie, which surfaced only as every unsafe request failing with `403` or no session ever sticking.
 
 ### Changed (1.17.2)
 
 - **Server**: with the default cookie attributes the CSRF cookie is `__Host-bq.csrf` instead of `bq.csrf`. Server-side verification needs no change; a form rendered before the upgrade fails once with `403`, as after a secret rotation. Client code that reads the cookie directly (unsigned double-submit) must use the new name or pass `cookieName: 'bq.csrf'`.
+- **Server**: with the default cookie attributes the session cookie is `__Host-bq.sid` instead of `bq.sid`. Sessions issued before the upgrade are not read any more, so **users are logged out once**. Accepting the old name as a fallback would reopen session swapping. To keep existing sessions for a transition period, pass `cookieName: 'bq.sid'` and switch later.
 
 ## [1.17.1] - 2026-09-28
 

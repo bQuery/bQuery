@@ -221,7 +221,7 @@ describe('server/session', () => {
 
     const login = await app.handle({ url: '/login', method: 'POST' });
     expect((await login.json()).isNew).toBe(true);
-    const cookie = cookiePair(login, 'bq.sid');
+    const cookie = cookiePair(login, '__Host-bq.sid');
 
     const me = await app.handle({ url: '/me', headers: { cookie } });
     expect(await me.json()).toEqual({ userId: 'u_1' });
@@ -230,7 +230,7 @@ describe('server/session', () => {
   it('signs the session cookie with secure-by-default attributes', async () => {
     const app = buildApp(memoryStore());
     const login = await app.handle({ url: '/login', method: 'POST' });
-    const attributes = setCookieAttributes(login, 'bq.sid');
+    const attributes = setCookieAttributes(login, '__Host-bq.sid');
     expect(attributes).toContain('HttpOnly');
     expect(attributes).toContain('SameSite=Lax');
     expect(attributes).toContain('Path=/');
@@ -249,11 +249,62 @@ describe('server/session', () => {
     expect(setCookieAttributes(login, 'bq.sid')).not.toContain('Secure');
   });
 
+  it('uses a __Host- session cookie by default so a subdomain cannot plant one', async () => {
+    const store = memoryStore();
+    const app = createServer();
+    app.use(session({ secret: SECRET, store }));
+    app.post('/login', (ctx) => {
+      ctx.session!.userId = 'attacker';
+      return ctx.json({ ok: true });
+    });
+    app.get('/me', (ctx) => ctx.json({ userId: ctx.session!.userId ?? null }));
+
+    const login = await app.handle({ url: '/login', method: 'POST' });
+    const attributes = setCookieAttributes(login, '__Host-bq.sid');
+    expect(attributes).toContain('Secure');
+    expect(attributes).toContain('Path=/');
+    expect(attributes.toLowerCase()).not.toContain('domain=');
+
+    // A subdomain can only plant an unprefixed cookie, even one holding a
+    // validly signed id; the middleware ignores it (no session swapping).
+    const signedId = cookiePair(login, '__Host-bq.sid').slice('__Host-bq.sid='.length);
+    const me = await app.handle({ url: '/me', headers: { cookie: `bq.sid=${signedId}` } });
+    expect(await me.json()).toEqual({ userId: null });
+  });
+
+  it('falls back to bq.sid when the cookie attributes rule out __Host-', async () => {
+    for (const cookie of [{ secure: false }, { path: '/app' }, { domain: 'example.com' }]) {
+      const app = createServer();
+      app.use(session({ secret: SECRET, store: memoryStore(), cookie }));
+      app.post('/login', (ctx) => {
+        ctx.session!.userId = 'u_1';
+        return ctx.json({ ok: true });
+      });
+      const login = await app.handle({ url: '/login', method: 'POST' });
+      expect(() => cookiePair(login, 'bq.sid')).not.toThrow();
+    }
+  });
+
+  it('rejects a prefixed cookie name the browser would drop', () => {
+    const bad = [
+      ['__Host-sid', { secure: false }],
+      ['__host-sid', { path: '/app' }],
+      ['__HOST-sid', { domain: 'example.com' }],
+      ['__Secure-sid', { secure: false }],
+      ['__secure-sid', { secure: false }],
+    ] as const;
+    for (const [cookieName, cookie] of bad) {
+      expect(() => session({ secret: SECRET, cookieName, cookie })).toThrow(/prefix/);
+    }
+    expect(() => session({ secret: SECRET, cookieName: '__Secure-sid' })).not.toThrow();
+    expect(() => session({ secret: SECRET, cookieName: '__host-sid' })).not.toThrow();
+  });
+
   it('ignores a tampered session cookie', async () => {
     const store = memoryStore();
     const app = buildApp(store);
     const login = await app.handle({ url: '/login', method: 'POST' });
-    const cookie = cookiePair(login, 'bq.sid');
+    const cookie = cookiePair(login, '__Host-bq.sid');
     const tampered = `${cookie.slice(0, -1)}${cookie.endsWith('A') ? 'B' : 'A'}`;
 
     const me = await app.handle({ url: '/me', headers: { cookie: tampered } });
@@ -270,10 +321,10 @@ describe('server/session', () => {
     const store = memoryStore();
     const app = buildApp(store);
     const login = await app.handle({ url: '/login', method: 'POST' });
-    const cookie = cookiePair(login, 'bq.sid');
+    const cookie = cookiePair(login, '__Host-bq.sid');
 
     const logout = await app.handle({ url: '/logout', method: 'POST', headers: { cookie } });
-    expect(setCookieAttributes(logout, 'bq.sid')).toContain('Max-Age=0');
+    expect(setCookieAttributes(logout, '__Host-bq.sid')).toContain('Max-Age=0');
 
     const me = await app.handle({ url: '/me', headers: { cookie } });
     expect(await me.json()).toEqual({ userId: null });
@@ -283,7 +334,7 @@ describe('server/session', () => {
     const store = memoryStore();
     const app = buildApp(store);
     const login = await app.handle({ url: '/login', method: 'POST' });
-    const oldCookie = cookiePair(login, 'bq.sid');
+    const oldCookie = cookiePair(login, '__Host-bq.sid');
 
     const rotate = await app.handle({
       url: '/rotate',
@@ -292,7 +343,7 @@ describe('server/session', () => {
     });
     const body = await rotate.json();
     expect(body.after).not.toBe(body.before);
-    const newCookie = cookiePair(rotate, 'bq.sid');
+    const newCookie = cookiePair(rotate, '__Host-bq.sid');
     expect(newCookie).not.toBe(oldCookie);
 
     // Old cookie no longer resolves; new cookie keeps the data.
@@ -330,12 +381,12 @@ describe('server/session', () => {
     app.get('/me', (ctx) => ctx.json({ userId: ctx.session?.userId ?? null }));
 
     const login = await app.handle({ url: '/login', method: 'POST' });
-    const cookie = cookiePair(login, 'bq.sid');
+    const cookie = cookiePair(login, '__Host-bq.sid');
     const me = await app.handle({ url: '/me', headers: { cookie } });
     // A read-only request re-issues the same session cookie with a fresh Max-Age.
-    const rolled = setCookieAttributes(me, 'bq.sid');
+    const rolled = setCookieAttributes(me, '__Host-bq.sid');
     expect(rolled).toContain('Max-Age=');
-    expect(cookiePair(me, 'bq.sid')).toBe(cookie);
+    expect(cookiePair(me, '__Host-bq.sid')).toBe(cookie);
   });
 
   it('honors session secret rotation', async () => {
@@ -347,7 +398,7 @@ describe('server/session', () => {
       return ctx.json({ ok: true });
     });
     const login = await oldApp.handle({ url: '/login', method: 'POST' });
-    const cookie = cookiePair(login, 'bq.sid');
+    const cookie = cookiePair(login, '__Host-bq.sid');
 
     // New deploy signs with a new secret but still verifies cookies from the old one.
     const rotatedApp = createServer();
@@ -380,7 +431,7 @@ describe('server/session', () => {
 
     const reset = await app.handle({ url: '/reset', method: 'POST' });
     expect((await reset.json()).id).not.toBeNull();
-    const cookie = cookiePair(reset, 'bq.sid');
+    const cookie = cookiePair(reset, '__Host-bq.sid');
     expect(await (await app.handle({ url: '/me', headers: { cookie } })).json()).toEqual({
       userId: 'new',
     });
@@ -398,7 +449,7 @@ describe('server/session', () => {
 
     const login = await app.handle({ url: '/login', method: 'POST' });
     expect(login.status).toBe(302);
-    const cookie = cookiePair(login, 'bq.sid');
+    const cookie = cookiePair(login, '__Host-bq.sid');
     expect(await (await app.handle({ url: '/me', headers: { cookie } })).json()).toEqual({
       userId: 'u_1',
     });
@@ -476,6 +527,20 @@ describe('server/csrf', () => {
     expect(() => csrf({ cookieName: '__Host-x', cookie: { path: '/app' } })).toThrow();
     expect(() => csrf({ cookieName: '__Host-x', cookie: { domain: 'example.com' } })).toThrow();
     expect(() => csrf({ cookieName: '__Host-x' })).not.toThrow();
+    // Browsers match prefixes case-insensitively, and `__Secure-` needs Secure.
+    expect(() => csrf({ cookieName: '__host-x', cookie: { secure: false } })).toThrow(
+      /__Host- prefix/
+    );
+    expect(() => csrf({ cookieName: '__HOST-x', cookie: { path: '/app' } })).toThrow();
+    expect(() => csrf({ cookieName: '__Secure-x', cookie: { secure: false } })).toThrow(
+      /__Secure- prefix/
+    );
+    expect(() => csrf({ cookieName: '__secure-x', cookie: { secure: false } })).toThrow();
+    expect(() => csrf({ cookieName: '__Secure-x', cookie: { path: '/app' } })).not.toThrow();
+    // SameSite=None forces Secure, so the prefix is satisfied.
+    expect(() =>
+      csrf({ cookieName: '__Host-x', cookie: { secure: false, sameSite: 'none' } })
+    ).not.toThrow();
   });
 
   it('rejects unsafe requests without a token', async () => {

@@ -43,6 +43,55 @@ const assertCookieAttributeValue = (label: string, value: string): string => {
   return value;
 };
 
+/** Whether {@link serializeCookie} emits `Secure` for these attributes. */
+const emitsSecure = (options: ServerCookieOptions): boolean =>
+  options.secure === true ||
+  (typeof options.sameSite === 'string' && options.sameSite.toLowerCase() === 'none');
+
+/**
+ * Whether a cookie with these attributes may carry the `__Host-` prefix:
+ * `Secure`, `Path=/` and no `Domain`. Browsers refuse such a cookie from a
+ * sibling subdomain or over plain HTTP, so it cannot be planted.
+ * @internal
+ */
+export const allowsHostPrefix = (options: ServerCookieOptions): boolean =>
+  emitsSecure(options) && options.path === '/' && !options.domain;
+
+/**
+ * The default cookie name for `base`: `__Host-<base>` when the attributes
+ * allow the prefix, `base` otherwise.
+ * @internal
+ */
+export const defaultCookieName = (base: string, options: ServerCookieOptions): string =>
+  allowsHostPrefix(options) ? `__Host-${base}` : base;
+
+/**
+ * Throw when `name` carries a `__Host-` or `__Secure-` prefix that `options`
+ * do not satisfy. Browsers match these prefixes case-insensitively and
+ * silently drop a cookie that violates them, which would otherwise surface
+ * only as every request failing.
+ * @internal
+ */
+export const assertCookiePrefix = (
+  owner: string,
+  name: string,
+  options: ServerCookieOptions
+): void => {
+  const lower = name.toLowerCase();
+  if (lower.startsWith('__host-') && !allowsHostPrefix(options)) {
+    throw new Error(
+      `bQuery server: ${owner} cookie "${name}" uses the __Host- prefix, which requires ` +
+        "`secure: true`, `path: '/'` and no `domain`."
+    );
+  }
+  if (lower.startsWith('__secure-') && !emitsSecure(options)) {
+    throw new Error(
+      `bQuery server: ${owner} cookie "${name}" uses the __Secure- prefix, which requires ` +
+        '`secure: true`.'
+    );
+  }
+};
+
 /**
  * Serialize a `Set-Cookie` header value, validating the name and attribute
  * values so request-controlled data can never inject extra cookie attributes.

@@ -20,7 +20,7 @@
  * @module bquery/server
  */
 
-import { appendSetCookie, serializeCookie } from './cookies';
+import { appendSetCookie, assertCookiePrefix, defaultCookieName, serializeCookie } from './cookies';
 import { randomToken, signValue, timingSafeEqual, unsignValue } from './crypto';
 import { ServerHttpError } from './errors';
 import type {
@@ -79,11 +79,6 @@ export interface CsrfOptions {
 }
 
 const DEFAULT_CSRF_COOKIE = 'bq.csrf';
-const HOST_PREFIX = '__Host-';
-
-/** Whether a cookie with these attributes may carry the `__Host-` prefix. */
-const allowsHostPrefix = (cookie: ServerCookieOptions): boolean =>
-  cookie.secure === true && cookie.path === '/' && !cookie.domain;
 const DEFAULT_HEADER = 'x-csrf-token';
 const DEFAULT_FIELD = '_csrf';
 const DEFAULT_IGNORE = ['GET', 'HEAD', 'OPTIONS'];
@@ -210,17 +205,10 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
   };
   // Prefer a `__Host-` cookie: a sibling subdomain (or a network attacker,
   // for a non-Secure cookie) cannot set one, so the secret cannot be planted.
-  const cookieName =
-    options.cookieName ??
-    (allowsHostPrefix(baseCookie) ? `${HOST_PREFIX}${DEFAULT_CSRF_COOKIE}` : DEFAULT_CSRF_COOKIE);
-  // Browsers silently drop a `__Host-` cookie with other attributes, which
+  const cookieName = options.cookieName ?? defaultCookieName(DEFAULT_CSRF_COOKIE, baseCookie);
+  // Browsers silently drop a prefixed cookie with other attributes, which
   // would make every unsafe request fail with 403; fail loud instead.
-  if (cookieName.startsWith(HOST_PREFIX) && !allowsHostPrefix(baseCookie)) {
-    throw new Error(
-      `bQuery server: csrf() cookie "${cookieName}" uses the __Host- prefix, which requires ` +
-        "`secure: true`, `path: '/'` and no `domain`."
-    );
-  }
+  assertCookiePrefix('csrf()', cookieName, baseCookie);
 
   const tokenFor = async (secret: string): Promise<string> =>
     signed ? signValue(secret, secrets[0]) : secret;
