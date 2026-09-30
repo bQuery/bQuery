@@ -18,6 +18,7 @@ import {
   suppressesTextContent,
 } from './sanitize-policy';
 import { decodeEntities } from './sanitize-string';
+import { trustedPreparedHtmlForSink } from './trusted-types';
 import type { SanitizeOptions } from './types';
 
 /**
@@ -55,7 +56,14 @@ const parseHtmlDocument = (htmlContent: string): Document => {
   // inline suppression comments, so the only effect was to suggest the alert
   // was handled when it was not. It is resolved by dismissing the alert in
   // the code-scanning UI.
-  return parser.parseFromString(htmlContent, 'text/html');
+  //
+  // Under an enforced `require-trusted-types-for 'script'` CSP,
+  // `parseFromString` is itself a Trusted Types sink and throws on a plain
+  // string — which broke every sanitizer call, and with it the policy's own
+  // `createHTML`. The input is wrapped by the same `bquery-sanitizer` policy
+  // without a sanitizer pass (that pass is what is running here), so no extra
+  // policy name has to be allowed in the CSP.
+  return parser.parseFromString(trustedPreparedHtmlForSink(htmlContent), 'text/html');
 };
 
 /**

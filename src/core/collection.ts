@@ -6,8 +6,11 @@ import {
   applyAll,
   getInnerSize,
   getOuterSize,
+  hideElement,
   isHTMLElement,
   removeDelegatedListener,
+  showElement,
+  toCssPropertyName,
   toElementList,
 } from './shared';
 
@@ -275,8 +278,9 @@ export class BQueryCollection {
   css(property: string | Record<string, string>, value?: string): string | this {
     if (typeof property === 'string') {
       if (value !== undefined) {
+        const name = toCssPropertyName(property);
         applyAll(this.elements, (el) => {
-          (el as HTMLElement).style.setProperty(property, value);
+          (el as HTMLElement).style.setProperty(name, value);
         });
         return this;
       }
@@ -288,10 +292,12 @@ export class BQueryCollection {
       if (!view || typeof view.getComputedStyle !== 'function') {
         return '';
       }
-      return view.getComputedStyle(first).getPropertyValue(property);
+      return view.getComputedStyle(first).getPropertyValue(toCssPropertyName(property));
     }
 
-    const entries = Object.entries(property);
+    const entries = Object.entries(property).map(
+      ([key, val]) => [toCssPropertyName(key), val] as const
+    );
     applyAll(this.elements, (el) => {
       for (const [key, val] of entries) {
         (el as HTMLElement).style.setProperty(key, val);
@@ -472,26 +478,24 @@ export class BQueryCollection {
   /**
    * Shows all elements.
    *
-   * @param display - Optional display value (default: '')
+   * Removes the `hidden` attribute and restores the inline `display` each
+   * element had before `hide()` (e.g. `flex`).
+   *
+   * @param display - Optional display value that overrides the restored one
    * @returns The instance for method chaining
    */
-  show(display: string = ''): this {
-    applyAll(this.elements, (el) => {
-      el.removeAttribute('hidden');
-      (el as HTMLElement).style.display = display;
-    });
+  show(display?: string): this {
+    applyAll(this.elements, (el) => showElement(el, display));
     return this;
   }
 
   /**
-   * Hides all elements.
+   * Hides all elements, remembering their inline `display` for `show()`.
    *
    * @returns The instance for method chaining
    */
   hide(): this {
-    applyAll(this.elements, (el) => {
-      (el as HTMLElement).style.display = 'none';
-    });
+    applyAll(this.elements, hideElement);
     return this;
   }
 

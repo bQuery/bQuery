@@ -102,7 +102,10 @@ export interface ServerListenOptions {
   port?: number;
   /** Target runtime; `auto` detects Bun, Deno, or Node at call time. */
   runtime?: 'auto' | 'bun' | 'deno' | 'node';
-  /** Abort signal that, once aborted, stops the server. */
+  /**
+   * Abort signal that, once aborted, stops the server. An already-aborted
+   * signal makes `listen()` reject with the signal's reason without binding.
+   */
   signal?: AbortSignal;
 }
 

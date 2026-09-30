@@ -276,7 +276,7 @@ As of 1.15.0 the server module ships first-party, secure-by-default primitives f
 
 ### Sessions
 
-`session(options)` returns middleware that loads, exposes, and persists a request-scoped session. The session id lives in an **HMAC-signed cookie** (tampered cookies are ignored); the payload lives in a **pluggable store** (default: process-local `memoryStore()`), so the cookie never carries session data.
+`session(options)` returns middleware that loads, exposes, and persists a request-scoped session. The session id lives in an **HMAC-signed cookie** (tampered cookies are ignored); the payload lives in a **pluggable store** (default: process-local `memoryStore()`, capped at 10 000 sessions with least-recently-used eviction), so the cookie never carries session data. `memoryStore()` also sweeps expired sessions during writes, so abandoned sessions do not accumulate; for more than one process, plug in a shared store.
 
 ```ts
 import { createServer, session, memoryStore } from '@bquery/bquery/server';
@@ -330,7 +330,14 @@ const redisStore = (client): SessionStore => ({
 
 ### CSRF
 
-`csrf(options)` enforces the OWASP double-submit-cookie pattern. Safe requests (GET/HEAD/OPTIONS) mint a per-client secret cookie and expose the matching token via `csrfToken(ctx)`; state-changing requests must echo that token back in the `x-csrf-token` header (or a `_csrf` body field) or are rejected with `403`. Provide a `secret` to upgrade to **signed** double-submit (defends against sibling-subdomain cookie injection).
+`csrf(options)` enforces the OWASP double-submit-cookie pattern. Safe requests (GET/HEAD/OPTIONS) mint a per-client secret cookie and expose the matching token via `csrfToken(ctx)`; state-changing requests must echo that token back in the `x-csrf-token` header (or a `_csrf` body field) or are rejected with `403`. Provide a `secret` to upgrade to **signed** double-submit.
+
+Signing alone does not stop cookie injection: someone who can set cookies for your users (a sibling subdomain, or a network attacker for a non-`__Host-` cookie) can plant the secret from a validly signed pair minted for themselves. So in signed mode, when `session()` runs **before** `csrf()` and the request carries a stored session, the secret is kept in that session instead of a cookie (synchronizer token): tokens are bound to the session and no CSRF cookie is set. `$regenerate()` (call it on login) invalidates the token, so a session planted before login cannot carry a known token into the authenticated one; render a fresh `csrfToken(ctx)` after logging in. Visitors without a session get the signed CSRF cookie instead, so anonymous traffic never creates sessions or fills the session store. When a handler creates the session (e.g. adding to a cart), the session adopts that cookie's secret, so forms rendered before it keep working; a session created with `$regenerate()` (a login) gets a fresh secret instead, so a planted cookie cannot reach the authenticated session. Pass `bindToSession: false` to keep the cookie-based behaviour for everyone. Anonymous forms (such as the login form) still rely on the cookie, so consider `cookieName: '__Host-bq.csrf'` so subdomains cannot overwrite it.
+
+```ts
+app.use(session({ secret: process.env.SESSION_SECRET! }));
+app.use(csrf({ secret: process.env.CSRF_SECRET! })); // token bound to the session
+```
 
 ```ts
 import { createServer, csrf, csrfToken } from '@bquery/bquery/server';

@@ -466,6 +466,8 @@ export function invert<T extends Record<string, PropertyKey>>(obj: T): Record<st
   return result;
 }
 
+const objectTag = (value: object): string => Object.prototype.toString.call(value);
+
 /**
  * Recursively compares two values for structural equality. Handles plain
  * objects, arrays, Dates, RegExps, Maps, Sets, and primitive equality
@@ -497,6 +499,13 @@ export function deepEqual(a: unknown, b: unknown): boolean {
     if (typeof left !== typeof right) return false;
     if (left === null || right === null) return false;
     if (typeof left !== 'object') return false;
+
+    // Different built-in kinds never compare equal. Without this, a `Date`,
+    // `Map`, `Set`, `RegExp` or empty array fell through to the own-key
+    // comparison below — they have no own enumerable keys, so all of them
+    // compared equal to `{}` and to each other.
+    if (Array.isArray(left) !== Array.isArray(right)) return false;
+    if (objectTag(left) !== objectTag(right as object)) return false;
 
     const leftObject = left as object;
     const rightObject = right as object;

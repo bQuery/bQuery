@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, setSystemTime, spyOn } from 'bun:test';
 import {
   basicAuth,
   bearerAuth,
@@ -120,6 +120,64 @@ describe('server/memoryStore', () => {
     expect(await store.get('a')).toBeNull();
     expect(await store.get('b')).toEqual({ n: 2 });
     expect(await store.get('c')).toEqual({ n: 3 });
+  });
+
+  describe('expired-entry sweeping (#256)', () => {
+    afterEach(() => {
+      setSystemTime();
+    });
+
+    it('sweeps expired sessions on later writes, even if they are never read again', async () => {
+      const start = Date.now();
+      setSystemTime(start);
+      const store = memoryStore();
+      await store.set('abandoned', { n: 1 }, 1_000);
+
+      setSystemTime(start + 60_000);
+      const deleteSpy = spyOn(Map.prototype, 'delete');
+      try {
+        await store.set('fresh', { n: 2 }, 1_000);
+        expect(deleteSpy.mock.calls.some(([key]) => key === 'abandoned')).toBe(true);
+      } finally {
+        deleteSpy.mockRestore();
+      }
+      expect(await store.get('fresh')).toEqual({ n: 2 });
+    });
+
+    it('drops expired entries before evicting a live one to honour maxEntries', async () => {
+      const start = Date.now();
+      setSystemTime(start);
+      const store = memoryStore({ maxEntries: 2 });
+      await store.set('live', { n: 1 }, 3_600_000);
+      await store.set('expiring', { n: 2 }, 1_000);
+
+      setSystemTime(start + 5_000);
+      await store.set('new', { n: 3 }, 3_600_000);
+
+      expect(await store.get('live')).toEqual({ n: 1 });
+      expect(await store.get('new')).toEqual({ n: 3 });
+    });
+  });
+
+  it('evicts the least recently touched entry beyond maxEntries (#256)', async () => {
+    const store = memoryStore({ maxEntries: 2 });
+    await store.set('a', { n: 1 });
+    await store.set('b', { n: 2 });
+    await store.touch?.('a');
+    await store.set('c', { n: 3 });
+    expect(await store.get('a')).toEqual({ n: 1 });
+    expect(await store.get('b')).toBeNull();
+    expect(await store.get('c')).toEqual({ n: 3 });
+  });
+
+  it('treats a read as use when evicting beyond maxEntries (#256)', async () => {
+    const store = memoryStore({ maxEntries: 2 });
+    await store.set('a', { n: 1 });
+    await store.set('b', { n: 2 });
+    await store.get('a');
+    await store.set('c', { n: 3 });
+    expect(await store.get('a')).toEqual({ n: 1 });
+    expect(await store.get('b')).toBeNull();
   });
 
   it('returns a copy, not a live reference', async () => {
@@ -472,6 +530,219 @@ describe('server/csrf', () => {
     app.get('/x', (ctx) => ctx.json({ token: csrfToken(ctx) }));
     const res = await app.handle('/x');
     expect(await res.json()).toEqual({ token: null });
+  });
+});
+
+describe('server/csrf bound to the session', () => {
+  // Opened by a test once `app.handle()` has returned, i.e. once the session
+  // middleware has persisted the session.
+  let openLateGate: () => void = () => {};
+  let lateGate: Promise<void> = Promise.resolve();
+
+  const appWithSession = (
+    csrfOptions: Parameters<typeof csrf>[0] = { secret: SECRET },
+    store: SessionStore = memoryStore()
+  ) => {
+    const app = createServer();
+    app.use(session({ secret: SECRET, store, cookie: { secure: false } }));
+    app.use(csrf({ cookie: { secure: false }, ...csrfOptions }));
+    app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+    app.get('/plain', (ctx) => ctx.text('no form here'));
+    app.get('/start', (ctx) => {
+      ctx.session!.visited = true;
+      return ctx.json({ ok: true });
+    });
+    app.get('/late', (ctx) => {
+      // The token is read while the body streams, after the middleware chain
+      // (and with it the session) has finished.
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            // `pull` runs as soon as the stream is built; wait until the
+            // session middleware has finished.
+            await lateGate;
+            controller.enqueue(new TextEncoder().encode(String(csrfToken(ctx))));
+            controller.close();
+          },
+        })
+      );
+    });
+    app.post('/login', (ctx) => {
+      ctx.session!.$regenerate();
+      ctx.session!.user = 'ada';
+      return ctx.json({ ok: true });
+    });
+    app.post('/cart', (ctx) => {
+      ctx.session!.cart = 1;
+      return ctx.json({ ok: true });
+    });
+    app.post('/x', (ctx) => ctx.json({ ok: true }));
+    return app;
+  };
+
+  type App = ReturnType<typeof createServer>;
+
+  const startSession = async (app: App) => cookiePair(await app.handle('/start'), 'bq.sid');
+
+  const mint = async (app: App, cookie?: string) => {
+    const res = await app.handle({ url: '/token', headers: cookie ? { cookie } : {} });
+    const { token } = (await res.json()) as { token: string };
+    return { token, res };
+  };
+
+  const post = (app: App, url: string, cookie: string, token: string) =>
+    app.handle({ url, method: 'POST', headers: { cookie, 'x-csrf-token': token } });
+
+  it('keeps the secret of a stored session in the session instead of a cookie', async () => {
+    const app = appWithSession();
+    const sid = await startSession(app);
+    const { token, res } = await mint(app, sid);
+
+    expect(getSetCookies(res).some((c) => c.startsWith('bq.csrf='))).toBe(false);
+    expect((await post(app, '/x', sid, token)).status).toBe(200);
+  });
+
+  it('rejects a valid token minted for another session (cookie injection)', async () => {
+    const app = appWithSession();
+    const attacker = await mint(app, await startSession(app));
+    const anonymous = await mint(app);
+    const plantedCookie = cookiePair(anonymous.res, 'bq.csrf');
+    const victimSid = await startSession(app);
+
+    // Planting a CSRF cookie no longer matters; only the session is consulted.
+    for (const token of [attacker.token, anonymous.token]) {
+      expect((await post(app, '/x', `${victimSid}; ${plantedCookie}`, token)).status).toBe(403);
+    }
+  });
+
+  it('uses the signed cookie for visitors without a session', async () => {
+    const app = appWithSession();
+    const { token, res } = await mint(app);
+    const csrfCookie = cookiePair(res, 'bq.csrf');
+
+    expect(getSetCookies(res).some((c) => c.startsWith('bq.sid='))).toBe(false);
+    expect(token).not.toBe(csrfCookie.slice('bq.csrf='.length));
+    expect((await post(app, '/x', csrfCookie, token)).status).toBe(200);
+    expect((await post(app, '/x', csrfCookie, 'forged')).status).toBe(403);
+  });
+
+  it('does not write anonymous traffic into the session store', async () => {
+    const base = memoryStore();
+    let writes = 0;
+    const store: SessionStore = {
+      get: (id) => base.get(id),
+      set: (id, data, ttlMs) => {
+        writes++;
+        return base.set(id, data, ttlMs);
+      },
+      destroy: (id) => base.destroy(id),
+    };
+    const app = appWithSession({ secret: SECRET }, store);
+    for (let i = 0; i < 20; i++) {
+      const { res } = await mint(app);
+      expect(getSetCookies(res).some((c) => c.startsWith('bq.sid='))).toBe(false);
+    }
+    const plain = await app.handle('/plain');
+    expect(getSetCookies(plain).some((c) => c.startsWith('bq.sid='))).toBe(false);
+    expect(writes).toBe(0);
+  });
+
+  it('keeps an anonymous token valid once the session is created', async () => {
+    const app = appWithSession();
+    const { token, res } = await mint(app);
+    const csrfCookie = cookiePair(res, 'bq.csrf');
+
+    const cart = await post(app, '/cart', csrfCookie, token);
+    expect(cart.status).toBe(200);
+    const sid = cookiePair(cart, 'bq.sid');
+
+    // The session adopted the cookie secret: the form rendered before the
+    // session existed still submits, and so does the session's own token.
+    expect((await post(app, '/x', sid, token)).status).toBe(200);
+    const bound = await mint(app, sid);
+    expect((await post(app, '/x', sid, bound.token)).status).toBe(200);
+  });
+
+  it('rotates the token on $regenerate() so a fixated session cannot carry it over', async () => {
+    const app = appWithSession();
+    const sid = await startSession(app);
+    const { token } = await mint(app, sid);
+
+    const login = await post(app, '/login', sid, token);
+    expect(login.status).toBe(200);
+    const rotated = cookiePair(login, 'bq.sid');
+    expect(rotated).not.toBe(sid);
+
+    // The pre-login token (known to whoever planted the session) is dead.
+    expect((await post(app, '/x', rotated, token)).status).toBe(403);
+
+    // A page rendered after login hands out a working token.
+    const fresh = await mint(app, rotated);
+    expect(fresh.token).not.toBe(token);
+    expect((await post(app, '/x', rotated, fresh.token)).status).toBe(200);
+  });
+
+  it('does not carry a planted cookie secret into a session regenerated on login', async () => {
+    const app = appWithSession();
+    // The attacker mints an anonymous pair and plants the cookie on the victim.
+    const planted = await mint(app);
+    const plantedCookie = cookiePair(planted.res, 'bq.csrf');
+
+    // The victim logs in from an anonymous page that carries the planted cookie.
+    const login = await post(app, '/login', plantedCookie, planted.token);
+    expect(login.status).toBe(200);
+    const sid = cookiePair(login, 'bq.sid');
+
+    // The planted token must not work for the authenticated session.
+    expect((await post(app, '/x', `${sid}; ${plantedCookie}`, planted.token)).status).toBe(403);
+    const fresh = await mint(app, sid);
+    expect((await post(app, '/x', sid, fresh.token)).status).toBe(200);
+  });
+
+  it('does not revive a session destroyed by the handler', async () => {
+    const app = appWithSession();
+    app.post('/logout', (ctx) => {
+      ctx.session!.$destroy();
+      return ctx.json({ ok: true });
+    });
+    const sid = await startSession(app);
+    const { token } = await mint(app, sid);
+
+    const logout = await post(app, '/logout', sid, token);
+    expect(logout.status).toBe(200);
+    const cookies = getSetCookies(logout).filter((c) => c.startsWith('bq.sid='));
+    expect(cookies).toHaveLength(1);
+    expect(cookies[0]).toMatch(/^bq\.sid=;/);
+  });
+
+  it('persists the secret when the token is read after the handler returned', async () => {
+    const app = appWithSession();
+    const sid = await startSession(app);
+    const { token } = await mint(app, sid);
+    // After login the session holds no secret for its new id yet.
+    const rotated = cookiePair(await post(app, '/login', sid, token), 'bq.sid');
+
+    lateGate = new Promise((resolve) => {
+      openLateGate = resolve;
+    });
+    const late = await app.handle({ url: '/late', headers: { cookie: rotated } });
+    openLateGate();
+    const lateToken = await late.text();
+    expect(lateToken).not.toBe('null');
+    expect((await post(app, '/x', rotated, lateToken)).status).toBe(200);
+  });
+
+  it('rejects unsafe requests without a matching secret', async () => {
+    const app = appWithSession();
+    const res = await app.handle({ url: '/x', method: 'POST', headers: { 'x-csrf-token': 'x' } });
+    expect(res.status).toBe(403);
+    expect((await post(app, '/x', await startSession(app), 'x')).status).toBe(403);
+  });
+
+  it('can opt out with bindToSession: false', async () => {
+    const app = appWithSession({ secret: SECRET, bindToSession: false });
+    const { res } = await mint(app, await startSession(app));
+    expect(() => cookiePair(res, 'bq.csrf')).not.toThrow();
   });
 });
 

@@ -4,7 +4,7 @@ You are working on bQuery.js, a batteries-included TypeScript full-stack web fra
 
 > Derived snapshot for Cursor. If this file conflicts with `package.json`, `src/*/index.ts`, or `AGENT.md`, trust those files in that order and then realign this one.
 
-Current release baseline: **1.17.0**.
+Current release baseline: **1.17.1**.
 
 Version `1.15.0` graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, `server` — so every module is now Stable, with no Beta or Experimental tiers (canonical record: `STABILITY.md`, enforced by `bun run check:stability`). Additive APIs this cycle: `@bquery/bquery/view` enter/leave/move transitions + the optional `@bquery/bquery/view/compiler` (no `'unsafe-eval'`); `@bquery/bquery/forms` `formAction`/`useFormStatus`/`optimistic`; `@bquery/bquery/i18n` ICU MessageFormat + `@bquery/bquery/i18n/extract` (`bquery-i18n` CLI); an opt-in file-route convention (`createFileRoutes`, `mountFileRoutes`) with typed `load`/`action`; `@bquery/bquery/server` `session`/`csrf`/`guard`/`basicAuth`/`bearerAuth`; `@bquery/bquery/ssr` production `hydrate`/`detectHydrationMismatches` + resumable boundaries; a versioned `@bquery/bquery/devtools` bridge protocol + reference extension; and `definePlugin()`. No breaking changes.
 
@@ -23,6 +23,10 @@ bQuery.js is not a utility library; treat its broad module surface as the produc
 - Signal `.value` tracks dependencies → use `.peek()` to avoid tracking.
 - `useSignal()`, `useComputed()`, and `useEffect()` from `@bquery/bquery/component` must be called from component lifecycle hooks, not from `render()`.
 - When version, engine, or repo guidance files change, run `bun run check:ai-guidance` before finishing.
+
+## 1.17.1 API Notes
+
+- Version `1.17.1` is a security-and-correctness patch closing a full-codebase audit of 1.17.0. No API removals, no module status transitions. Security: `serveStatic({ precompressed: true })` applies the `realpath` containment check to `.br`/`.gz` sidecars; the Node adapter (`createNodeHandler`, `listen({ runtime: 'node' })`) answers handler errors with `500` instead of crashing the process via an unhandled rejection, aborts `request.signal` and cancels the response stream on client disconnect; signed `csrf({ secret })` tokens live in the server-side session when `session()` runs first, bound to the session id and rotated on `$regenerate()` (`bindToSession: false` opts out). Fixes: `deepEqual`/`isEqual` no longer equate different built-in kinds; router `route.params` are percent-decoded and encoded static segments match (client and server); `css()` accepts camelCase names; `toggle()` shows `[hidden]` elements and `hide()`/`show()` keep the inline `display`; `http` honours an already-aborted `signal` with `timeout` and `listen({ signal })` rejects when aborted; `email()` is linear-time; component render, `createTemplate()` and the DOM sanitizer work under an enforced Trusted Types CSP; `memoryStore()` sweeps expired sessions, evicts LRU, and the default session store is capped at 10 000 entries.
 
 ## 1.17.0 API Notes
 

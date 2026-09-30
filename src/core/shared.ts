@@ -3,6 +3,84 @@
  */
 export type ElementList = Element[];
 
+/**
+ * Normalize a CSS property name for the CSSOM `setProperty()` /
+ * `getPropertyValue()` calls, which only understand the hyphenated form.
+ *
+ * `css({ fontSize: '18px' })` — the jQuery spelling, and the one the
+ * migration guide shows — was otherwise ignored without any error. Custom
+ * properties (`--brand`) are case-sensitive and passed through untouched;
+ * vendor prefixes follow the DOM spelling (`WebkitTransition`,
+ * `webkitTransition`, `msTransform` → `-webkit-transition`, `-ms-transform`).
+ * Names that already contain a hyphen are passed through unchanged.
+ * @internal
+ */
+export const toCssPropertyName = (name: string): string => {
+  if (name.startsWith('--')) return name;
+  if (name === 'cssFloat') return 'float';
+  // Already hyphenated (possibly upper-cased, which CSSOM lowercases itself)
+  // or plain lowercase: leave it for setProperty()/getPropertyValue().
+  if (name.includes('-') || !/[A-Z]/.test(name)) return name;
+  const prefixed = /^(?:ms|webkit|moz)[A-Z]/.test(name) ? `-${name}` : name;
+  return prefixed.replace(/[A-Z]/g, (char) => `-${char.toLowerCase()}`);
+};
+
+/**
+ * Inline `display` values stashed by `hide()`, so `show()` can restore
+ * `display: flex` (or any other inline value) instead of clearing it.
+ * @internal
+ */
+const displayBeforeHide = new WeakMap<Element, string>();
+
+/**
+ * Whether an element is hidden by one of the mechanisms `show()` undoes:
+ * an inline `display: none`, or the `hidden` attribute when no inline
+ * `display` overrides it (an inline `display: flex` beats `[hidden]`).
+ * `hidden="until-found"` hides through `content-visibility`, so it hides the
+ * content whatever the inline `display` is.
+ * @internal
+ */
+export const isElementHidden = (el: Element): boolean => {
+  const display = (el as HTMLElement).style?.display;
+  const hidden = el.getAttribute('hidden');
+  return (
+    display === 'none' || hidden?.toLowerCase() === 'until-found' || (!display && hidden !== null)
+  );
+};
+
+/**
+ * Hide an element with an inline `display: none`, remembering the inline
+ * `display` it had so {@link showElement} can put it back.
+ * @internal
+ */
+export const hideElement = (el: Element): void => {
+  const style = (el as HTMLElement).style;
+  if (!style) return;
+  if (style.display !== 'none') {
+    displayBeforeHide.set(el, style.display);
+  }
+  style.display = 'none';
+};
+
+/**
+ * Show an element: drop the `hidden` attribute and restore the inline
+ * `display` from before {@link hideElement}. An explicit `display` wins.
+ * Without one, an element that is not inline-hidden keeps its current value.
+ * @internal
+ */
+export const showElement = (el: Element, display?: string): void => {
+  el.removeAttribute('hidden');
+  const style = (el as HTMLElement).style;
+  if (!style) return;
+  const remembered = displayBeforeHide.get(el);
+  displayBeforeHide.delete(el);
+  if (display !== undefined) {
+    style.display = display;
+  } else if (style.display === 'none') {
+    style.display = remembered ?? '';
+  }
+};
+
 /** Handler signature for delegated events */
 export type DelegatedHandler = (event: Event, target: Element) => void;
 

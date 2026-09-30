@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import { BQueryCollection } from '../src/core/collection';
 import { BQueryElement } from '../src/core/element';
 import { $, $$ } from '../src/core/selector';
+import { toCssPropertyName } from '../src/core/shared';
 
 describe('core/selector', () => {
   it('$ returns BQueryElement instance', () => {
@@ -390,6 +391,19 @@ describe('core/BQueryCollection', () => {
     expect(div.style.display).toBe('');
   });
 
+  it("show restores each element's inline display after hide (#250)", () => {
+    const flex = document.createElement('div') as HTMLElement;
+    const inline = document.createElement('span') as HTMLElement;
+    flex.style.display = 'flex';
+    inline.hidden = true;
+    const collection = new BQueryCollection([flex, inline]);
+
+    collection.hide().show();
+    expect(flex.style.display).toBe('flex');
+    expect(inline.hasAttribute('hidden')).toBe(false);
+    expect(inline.style.display).toBe('');
+  });
+
   it('empty clears content', () => {
     const div = document.createElement('div');
     div.innerHTML = '<span>Content</span>';
@@ -533,6 +547,71 @@ describe('core/BQueryElement new methods', () => {
 
     wrapped.toggle(false);
     expect(div.style.display).toBe('none');
+  });
+
+  it('toggle shows an element hidden with the hidden attribute (#250)', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.hidden = true;
+    const wrapped = new BQueryElement(div);
+
+    wrapped.toggle();
+    expect(div.hasAttribute('hidden')).toBe(false);
+    expect(div.style.display).toBe('');
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+  });
+
+  it('toggle hides a [hidden] element whose inline display overrides it', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.hidden = true;
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+    wrapped.toggle();
+    expect(div.style.display).toBe('flex');
+    expect(div.hasAttribute('hidden')).toBe(false);
+  });
+
+  it('toggle shows a hidden="until-found" element even with an inline display', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.setAttribute('hidden', 'until-found');
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    // `until-found` hides via content-visibility, so the inline display does
+    // not reveal it: toggle() must call show() and drop the attribute.
+    wrapped.toggle();
+    expect(div.hasAttribute('hidden')).toBe(false);
+    expect(div.style.display).toBe('flex');
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+  });
+
+  it('hide/show restores the previous inline display (#250)', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    wrapped.hide();
+    wrapped.hide(); // a second hide must not overwrite the remembered value
+    expect(div.style.display).toBe('none');
+    wrapped.show();
+    expect(div.style.display).toBe('flex');
+
+    wrapped.toggle();
+    wrapped.toggle();
+    expect(div.style.display).toBe('flex');
+
+    // An explicit value still wins, and a visible element keeps its display.
+    wrapped.hide();
+    wrapped.show('grid');
+    expect(div.style.display).toBe('grid');
+    wrapped.show();
+    expect(div.style.display).toBe('grid');
   });
 
   it('once adds one-time event listener', () => {
@@ -1476,6 +1555,64 @@ describe('core/BQueryElement css getter', () => {
     expect(result).toBe(wrapped);
     expect(div.style.color).toBe('red');
     expect(div.style.fontSize).toBe('16px');
+  });
+});
+
+describe('core css() property names (#249)', () => {
+  it('BQueryElement accepts camelCase names in every css() form', () => {
+    const div = document.createElement('div') as HTMLElement;
+    document.body.appendChild(div);
+    const wrapped = new BQueryElement(div);
+
+    wrapped.css({ color: 'red', fontSize: '18px' });
+    wrapped.css('backgroundColor', 'blue');
+    expect(div.style.fontSize).toBe('18px');
+    expect(div.style.backgroundColor).toBe('blue');
+    expect(wrapped.css('fontSize')).toBe(getComputedStyle(div).getPropertyValue('font-size'));
+    expect(wrapped.css('fontSize')).not.toBe('');
+
+    div.remove();
+  });
+
+  it('BQueryCollection accepts camelCase names in every css() form', () => {
+    const div1 = document.createElement('div') as HTMLElement;
+    const div2 = document.createElement('div') as HTMLElement;
+    document.body.append(div1, div2);
+    const collection = new BQueryCollection([div1, div2]);
+
+    collection.css({ fontWeight: 'bold' });
+    collection.css('marginTop', '4px');
+    for (const div of [div1, div2]) {
+      expect(div.style.fontWeight).toBe('bold');
+      expect(div.style.marginTop).toBe('4px');
+    }
+    expect(collection.css('marginTop')).toBe('4px');
+
+    div1.remove();
+    div2.remove();
+  });
+
+  it('keeps custom properties and kebab-case names untouched', () => {
+    const div = document.createElement('div') as HTMLElement;
+    const wrapped = new BQueryElement(div);
+
+    wrapped.css({ '--brandColor': 'teal', 'font-size': '12px' });
+    expect(div.style.getPropertyValue('--brandColor')).toBe('teal');
+    expect(div.style.getPropertyValue('--brand-color')).toBe('');
+    expect(div.style.fontSize).toBe('12px');
+  });
+});
+
+describe('core/toCssPropertyName', () => {
+  it('maps DOM-style names to CSS property names', () => {
+    expect(toCssPropertyName('fontSize')).toBe('font-size');
+    expect(toCssPropertyName('font-size')).toBe('font-size');
+    expect(toCssPropertyName('WebkitTransition')).toBe('-webkit-transition');
+    expect(toCssPropertyName('msTransform')).toBe('-ms-transform');
+    expect(toCssPropertyName('webkitTransition')).toBe('-webkit-transition');
+    expect(toCssPropertyName('Font-Size')).toBe('Font-Size');
+    expect(toCssPropertyName('cssFloat')).toBe('float');
+    expect(toCssPropertyName('--myVar')).toBe('--myVar');
   });
 });
 
