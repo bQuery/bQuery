@@ -415,7 +415,7 @@ describe('server/csrf', () => {
     const body = await res.json();
     expect(typeof body.token).toBe('string');
     expect(body.token.length).toBeGreaterThan(0);
-    expect(() => cookiePair(res, 'bq.csrf')).not.toThrow();
+    expect(() => cookiePair(res, '__Host-bq.csrf')).not.toThrow();
   });
 
   it('marks the CSRF secret cookie Secure by default (#169)', async () => {
@@ -424,7 +424,7 @@ describe('server/csrf', () => {
     app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
 
     const res = await app.handle('/token');
-    expect(setCookieAttributes(res, 'bq.csrf')).toContain('Secure');
+    expect(setCookieAttributes(res, '__Host-bq.csrf')).toContain('Secure');
   });
 
   it('allows opting out of Secure on the CSRF cookie (#169)', async () => {
@@ -434,6 +434,48 @@ describe('server/csrf', () => {
 
     const res = await app.handle('/token');
     expect(setCookieAttributes(res, 'bq.csrf')).not.toContain('Secure');
+  });
+
+  it('uses a __Host- cookie by default so a subdomain cannot plant it', async () => {
+    const app = createServer();
+    app.use(csrf({ secret: SECRET }));
+    app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+    app.post('/x', (ctx) => ctx.json({ ok: true }));
+
+    const res = await app.handle('/token');
+    const attributes = setCookieAttributes(res, '__Host-bq.csrf');
+    expect(attributes).toContain('Secure');
+    expect(attributes).toContain('Path=/');
+    expect(attributes.toLowerCase()).not.toContain('domain=');
+
+    // A subdomain can only plant an unprefixed cookie; the middleware ignores it.
+    const { token } = (await res.json()) as { token: string };
+    const secret = cookiePair(res, '__Host-bq.csrf').slice('__Host-bq.csrf='.length);
+    const planted = await app.handle({
+      url: '/x',
+      method: 'POST',
+      headers: { cookie: `bq.csrf=${secret}`, 'x-csrf-token': token },
+    });
+    expect(planted.status).toBe(403);
+  });
+
+  it('falls back to bq.csrf when the cookie attributes rule out __Host-', async () => {
+    for (const cookie of [{ secure: false }, { path: '/app' }, { domain: 'example.com' }]) {
+      const app = createServer();
+      app.use(csrf({ secret: SECRET, cookie }));
+      app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+      const res = await app.handle('/token');
+      expect(() => cookiePair(res, 'bq.csrf')).not.toThrow();
+    }
+  });
+
+  it('rejects a __Host- cookie name with incompatible attributes', () => {
+    expect(() => csrf({ cookieName: '__Host-x', cookie: { secure: false } })).toThrow(
+      /__Host- prefix/
+    );
+    expect(() => csrf({ cookieName: '__Host-x', cookie: { path: '/app' } })).toThrow();
+    expect(() => csrf({ cookieName: '__Host-x', cookie: { domain: 'example.com' } })).toThrow();
+    expect(() => csrf({ cookieName: '__Host-x' })).not.toThrow();
   });
 
   it('rejects unsafe requests without a token', async () => {
@@ -453,7 +495,7 @@ describe('server/csrf', () => {
 
     const tokenRes = await app.handle('/token');
     const { token } = await tokenRes.json();
-    const cookie = cookiePair(tokenRes, 'bq.csrf');
+    const cookie = cookiePair(tokenRes, '__Host-bq.csrf');
 
     const res = await app.handle({
       url: '/x',
@@ -471,7 +513,7 @@ describe('server/csrf', () => {
 
     const tokenRes = await app.handle('/token');
     const { token } = await tokenRes.json();
-    const cookie = cookiePair(tokenRes, 'bq.csrf');
+    const cookie = cookiePair(tokenRes, '__Host-bq.csrf');
 
     const res = await app.handle({
       url: '/x',
@@ -490,7 +532,7 @@ describe('server/csrf', () => {
 
     const tokenRes = await app.handle('/token');
     const { token } = await tokenRes.json();
-    const cookie = cookiePair(tokenRes, 'bq.csrf');
+    const cookie = cookiePair(tokenRes, '__Host-bq.csrf');
 
     const res = await app.handle({
       url: '/x',
@@ -508,7 +550,7 @@ describe('server/csrf', () => {
 
     const tokenRes = await app.handle('/token');
     const { token } = await tokenRes.json();
-    const cookie = cookiePair(tokenRes, 'bq.csrf');
+    const cookie = cookiePair(tokenRes, '__Host-bq.csrf');
 
     const ok = await app.handle({
       url: '/x',

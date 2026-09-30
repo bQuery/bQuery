@@ -39,7 +39,13 @@ export interface CsrfOptions {
    * double-submit is used (token equals the cookie secret).
    */
   secret?: string | readonly string[];
-  /** Cookie name holding the per-client secret. Default `'bq.csrf'`. */
+  /**
+   * Cookie name holding the per-client secret. Defaults to `'__Host-bq.csrf'`
+   * when the cookie is `Secure`, has `path: '/'` and no `domain` (the
+   * default attributes), and to `'bq.csrf'` otherwise. The `__Host-` prefix
+   * makes browsers refuse the cookie from a sibling subdomain or over plain
+   * HTTP, so it cannot be planted (cookie tossing).
+   */
   cookieName?: string;
   /** Request header carrying the token. Default `'x-csrf-token'`. */
   headerName?: string;
@@ -47,7 +53,8 @@ export interface CsrfOptions {
   fieldName?: string;
   /**
    * Cookie attributes. Defaults to `{ sameSite: 'lax', path: '/', secure: true }`.
-   * The cookie is readable by client JS by default (plain double-submit); set
+   * The cookie is readable by client JS by default (plain double-submit; read
+   * it under {@link CsrfOptions.cookieName}, `__Host-bq.csrf` by default); set
    * `httpOnly: true` only when you deliver the token out-of-band (signed mode).
    * `secure` defaults to `true` (in signed mode the token embeds the raw
    * secret); set `secure: false` for local HTTP dev.
@@ -72,6 +79,11 @@ export interface CsrfOptions {
 }
 
 const DEFAULT_CSRF_COOKIE = 'bq.csrf';
+const HOST_PREFIX = '__Host-';
+
+/** Whether a cookie with these attributes may carry the `__Host-` prefix. */
+const allowsHostPrefix = (cookie: ServerCookieOptions): boolean =>
+  cookie.secure === true && cookie.path === '/' && !cookie.domain;
 const DEFAULT_HEADER = 'x-csrf-token';
 const DEFAULT_FIELD = '_csrf';
 const DEFAULT_IGNORE = ['GET', 'HEAD', 'OPTIONS'];
@@ -183,7 +195,6 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
     );
   }
   const signed = secrets.length > 0;
-  const cookieName = options.cookieName ?? DEFAULT_CSRF_COOKIE;
   const headerName = options.headerName ?? DEFAULT_HEADER;
   const fieldName = options.fieldName ?? DEFAULT_FIELD;
   const ignoreMethods = new Set(
@@ -197,6 +208,19 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
     // keep it off plaintext HTTP. Opt out explicitly for local HTTP dev.
     secure: options.cookie?.secure ?? true,
   };
+  // Prefer a `__Host-` cookie: a sibling subdomain (or a network attacker,
+  // for a non-Secure cookie) cannot set one, so the secret cannot be planted.
+  const cookieName =
+    options.cookieName ??
+    (allowsHostPrefix(baseCookie) ? `${HOST_PREFIX}${DEFAULT_CSRF_COOKIE}` : DEFAULT_CSRF_COOKIE);
+  // Browsers silently drop a `__Host-` cookie with other attributes, which
+  // would make every unsafe request fail with 403; fail loud instead.
+  if (cookieName.startsWith(HOST_PREFIX) && !allowsHostPrefix(baseCookie)) {
+    throw new Error(
+      `bQuery server: csrf() cookie "${cookieName}" uses the __Host- prefix, which requires ` +
+        "`secure: true`, `path: '/'` and no `domain`."
+    );
+  }
 
   const tokenFor = async (secret: string): Promise<string> =>
     signed ? signValue(secret, secrets[0]) : secret;
