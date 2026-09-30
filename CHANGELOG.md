@@ -8,6 +8,9 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.17.2\] - 2026-09-30](#1172---2026-09-30)
+    - [Security (1.17.2)](#security-1172)
+    - [Changed (1.17.2)](#changed-1172)
   - [\[1.17.1\] - 2026-09-28](#1171---2026-09-28)
     - [Security (1.17.1)](#security-1171)
     - [Fixed (1.17.1)](#fixed-1171)
@@ -110,6 +113,18 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.17.2] - 2026-09-30
+
+A security patch that completes the CSRF cookie-tossing fix of 1.17.1. No API removals and no module status transitions; the one behaviour change is listed under [Changed](#changed-1172).
+
+### Security (1.17.2)
+
+- **Server**: `csrf()` names its cookie `__Host-bq.csrf` by default ([#274](https://github.com/bQuery/bQuery/pull/274)). 1.17.1 moved the secret into the session for visitors who have one, but forms rendered without a session, such as the login form, still relied on a `bq.csrf` cookie that a sibling subdomain, or a network attacker for a cookie set over HTTP, could plant. Browsers accept a `__Host-` cookie only from the exact host over HTTPS, with `Path=/` and without a `Domain`, so it can no longer be planted or overwritten, and a planted `bq.csrf` is ignored. With `secure: false`, a custom `path` or a `domain` the prefix is not allowed and the name stays `bq.csrf`. An explicit `__Host-` `cookieName` with such attributes now throws at startup instead of every unsafe request failing with `403`. The server guide documents the remaining limitation of unsigned (plain double-submit) mode.
+
+### Changed (1.17.2)
+
+- **Server**: with the default cookie attributes the CSRF cookie is `__Host-bq.csrf` instead of `bq.csrf`. Server-side verification needs no change; a form rendered before the upgrade fails once with `403`, as after a secret rotation. Client code that reads the cookie directly (unsigned double-submit) must use the new name or pass `cookieName: 'bq.csrf'`.
 
 ## [1.17.1] - 2026-09-28
 

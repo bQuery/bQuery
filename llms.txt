@@ -9,7 +9,7 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 ## Package
 
 - npm: `@bquery/bquery`
-- Version: 1.17.1
+- Version: 1.17.2
 - License: MIT
 - Repository: https://github.com/bQuery/bQuery
 - Homepage: https://bquery.js.org
@@ -17,6 +17,10 @@ bQuery.js is a batteries-included TypeScript framework for the modern web — re
 - Build: Bun + Vite + TypeScript (strict)
 - Tests: Bun test runner with happy-dom
 - Supported engines: Node.js `>=24.0.0`, Bun `>=1.4.0`
+
+## Version 1.17.2 Highlights
+
+- Security patch that completes the CSRF cookie-tossing fix of 1.17.1. No API removals, no module status transitions. `csrf()` names its cookie `__Host-bq.csrf` whenever the attributes allow it (`Secure`, `Path=/`, no `Domain`: the defaults), so a sibling subdomain or a network attacker can no longer plant or overwrite it; with `secure: false`, a custom `path` or a `domain` it stays `bq.csrf`, and an explicit `__Host-` `cookieName` with incompatible attributes throws at startup. Behaviour change: client code that reads the CSRF cookie directly must use `__Host-bq.csrf` or pass `cookieName: 'bq.csrf'`.
 
 ## Version 1.17.1 Highlights
 

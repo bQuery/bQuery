@@ -11,7 +11,7 @@
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Name        | bQuery.js                                                                                                                                                                                         |
 | Package     | `@bquery/bquery`                                                                                                                                                                                  |
-| Version     | 1.17.1                                                                                                                                                                                            |
+| Version     | 1.17.2                                                                                                                                                                                            |
 | License     | MIT                                                                                                                                                                                               |
 | Language    | TypeScript (strict)                                                                                                                                                                               |
 | Runtime     | Browser (ESM, UMD, IIFE), plus Node.js, Bun, and Deno for SSR/server workflows                                                                                                                    |
@@ -39,6 +39,11 @@ bun run dev           # VitePress docs server
 ## Workspace Prompt Pack
 
 Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) for common workflows such as starting a task, fixing a bug, extending a public API, adding a module, working on SSR/server features, and refreshing AI guidance.
+
+## Version 1.17.2 Highlights
+
+- Security patch that completes the CSRF cookie-tossing fix of 1.17.1. No API removals, no module status transitions. `csrf()` names its cookie `__Host-bq.csrf` whenever the attributes allow it (`Secure`, `Path=/`, no `Domain`: the defaults), so a sibling subdomain or a network attacker can no longer plant or overwrite it; with `secure: false`, a custom `path` or a `domain` it stays `bq.csrf`, and an explicit `__Host-` `cookieName` with incompatible attributes throws at startup.
+- Behaviour change: client code that reads the CSRF cookie directly must use `__Host-bq.csrf` or pass `cookieName: 'bq.csrf'`.
 
 ## Version 1.17.1 Highlights
 
