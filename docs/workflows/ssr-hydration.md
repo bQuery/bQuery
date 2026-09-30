@@ -1,6 +1,6 @@
 # SSR + hydration on Node, Bun, and Deno
 
-bQuery ships runtime-agnostic SSR primitives. The same template renders identically under Node 24+, Bun 1.3+, and Deno 2, and the [`examples/`](https://github.com/bQuery/bQuery/tree/main/examples) folder contains a runnable app per runtime.
+bQuery ships runtime-agnostic SSR primitives. The same template renders identically under Node 24+, Bun 1.4+, and Deno 2, and the [`examples/`](https://github.com/bQuery/bQuery/tree/main/examples) folder contains a runnable app per runtime.
 
 ## Shared template
 
@@ -90,7 +90,7 @@ Inject `data` into the server response inside `<script id="__BQUERY__" type="app
 
 ## Cross-runtime CI
 
-`.github/workflows/ssr-cross-runtime.yml` builds the library once and runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.3, and Deno 2 to guard this public surface. Copy that workflow into your own app to lock down runtime parity.
+`.github/workflows/ssr-cross-runtime.yml` builds the library once and runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.4, and Deno 2 to guard this public surface. Copy that workflow into your own app to lock down runtime parity.
 
 ## Next steps
 

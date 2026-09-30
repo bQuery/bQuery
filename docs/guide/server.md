@@ -727,20 +727,7 @@ app.get('/', (ctx) => {
 
 If you already have trusted HTML and need to skip sanitization, pass `{ trusted: true }` to `ctx.html()`.
 
-Unlike `ctx.render()`, `ctx.html()` sanitization still relies on DOM-compatible globals. If your Node runtime does not provide `document` / `DOMParser`, install and register a compatible implementation before returning sanitized HTML, or pass `{ trusted: true }` only when the HTML is already known to be safe.
-
-Register the DOM shim once during application startup before handling any requests that call `ctx.html()` without `{ trusted: true }`.
-
-For example, install `happy-dom` separately (`bun add happy-dom` / `npm install happy-dom`) and register it like this, or use another compatible DOM implementation.
-
-```ts
-import { Window } from 'happy-dom';
-
-const window = new Window();
-globalThis.window = window;
-globalThis.document = window.document;
-globalThis.DOMParser = window.DOMParser;
-```
+`ctx.html()` sanitization needs no DOM. Since 1.17.0, `sanitizeHtml()` falls back to a DOM-free parser when no `DOMParser` is available, so plain Node.js ≥ 24, Deno and Bun sanitize without installing `happy-dom` or `linkedom`. See the [security model](/concepts/security-model).
 
 <!-- uniform-template-footer -->
 
@@ -829,7 +816,8 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 - `params` and `query` are null-prototype dicts — do not rely on inherited methods (`hasOwnProperty`, etc.).
 - Configure `createServer({ limits })` to enforce body size limits _before_ JSON / form parsing to defend against billion-laughs-style attacks.
 - `ctx.setCookie()` validates header-safe characters and rejects malformed values.
-- `ctx.html()` sanitizes by default; pass `{ sanitize: false }` only with fully trusted content.
+- `ctx.html()` sanitizes by default; pass `{ trusted: true }` only with fully trusted content.
+- The session and CSRF cookies are `__Host-bq.sid` and `__Host-bq.csrf` by default (since 1.17.2), and `bq.sid` / `bq.csrf` with `secure: false`, a custom `path` or a `domain`. Client code that reads the CSRF cookie must use the name that matches its attributes.
 - WebSocket sessions returned by `handleWebSocket()` are runtime-agnostic — you must adapt them to your runtime's socket via `result.open(socket)` / `result.message(socket, event)` / `result.close(socket, event)`.
 
 ## Performance notes
@@ -888,6 +876,9 @@ type documents `actionMethod`, `dataPath`, `basePath`, and the middleware hooks.
 
 ## Version history
 
+- **1.17.2** — `csrf()` and `session()` name their cookies `__Host-bq.csrf` / `__Host-bq.sid` by default so a sibling subdomain cannot plant them; `__Host-`/`__Secure-` `cookieName`s whose attributes a browser would reject throw at startup. Users are logged out once on upgrade.
+- **1.17.1** — signed CSRF tokens bound to the session (`bindToSession`); `memoryStore()` sweeps expired sessions and evicts the least recently used beyond `maxEntries`, and the default store is capped at 10 000; the Node adapter answers handler errors with `500` and cancels streams on disconnect; `serveStatic` checks precompressed sidecars against `root`; encoded static route segments match; `listen({ signal })` honours an aborted signal.
+- **1.17.0** — `serveStatic()` and `rateLimit()`; global middleware also runs for unmatched routes; `ctx.html()` sanitizes without a DOM.
 - **1.15.0** — first-party `session` / `memoryStore`, `csrf` / `csrfToken`, `guard`, `basicAuth` / `bearerAuth`, and Web-Crypto signing utilities (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`, `base64UrlEncode`, `base64UrlDecode`); `ctx.session`; `app.listen()` on Deno; `mountFileRoutes` / `createFileRouteServerRoutes` for file-route actions. `server` targets Stable.
 - **1.14.0** — `ServerHttpError`, `ctx.body`, `ctx.cookies`, `ctx.setCookie`, `ctx.accepts`, `ctx.stream`, `ctx.sse`, `ctx.renderStream`, `ctx.renderResponse`, `app.listen()`.
 - **1.11.0** — `createServer`, runtime-agnostic WebSocket sessions, dependency-free routing.

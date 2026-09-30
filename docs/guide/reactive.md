@@ -1261,6 +1261,8 @@ const api = createHttp({
 
 ## Version history
 
+- **1.17.1** — `http` honours an already-aborted `signal` when `timeout` is set, and classifies any rejection on an aborted signal as `ABORT` or `TIMEOUT` instead of `NETWORK`.
+- **1.17.0** — opt-in glitch-free scheduler via `configureReactive({ scheduler: 'batched' })`, plus `getReactiveConfig()` and `flushSync()`; a flush settles every derived value before running any effect (also under the default scheduler, e.g. in `batch()`).
 - **1.16.0** — performance pass on the core: `batch()` coalesces transitive updates, computeds notify subscribers only when their value actually changes, hot-path allocation cuts on signal writes and dependency tracking; `watchThrottle` gains the opt-in `trailing` option (`WatchThrottleOptions`).
 - **1.12.0** — `WebSocketSendData` becomes a public type; plugin teardown helpers added.
 - **1.11.0** — runtime-agnostic WebSocket sessions integrated with `ssr` / `server`.
