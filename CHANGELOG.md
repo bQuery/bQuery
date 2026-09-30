@@ -8,6 +8,10 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[1.17.1\] - 2026-09-28](#1171---2026-09-28)
+    - [Security (1.17.1)](#security-1171)
+    - [Fixed (1.17.1)](#fixed-1171)
+    - [Changed (1.17.1)](#changed-1171)
   - [\[1.17.0\] - 2026-09-25](#1170---2026-09-25)
     - [Added (1.17.0)](#added-1170)
     - [Changed (1.17.0)](#changed-1170)
@@ -106,6 +110,38 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [1.17.1] - 2026-09-28
+
+A security-and-correctness patch closing a full-codebase audit. Three security fixes in `server` and `ssr`, ten bug fixes across `core`, `router`, `server`, `reactive`, `forms`, `store`, `component` and `view`. No API removals and no module status transitions; the behaviour changes worth checking before upgrading are listed under [Changed](#changed-1171).
+
+### Security (1.17.1)
+
+- **Server**: `serveStatic({ precompressed: true })` applies the `realpath` containment check to `.br`/`.gz` sidecars ([#269](https://github.com/bQuery/bQuery/pull/269)). The check added in 1.17.0 covered only the identity file, so a sidecar that was a symlink resolving outside `root` was served — contradicting the documented guarantee that files outside `root` are never reachable. An escaping sidecar is now skipped and the next acceptable encoding, or the identity file, is served.
+- **SSR / Server**: the Node adapter no longer lets one request take the process down ([#270](https://github.com/bQuery/bQuery/pull/270)). `createNodeHandler()` — also behind `createServer().listen({ runtime: 'node' })` — returned a promise `node:http` never awaits, so an error thrown by a handler became an unhandled rejection and Node terminated. It is now logged and answered with a bare `500` (headers from the failed response are dropped; the connection is destroyed if the response had already started). On client disconnect `request.signal` aborts and the response body is cancelled, so streaming renders and SSE iterators stop instead of waiting forever on a `drain` a closed socket never emits; drain waits no longer leak an `error` listener per backpressure event.
+- **Server**: signed CSRF tokens are bound to the session ([#271](https://github.com/bQuery/bQuery/pull/271)). The signed token was the CSRF cookie plus its HMAC, and nothing tied the pair to a user, so anyone able to set a cookie for the victim (a sibling subdomain, or a MITM on a non-`__Host-` cookie) could plant a validly signed pair minted for themselves. With `session()` running before `csrf({ secret })`, a request that carries a stored session keeps the secret in that session (synchronizer token), bound to the session id and rotated on `$regenerate()`. It is stored before the handler runs, so tokens read by streamed renders stay valid. Visitors without a session keep the signed cookie, so anonymous traffic never creates sessions or evicts real ones; a session created during the request adopts the cookie secret. `bindToSession: false` restores the cookie-based behaviour.
+
+### Fixed (1.17.1)
+
+- **Core / Store**: `deepEqual` / `isEqual` no longer treat `{}`, `[]`, `Date`, `Map`, `Set` and `RegExp` as equal to each other ([#246](https://github.com/bQuery/bQuery/issues/246)). The store's internal copy distinguishes only the kinds `deepClone()` preserves, so `$patch()` does not report nested mutations for RegExp or URL fields.
+- **Router**: params are percent-decoded and static route segments with non-ASCII or otherwise encoded characters match ([#247](https://github.com/bQuery/bQuery/issues/247)). `/user/J%C3%BCrgen` yields `{ name: 'Jürgen' }`, `/über` matches, `resolve()` round-trips through navigation, and constraints see the decoded value.
+- **Server**: static route segments with non-ASCII, space or other encoded characters match instead of returning `404`, including routes declared with lower-case escapes ([#248](https://github.com/bQuery/bQuery/issues/248)).
+- **Core**: `css()` accepts camelCase property names — `css({ fontSize: '18px' })`, as the migration guide shows, was silently ignored ([#249](https://github.com/bQuery/bQuery/issues/249)). Custom properties and hyphenated names pass through; `webkit`/`moz`/`ms` DOM spellings map to their prefixed form.
+- **Core**: `toggle()` shows an element hidden with the `hidden` attribute (including `hidden="until-found"` with an inline `display`), and `hide()`/`show()` restore the previous inline `display` (e.g. `flex`) ([#250](https://github.com/bQuery/bQuery/issues/250)).
+- **Reactive / Server**: an already-aborted `AbortSignal` is honoured ([#251](https://github.com/bQuery/bQuery/issues/251)). `http` with `timeout` sent the request anyway; a custom abort reason surfaced as `NETWORK` instead of `ABORT`; `listen({ signal })` bound a server the caller had already cancelled.
+- **Forms**: `email()` runs in linear time ([#252](https://github.com/bQuery/bQuery/issues/252)). The old pattern backtracked quadratically — about 5 s for a 50 KB input.
+- **Component / View / Security**: component rendering, `createTemplate()` and the DOM sanitizer work under an enforced `require-trusted-types-for 'script'` CSP ([#253](https://github.com/bQuery/bQuery/issues/253)). Prepared markup is wrapped by the existing `bquery-sanitizer` policy without a second sanitizer pass, and the sanitizer hands its input to `DOMParser.parseFromString` — itself a Trusted Types sink — the same way, so no extra policy name has to be allowed.
+- **Server**: `memoryStore()` sweeps expired sessions during writes and evicts least-recently-used entries; the default session store is capped at 10 000 entries ([#256](https://github.com/bQuery/bQuery/issues/256)).
+- **Docs / Tooling**: `SECURITY.md` lists `1.17.x` as the supported line, and `bun run check:ai-guidance` fails unless exactly the current minor line is marked supported ([#258](https://github.com/bQuery/bQuery/issues/258)).
+
+### Changed (1.17.1)
+
+- **Router**: `route.params` values are decoded. Apps that called `decodeURIComponent()` on them decode twice, which only matters for values containing a literal `%`.
+- **Server**: with `session()` before `csrf({ secret })`, requests with a stored session get no `bq.csrf` cookie and tokens change on `$regenerate()` — render a fresh `csrfToken(ctx)` after login. Clients that read the cookie directly need `bindToSession: false`.
+- **Server**: `listen({ signal })` rejects with the signal's reason when the signal is already aborted or aborts while the socket is binding.
+- **Server**: the default session store evicts beyond 10 000 live sessions; pass `store: memoryStore({ ttlMs })` for an unbounded one or a shared store for multi-process deployments.
+- **Core**: `show()` without an argument keeps the inline `display` of an element that is not inline-hidden, instead of clearing it.
+- **Forms**: `email()` rejects empty domain labels (`a@b..c`, `a@.b.c`, `a@b.c.`) and addresses longer than 254 characters.
 
 ## [1.17.0] - 2026-09-25
 

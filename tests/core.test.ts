@@ -575,6 +575,22 @@ describe('core/BQueryElement new methods', () => {
     expect(div.hasAttribute('hidden')).toBe(false);
   });
 
+  it('toggle shows a hidden="until-found" element even with an inline display', () => {
+    const div = document.createElement('div') as HTMLElement;
+    div.setAttribute('hidden', 'until-found');
+    div.style.display = 'flex';
+    const wrapped = new BQueryElement(div);
+
+    // `until-found` hides via content-visibility, so the inline display does
+    // not reveal it: toggle() must call show() and drop the attribute.
+    wrapped.toggle();
+    expect(div.hasAttribute('hidden')).toBe(false);
+    expect(div.style.display).toBe('flex');
+
+    wrapped.toggle();
+    expect(div.style.display).toBe('none');
+  });
+
   it('hide/show restores the previous inline display (#250)', () => {
     const div = document.createElement('div') as HTMLElement;
     div.style.display = 'flex';
