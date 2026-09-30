@@ -556,5 +556,5 @@ component('todo-list', {
 
 ## Version history
 
-- **1.17.1** — component render output passes through the `bquery-sanitizer` Trusted Types policy, so components render under an enforced `require-trusted-types-for 'script'` CSP. See the [security model](/concepts/security-model).
+- **1.17.1** — component render output passes through the `bquery-sanitizer` Trusted Types policy, so components render under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws). See the [security model](/concepts/security-model).
 - **1.13.0** — slot helpers, refs, `useAsync` / `whenIdle`, DI, `errorBoundary`, `setProp` / `getProp`, delegated event helpers, `css` tagged template, `keyedList` / `reconcileKeyed`.

@@ -90,7 +90,7 @@ Inject `data` into the server response inside `<script id="__BQUERY__" type="app
 
 ## Cross-runtime CI
 
-`.github/workflows/ssr-cross-runtime.yml` builds the library once and runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.4, and Deno 2 to guard this public surface. Copy that workflow into your own app to lock down runtime parity.
+`.github/workflows/ssr-cross-runtime.yml` builds the library once and runs `tests/cross-runtime/run.mjs` against Node 24, the latest Bun, and Deno 2 to guard this public surface. Copy that workflow into your own app to lock down runtime parity.
 
 ## Next steps
 

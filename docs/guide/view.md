@@ -828,7 +828,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Version history
 
-- **1.17.1** — `createTemplate()` templates pass through the `bquery-sanitizer` Trusted Types policy and work under an enforced `require-trusted-types-for 'script'` CSP.
+- **1.17.1** — `createTemplate()` templates pass through the `bquery-sanitizer` Trusted Types policy and work under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws).
 - **1.16.0** — per-update work moved to bind time (object-expression parsing, transition resolution, directive parsing memoized, sandbox proxies cached per context); unchanged DOM writes skipped in `bq-text`/`bq-bind`/`bq-model`/`bq-html` (fixes the `bq-model` caret reset); `bq-for` dispatched before other directives on the same element; `bq-once`/`bq-memo`/`bq-init` evaluate untracked; `bq-html` children are no longer directive-bound.
 - **1.15.0** — **graduated to Stable**: directive set + grammar frozen; `bq-for` duplicate-key and object-expression (`{ active }` shorthand) edge cases resolved; declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`); optional `@bquery/bquery/view/compiler` build step with `registerCompiledExpressions` / `clearCompiledExpressions` runtime hooks.
 - **1.14.0** — `parseDirective`, `ParsedDirective`, new directives `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-html-safe`, `bq-memo`, full `bq-on` modifier system.

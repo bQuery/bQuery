@@ -110,7 +110,7 @@ The contract that must not break once Stable: `renderToString`, `renderToStringA
 | Island hydration / `hydrate()`          | client    | client | client | client |
 | Resumable boundaries                    | emit      | emit   | emit   | emit   |
 
-Per-runtime adapters: `createNodeHandler` (Node), `createBunHandler` (Bun), `createDenoHandler` (Deno), `createWebHandler` (edge/workerd). Hydration runs in the browser; the matrix marks server-emit support. The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the runtime-agnostic surface on Node 24, Bun 1.4 and Deno 2.
+Per-runtime adapters: `createNodeHandler` (Node), `createBunHandler` (Bun), `createDenoHandler` (Deno), `createWebHandler` (edge/workerd). Hydration runs in the browser; the matrix marks server-emit support. The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the runtime-agnostic surface on Node 24, the latest Bun and Deno 2.
 
 ---
 
@@ -881,7 +881,7 @@ Three minimal SSR servers — one per runtime — live in [`examples/`](https://
 | Deno    | `ssr-deno/` | `deno run -A examples/ssr-deno/serve.ts`                     |
 | Node    | `ssr-node/` | `node --experimental-strip-types examples/ssr-node/serve.ts` |
 
-The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.4 and Deno 2 to guard the runtime-agnostic surface.
+The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, the latest Bun and Deno 2 to guard the runtime-agnostic surface.
 
 <!-- uniform-template-footer -->
 

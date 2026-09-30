@@ -128,7 +128,7 @@ A security patch that closes cookie tossing for the CSRF and session cookies. No
 ### Fixed (1.17.2)
 
 - **Docs**: the server guide no longer claims `ctx.html()` needs a DOM shim on Node (it sanitizes without one since 1.17.0), names the real opt-out `{ trusted: true }` instead of `{ sanitize: false }`, and no longer tells readers to set `secure: true` for sessions (it has been the default since 1.15.1).
-- **Docs**: guide version histories cover 1.17.0–1.17.2 for `core`, `reactive`, `router`, `forms`, `store`, `component`, `view`, `security`, `ssr` and `server`; the cross-runtime docs name Bun 1.4, the tested floor.
+- **Docs**: guide version histories cover 1.17.0–1.17.2 for `core`, `reactive`, `router`, `forms`, `store`, `component`, `view`, `security`, `ssr` and `server`; the cross-runtime docs say the CI matrix runs the latest Bun (it no longer claims Bun 1.3), and the Trusted Types notes state that a `trusted-types` directive must allow the `bquery-sanitizer` policy.
 
 ### Changed (1.17.2)
 
