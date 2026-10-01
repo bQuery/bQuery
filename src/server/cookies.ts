@@ -67,9 +67,11 @@ export const defaultCookieName = (base: string, options: ServerCookieOptions): s
 
 /**
  * Throw when `name` carries a `__Host-` or `__Secure-` prefix that `options`
- * do not satisfy. Browsers match these prefixes case-insensitively and
- * silently drop a cookie that violates them, which would otherwise surface
- * only as every request failing.
+ * do not satisfy, or a mis-cased spelling of one. Browsers silently drop a
+ * cookie that violates its prefix, which would otherwise surface only as every
+ * request failing. Current browsers match the prefixes case-insensitively, but
+ * older ones only enforce the exact spelling, so a name like `__host-sid` would
+ * not stop a sibling subdomain from planting the cookie there.
  * @internal
  */
 export const assertCookiePrefix = (
@@ -78,13 +80,21 @@ export const assertCookiePrefix = (
   options: ServerCookieOptions
 ): void => {
   const lower = name.toLowerCase();
-  if (lower.startsWith('__host-') && !allowsHostPrefix(options)) {
+  for (const prefix of ['__Host-', '__Secure-']) {
+    if (lower.startsWith(prefix.toLowerCase()) && !name.startsWith(prefix)) {
+      throw new Error(
+        `bQuery server: ${owner} cookie "${name}" must spell the ${prefix} prefix exactly; ` +
+          'older browsers only enforce that spelling.'
+      );
+    }
+  }
+  if (name.startsWith('__Host-') && !allowsHostPrefix(options)) {
     throw new Error(
       `bQuery server: ${owner} cookie "${name}" uses the __Host- prefix, which requires ` +
         "`secure: true`, `path: '/'` and no `domain`."
     );
   }
-  if (lower.startsWith('__secure-') && !emitsSecure(options)) {
+  if (name.startsWith('__Secure-') && !emitsSecure(options)) {
     throw new Error(
       `bQuery server: ${owner} cookie "${name}" uses the __Secure- prefix, which requires ` +
         '`secure: true`.'

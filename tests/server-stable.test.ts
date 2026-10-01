@@ -297,7 +297,10 @@ describe('server/session', () => {
       expect(() => session({ secret: SECRET, cookieName, cookie })).toThrow(/prefix/);
     }
     expect(() => session({ secret: SECRET, cookieName: '__Secure-sid' })).not.toThrow();
-    expect(() => session({ secret: SECRET, cookieName: '__host-sid' })).not.toThrow();
+    // Older browsers only enforce the exact spelling, so a mis-cased prefix is
+    // rejected even when the attributes would satisfy it.
+    expect(() => session({ secret: SECRET, cookieName: '__host-sid' })).toThrow(/exactly/);
+    expect(() => session({ secret: SECRET, cookieName: '__SECURE-sid' })).toThrow(/exactly/);
   });
 
   it('ignores a tampered session cookie', async () => {
@@ -527,10 +530,11 @@ describe('server/csrf', () => {
     expect(() => csrf({ cookieName: '__Host-x', cookie: { path: '/app' } })).toThrow();
     expect(() => csrf({ cookieName: '__Host-x', cookie: { domain: 'example.com' } })).toThrow();
     expect(() => csrf({ cookieName: '__Host-x' })).not.toThrow();
-    // Browsers match prefixes case-insensitively, and `__Secure-` needs Secure.
+    // A mis-cased prefix is rejected outright, and `__Secure-` needs Secure.
     expect(() => csrf({ cookieName: '__host-x', cookie: { secure: false } })).toThrow(
-      /__Host- prefix/
+      /__Host- prefix exactly/
     );
+    expect(() => csrf({ cookieName: '__host-x' })).toThrow(/__Host- prefix exactly/);
     expect(() => csrf({ cookieName: '__HOST-x', cookie: { path: '/app' } })).toThrow();
     expect(() => csrf({ cookieName: '__Secure-x', cookie: { secure: false } })).toThrow(
       /__Secure- prefix/
