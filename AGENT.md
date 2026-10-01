@@ -43,7 +43,7 @@ Project-specific starter prompts live in [`.github/prompts/`](.github/prompts/) 
 ## Version 1.17.2 Highlights
 
 - Security patch that closes cookie tossing for the CSRF and session cookies. No API removals, no module status transitions. `csrf()` names its cookie `__Host-bq.csrf` whenever the attributes allow it (`Secure`, `Path=/`, no `Domain`: the defaults), so a sibling subdomain or a network attacker can no longer plant or overwrite it; with `secure: false`, a custom `path` or a `domain` it stays `bq.csrf`, and an explicit `__Host-` `cookieName` with incompatible attributes throws at startup. `session()` likewise names its cookie `__Host-bq.sid` (fallback `bq.sid`), and both throw at startup for a `__Host-`/`__Secure-` `cookieName` that its attributes violate, or whose prefix is mis-cased (older browsers only enforce the exact spelling).
-- Behaviour changes: client code that reads the CSRF cookie directly must use `__Host-bq.csrf` or pass `cookieName: 'bq.csrf'`; users are logged out once because the session cookie name changes (pass `cookieName: 'bq.sid'` to keep existing sessions for a transition period).
+- Behaviour changes: client code that reads the CSRF cookie directly must use `__Host-bq.csrf` or pass `cookieName: 'bq.csrf'`; users are logged out once because the session cookie name changes (pass `cookieName: 'bq.sid'` to keep existing sessions for a transition period; like the `bq.sid` fallback, that name has no `__Host-` protection, so a sibling subdomain can plant a session id again).
 
 ## Version 1.17.1 Highlights
 
