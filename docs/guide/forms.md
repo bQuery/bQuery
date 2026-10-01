@@ -613,5 +613,6 @@ only support `GET`/`POST`, so `PUT`/`PATCH`/`DELETE` degrade to a native `POST`
 
 ## Version history
 
+- **1.17.1** — `email()` runs in linear time (the old pattern backtracked quadratically) and rejects empty domain labels (`a@b..c`) and addresses longer than 254 characters.
 - **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#139](https://github.com/bQuery/bQuery/issues/139)); `validationStrategy` default and SSR serialization boundary documented as guaranteed contracts; `createFieldArray()` `getKey` stable-key contract validated with clear errors (plus `keys()` / `keyAt()`). New progressive-enhancement actions ([#140](https://github.com/bQuery/bQuery/issues/140)): `formAction`, `useFormStatus`, `optimistic`.
 - **1.13.0** — new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`), combinators (`compose`, `all`, `not`, `withMessage`), field arrays, schema-style config, `bindField` / `bindForm`, scope-aware composables, SSR helpers.

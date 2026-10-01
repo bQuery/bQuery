@@ -219,7 +219,7 @@ await test('server session persists across requests on the active runtime', asyn
       ? login.headers.getSetCookie()[0]
       : login.headers.get('set-cookie');
   assert(
-    typeof setCookie === 'string' && setCookie.startsWith('bq.sid='),
+    typeof setCookie === 'string' && setCookie.startsWith('__Host-bq.sid='),
     'expected signed session cookie'
   );
   const cookie = setCookie.split(';')[0];

@@ -555,6 +555,7 @@ const { data, pending } = createRouteData(router);
 
 ## Version history
 
+- **1.17.1** — `route.params` values are percent-decoded (`/user/J%C3%BCrgen` → `'Jürgen'`), routes with non-ASCII or encoded static segments match, `resolve()` round-trips through navigation, and param constraints see the decoded value. Drop any manual `decodeURIComponent()` on params.
 - **1.15.0** — Opt-in file-route convention: `createFileRoutes`,
   `parseFilePath` / `filePathToRoutePattern`, `sortEntriesBySpecificity`,
   `createRouteData` / `useRouteData`, `getRouteLoad` / `getRouteAction`, and the
