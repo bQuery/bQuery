@@ -20,7 +20,7 @@
  * @module bquery/server
  */
 
-import { appendSetCookie, serializeCookie } from './cookies';
+import { appendSetCookie, assertCookiePrefix, defaultCookieName, serializeCookie } from './cookies';
 import { randomToken, signValue, timingSafeEqual, unsignValue } from './crypto';
 import { ServerHttpError } from './errors';
 import type {
@@ -39,7 +39,13 @@ export interface CsrfOptions {
    * double-submit is used (token equals the cookie secret).
    */
   secret?: string | readonly string[];
-  /** Cookie name holding the per-client secret. Default `'bq.csrf'`. */
+  /**
+   * Cookie name holding the per-client secret. Defaults to `'__Host-bq.csrf'`
+   * when the cookie is `Secure`, has `path: '/'` and no `domain` (the
+   * default attributes), and to `'bq.csrf'` otherwise. The `__Host-` prefix
+   * makes browsers refuse the cookie from a sibling subdomain or over plain
+   * HTTP, so it cannot be planted (cookie tossing).
+   */
   cookieName?: string;
   /** Request header carrying the token. Default `'x-csrf-token'`. */
   headerName?: string;
@@ -47,7 +53,8 @@ export interface CsrfOptions {
   fieldName?: string;
   /**
    * Cookie attributes. Defaults to `{ sameSite: 'lax', path: '/', secure: true }`.
-   * The cookie is readable by client JS by default (plain double-submit); set
+   * The cookie is readable by client JS by default (plain double-submit; read
+   * it under {@link CsrfOptions.cookieName}, `__Host-bq.csrf` by default); set
    * `httpOnly: true` only when you deliver the token out-of-band (signed mode).
    * `secure` defaults to `true` (in signed mode the token embeds the raw
    * secret); set `secure: false` for local HTTP dev.
@@ -183,7 +190,6 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
     );
   }
   const signed = secrets.length > 0;
-  const cookieName = options.cookieName ?? DEFAULT_CSRF_COOKIE;
   const headerName = options.headerName ?? DEFAULT_HEADER;
   const fieldName = options.fieldName ?? DEFAULT_FIELD;
   const ignoreMethods = new Set(
@@ -197,6 +203,12 @@ export const csrf = (options: CsrfOptions = {}): ServerMiddleware => {
     // keep it off plaintext HTTP. Opt out explicitly for local HTTP dev.
     secure: options.cookie?.secure ?? true,
   };
+  // Prefer a `__Host-` cookie: a sibling subdomain (or a network attacker,
+  // for a non-Secure cookie) cannot set one, so the secret cannot be planted.
+  const cookieName = options.cookieName ?? defaultCookieName(DEFAULT_CSRF_COOKIE, baseCookie);
+  // Browsers silently drop a prefixed cookie with other attributes, which
+  // would make every unsafe request fail with 403; fail loud instead.
+  assertCookiePrefix('csrf()', cookieName, baseCookie);
 
   const tokenFor = async (secret: string): Promise<string> =>
     signed ? signValue(secret, secrets[0]) : secret;

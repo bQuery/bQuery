@@ -43,6 +43,65 @@ const assertCookieAttributeValue = (label: string, value: string): string => {
   return value;
 };
 
+/** Whether {@link serializeCookie} emits `Secure` for these attributes. */
+const emitsSecure = (options: ServerCookieOptions): boolean =>
+  options.secure === true ||
+  (typeof options.sameSite === 'string' && options.sameSite.toLowerCase() === 'none');
+
+/**
+ * Whether a cookie with these attributes may carry the `__Host-` prefix:
+ * `Secure`, `Path=/` and no `Domain`. Browsers refuse such a cookie from a
+ * sibling subdomain or over plain HTTP, so it cannot be planted.
+ * @internal
+ */
+export const allowsHostPrefix = (options: ServerCookieOptions): boolean =>
+  emitsSecure(options) && options.path === '/' && !options.domain;
+
+/**
+ * The default cookie name for `base`: `__Host-<base>` when the attributes
+ * allow the prefix, `base` otherwise.
+ * @internal
+ */
+export const defaultCookieName = (base: string, options: ServerCookieOptions): string =>
+  allowsHostPrefix(options) ? `__Host-${base}` : base;
+
+/**
+ * Throw when `name` carries a `__Host-` or `__Secure-` prefix that `options`
+ * do not satisfy, or a mis-cased spelling of one. Browsers silently drop a
+ * cookie that violates its prefix, which would otherwise surface only as every
+ * request failing. Current browsers match the prefixes case-insensitively, but
+ * older ones only enforce the exact spelling, so a name like `__host-sid` would
+ * not stop a sibling subdomain from planting the cookie there.
+ * @internal
+ */
+export const assertCookiePrefix = (
+  owner: string,
+  name: string,
+  options: ServerCookieOptions
+): void => {
+  const lower = name.toLowerCase();
+  for (const prefix of ['__Host-', '__Secure-']) {
+    if (lower.startsWith(prefix.toLowerCase()) && !name.startsWith(prefix)) {
+      throw new Error(
+        `bQuery server: ${owner} cookie "${name}" must spell the ${prefix} prefix exactly; ` +
+          'older browsers only enforce that spelling.'
+      );
+    }
+  }
+  if (name.startsWith('__Host-') && !allowsHostPrefix(options)) {
+    throw new Error(
+      `bQuery server: ${owner} cookie "${name}" uses the __Host- prefix, which requires ` +
+        "`secure: true`, `path: '/'` and no `domain`."
+    );
+  }
+  if (name.startsWith('__Secure-') && !emitsSecure(options)) {
+    throw new Error(
+      `bQuery server: ${owner} cookie "${name}" uses the __Secure- prefix, which requires ` +
+        '`secure: true`.'
+    );
+  }
+};
+
 /**
  * Serialize a `Set-Cookie` header value, validating the name and attribute
  * values so request-controlled data can never inject extra cookie attributes.

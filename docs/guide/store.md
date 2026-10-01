@@ -585,6 +585,7 @@ const mapped = mapGetters(store, ['getterKey']);
 
 ## Version history
 
+- **1.17.1** — the store's `isEqual` / `deepEqual` no longer treat values of different kinds (`{}`, `[]`, `Date`, `Map`, `Set`, `RegExp`) as equal.
 - **1.16.0** — `deepClone` (used by `$patchDeep`) special-cases only the genuinely dangerous `__proto__` key; own properties merely named `constructor`/`prototype` are cloned normally again instead of being silently dropped.
 - **1.15.1** — `deepClone` skips prototype-pollution keys, so an own enumerable `__proto__` no longer reassigns the clone's prototype; `$subscribe` notifications iterate a snapshot, so unsubscribing during notification no longer skips the next subscriber.
 - **1.12.0** — `unregisterPlugin()` and `clearPlugins()` for plugin teardown and test isolation.

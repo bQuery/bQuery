@@ -596,4 +596,6 @@ document.head.appendChild(script);
 
 ## Version history
 
+- **1.17.1** — the DOM sanitizer hands its input to `DOMParser` through the `bquery-sanitizer` Trusted Types policy, so `sanitizeHtml()` works under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws).
+- **1.17.0** — `sanitizeHtml()` and `stripTags()` work without a DOM (Node, Bun, Deno); character references decode as in a browser; `stripAllTags: true` output is escaped.
 - Sanitizer, Trusted Types helpers, and CSP nonce utilities have shipped since `1.0.0` and remain the default for HTML-writing APIs.

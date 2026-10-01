@@ -303,7 +303,9 @@ Read and write payload as plain properties. Lifecycle operations use `$`-prefixe
 | `ctx.session.$destroy()`    | Clear the payload and expire the cookie.                    |
 | `ctx.session.$clear()`      | Remove every key without destroying the session.            |
 
-Options: `secret` (string or array for rotation), `store`, `cookieName` (`'bq.sid'`), `cookie` (attributes; defaults to `httpOnly`, `sameSite: 'lax'`, `path: '/'` — set `secure: true` in production), `ttlMs` (1 day), `rolling`, and `genId`.
+Options: `secret` (string or array for rotation), `store`, `cookieName`, `cookie` (attributes; defaults to `httpOnly`, `sameSite: 'lax'`, `path: '/'` and `secure: true`, so set `secure: false` for local HTTP dev), `ttlMs` (1 day), `rolling`, and `genId`.
+
+The session cookie is named `__Host-bq.sid` by default. Browsers accept a `__Host-` cookie only over HTTPS, with `Path=/` and without a `Domain`, so a sibling subdomain cannot plant a session id of its own on your users (session swapping). With `secure: false`, a custom `path` or a `domain`, the prefix is not allowed and the name falls back to `bq.sid`. That name, like an explicit `cookieName: 'bq.sid'`, has no `__Host-` protection: a sibling subdomain can plant a validly signed session id of its own again, so keep the defaults in production. A `cookieName` whose `__Host-` or `__Secure-` prefix conflicts with the attributes throws at startup, because the browser would drop the cookie and no session would ever stick. So does a mis-cased prefix such as `__host-`, which older browsers do not enforce.
 
 Session changes are persisted (and the cookie issued) when the handler **resolves a response**. If a handler throws, the changes are not persisted — keep session writes on the success path, or write before any operation that may throw.
 
@@ -332,7 +334,11 @@ const redisStore = (client): SessionStore => ({
 
 `csrf(options)` enforces the OWASP double-submit-cookie pattern. Safe requests (GET/HEAD/OPTIONS) mint a per-client secret cookie and expose the matching token via `csrfToken(ctx)`; state-changing requests must echo that token back in the `x-csrf-token` header (or a `_csrf` body field) or are rejected with `403`. Provide a `secret` to upgrade to **signed** double-submit.
 
-Signing alone does not stop cookie injection: someone who can set cookies for your users (a sibling subdomain, or a network attacker for a non-`__Host-` cookie) can plant the secret from a validly signed pair minted for themselves. So in signed mode, when `session()` runs **before** `csrf()` and the request carries a stored session, the secret is kept in that session instead of a cookie (synchronizer token): tokens are bound to the session and no CSRF cookie is set. `$regenerate()` (call it on login) invalidates the token, so a session planted before login cannot carry a known token into the authenticated one; render a fresh `csrfToken(ctx)` after logging in. Visitors without a session get the signed CSRF cookie instead, so anonymous traffic never creates sessions or fills the session store. When a handler creates the session (e.g. adding to a cart), the session adopts that cookie's secret, so forms rendered before it keep working; a session created with `$regenerate()` (a login) gets a fresh secret instead, so a planted cookie cannot reach the authenticated session. Pass `bindToSession: false` to keep the cookie-based behaviour for everyone. Anonymous forms (such as the login form) still rely on the cookie, so consider `cookieName: '__Host-bq.csrf'` so subdomains cannot overwrite it.
+Signing alone does not stop cookie injection: someone who can set cookies for your users (a sibling subdomain, or a network attacker for a non-`__Host-` cookie) can plant the secret from a validly signed pair minted for themselves. So in signed mode, when `session()` runs **before** `csrf()` and the request carries a stored session, the secret is kept in that session instead of a cookie (synchronizer token): tokens are bound to the session and no CSRF cookie is set. `$regenerate()` (call it on login) invalidates the token, so a session planted before login cannot carry a known token into the authenticated one; render a fresh `csrfToken(ctx)` after logging in. Visitors without a session get the signed CSRF cookie instead, so anonymous traffic never creates sessions or fills the session store. When a handler creates the session (e.g. adding to a cart), the session adopts that cookie's secret, so forms rendered before it keep working; a session created with `$regenerate()` (a login) gets a fresh secret instead, so a planted cookie cannot reach the authenticated session. Pass `bindToSession: false` to keep the cookie-based behaviour for everyone.
+
+Anonymous forms (such as the login form) still rely on the cookie. It is therefore named `__Host-bq.csrf` by default: browsers accept a `__Host-` cookie only over HTTPS, with `Path=/` and without a `Domain`. A sibling subdomain or a network attacker therefore cannot plant or overwrite it, and a planted `bq.csrf` is ignored. With `secure: false` (local HTTP dev), a custom `path` or a `domain`, the prefix is not allowed and the cookie falls back to `bq.csrf`. A `cookieName` whose `__Host-` or `__Secure-` prefix conflicts with the attributes throws at startup instead of failing every request with `403`. So does a mis-cased prefix such as `__host-`, which older browsers do not enforce. Client code that reads the cookie directly must use the new name.
+
+Unsigned mode (no `secret`) is plain double-submit: the token _is_ the cookie value. It still stops a cross-site form that cannot read the cookie. It does not stop anyone who can set cookies for your users, because they choose both the cookie and the token. The `__Host-` default closes that path in browsers, but prefer signed mode with `session()` wherever the app has sessions.
 
 ```ts
 app.use(session({ secret: process.env.SESSION_SECRET! }));
@@ -721,20 +727,7 @@ app.get('/', (ctx) => {
 
 If you already have trusted HTML and need to skip sanitization, pass `{ trusted: true }` to `ctx.html()`.
 
-Unlike `ctx.render()`, `ctx.html()` sanitization still relies on DOM-compatible globals. If your Node runtime does not provide `document` / `DOMParser`, install and register a compatible implementation before returning sanitized HTML, or pass `{ trusted: true }` only when the HTML is already known to be safe.
-
-Register the DOM shim once during application startup before handling any requests that call `ctx.html()` without `{ trusted: true }`.
-
-For example, install `happy-dom` separately (`bun add happy-dom` / `npm install happy-dom`) and register it like this, or use another compatible DOM implementation.
-
-```ts
-import { Window } from 'happy-dom';
-
-const window = new Window();
-globalThis.window = window;
-globalThis.document = window.document;
-globalThis.DOMParser = window.DOMParser;
-```
+`ctx.html()` sanitization needs no DOM. Since 1.17.0, `sanitizeHtml()` falls back to a DOM-free parser when no `DOMParser` is available, so plain Node.js ≥ 24, Deno and Bun sanitize without installing `happy-dom` or `linkedom`. See the [security model](/concepts/security-model).
 
 <!-- uniform-template-footer -->
 
@@ -823,7 +816,8 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 - `params` and `query` are null-prototype dicts — do not rely on inherited methods (`hasOwnProperty`, etc.).
 - Configure `createServer({ limits })` to enforce body size limits _before_ JSON / form parsing to defend against billion-laughs-style attacks.
 - `ctx.setCookie()` validates header-safe characters and rejects malformed values.
-- `ctx.html()` sanitizes by default; pass `{ sanitize: false }` only with fully trusted content.
+- `ctx.html()` sanitizes by default; pass `{ trusted: true }` only with fully trusted content.
+- The session and CSRF cookies are `__Host-bq.sid` and `__Host-bq.csrf` by default (since 1.17.2), and `bq.sid` / `bq.csrf` with `secure: false`, a custom `path` or a `domain`. Client code that reads the CSRF cookie must use the name that matches its attributes.
 - WebSocket sessions returned by `handleWebSocket()` are runtime-agnostic — you must adapt them to your runtime's socket via `result.open(socket)` / `result.message(socket, event)` / `result.close(socket, event)`.
 
 ## Performance notes
@@ -882,6 +876,9 @@ type documents `actionMethod`, `dataPath`, `basePath`, and the middleware hooks.
 
 ## Version history
 
+- **1.17.2** — `csrf()` and `session()` name their cookies `__Host-bq.csrf` / `__Host-bq.sid` by default so a sibling subdomain cannot plant them; `__Host-`/`__Secure-` `cookieName`s whose attributes a browser would reject, or whose prefix is mis-cased, throw at startup. Users are logged out once on upgrade.
+- **1.17.1** — signed CSRF tokens bound to the session (`bindToSession`); `memoryStore()` sweeps expired sessions and evicts the least recently used beyond `maxEntries`, and the default store is capped at 10 000; the Node adapter answers handler errors with `500` and cancels streams on disconnect; `serveStatic` checks precompressed sidecars against `root`; encoded static route segments match; `listen({ signal })` honours an aborted signal.
+- **1.17.0** — `serveStatic()` and `rateLimit()`; global middleware also runs for unmatched routes; `ctx.html()` sanitizes without a DOM.
 - **1.15.0** — first-party `session` / `memoryStore`, `csrf` / `csrfToken`, `guard`, `basicAuth` / `bearerAuth`, and Web-Crypto signing utilities (`signValue`, `unsignValue`, `timingSafeEqual`, `randomToken`, `randomId`, `base64UrlEncode`, `base64UrlDecode`); `ctx.session`; `app.listen()` on Deno; `mountFileRoutes` / `createFileRouteServerRoutes` for file-route actions. `server` targets Stable.
 - **1.14.0** — `ServerHttpError`, `ctx.body`, `ctx.cookies`, `ctx.setCookie`, `ctx.accepts`, `ctx.stream`, `ctx.sse`, `ctx.renderStream`, `ctx.renderResponse`, `app.listen()`.
 - **1.11.0** — `createServer`, runtime-agnostic WebSocket sessions, dependency-free routing.

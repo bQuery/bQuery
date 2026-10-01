@@ -12,7 +12,7 @@
  */
 
 import { isPrototypePollutionKey } from '../core/utils/object';
-import { appendSetCookie, serializeCookie } from './cookies';
+import { appendSetCookie, assertCookiePrefix, defaultCookieName, serializeCookie } from './cookies';
 import { randomId, signValue, unsignValue } from './crypto';
 import type { ServerCookieOptions, ServerContext, ServerMiddleware, ServerSession } from './types';
 
@@ -61,7 +61,13 @@ export interface SessionOptions {
    * 10 000 sessions (least recently used evicted first).
    */
   store?: SessionStore;
-  /** Cookie name. Default `'bq.sid'`. */
+  /**
+   * Cookie name. Defaults to `'__Host-bq.sid'` when the cookie is `Secure`,
+   * has `path: '/'` and no `domain` (the default attributes), and to
+   * `'bq.sid'` otherwise. The `__Host-` prefix makes browsers refuse the
+   * cookie from a sibling subdomain or over plain HTTP, so nobody can plant a
+   * session id of their own on a user (session swapping).
+   */
   cookieName?: string;
   /**
    * Cookie attributes. Defaults to
@@ -355,7 +361,6 @@ export const session = (options: SessionOptions): ServerMiddleware => {
       ttlMs: options.ttlMs ?? DEFAULT_SESSION_TTL_MS,
       maxEntries: DEFAULT_SESSION_MAX_ENTRIES,
     });
-  const cookieName = options.cookieName ?? DEFAULT_SESSION_COOKIE;
   const ttlMs = options.ttlMs ?? DEFAULT_SESSION_TTL_MS;
   const rolling = options.rolling ?? false;
   const genId = options.genId ?? randomId;
@@ -369,6 +374,9 @@ export const session = (options: SessionOptions): ServerMiddleware => {
     // local HTTP dev.
     secure: options.cookie?.secure ?? true,
   };
+  const cookieName = options.cookieName ?? defaultCookieName(DEFAULT_SESSION_COOKIE, baseCookie);
+  // A prefixed cookie the browser would drop means no session ever sticks.
+  assertCookiePrefix('session()', cookieName, baseCookie);
   const maxAge = Number.isFinite(ttlMs) && ttlMs > 0 ? Math.floor(ttlMs / 1000) : undefined;
 
   return async (ctx: ServerContext, next) => {
