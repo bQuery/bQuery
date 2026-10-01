@@ -29,7 +29,7 @@ bQuery integrates with the [Trusted Types](https://developer.mozilla.org/en-US/d
 - Components and view directives accept Trusted Types objects in addition to strings.
 - Raw string assignments to `innerHTML` will throw — as they should.
 
-If your app sets `Content-Security-Policy: require-trusted-types-for 'script'`, bQuery defaults will satisfy it. Component render output and `createTemplate()` templates are wrapped by the same `bquery-sanitizer` policy, so no additional policy name needs to be allowed. The explicit escape hatches — `htmlUnsafe()` and `bq-html` with sanitization turned off — still assign raw strings and therefore throw under enforcement, by design.
+If your app sets `Content-Security-Policy: require-trusted-types-for 'script'`, bQuery defaults will satisfy it. Component render output and `createTemplate()` templates are wrapped by the same `bquery-sanitizer` policy, so no additional policy name needs to be allowed. If you also set a `trusted-types` directive, it must list `bquery-sanitizer`; otherwise policy creation fails and these sinks throw. The explicit escape hatches — `htmlUnsafe()` and `bq-html` with sanitization turned off — still assign raw strings and therefore throw under enforcement, by design.
 
 ## CSP and `unsafe-eval`
 

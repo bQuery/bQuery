@@ -110,7 +110,7 @@ The contract that must not break once Stable: `renderToString`, `renderToStringA
 | Island hydration / `hydrate()`          | client    | client | client | client |
 | Resumable boundaries                    | emit      | emit   | emit   | emit   |
 
-Per-runtime adapters: `createNodeHandler` (Node), `createBunHandler` (Bun), `createDenoHandler` (Deno), `createWebHandler` (edge/workerd). Hydration runs in the browser; the matrix marks server-emit support. The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the runtime-agnostic surface on Node 24, Bun 1.3 and Deno.
+Per-runtime adapters: `createNodeHandler` (Node), `createBunHandler` (Bun), `createDenoHandler` (Deno), `createWebHandler` (edge/workerd). Hydration runs in the browser; the matrix marks server-emit support. The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) guards the runtime-agnostic surface on Node 24, the latest Bun and Deno 2.
 
 ---
 
@@ -881,7 +881,7 @@ Three minimal SSR servers — one per runtime — live in [`examples/`](https://
 | Deno    | `ssr-deno/` | `deno run -A examples/ssr-deno/serve.ts`                     |
 | Node    | `ssr-node/` | `node --experimental-strip-types examples/ssr-node/serve.ts` |
 
-The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, Bun 1.3 and Deno 2 to guard the runtime-agnostic surface.
+The cross-runtime CI matrix (`.github/workflows/ssr-cross-runtime.yml`) builds the library once with Bun and then runs `tests/cross-runtime/run.mjs` against Node 24, the latest Bun and Deno 2 to guard the runtime-agnostic surface.
 
 <!-- uniform-template-footer -->
 
@@ -954,6 +954,8 @@ export default createEdgeHandler(async (request) => {
 
 ## Version history
 
+- **1.17.1** — `createNodeHandler()` answers a throwing handler with `500` instead of an unhandled rejection that terminated Node, aborts `request.signal` and cancels the response stream when the client disconnects.
+- **1.17.0** — attribute and tag names are validated before serialization.
 - **1.15.0 (graduated to Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.
 - **1.14.0** — `flushBoundary`, `createSSRCache`, `createSSRMetrics`, `createEdgeHandler`, cache-aware `renderToResponse`, multi-chunk `renderToStream`.
 - **1.11.0** — `createServer`, `renderToStringAsync`, `renderToStream`, `renderToResponse`, runtime-agnostic WebSocket sessions.
