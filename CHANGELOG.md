@@ -12,7 +12,7 @@ and this project adheres to Semantic Versioning.
     - [Security (1.17.2)](#security-1172)
     - [Fixed (1.17.2)](#fixed-1172)
     - [Changed (1.17.2)](#changed-1172)
-  - [\[1.17.1\] - 2026-09-28](#1171---2026-09-28)
+  - [\[1.17.1\] - 2026-09-30](#1171---2026-09-30)
     - [Security (1.17.1)](#security-1171)
     - [Fixed (1.17.1)](#fixed-1171)
     - [Changed (1.17.1)](#changed-1171)
@@ -135,7 +135,7 @@ A security patch that closes cookie tossing for the CSRF and session cookies. No
 - **Server**: with the default cookie attributes the CSRF cookie is `__Host-bq.csrf` instead of `bq.csrf`. Server-side verification needs no change; a form rendered before the upgrade fails once with `403`, as after a secret rotation. Client code that reads the cookie directly (unsigned double-submit) must use the new name or pass `cookieName: 'bq.csrf'`.
 - **Server**: with the default cookie attributes the session cookie is `__Host-bq.sid` instead of `bq.sid`. Sessions issued before the upgrade are not read any more, so **users are logged out once**. Accepting the old name as a fallback would reopen session swapping. To keep existing sessions for a transition period, pass `cookieName: 'bq.sid'` and switch later.
 
-## [1.17.1] - 2026-09-28
+## [1.17.1] - 2026-09-30
 
 A security-and-correctness patch closing a full-codebase audit. Three security fixes in `server` and `ssr`, ten bug fixes across `core`, `router`, `server`, `reactive`, `forms`, `store`, `component` and `view`. No API removals and no module status transitions; the behaviour changes worth checking before upgrading are listed under [Changed](#changed-1171).
 
