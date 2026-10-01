@@ -8,7 +8,7 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
-  - [\[1.17.2\] - 2026-09-30](#1172---2026-09-30)
+  - [\[1.17.2\] - 2026-10-01](#1172---2026-10-01)
     - [Security (1.17.2)](#security-1172)
     - [Fixed (1.17.2)](#fixed-1172)
     - [Changed (1.17.2)](#changed-1172)
@@ -115,7 +115,7 @@ and this project adheres to Semantic Versioning.
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
 
-## [1.17.2] - 2026-09-30
+## [1.17.2] - 2026-10-01
 
 A security patch that closes cookie tossing for the CSRF and session cookies. No API removals and no module status transitions; the behaviour changes are listed under [Changed](#changed-1172).
 
