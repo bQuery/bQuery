@@ -167,6 +167,8 @@
         "default": "./dist/server.es.mjs"
       }
     },
+    "./editor/html-custom-data.json": "./editor/html-custom-data.json",
+    "./editor/bquery-config.schema.json": "./editor/bquery-config.schema.json",
     "./package.json": "./package.json"
   },
   "files": [
@@ -176,6 +178,7 @@
     "!dist/**/*.cjs.map",
     "src",
     "bin",
+    "editor",
     "README.md",
     "LICENSE.md"
   ],
@@ -197,13 +200,15 @@
     "build:lib": "vite build",
     "build:umd": "vite build --config vite.umd.config.ts",
     "build:types": "tsc --emitDeclarationOnly --outDir dist && bun scripts/postbuild-types.mjs && bun scripts/postbuild-cts.mjs",
-    "check": "bun run check:ai-guidance && bun run check:full-bundle && bun run check:stability && bun run check:doc-exports && bun run check:theme-links && bun run check:workflow-branches",
+    "check": "bun run check:ai-guidance && bun run check:full-bundle && bun run check:stability && bun run check:doc-exports && bun run check:theme-links && bun run check:workflow-branches && bun run check:editor-data",
     "check:ai-guidance": "bun scripts/check-ai-guidance.mjs",
     "check:full-bundle": "bun scripts/check-full-bundle.mjs",
     "check:stability": "bun scripts/check-stability-matrix.mjs",
     "check:doc-exports": "bun scripts/check-doc-exports.mjs",
     "check:theme-links": "bun scripts/check-theme-links.mjs",
     "check:workflow-branches": "bun scripts/check-workflow-branches.mjs",
+    "check:editor-data": "bun scripts/generate-editor-data.mjs --check",
+    "generate:editor-data": "bun scripts/generate-editor-data.mjs",
     "check:publint": "publint",
     "check:attw": "attw --pack . --profile esm-only",
     "check:publish": "bun run check:publint && bun run check:attw",
