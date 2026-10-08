@@ -513,7 +513,7 @@ describe('http retry', () => {
       fetcher: asMockFetch(async () => {
         attempts++;
         if (attempts < 3) {
-          return new Response('error', { status: 500 });
+          return new Response('error', { status: 503 });
         }
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }),
@@ -532,7 +532,7 @@ describe('http retry', () => {
       fetcher: asMockFetch(async () => {
         attempts++;
         if (attempts < 3) {
-          return new Response('error', { status: 500 });
+          return new Response('error', { status: 503 });
         }
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }),
@@ -550,7 +550,7 @@ describe('http retry', () => {
       retry: { count: 2, delay: 10 },
       fetcher: asMockFetch(async () => {
         attempts++;
-        return new Response('error', { status: 500 });
+        return new Response('error', { status: 503 });
       }),
     });
 
@@ -607,7 +607,7 @@ describe('http retry', () => {
       fetcher: asMockFetch(async () => {
         attempts++;
         if (attempts < 3) {
-          return new Response('error', { status: 500 });
+          return new Response('error', { status: 503 });
         }
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }),
@@ -703,7 +703,7 @@ describe('useFetch retry', () => {
       fetcher: asMockFetch(async () => {
         attempts++;
         if (attempts < 3) {
-          return new Response('error', { status: 500 });
+          return new Response('error', { status: 503 });
         }
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }),
@@ -723,7 +723,7 @@ describe('useFetch retry', () => {
       retry: { count: 1, delay: 10 },
       fetcher: asMockFetch(async () => {
         attempts++;
-        return new Response('error', { status: 500 });
+        return new Response('error', { status: 503 });
       }),
     });
 
@@ -770,11 +770,11 @@ describe('useFetch retry', () => {
         immediate: false,
         method: 'POST',
         body: JSON.stringify({ ok: true }),
-        retry: { count: 1, delay: 10 },
+        retry: { count: 1, delay: 10, methods: ['POST'] },
         fetcher: asMockFetch(async () => {
           attempts++;
           if (attempts === 1) {
-            return new Response('error', { status: 500 });
+            return new Response('error', { status: 503 });
           }
           return new Response(JSON.stringify({ ok: true }), { status: 200 });
         }),

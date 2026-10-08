@@ -9,6 +9,15 @@ import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
 import { computed } from './computed';
 import { effect } from './effect';
 import { Signal, signal } from './core';
+import {
+  DEFAULT_MAX_RETRY_AFTER,
+  DEFAULT_RETRY_METHODS,
+  DEFAULT_RETRY_STATUSES,
+  isRetryableMethod,
+  isRetryableStatus,
+  resolveBackoffDelay,
+  resolveRetryAfterDelay,
+} from './retry-policy';
 import { untrack } from './untrack';
 
 /** Allowed status values for async composables. */
@@ -55,13 +64,30 @@ export interface AsyncDataState<TData> {
   dispose: () => void;
 }
 
-/** Configuration for automatic request retries in useFetch(). */
+/**
+ * Configuration for automatic request retries in useFetch().
+ *
+ * Uses the same defaults as the `http` client: only idempotent methods are
+ * retried, only on network errors or the statuses `408`, `429`, `502`, `503`
+ * and `504`, and a `Retry-After` response header replaces the backoff delay.
+ */
 export interface UseFetchRetryConfig {
   /** Maximum number of retry attempts (default: 3). */
   count: number;
   /** Delay in ms between retries, or a function receiving the attempt index. */
   delay?: number | ((attempt: number) => number);
-  /** Predicate deciding whether to retry. Defaults to network / 5xx errors. */
+  /**
+   * HTTP methods that may be retried by the default policy.
+   * Default: `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']`; `['*']` allows all.
+   */
+  methods?: readonly string[];
+  /** Response statuses retried by the default policy. Default: `[408, 429, 502, 503, 504]`. */
+  statuses?: readonly number[];
+  /** Upper bound in ms for a server-sent `Retry-After` delay (default: 60 000). */
+  maxRetryAfter?: number;
+  /** Honour the `Retry-After` response header (default: `true`). */
+  respectRetryAfter?: boolean;
+  /** Predicate deciding whether to retry. Replaces the default method/status policy entirely. */
   retryOn?: (error: Error, attempt: number) => boolean;
 }
 
@@ -381,8 +407,12 @@ const isTimeoutDomException = (error: unknown): error is DOMException =>
 const isAbortDomException = (error: unknown): error is DOMException =>
   isDomExceptionNamed(error, 'AbortError');
 
-/** @internal */
-const DEFAULT_RETRY_ON = (error: Error): boolean => {
+/** @internal Default retry policy shared with the `http` client. */
+const shouldRetryByDefault = (
+  error: Error,
+  method: string | undefined,
+  retry: UseFetchRetryConfig
+): boolean => {
   if (
     isAbortDomException(error) ||
     isTimeoutDomException(error) ||
@@ -391,8 +421,11 @@ const DEFAULT_RETRY_ON = (error: Error): boolean => {
   ) {
     return false;
   }
+  if (!isRetryableMethod(method, retry.methods ?? DEFAULT_RETRY_METHODS)) return false;
   const status = (error as Error & { status?: number }).status;
-  return status === undefined || status >= 500;
+  return (
+    status === undefined || isRetryableStatus(status, retry.statuses ?? DEFAULT_RETRY_STATUSES)
+  );
 };
 
 /** @internal */
@@ -402,11 +435,17 @@ const normalizeRetryConfig = (retry: UseFetchOptions['retry']): UseFetchRetryCon
   return retry;
 };
 
-/** @internal */
-const resolveRetryDelay = (delay: UseFetchRetryConfig['delay'], attempt: number): number => {
-  if (delay == null) return Math.min(1000 * 2 ** attempt, 30_000);
-  if (typeof delay === 'number') return delay;
-  return delay(attempt);
+/** @internal Delay before the next attempt: `Retry-After` first, then the configured backoff. */
+const resolveRetryDelay = (retry: UseFetchRetryConfig, error: Error, attempt: number): number => {
+  if (retry.respectRetryAfter !== false) {
+    const response = (error as Error & { response?: Response }).response;
+    const retryAfter = resolveRetryAfterDelay(
+      response?.headers,
+      retry.maxRetryAfter ?? DEFAULT_MAX_RETRY_AFTER
+    );
+    if (retryAfter !== undefined) return retryAfter;
+  }
+  return resolveBackoffDelay(retry.delay, attempt);
 };
 
 /** @internal */
@@ -625,7 +664,9 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
           lastError = normalizedError;
 
           const shouldRetry = retryConfig
-            ? (retryConfig.retryOn ?? DEFAULT_RETRY_ON)(normalizedError, attempt)
+            ? retryConfig.retryOn
+              ? retryConfig.retryOn(normalizedError, attempt)
+              : shouldRetryByDefault(normalizedError, method, retryConfig)
             : false;
 
           if (!shouldRetry || attempt >= maxAttempts - 1) {
@@ -633,7 +674,7 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
           }
 
           await sleepWithSignal(
-            resolveRetryDelay(retryConfig!.delay, attempt),
+            resolveRetryDelay(retryConfig!, normalizedError, attempt),
             abortController.signal
           );
         }

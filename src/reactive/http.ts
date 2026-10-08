@@ -7,18 +7,51 @@
 
 import { merge, isPlainObject } from '../core/utils/object';
 import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
+import {
+  DEFAULT_MAX_RETRY_AFTER,
+  DEFAULT_RETRY_METHODS,
+  DEFAULT_RETRY_STATUSES,
+  isRetryableMethod,
+  isRetryableStatus,
+  resolveBackoffDelay,
+  resolveRetryAfterDelay,
+} from './retry-policy';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-/** Configuration for automatic request retries. */
+/**
+ * Configuration for automatic request retries.
+ *
+ * By default only idempotent methods (`GET`, `HEAD`, `OPTIONS`, `PUT`,
+ * `DELETE`) are retried, and only on `TIMEOUT` / `NETWORK` errors or the
+ * statuses `408`, `429`, `502`, `503` and `504`. A `Retry-After` response
+ * header (seconds or HTTP date) replaces the backoff delay, capped by
+ * `maxRetryAfter`.
+ */
 export interface RetryConfig {
   /** Maximum number of retry attempts (default: 3). */
   count: number;
   /** Delay in ms between retries, or a function receiving the attempt index. */
   delay?: number | ((attempt: number) => number);
-  /** Predicate deciding whether to retry a given error. Defaults to network / 5xx errors. */
+  /**
+   * HTTP methods that may be retried by the default policy.
+   * Default: `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']`. Add `'POST'` /
+   * `'PATCH'` (or pass `['*']`) only when the endpoint is safe to repeat,
+   * e.g. because it honours an idempotency key.
+   */
+  methods?: readonly string[];
+  /** Response statuses retried by the default policy. Default: `[408, 429, 502, 503, 504]`. */
+  statuses?: readonly number[];
+  /** Upper bound in ms for a server-sent `Retry-After` delay (default: 60 000). */
+  maxRetryAfter?: number;
+  /** Honour the `Retry-After` response header (default: `true`). */
+  respectRetryAfter?: boolean;
+  /**
+   * Predicate deciding whether to retry a given error. Replaces the default
+   * method/status policy entirely, so it can opt `POST` / `PATCH` into retries.
+   */
   retryOn?: (error: HttpError, attempt: number) => boolean;
   /** Called before each retry attempt with the error and 1-indexed attempt number. */
   onRetry?: (error: HttpError, attempt: number) => void;
@@ -198,11 +231,19 @@ export interface HttpClient {
 
 const DEFAULT_VALIDATE_STATUS = (status: number): boolean => status >= 200 && status < 300;
 
-const DEFAULT_RETRY_ON = (error: HttpError): boolean => {
-  if (error.code === 'PARSE') return false;
+/** @internal Default retry policy: idempotent methods, transient failures only. */
+const shouldRetryByDefault = (
+  error: HttpError,
+  method: string | undefined,
+  retry: RetryConfig
+): boolean => {
+  if (!isRetryableMethod(method, retry.methods ?? DEFAULT_RETRY_METHODS)) return false;
   if (error.code === 'TIMEOUT' || error.code === 'NETWORK') return true;
+  if (error.code === 'PARSE') return false;
   const status = error.response?.status;
-  return status !== undefined && status >= 500;
+  return (
+    status !== undefined && isRetryableStatus(status, retry.statuses ?? DEFAULT_RETRY_STATUSES)
+  );
 };
 
 /** @internal */
@@ -212,11 +253,16 @@ const normalizeRetry = (retry: HttpRequestConfig['retry']): RetryConfig | undefi
   return retry;
 };
 
-/** @internal */
-const resolveRetryDelay = (delay: RetryConfig['delay'], attempt: number): number => {
-  if (delay == null) return Math.min(1000 * 2 ** attempt, 30_000);
-  if (typeof delay === 'number') return delay;
-  return delay(attempt);
+/** @internal Delay before the next attempt: `Retry-After` first, then the configured backoff. */
+const resolveRetryDelay = (retry: RetryConfig, error: HttpError, attempt: number): number => {
+  if (retry.respectRetryAfter !== false) {
+    const retryAfter = resolveRetryAfterDelay(
+      error.response?.headers,
+      retry.maxRetryAfter ?? DEFAULT_MAX_RETRY_AFTER
+    );
+    if (retryAfter !== undefined) return retryAfter;
+  }
+  return resolveBackoffDelay(retry.delay, attempt);
 };
 
 /** @internal */
@@ -624,7 +670,9 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
         lastError = httpError;
 
         const shouldRetry = retryConfig
-          ? (retryConfig.retryOn ?? DEFAULT_RETRY_ON)(httpError, attempt)
+          ? retryConfig.retryOn
+            ? retryConfig.retryOn(httpError, attempt)
+            : shouldRetryByDefault(httpError, resolvedConfig.method, retryConfig)
           : false;
 
         if (!shouldRetry || attempt >= maxAttempts - 1) {
@@ -658,7 +706,7 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
           throw finalError;
         }
 
-        const retryDelay = retryConfig ? resolveRetryDelay(retryConfig.delay, attempt) : 0;
+        const retryDelay = retryConfig ? resolveRetryDelay(retryConfig, httpError, attempt) : 0;
         retryConfig?.onRetry?.(httpError, attempt + 1);
         await sleep(retryDelay, resolvedConfig.signal);
       }

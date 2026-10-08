@@ -8,6 +8,10 @@ and this project adheres to Semantic Versioning.
 
 - [Changelog](#changelog)
   - [Releases](#releases)
+  - [\[Unreleased\]](#unreleased)
+    - [Added (Unreleased)](#added-unreleased)
+    - [Changed (Unreleased)](#changed-unreleased)
+    - [Fixed (Unreleased)](#fixed-unreleased)
   - [\[1.17.2\] - 2026-10-01](#1172---2026-10-01)
     - [Security (1.17.2)](#security-1172)
     - [Fixed (1.17.2)](#fixed-1172)
@@ -114,6 +118,18 @@ and this project adheres to Semantic Versioning.
     - [Fixed (1.0.1)](#fixed-101)
   - [\[1.0.0\] - 2026-01-21](#100---2026-01-21)
     - [Added (1.0.0)](#added-100)
+
+## [Unreleased]
+
+### Added (Unreleased)
+
+- **Reactive**: `RetryConfig` and `UseFetchRetryConfig` accept `methods`, `statuses`, `maxRetryAfter` and `respectRetryAfter` ([#257](https://github.com/bQuery/bQuery/issues/257)). A `Retry-After` response header (delta-seconds or HTTP date) now replaces the backoff delay, capped at `maxRetryAfter` (default 60 s).
+
+### Changed (Unreleased)
+
+- **Reactive**: retries in `createHttp()` / `http` and `useFetch()` default to idempotent methods (`GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`) and to the statuses `408`, `429`, `502`, `503` and `504` ([#257](https://github.com/bQuery/bQuery/issues/257)). Previously `retry: 3` on a client retried every method on any 5xx, timeout or network error, so a timed-out `post()` that the server had already processed could run up to four times — e.g. creating duplicate orders. `429` was not retried at all, and `500`/`501` (rarely transient) were. **Migration:** to keep retrying `POST`/`PATCH`, pass `retry: { count, methods: ['POST', 'PATCH'] }` (or `['*']`) for endpoints that are safe to repeat; to keep retrying `500`, pass `statuses: [500, 502, 503, 504]`. A custom `retryOn` still replaces the default policy entirely.
+
+### Fixed (Unreleased)
 
 ## [1.17.2] - 2026-10-01
 

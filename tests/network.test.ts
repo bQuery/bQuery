@@ -2255,7 +2255,7 @@ describe('http onRetry callback', () => {
       fetcher: asMockFetch(async () => {
         callCount++;
         if (callCount <= 2) {
-          return new Response('Error', { status: 500 });
+          return new Response('Error', { status: 503 });
         }
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }),
