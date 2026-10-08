@@ -1,0 +1,83 @@
+name: Benchmarks
+
+# Performance regression gate (#217). On a pull request the suite runs twice on
+# the same runner — once against the base commit, once against the head — so
+# the comparison is not skewed by runner-to-runner variance, and the job fails
+# when a median regresses by more than 20 %. The nightly run records the
+# current numbers of `dev` as an artifact.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Benchmark head
+        run: bun run bench --json bench-head.json
+
+      - name: Benchmark base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Run the head's benchmark definitions against the base sources, so
+          # both sides measure exactly the same scenarios. A benchmark the base
+          # cannot run is recorded as an error and skipped by the comparison.
+          git worktree add ../bench-base "$BASE_SHA"
+          rm -rf ../bench-base/bench
+          cp -R bench ../bench-base/bench
+          ln -s "$PWD/node_modules" ../bench-base/node_modules
+          cp tests/setup.ts ../bench-base/tests/setup.ts
+          (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base.json") || true
+
+      - name: Compare with base
+        if: github.event_name == 'pull_request'
+        run: |
+          bun scripts/compare-bench.mjs bench-base.json bench-head.json \
+            --threshold 0.2 --markdown bench-report.md
+          cat bench-report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmarks-${{ github.event_name }}-${{ github.run_id }}
+          path: |
+            bench-head.json
+            bench-base.json
+            bench-report.md
+          if-no-files-found: ignore
+          retention-days: 90
