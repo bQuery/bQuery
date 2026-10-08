@@ -323,6 +323,53 @@ Only opt into attributes whose values you control or validate. In particular,
 `style` is excluded by default and bQuery does not sanitize CSS values for you,
 so enabling it for untrusted input can reintroduce security risks.
 
+## How re-renders update the DOM
+
+A re-render does not replace the component's `innerHTML`. The new sanitized
+markup is parsed into an inert `<template>` and the live tree is **morphed**
+into it: nodes are matched by tag and `data-bq-key` / `id`, then by position,
+and only what changed is written. Because the nodes survive:
+
+- text typed into an `<input>` or `<textarea>`, the focused element and the
+  caret/selection are kept when an unrelated signal or prop changes;
+- scroll positions, media playback and running CSS transitions are not reset;
+- nested custom elements are not disconnected and reconnected, so their own
+  state and lifecycles are untouched.
+
+Attributes are diffed against the markup the component rendered **last time**,
+not against the live DOM. The template owns only what it writes: an attribute
+added at runtime — `<details open>` toggled by the user, a class set by an
+animation — survives a re-render, and a form control's `value` / `checked` /
+`selected` property is updated only when the template changes that attribute.
+An update whose sanitized markup is identical to the previous render skips the
+DOM write entirely.
+
+```ts
+const count = signal(0);
+
+component('x-probe', {
+  signals: { count },
+  render: ({ signals }) => html`<input id="i" /><span>${signals.count.value}</span>`,
+});
+
+// Type into #i, then:
+count.value = 1; // #i is the same node and keeps its value
+```
+
+Give repeated siblings a key with [`keyedList()`](#keyed-lists) (or an `id`)
+so a reorder moves the existing nodes instead of patching each one into its
+neighbour.
+
+Components that depend on fresh nodes on every render can opt back into full
+replacement:
+
+```ts
+component('x-legacy', {
+  renderStrategy: 'replace', // innerHTML replacement, the behaviour before 1.18
+  render: () => html`<canvas></canvas>`,
+});
+```
+
 ## Manual element class creation
 
 If you need access to the element class (e.g., to register manually or extend behavior), use `defineComponent`:
@@ -538,7 +585,8 @@ component('todo-list', {
 
 ## Performance notes
 
-- Use `keyedList()` / `reconcileKeyed()` for lists that frequently reorder; the diff is O(n) with key reuse.
+- Re-renders morph the existing DOM instead of replacing it, so their cost scales with what changed rather than with the template size. `keyedList()` keys let the morph move list items instead of rewriting them; `reconcileKeyed()` is only needed with `renderStrategy: 'replace'` or for DOM you reorder yourself.
+- A render that produces the same sanitized markup as the previous one skips the DOM write.
 - Defer non-critical work with `whenIdle()` so first paint stays snappy.
 - Share styles via `css` adoptable stylesheets to avoid per-instance `<style>` cost.
 
@@ -555,6 +603,8 @@ component('todo-list', {
 - [Testing](./testing) — `renderComponent`, `userEvent`, and `expectAccessible`.
 
 ## Version history
+
+- **Unreleased (1.18)** — re-renders morph the existing DOM instead of replacing `innerHTML`, preserving input values, focus, scroll position and nested custom-element state; unchanged markup skips the DOM write. `renderStrategy: 'replace'` restores full replacement.
 
 - **1.17.1** — component render output passes through the `bquery-sanitizer` Trusted Types policy, so components render under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws). See the [security model](/concepts/security-model).
 - **1.13.0** — slot helpers, refs, `useAsync` / `whenIdle`, DI, `errorBoundary`, `setProp` / `getProp`, delegated event helpers, `css` tagged template, `keyedList` / `reconcileKeyed`.

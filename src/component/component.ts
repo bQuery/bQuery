@@ -8,6 +8,7 @@ import type { CleanupFn } from '../reactive/signal';
 import { effect, untrack } from '../reactive/signal';
 import { sanitizeHtml } from '../security/sanitize';
 import { trustedPreparedHtmlForSink } from '../security/trusted-types';
+import { morphInnerHtml } from './morph';
 import { applyAdoptedStyles, isComponentStyles } from './css';
 import { cleanupDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
@@ -65,6 +66,12 @@ const COMPONENT_ALLOWED_ATTRIBUTES = [
   'wrap',
 ];
 
+/** The `<style>` element a component injects for its `styles`; left alone by morphing. */
+const isComponentStyleElement = (node: Node): boolean =>
+  node.nodeType === 1 &&
+  (node as Element).localName === 'style' &&
+  (node as Element).hasAttribute('data-bquery-component-style');
+
 const formatPropValidationValue = (value: unknown): string => {
   try {
     return JSON.stringify(value) ?? String(value);
@@ -109,6 +116,7 @@ const createComponentClass = <
     return 'open';
   };
   const shadowMode = resolveShadowMode(definition.shadow);
+  const renderStrategy = definition.renderStrategy ?? 'morph';
 
   /**
    * Merges prop-derived observed attributes with any extra attributes from
@@ -135,6 +143,8 @@ const createComponentClass = <
     private scope?: ComponentScope;
     /** Render target for open/closed shadow roots or the host element when shadow DOM is disabled */
     private readonly renderRootNode: HTMLElement | ShadowRoot;
+    /** Sanitized markup of the last render, to skip unchanged morph updates. */
+    private lastRenderedMarkup: string | null = null;
 
     constructor() {
       super();
@@ -561,18 +571,27 @@ const createComponentClass = <
           );
         }
 
-        cleanupDelegatedHandlers(renderRoot, this.scope);
-        // Already sanitized with the component allow lists above; wrap it for
-        // an enforced Trusted Types CSP without a second, stricter pass.
-        renderRoot.innerHTML = trustedPreparedHtmlForSink(sanitizedMarkup);
+        if (renderStrategy === 'replace') {
+          cleanupDelegatedHandlers(renderRoot, this.scope);
+          // Already sanitized with the component allow lists above; wrap it for
+          // an enforced Trusted Types CSP without a second, stricter pass.
+          renderRoot.innerHTML = trustedPreparedHtmlForSink(sanitizedMarkup);
+        } else if (sanitizedMarkup !== this.lastRenderedMarkup) {
+          cleanupDelegatedHandlers(renderRoot, this.scope);
+          // Patch in place so form state, focus and nested elements survive.
+          morphInnerHtml(renderRoot, sanitizedMarkup, trustedPreparedHtmlForSink, {
+            preserve: isComponentStyleElement,
+          });
+        }
+        this.lastRenderedMarkup = sanitizedMarkup;
 
         if (stylesText && !usedAdoptedSheet) {
           const styleElement = existingStyleElement ?? document.createElement('style');
           if (!existingStyleElement) {
             styleElement.setAttribute('data-bquery-component-style', '');
           }
-          styleElement.textContent = stylesText;
-          renderRoot.prepend(styleElement);
+          if (styleElement.textContent !== stylesText) styleElement.textContent = stylesText;
+          if (renderRoot.firstChild !== styleElement) renderRoot.prepend(styleElement);
         }
 
         if (triggerUpdated) {
