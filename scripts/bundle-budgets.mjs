@@ -77,7 +77,11 @@ export const BUNDLE_BUDGETS = [
   { subpath: './plugin', gzip: 2700 },
   { subpath: './devtools', gzip: 3600 },
   { subpath: './testing', gzip: 7800 },
-  { subpath: './ssr', gzip: 38600, note: 'Pulls in the view renderer and the HTML parser.' },
+  {
+    subpath: './ssr',
+    gzip: 44600,
+    note: 'Pulls in the view renderer and the HTML parser. The Node adapter streams request bodies on demand with backpressure instead of buffering them (+0.4 kB, #255).',
+  },
   {
     subpath: './server',
     gzip: 41300,
