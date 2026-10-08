@@ -1,8 +1,23 @@
 # bQuery examples
 
-Runnable examples that demonstrate how to host a bQuery SSR app under
-three different JavaScript runtimes, plus pointers to other code samples
-found throughout the documentation.
+Runnable examples: a full-stack app that combines the modules, three minimal
+SSR servers that show runtime parity, and pointers to other code samples found
+throughout the documentation.
+
+## Full-stack app — bQuery Notes
+
+[`fullstack/`](./fullstack) is a small notes app with sign-in, sessions and
+CSRF, rate limiting, routes with loaders rendered on the server, hydration,
+one Standard Schema validating the form in the browser and the API on the
+server, a persisted draft and English/German messages.
+
+```bash
+bun examples/fullstack/server.ts   # http://localhost:3000 — ada@example.com / lovelace
+```
+
+It runs in CI twice: in-process by `tests/example-fullstack.test.ts`, and end
+to end in real browsers by `browser/fullstack.pw.ts`. See its
+[README](./fullstack/README.md) for the walkthrough.
 
 ## SSR runtime parity
 
@@ -95,8 +110,8 @@ responses, and `Cache-Control: public, max-age=0, must-revalidate`.
 
 ## Other examples in this repository
 
-While only the SSR servers live under `examples/`, several other
-focused examples are co-located with the source and docs:
+Beyond `examples/`, several other focused examples are co-located with the
+source and docs:
 
 - **Storybook stories** — see [`stories/`](../stories) for live previews of
   the default component library and the [`storyHtml`](../docs/guide/storybook.md)

@@ -6,6 +6,8 @@
 import { defineConfig, devices } from '@playwright/test';
 
 const port = Number(process.env.PORT ?? 4173);
+/** Port of the full-stack example; `fullstack.pw.ts` reads it too. */
+export const examplePort = Number(process.env.EXAMPLE_PORT ?? 4174);
 // Lets a sandbox with a preinstalled Chromium of another revision reuse it.
 const chromiumExecutable = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH;
 
@@ -34,11 +36,21 @@ export default defineConfig({
     { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
     { name: 'webkit', use: { ...devices['Desktop Safari'] } },
   ],
-  webServer: {
-    command: 'bun browser/server.ts',
-    cwd: '..',
-    url: `http://127.0.0.1:${port}/fixtures/blank.html`,
-    reuseExistingServer: !process.env.CI,
-    env: { PORT: String(port) },
-  },
+  webServer: [
+    {
+      command: 'bun browser/server.ts',
+      cwd: '..',
+      url: `http://127.0.0.1:${port}/fixtures/blank.html`,
+      reuseExistingServer: !process.env.CI,
+      env: { PORT: String(port) },
+    },
+    {
+      // The full-stack example (#226) doubles as an end-to-end target.
+      command: 'bun examples/fullstack/server.ts',
+      cwd: '..',
+      url: `http://127.0.0.1:${examplePort}/login`,
+      reuseExistingServer: !process.env.CI,
+      env: { PORT: String(examplePort), SESSION_SECRET: 'browser-lane-secret-0123456789abcdef' },
+    },
+  ],
 });
