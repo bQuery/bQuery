@@ -47,6 +47,13 @@ export { hydrateForm, readSerializedFormState, serializeFormState } from './ssr'
 export { useField, useFieldArray, useForm } from './composables';
 export { optimistic } from './optimistic';
 export { FormActionError, formAction, useFormStatus } from './action';
+export {
+  isStandardSchema,
+  normalizeSchemaIssues,
+  schemaIssuesToFieldErrors,
+  validateWithSchema,
+} from './standard-schema';
+export type { SchemaIssue, SchemaValidationResult, StandardSchemaV1 } from './standard-schema';
 
 export {
   all,
@@ -99,6 +106,8 @@ export type {
   FormSnapshot,
   FormValidationMode,
   FormValidationStrategy,
+  SchemaFormConfig,
+  SchemaFormValues,
   SetFieldValueOptions,
   SubmitHandler,
   SyncValidator,

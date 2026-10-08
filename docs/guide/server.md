@@ -729,6 +729,54 @@ If you already have trusted HTML and need to skip sanitization, pass `{ trusted:
 
 `ctx.html()` sanitization needs no DOM. Since 1.17.0, `sanitizeHtml()` falls back to a DOM-free parser when no `DOMParser` is available, so plain Node.js ≥ 24, Deno and Bun sanitize without installing `happy-dom` or `linkedom`. See the [security model](/concepts/security-model).
 
+## Request validation with Standard Schema
+
+`validate(schema)` checks the request against any
+[Standard Schema](https://standardschema.dev) — Zod, Valibot, ArkType, … —
+before the route runs. bQuery does not depend on the library; it calls the
+schema's `~standard.validate()`.
+
+```ts
+import { z } from 'zod';
+import { createServer, validate } from '@bquery/bquery/server';
+
+const Signup = z.object({ email: z.string().email(), age: z.number().min(18) });
+const signup = validate(Signup);
+
+const app = createServer();
+app.post(
+  '/signup',
+  (ctx) => {
+    const { email, age } = signup.data(ctx); // typed as z.output<typeof Signup>
+    return ctx.json({ email, age }, { status: 201 });
+  },
+  [signup]
+);
+```
+
+An invalid request is answered with `400` and
+
+```json
+{
+  "error": "Validation failed",
+  "issues": [{ "message": "Invalid email", "path": ["email"] }]
+}
+```
+
+On success, `signup.data(ctx)` returns the validated value — the schema's
+_output_, so transforms and coercions apply — and for body validation
+`ctx.body()` returns it too. JSON, URL-encoded and multipart bodies are
+supported (multipart fields become a plain object).
+
+| Option      | Default  | Description                                               |
+| ----------- | -------- | --------------------------------------------------------- |
+| `source`    | `'body'` | Validate `'body'`, `'query'` or route `'params'`          |
+| `status`    | `400`    | Status of the default failure response                    |
+| `onInvalid` | —        | `(issues, ctx) => Response` for a custom failure response |
+
+The same schema drives `createForm({ schema })` on the client — see the
+[shared-schema recipe](/cookbook/shared-schema-validation).
+
 ## Request body limits
 
 `ctx.body()` enforces a size limit per content type while it streams the body,

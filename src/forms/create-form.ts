@@ -8,6 +8,8 @@ import { isPrototypePollutionKey } from '../core/utils/object';
 import { isPromise } from '../core/utils/type-guards';
 import { computed, effect, signal } from '../reactive/index';
 import type { Signal } from '../reactive/index';
+import { validateWithSchema, type SchemaValidationResult } from './standard-schema';
+import type { StandardSchemaV1 } from './standard-schema';
 import type {
   CrossFieldValidator,
   FieldConfig,
@@ -18,6 +20,8 @@ import type {
   FormField,
   FormFields,
   FormSnapshot,
+  SchemaFormConfig,
+  SchemaFormValues,
   SetFieldValueOptions,
   ValidationResult,
   Validator,
@@ -38,6 +42,8 @@ type FieldRuntime = {
   config: FieldConfig<unknown>;
   parse: (raw: unknown) => unknown;
   format: (value: unknown) => unknown;
+  /** The field's own validators, followed by the schema check when a schema is set. */
+  validators: Validator<unknown>[] | undefined;
   blurCount: Signal<number>;
   consumeSilentNotifyWrite: () => boolean;
   consumeSilentValidationWrite: () => boolean;
@@ -231,7 +237,41 @@ const validateSingleField = async <T>(
  * });
  * ```
  */
-export const createForm = <T extends Record<string, unknown>>(config: FormConfig<T>): Form<T> => {
+export function createForm<S extends StandardSchemaV1>(
+  config: SchemaFormConfig<S>
+): Form<SchemaFormValues<S>>;
+export function createForm<T extends Record<string, unknown>>(config: FormConfig<T>): Form<T>;
+export function createForm<T extends Record<string, unknown>>(
+  config: FormConfig<T> | SchemaFormConfig<StandardSchemaV1>
+): Form<T> {
+  return createFormFromConfig(normalizeFormConfig(config) as FormConfig<T>);
+}
+
+/** Expand a schema-driven config (`initialValues`) into per-field configs. */
+const normalizeFormConfig = <T extends Record<string, unknown>>(
+  config: FormConfig<T> | SchemaFormConfig<StandardSchemaV1>
+): FormConfig<T> => {
+  if (!('initialValues' in config) || config.initialValues == null) {
+    return config as FormConfig<T>;
+  }
+  const extras = (config.fields ?? {}) as Record<string, Partial<FieldConfig<unknown>> | undefined>;
+  const fields: Record<string, FieldConfig<unknown>> = {};
+  for (const [name, initialValue] of Object.entries(config.initialValues)) {
+    if (isPrototypePollutionKey(name)) continue;
+    fields[name] = { ...extras[name], initialValue };
+  }
+  return { ...(config as unknown as FormConfig<T>), fields: fields as FormConfig<T>['fields'] };
+};
+
+const shallowEqualValues = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.is(a[key], b[key]));
+};
+
+const createFormFromConfig = <T extends Record<string, unknown>>(
+  config: FormConfig<T>
+): Form<T> => {
   const fieldEntries = Object.entries(config.fields) as [
     keyof T & string,
     FieldConfig<T[keyof T]>,
@@ -265,6 +305,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       config: fieldConfig as FieldConfig<unknown>,
       parse: (fieldConfig as FieldConfig<unknown>).parse ?? ((raw: unknown) => raw),
       format: (fieldConfig as FieldConfig<unknown>).format ?? ((value: unknown) => value),
+      validators: (fieldConfig as FieldConfig<unknown>).validators,
       blurCount,
       consumeSilentNotifyWrite,
       consumeSilentValidationWrite,
@@ -326,10 +367,47 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     return values as T;
   };
 
+  // --- Standard Schema ------------------------------------------------------
+
+  const formSchema = config.schema;
+  let schemaCache: {
+    values: Record<string, unknown>;
+    result: Promise<SchemaValidationResult<unknown>>;
+  } | null = null;
+  // Every field validates against the same whole-form value, so one schema run
+  // serves all of them until a value changes.
+  const runSchema = (): Promise<SchemaValidationResult<unknown>> => {
+    const values = getValuesUntracked() as Record<string, unknown>;
+    if (schemaCache && shallowEqualValues(schemaCache.values, values)) return schemaCache.result;
+    const result = validateWithSchema(formSchema as StandardSchemaV1, values);
+    schemaCache = { values, result };
+    return result;
+  };
+  if (formSchema) {
+    for (const name of fieldOrder) {
+      const schemaValidator: Validator<unknown> = async () => {
+        const result = await runSchema();
+        if (result.success) return undefined;
+        return result.issues.find((issue) => String(issue.path[0]) === name)?.message;
+      };
+      runtime[name].validators = [...(runtime[name].validators ?? []), schemaValidator];
+    }
+  }
+  /** Whether the schema reports an issue that no enabled field displays. */
+  const hasUnmappedSchemaIssue = async (): Promise<boolean> => {
+    if (!formSchema) return false;
+    const result = await runSchema();
+    if (result.success) return false;
+    return result.issues.some((issue) => {
+      const name = issue.path.length > 0 ? String(issue.path[0]) : '';
+      return !Object.prototype.hasOwnProperty.call(runtime, name);
+    });
+  };
+
   const validateField = async (name: keyof T & string): Promise<void> => {
     const entry = runtime[name as string];
     if (!entry) return;
-    await validateSingleField(entry.field, entry.config.validators, mode);
+    await validateSingleField(entry.field, entry.validators, mode);
   };
 
   // --- subscribe() ----------------------------------------------------------
@@ -452,9 +530,12 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
     for (const name of fieldOrder) {
       const entry = runtime[name];
-      const msg = await validateSingleField(entry.field, entry.config.validators, mode);
+      const msg = await validateSingleField(entry.field, entry.validators, mode);
       if (msg) hasError = true;
     }
+
+    // Only await with a schema: an extra tick would delay onSubmit for every form.
+    if (formSchema && (await hasUnmappedSchemaIssue())) hasError = true;
 
     if (config.crossValidators && config.crossValidators.length > 0) {
       const values = getValuesUntracked();

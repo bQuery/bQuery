@@ -99,7 +99,10 @@ const cookbookItems = [
   {
     text: 'Forms',
     collapsed: true,
-    items: [{ text: 'Login form', link: '/cookbook/login-form' }],
+    items: [
+      { text: 'Login form', link: '/cookbook/login-form' },
+      { text: 'One schema for client and server', link: '/cookbook/shared-schema-validation' },
+    ],
   },
   {
     text: 'Routing & state',

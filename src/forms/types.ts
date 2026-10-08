@@ -5,6 +5,7 @@
  */
 
 import type { Computed, Signal } from '../reactive/index';
+import type { StandardSchemaV1 } from './standard-schema';
 
 /**
  * Result of a single validation rule.
@@ -234,6 +235,38 @@ export type FormConfig<T extends Record<string, unknown>> = {
   validationStrategy?: FormValidationStrategy;
   /** Per-field validation mode. Defaults to `'first'`. */
   mode?: FormValidationMode;
+  /**
+   * A [Standard Schema](https://standardschema.dev) (Zod, Valibot, ArkType, …)
+   * validated against the whole form value. Each issue becomes the error of
+   * the field named by its first path segment, after that field's own
+   * `validators` pass; an issue without a field path fails `validate()` without
+   * a field error. Async schemas are awaited.
+   */
+  schema?: StandardSchemaV1;
+};
+
+/** Form values described by a Standard Schema's input type. */
+export type SchemaFormValues<S extends StandardSchemaV1> =
+  StandardSchemaV1.InferInput<S> extends Record<string, unknown>
+    ? StandardSchemaV1.InferInput<S>
+    : Record<string, unknown>;
+
+/**
+ * `createForm()` configuration driven by a Standard Schema: the value type is
+ * inferred from the schema and the fields from `initialValues`.
+ */
+export type SchemaFormConfig<S extends StandardSchemaV1> = Omit<
+  FormConfig<SchemaFormValues<S>>,
+  'fields' | 'schema'
+> & {
+  /** The schema validating the whole form value. */
+  schema: S;
+  /** Initial value of every field; its keys define the form's fields. */
+  initialValues: SchemaFormValues<S>;
+  /** Optional per-field extras (validators, `validateOn`, `parse`, …). */
+  fields?: {
+    [K in keyof SchemaFormValues<S>]?: Omit<FieldConfig<SchemaFormValues<S>[K]>, 'initialValue'>;
+  };
 };
 
 /**
