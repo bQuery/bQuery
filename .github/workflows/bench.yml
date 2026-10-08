@@ -1,9 +1,9 @@
 name: Benchmarks
 
-# Performance regression gate (#217). On a pull request the suite runs twice on
-# the same runner — once against the base commit, once against the head — so
-# the comparison is not skewed by runner-to-runner variance, and the job fails
-# when a median regresses by more than 20 %. The nightly run records the
+# Performance regression gate (#217). On a pull request the suite runs against
+# the base commit and the head on the same runner, alternating three times, so
+# the comparison is not skewed by runner-to-runner variance or load drift; the
+# job fails when the best median regresses by more than 20 %. The nightly run records the
 # current numbers of `dev` as an artifact.
 
 permissions:
@@ -45,10 +45,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Benchmark head
-        run: bun run bench --json bench-head.json
-
-      - name: Benchmark base
+      - name: Prepare base worktree
         if: github.event_name == 'pull_request'
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
@@ -61,12 +58,28 @@ jobs:
           cp -R bench ../bench-base/bench
           ln -s "$PWD/node_modules" ../bench-base/node_modules
           cp tests/setup.ts ../bench-base/tests/setup.ts
-          (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base.json") || true
+
+      - name: Benchmark head
+        if: github.event_name != 'pull_request'
+        run: bun run bench --json bench-head.json
+
+      - name: Benchmark base and head
+        if: github.event_name == 'pull_request'
+        run: |
+          # Alternate the two sides three times and keep each benchmark's
+          # fastest median: a shared runner's load drifts over a few seconds,
+          # so a single sequential pair can differ by more than the gate.
+          for i in 1 2 3; do
+            (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base-$i.json" > /dev/null) || true
+            bun run bench --json "bench-head-$i.json" > /dev/null
+          done
 
       - name: Compare with base
         if: github.event_name == 'pull_request'
         run: |
-          bun scripts/compare-bench.mjs bench-base.json bench-head.json \
+          bun scripts/compare-bench.mjs \
+            bench-base-1.json,bench-base-2.json,bench-base-3.json \
+            bench-head-1.json,bench-head-2.json,bench-head-3.json \
             --threshold 0.2 --markdown bench-report.md
           cat bench-report.md >> "$GITHUB_STEP_SUMMARY"
 
@@ -76,8 +89,7 @@ jobs:
         with:
           name: benchmarks-${{ github.event_name }}-${{ github.run_id }}
           path: |
-            bench-head.json
-            bench-base.json
+            bench-*.json
             bench-report.md
           if-no-files-found: ignore
           retention-days: 90

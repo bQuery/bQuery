@@ -21,9 +21,10 @@ interface CompareBenchModule {
     comparison: { rows: Row[]; regressions: string[] },
     threshold?: number
   ) => string;
+  mergeSummaries: (summaries: Summary[]) => Summary;
 }
 
-const { DEFAULT_THRESHOLD, compareBenchmarks, renderMarkdown } = (await import(
+const { DEFAULT_THRESHOLD, compareBenchmarks, mergeSummaries, renderMarkdown } = (await import(
   new URL('../scripts/compare-bench.mjs', import.meta.url).href
 )) as CompareBenchModule;
 
@@ -84,5 +85,23 @@ describe('compare-bench (#217)', () => {
     expect(markdown).toContain('| 🔴 | slow | 2.00 ms | 3.00 ms | +50.0 % |');
     expect(markdown).toContain('| ⚪ | fast | 1.50 µs | 1.50 µs | +0.0 % |');
     expect(markdown).toContain('regressed beyond the threshold:** slow');
+  });
+
+  it('merges repeated runs by keeping the fastest median', () => {
+    const merged = mergeSummaries([
+      summary({ a: { p50: 120, avg: 130 }, b: { error: 'flaky' } }),
+      summary({ a: { p50: 100, avg: 140 }, b: { p50: 50, avg: 55 } }),
+      summary({ a: { p50: 110, avg: 110 } }),
+    ]);
+    expect(merged.results).toEqual({ a: { p50: 100, avg: 140 }, b: { p50: 50, avg: 55 } });
+  });
+
+  it('does not flag a noisy run when another run of the same side is fast', () => {
+    const base = mergeSummaries([summary({ a: { p50: 100, avg: 100 } })]);
+    const head = mergeSummaries([
+      summary({ a: { p50: 130, avg: 130 } }),
+      summary({ a: { p50: 104, avg: 104 } }),
+    ]);
+    expect(compareBenchmarks(base, head).regressions).toEqual([]);
   });
 });

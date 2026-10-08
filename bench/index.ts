@@ -3,7 +3,7 @@
  *
  *   bun run bench                         # print results
  *   bun run bench --json bench.json       # also write a JSON summary
- *   bun run bench --filter reactive       # only names matching the pattern
+ *   bun run bench --filter "deep chain"   # only names containing the text
  *
  * The JSON summary maps each benchmark name to its median (p50) and mean time
  * per iteration in nanoseconds; `scripts/compare-bench.mjs` compares two of
@@ -24,8 +24,11 @@ const argValue = (flag: string): string | undefined => {
 const jsonPath = argValue('--json');
 const filter = argValue('--filter');
 
+// A literal, case-insensitive substring match: the CLI value is text, not a pattern.
+const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const { benchmarks, context } = await run({
-  filter: filter ? new RegExp(filter, 'i') : undefined,
+  filter: filter ? new RegExp(escapeRegExp(filter), 'i') : undefined,
   throw: false,
 });
 

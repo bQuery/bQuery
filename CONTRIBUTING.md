@@ -54,13 +54,16 @@ The `bench/` suite ([mitata](https://github.com/evanwashere/mitata)) measures
 signal-graph throughput (fan-out, deep chains, diamonds, batching), `bq-for`
 mount and update cost, and `renderToString()` throughput.
 
-- Run it: `bun run bench` (`--filter reactive` runs a subset)
+- Run it: `bun run bench` (`--filter "deep chain"` runs the benchmarks whose name contains the text)
 - Write a JSON summary: `bun run bench --json bench.json`
 - Compare two summaries: `bun run bench:compare base.json head.json` — exits
-  non-zero when a median is more than 20 % slower (`--threshold 0.1` to tighten)
+  non-zero when a median is more than 20 % slower (`--threshold 0.1` to tighten).
+  Pass comma-separated lists (`a.json,b.json`) to compare the fastest median of
+  repeated runs.
 
 Every pull request runs the suite against its base and its head on the same CI
-runner and fails on a regression beyond 20 %; the report lands in the job
+runner, alternating three times, and fails when the best median regresses by
+more than 20 %; the report lands in the job
 summary. A nightly run on `dev` keeps the numbers as an artifact. When a change
 is meant to trade speed for something else, say so in the PR. Changes to the
 reactive core or the view should come with before/after numbers.
