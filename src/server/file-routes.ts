@@ -13,6 +13,7 @@
  * @module bquery/server
  */
 
+import { keepRequestBodyReadable } from './create-server';
 import type { FileRoute } from '../router/file-routes/types';
 import type {
   ServerApp,
@@ -79,7 +80,8 @@ const actionHandler =
       return ctx.json({ error: 'Method Not Allowed' }, { status: 405 });
     }
     const result = await action({
-      request: ctx.request,
+      // The handler may read this request after `ctx.body()` did.
+      request: keepRequestBodyReadable(ctx),
       params: ctx.params,
       url: ctx.url,
       ctx,
@@ -97,7 +99,7 @@ const loaderHandler =
     const result = await load({
       params: ctx.params,
       url: ctx.url,
-      request: ctx.request,
+      request: keepRequestBodyReadable(ctx),
       ctx,
       signal: ctx.request.signal,
     });

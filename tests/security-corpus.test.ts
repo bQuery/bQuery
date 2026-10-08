@@ -39,11 +39,23 @@ describe('safety oracle', () => {
     expect(findExecutableMarkup('<!--><script>x</script>-->')).toEqual(['<script>']);
     expect(findExecutableMarkup('<!-- --!><script>x</script>')).toEqual(['<script>']);
     expect(findExecutableMarkup('<textarea></textarea><script>x</script>')).toEqual(['<script>']);
+    // SVG <title> is an HTML integration point, not RCDATA: its children are markup.
+    expect(findExecutableMarkup('<svg><title><script>alert(1)</script></title></svg>')).toEqual([
+      '<script>',
+    ]);
+    // Inside SVG, <style> is not raw text either: the <img> in it is a real element.
+    expect(findExecutableMarkup('<svg><style><img src=x onerror=alert(1)></style></svg>')).toEqual([
+      '<style>',
+      '<img onerror>',
+    ]);
   });
 
   it('does not flag markup that is only text to a browser', () => {
     expect(findExecutableMarkup('<!-- <script>x</script> -->')).toEqual([]);
     expect(findExecutableMarkup('<textarea><script>x</script></textarea>')).toEqual([]);
+    expect(
+      findExecutableMarkup('<svg><circle r="1"/><g></g></svg><title><script>x</script></title>')
+    ).toEqual([]);
     expect(findExecutableMarkup('&lt;img src=x onerror=alert(1)&gt;')).toEqual([]);
     expect(findExecutableMarkup('<a href="data:image/png;base64,AAAA">x</a>')).toEqual([]);
   });

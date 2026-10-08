@@ -923,13 +923,17 @@ interface BodyReader {
   read: () => Promise<unknown>;
   /** Bytes read by {@link BodyReader.read}, or `null` before it consumed the body. */
   bytes: () => Uint8Array | null;
+  /** Read from a clone from now on, so the original request stays readable. */
+  keepOriginalReadable: () => void;
 }
 
 const createBodyReader = (request: Request, limits: Required<ServerLimits>): BodyReader => {
   let cached: Promise<unknown> | null = null;
   let consumed: Uint8Array | null = null;
+  let readFromClone = false;
   const readBuffer = async (limit: number, errorMessage: string): Promise<Uint8Array> => {
-    consumed = await readRequestBodyBuffer(request, limit, errorMessage);
+    const source = readFromClone && !request.bodyUsed ? request.clone() : request;
+    consumed = await readRequestBodyBuffer(source, limit, errorMessage);
     return consumed;
   };
 
@@ -1004,7 +1008,32 @@ const createBodyReader = (request: Request, limits: Required<ServerLimits>): Bod
     return cached;
   };
 
-  return { read, bytes: () => consumed };
+  return {
+    read,
+    bytes: () => consumed,
+    keepOriginalReadable: () => {
+      readFromClone = true;
+    },
+  };
+};
+
+/** Body readers by context, for {@link keepRequestBodyReadable}. */
+const bodyReaders = new WeakMap<ServerContext, BodyReader>();
+
+/**
+ * Keep `ctx.request` — the object as it is now — readable after `ctx.body()`.
+ *
+ * `ctx.body()` normally consumes the request body itself instead of a clone
+ * (a clone's tee keeps a second copy of the body in memory), and later reads
+ * of `ctx.request` get a replay. Code that hands the current `ctx.request` to
+ * someone who may read it after `ctx.body()` — file-route `load`/`action`
+ * arguments — calls this first, and `ctx.body()` then reads a clone.
+ *
+ * @internal
+ */
+export const keepRequestBodyReadable = (ctx: ServerContext): Request => {
+  bodyReaders.get(ctx)?.keepOriginalReadable();
+  return ctx.request;
 };
 
 /**
@@ -1071,7 +1100,7 @@ const createServerContext = (
   const responseSetCookies: string[] = [];
   let currentRequest = request;
 
-  return {
+  const context: ServerContext = {
     // `ctx.body()` consumes the original body instead of a clone. Hand out a
     // replay built from the cached bytes so `ctx.request.text()` and friends
     // keep working afterwards; it is only built when someone asks for it.
@@ -1158,6 +1187,8 @@ const createServerContext = (
     callWorker: callWorkerMethod,
     isWebSocketRequest: isWebSocketRequest(request),
   };
+  bodyReaders.set(context, bodyReader);
+  return context;
 };
 
 /**

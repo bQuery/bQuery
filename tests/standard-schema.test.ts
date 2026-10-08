@@ -172,6 +172,27 @@ describe('createForm({ schema }) (#221)', () => {
     form.destroy();
   });
 
+  it('calls the schema again after an async run rejected', async () => {
+    let calls = 0;
+    const schema: StandardSchemaV1<Signup> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        async validate(value) {
+          calls += 1;
+          if (calls === 1) throw new Error('network blip');
+          return { value: value as Signup };
+        },
+      },
+    };
+    const form = createForm({ schema, initialValues: { email: 'a@b.c', age: 20 } });
+
+    await expect(form.validate()).rejects.toThrow('network blip');
+    expect(await form.validate()).toBe(true);
+    expect(calls).toBe(2);
+    form.destroy();
+  });
+
   it('runs the schema once per value snapshot', async () => {
     let runs = 0;
     const schema = objectSchema<Signup>((value) => {

@@ -17,6 +17,8 @@ type FieldCheck = (value: unknown) => string | undefined;
 export const text =
   (rules: { min?: number; max?: number; minMessage: string; maxMessage?: string }): FieldCheck =>
   (value) => {
+    // A JSON body can carry anything; only strings (or a missing field) pass.
+    if (value !== undefined && typeof value !== 'string') return 'validation.notText';
     const trimmed = typeof value === 'string' ? value.trim() : '';
     if (trimmed.length < (rules.min ?? 0)) return rules.minMessage;
     if (rules.max !== undefined && trimmed.length > rules.max) {

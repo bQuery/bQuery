@@ -40,13 +40,28 @@ const snapshotAttributes = (element: Element): Map<string, string> => {
   return snapshot;
 };
 
+/**
+ * Custom elements whose children came from the template (slotted content).
+ * A custom element without template children may render its own light DOM
+ * (`shadow: false`), and that DOM is not the parent template's to remove.
+ */
+const templateOwnsChildren = new WeakSet<Element>();
+
+const isCustomElement = (element: Element): boolean => element.localName.includes('-');
+
+const recordChildOwnership = (element: Element, source: Element): void => {
+  if (!isCustomElement(element)) return;
+  if (source.hasChildNodes()) templateOwnsChildren.add(element);
+  else templateOwnsChildren.delete(element);
+};
+
 /** Record the rendered attributes for `root` and every element below it. */
 const recordSubtree = (root: Node): void => {
   if (root.nodeType !== 1) return;
   const element = root as Element;
-  renderedAttributes.set(element, snapshotAttributes(element));
-  for (const descendant of Array.from(element.querySelectorAll('*'))) {
-    renderedAttributes.set(descendant, snapshotAttributes(descendant));
+  for (const node of [element, ...Array.from(element.querySelectorAll('*'))]) {
+    renderedAttributes.set(node, snapshotAttributes(node));
+    recordChildOwnership(node, node);
   }
 };
 
@@ -129,6 +144,17 @@ const morphNode = (live: Node, next: Node): void => {
     return;
   }
 
+  // A custom element's own rendering (light DOM of a `shadow: false`
+  // component) is left alone unless the template supplies — or used to
+  // supply — the children, e.g. content for its slots.
+  if (
+    isCustomElement(liveElement) &&
+    !nextElement.hasChildNodes() &&
+    !templateOwnsChildren.has(liveElement)
+  ) {
+    return;
+  }
+  recordChildOwnership(liveElement, nextElement);
   morphChildren(liveElement, nextElement);
 };
 

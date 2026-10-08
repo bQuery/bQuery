@@ -72,6 +72,21 @@ const isComponentStyleElement = (node: Node): boolean =>
   (node as Element).localName === 'style' &&
   (node as Element).hasAttribute('data-bquery-component-style');
 
+/** The render root's top-level nodes, without the injected component style. */
+const renderedNodesOf = (root: ParentNode): Node[] =>
+  Array.from(root.childNodes).filter((node) => !isComponentStyleElement(node));
+
+/**
+ * Whether the render root still holds exactly the top-level nodes the last
+ * render produced. Code outside render that cleared or replaced the root
+ * (e.g. an error fallback assigning `innerHTML`) makes this false, so an
+ * otherwise identical render restores the template.
+ */
+const sameRenderedNodes = (root: ParentNode, expected: readonly Node[]): boolean => {
+  const current = renderedNodesOf(root);
+  return current.length === expected.length && current.every((node, i) => node === expected[i]);
+};
+
 const formatPropValidationValue = (value: unknown): string => {
   try {
     return JSON.stringify(value) ?? String(value);
@@ -145,6 +160,8 @@ const createComponentClass = <
     private readonly renderRootNode: HTMLElement | ShadowRoot;
     /** Sanitized markup of the last render, to skip unchanged morph updates. */
     private lastRenderedMarkup: string | null = null;
+    /** Top-level nodes the last render left in the render root. */
+    private lastRenderedNodes: readonly Node[] = [];
 
     constructor() {
       super();
@@ -576,7 +593,10 @@ const createComponentClass = <
           // Already sanitized with the component allow lists above; wrap it for
           // an enforced Trusted Types CSP without a second, stricter pass.
           renderRoot.innerHTML = trustedPreparedHtmlForSink(sanitizedMarkup);
-        } else if (sanitizedMarkup !== this.lastRenderedMarkup) {
+        } else if (
+          sanitizedMarkup !== this.lastRenderedMarkup ||
+          !sameRenderedNodes(renderRoot, this.lastRenderedNodes)
+        ) {
           cleanupDelegatedHandlers(renderRoot, this.scope);
           // Patch in place so form state, focus and nested elements survive.
           morphInnerHtml(renderRoot, sanitizedMarkup, trustedPreparedHtmlForSink, {
@@ -584,6 +604,7 @@ const createComponentClass = <
           });
         }
         this.lastRenderedMarkup = sanitizedMarkup;
+        this.lastRenderedNodes = renderedNodesOf(renderRoot);
 
         if (stylesText && !usedAdoptedSheet) {
           const styleElement = existingStyleElement ?? document.createElement('style');

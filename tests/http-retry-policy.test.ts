@@ -46,7 +46,7 @@ describe('retry policy helpers', () => {
     expect(parseRetryAfter('3', now)).toBe(3000);
     expect(parseRetryAfter(' 0 ', now)).toBe(0);
     expect(parseRetryAfter('Wed, 21 Oct 2026 07:28:05 GMT', now)).toBe(5000);
-    expect(parseRetryAfter('Wed, 21 Oct 2026 07:27:00 GMT', now)).toBe(0);
+    expect(parseRetryAfter('Wed, 21 Oct 2026 07:27:00 GMT', now)).toBeUndefined();
   });
 
   it('rejects malformed Retry-After values', () => {
@@ -260,5 +260,50 @@ describe('useFetch retry defaults', () => {
     await state.execute();
     expect(state.status.value).toBe('success');
     expect(counter.calls).toBe(2);
+  });
+
+  it('does not retry a 200 whose JSON cannot be parsed', async () => {
+    let calls = 0;
+    const state = useFetch('/x', {
+      immediate: false,
+      retry: { count: 3, delay: 0 },
+      fetcher: asMockFetch(async () => {
+        calls++;
+        return new Response('<html>login</html>', { status: 200 });
+      }),
+    });
+
+    await state.execute();
+    expect(state.status.value).toBe('error');
+    expect(state.error.value?.message).toContain('Failed to parse JSON');
+    expect(calls).toBe(1);
+  });
+
+  it('falls back to the backoff for a Retry-After date in the past', async () => {
+    const delays: number[] = [];
+    const counter = { calls: 0 };
+    const state = useFetch('/x', {
+      immediate: false,
+      retry: {
+        count: 1,
+        delay: (attempt) => {
+          delays.push(attempt);
+          return 0;
+        },
+      },
+      fetcher: flaky(
+        [
+          new Response('', {
+            status: 503,
+            headers: { 'retry-after': 'Wed, 21 Oct 2015 07:28:00 GMT' },
+          }),
+        ],
+        counter
+      ),
+    });
+
+    await state.execute();
+    expect(counter.calls).toBe(2);
+    expect(delays).toEqual([0]);
   });
 });

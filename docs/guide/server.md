@@ -804,13 +804,19 @@ const app = createServer({
 
 The body is read exactly once. `ctx.body()` caches its result, and
 `ctx.request` stays readable afterwards: it is rebuilt from the cached bytes
-when you access it.
+when you access it. Read `ctx.request` **after** `ctx.body()`; a reference you
+stored before (`const req = ctx.request`) points at the consumed original.
+File-route `load`/`action` handlers are the exception — the `request` they
+receive stays readable either way.
 
 On Node, `app.listen()` streams the request body into the app on demand
 instead of reading it up front, so a route that never calls `ctx.body()` never
 buffers its body. The largest configured limit also caps the transport: a
 larger declared `Content-Length` is answered with `413` before any route runs.
-With an `Infinity` limit the transport cap is lifted too.
+With an `Infinity` limit the transport cap is lifted too. After a `413`, or
+whenever a route answers without reading the whole body, the response carries
+`Connection: close` and the rest of the body is not read, so a client cannot
+keep the server busy by streaming on.
 
 ::: warning Changed in 1.18
 Before 1.18 every limit was unbounded unless configured, and the Node adapter

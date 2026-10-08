@@ -380,7 +380,13 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
     const values = getValuesUntracked() as Record<string, unknown>;
     if (schemaCache && shallowEqualValues(schemaCache.values, values)) return schemaCache.result;
     const result = validateWithSchema(formSchema as StandardSchemaV1, values);
-    schemaCache = { values, result };
+    const entry = { values, result };
+    schemaCache = entry;
+    // A rejected run (an async refinement's network call failed) must not be
+    // replayed: drop it so the next validation calls the schema again.
+    result.catch(() => {
+      if (schemaCache === entry) schemaCache = null;
+    });
     return result;
   };
   if (formSchema) {

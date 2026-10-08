@@ -8,13 +8,11 @@
 import { merge, isPlainObject } from '../core/utils/object';
 import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
 import {
-  DEFAULT_MAX_RETRY_AFTER,
   DEFAULT_RETRY_METHODS,
   DEFAULT_RETRY_STATUSES,
   isRetryableMethod,
   isRetryableStatus,
-  resolveBackoffDelay,
-  resolveRetryAfterDelay,
+  resolveRetryDelay,
 } from './retry-policy';
 
 // ---------------------------------------------------------------------------
@@ -251,18 +249,6 @@ const normalizeRetry = (retry: HttpRequestConfig['retry']): RetryConfig | undefi
   if (retry == null) return undefined;
   if (typeof retry === 'number') return { count: retry };
   return retry;
-};
-
-/** @internal Delay before the next attempt: `Retry-After` first, then the configured backoff. */
-const resolveRetryDelay = (retry: RetryConfig, error: HttpError, attempt: number): number => {
-  if (retry.respectRetryAfter !== false) {
-    const retryAfter = resolveRetryAfterDelay(
-      error.response?.headers,
-      retry.maxRetryAfter ?? DEFAULT_MAX_RETRY_AFTER
-    );
-    if (retryAfter !== undefined) return retryAfter;
-  }
-  return resolveBackoffDelay(retry.delay, attempt);
 };
 
 /** @internal */
@@ -706,7 +692,9 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
           throw finalError;
         }
 
-        const retryDelay = retryConfig ? resolveRetryDelay(retryConfig, httpError, attempt) : 0;
+        const retryDelay = retryConfig
+          ? resolveRetryDelay(retryConfig, httpError.response?.headers, attempt)
+          : 0;
         retryConfig?.onRetry?.(httpError, attempt + 1);
         await sleep(retryDelay, resolvedConfig.signal);
       }

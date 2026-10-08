@@ -10,13 +10,11 @@ import { computed } from './computed';
 import { effect } from './effect';
 import { Signal, signal } from './core';
 import {
-  DEFAULT_MAX_RETRY_AFTER,
   DEFAULT_RETRY_METHODS,
   DEFAULT_RETRY_STATUSES,
   isRetryableMethod,
   isRetryableStatus,
-  resolveBackoffDelay,
-  resolveRetryAfterDelay,
+  resolveRetryDelay,
 } from './retry-policy';
 import { untrack } from './untrack';
 
@@ -223,8 +221,13 @@ const parseResponse = async <TResponse>(
     return JSON.parse(text) as TResponse;
   } catch (error) {
     const detail = response.url ? ` for ${response.url}` : '';
-    throw new Error(
-      `Failed to parse JSON response${detail} (status ${response.status}): ${error instanceof Error ? error.message : String(error)}`
+    // `code: 'PARSE'` keeps the retry policy from treating a malformed 200 as
+    // a network failure (it has no status either).
+    throw Object.assign(
+      new Error(
+        `Failed to parse JSON response${detail} (status ${response.status}): ${error instanceof Error ? error.message : String(error)}`
+      ),
+      { code: 'PARSE' }
     );
   }
 };
@@ -417,7 +420,8 @@ const shouldRetryByDefault = (
     isAbortDomException(error) ||
     isTimeoutDomException(error) ||
     (error as Error & { code?: string }).code === 'ABORT' ||
-    (error as Error & { code?: string }).code === 'TIMEOUT'
+    (error as Error & { code?: string }).code === 'TIMEOUT' ||
+    (error as Error & { code?: string }).code === 'PARSE'
   ) {
     return false;
   }
@@ -433,19 +437,6 @@ const normalizeRetryConfig = (retry: UseFetchOptions['retry']): UseFetchRetryCon
   if (retry == null) return undefined;
   if (typeof retry === 'number') return { count: retry };
   return retry;
-};
-
-/** @internal Delay before the next attempt: `Retry-After` first, then the configured backoff. */
-const resolveRetryDelay = (retry: UseFetchRetryConfig, error: Error, attempt: number): number => {
-  if (retry.respectRetryAfter !== false) {
-    const response = (error as Error & { response?: Response }).response;
-    const retryAfter = resolveRetryAfterDelay(
-      response?.headers,
-      retry.maxRetryAfter ?? DEFAULT_MAX_RETRY_AFTER
-    );
-    if (retryAfter !== undefined) return retryAfter;
-  }
-  return resolveBackoffDelay(retry.delay, attempt);
 };
 
 /** @internal */
@@ -674,7 +665,11 @@ export const useFetch = <TResponse = unknown, TData = TResponse>(
           }
 
           await sleepWithSignal(
-            resolveRetryDelay(retryConfig!, normalizedError, attempt),
+            resolveRetryDelay(
+              retryConfig!,
+              (normalizedError as Error & { response?: Response }).response?.headers,
+              attempt
+            ),
             abortController.signal
           );
         }

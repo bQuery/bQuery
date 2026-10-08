@@ -31,6 +31,7 @@ export const messages = defineMessages({
     },
     validation: {
       object: 'Invalid input.',
+      notText: 'Enter text.',
       titleRequired: 'Give the note a title.',
       titleTooLong: 'Keep the title under 80 characters.',
       bodyTooLong: 'Keep the text under 2,000 characters.',
@@ -62,6 +63,7 @@ export const messages = defineMessages({
     },
     validation: {
       object: 'Ungültige Eingabe.',
+      notText: 'Gib Text ein.',
       titleRequired: 'Gib der Notiz einen Titel.',
       titleTooLong: 'Der Titel darf höchstens 80 Zeichen haben.',
       bodyTooLong: 'Der Text darf höchstens 2.000 Zeichen haben.',

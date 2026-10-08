@@ -384,3 +384,73 @@ describe('morphChildren()', () => {
     expect(root.querySelector('p')?.textContent).toBe('x');
   });
 });
+
+describe('morph review follow-ups', () => {
+  it('leaves the light DOM a nested shadow:false component rendered for itself', () => {
+    const count = signal(0);
+    const child = uniqueTag('light-child');
+    component(child, { shadow: false, render: () => html`<b>child</b>` });
+    const parent = uniqueTag('light-parent');
+    component(parent, {
+      sanitize: { allowTags: [child] },
+      signals: { count },
+      render: ({ signals }) => html`<p>${signals.count.value}</p><${child}></${child}>`,
+    });
+    const host = mount(parent);
+    const nested = host.shadowRoot!.querySelector(child)!;
+    expect(nested.innerHTML).toBe('<b>child</b>');
+
+    count.value = 1;
+    count.value = 2;
+
+    expect(nested.innerHTML).toBe('<b>child</b>');
+    expect($(host, 'p').textContent).toBe('2');
+    host.remove();
+  });
+
+  it('still updates and removes slotted children the template provides', () => {
+    const label = signal<string | null>('first');
+    const child = uniqueTag('slot-child');
+    component(child, { render: () => html`<slot></slot>` });
+    const parent = uniqueTag('slot-parent');
+    component(parent, {
+      sanitize: { allowTags: [child] },
+      signals: { label },
+      render: ({ signals }) =>
+        signals.label.value === null
+          ? html`<${child}></${child}>`
+          : html`<${child}><i>${signals.label.value}</i></${child}>`,
+    });
+    const host = mount(parent);
+    const nested = host.shadowRoot!.querySelector(child)!;
+    expect(nested.textContent).toBe('first');
+
+    label.value = 'second';
+    expect(nested.textContent).toBe('second');
+
+    label.value = null;
+    expect(nested.childNodes.length).toBe(0);
+    host.remove();
+  });
+
+  it('restores the template when code outside render replaced the root', () => {
+    const tick = signal(0);
+    const tag = uniqueTag('restore');
+    component(tag, {
+      signals: { tick },
+      render: ({ signals }) => {
+        void signals.tick.value; // re-renders, but the markup never changes
+        return html`<p>content</p>`;
+      },
+    });
+    const host = mount(tag);
+    // e.g. an error fallback written straight into the shadow root
+    host.shadowRoot!.innerHTML = '<p class="fallback">Error</p>';
+
+    tick.value = 1;
+
+    expect(host.shadowRoot!.querySelector('.fallback')).toBeNull();
+    expect($(host, 'p').textContent).toBe('content');
+    host.remove();
+  });
+});

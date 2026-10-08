@@ -16,7 +16,7 @@
       "name": "bq-html",
       "description": {
         "kind": "markdown",
-        "value": "Renders the expression as HTML, sanitized with bQuery’s sanitizer. Child directives inside the rendered markup are not bound.\n\n```html\n<div bq-html=\"post.body\"></div>\n```"
+        "value": "Renders the expression as HTML, sanitized with bQuery’s sanitizer — unless the view was mounted with `sanitize: false`, which writes it raw (use `bq-html-safe` to sanitize regardless). Child directives inside the rendered markup are not bound.\n\n```html\n<div bq-html=\"post.body\"></div>\n```"
       },
       "references": [
         { "name": "bQuery view guide", "url": "https://bquery.js.org/guide/view#bq-html" }
@@ -26,7 +26,7 @@
       "name": "bq-html-safe",
       "description": {
         "kind": "markdown",
-        "value": "Like `bq-html`, but always sanitizes before insertion, even when the value is already marked trusted."
+        "value": "Like `bq-html`, but always sanitizes before insertion, even in a view mounted with `sanitize: false`."
       },
       "references": [
         {

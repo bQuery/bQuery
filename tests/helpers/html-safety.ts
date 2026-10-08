@@ -10,9 +10,11 @@
  * abused for mutation XSS: abrupt comment endings (`<!-->`, `<!--->`, `--!>`),
  * raw-text and RCDATA elements (`<textarea>`, `<title>`, `<style>`,
  * `<noscript>`, …) whose content ends at the first matching close tag, and
- * `<plaintext>`. It deliberately over-approximates: it ignores foreign-content
- * (SVG/MathML) rules, so markup it flags may be inert in a real browser, but
- * markup a browser would run is flagged.
+ * `<plaintext>`, and foreign (SVG/MathML) content, where those elements are
+ * not raw text and HTML integration points (`<svg><title>`, `<mtext>`, …)
+ * switch back to HTML. It deliberately over-approximates elsewhere: markup it
+ * flags may be inert in a real browser, but markup a browser would run is
+ * flagged.
  */
 
 import { decodeEntities } from '../../src/security/sanitize-string';
@@ -71,7 +73,85 @@ const SAFE_DATA_URL = /^data:image\/(?:png|gif|jpe?g|webp|avif);/;
 interface StartTag {
   tag: string;
   attributes: Array<{ name: string; value: string }>;
+  selfClosing?: boolean;
 }
+
+/** HTML elements that never have children. */
+const VOID_ELEMENTS = new Set([
+  'area',
+  'base',
+  'br',
+  'col',
+  'embed',
+  'hr',
+  'img',
+  'input',
+  'link',
+  'meta',
+  'source',
+  'track',
+  'wbr',
+]);
+
+/** Foreign elements whose children are parsed as HTML again (WHATWG §13.2.6.5). */
+const HTML_INTEGRATION_POINTS = new Set([
+  'foreignobject',
+  'desc',
+  'title',
+  'mi',
+  'mo',
+  'mn',
+  'ms',
+  'mtext',
+]);
+
+/** HTML start tags that break out of SVG/MathML content back into HTML. */
+const FOREIGN_BREAKOUT_TAGS = new Set([
+  'b',
+  'big',
+  'blockquote',
+  'body',
+  'br',
+  'center',
+  'code',
+  'dd',
+  'div',
+  'dl',
+  'dt',
+  'em',
+  'embed',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'head',
+  'hr',
+  'i',
+  'img',
+  'li',
+  'listing',
+  'menu',
+  'meta',
+  'nobr',
+  'ol',
+  'p',
+  'pre',
+  'ruby',
+  's',
+  'small',
+  'span',
+  'strong',
+  'strike',
+  'sub',
+  'sup',
+  'table',
+  'tt',
+  'u',
+  'ul',
+  'var',
+]);
 
 const isSpace = (char: string | undefined): boolean =>
   char === ' ' || char === '\t' || char === '\n' || char === '\r' || char === '\f';
@@ -84,7 +164,10 @@ const readStartTag = (html: string, start: number): { tag: StartTag; end: number
   while (pos < html.length) {
     while (isSpace(html[pos]) || html[pos] === '/') pos++;
     if (pos >= html.length) return { tag, end: pos };
-    if (html[pos] === '>') return { tag, end: pos + 1 };
+    if (html[pos] === '>') {
+      tag.selfClosing = html[pos - 1] === '/';
+      return { tag, end: pos + 1 };
+    }
     let nameEnd = pos + 1;
     while (nameEnd < html.length && !isSpace(html[nameEnd]) && !'/>='.includes(html[nameEnd])) {
       nameEnd++;
@@ -116,6 +199,12 @@ const readStartTag = (html: string, start: number): { tag: StartTag; end: number
 const specStartTags = (html: string): StartTag[] => {
   const tags: StartTag[] = [];
   const lower = html.toLowerCase();
+  /** Open elements, to know whether the parser is in SVG/MathML content. */
+  const open: Array<{ tag: string; foreign: boolean }> = [];
+  const inForeignContent = (): boolean => {
+    const current = open[open.length - 1];
+    return current !== undefined && current.foreign && !HTML_INTEGRATION_POINTS.has(current.tag);
+  };
   let pos = 0;
   while (pos < html.length) {
     const lt = html.indexOf('<', pos);
@@ -140,7 +229,18 @@ const specStartTags = (html: string): StartTag[] => {
       pos = end === Infinity ? html.length : end;
       continue;
     }
-    if (html[lt + 1] === '!' || html[lt + 1] === '?' || html[lt + 1] === '/') {
+    if (html[lt + 1] === '/') {
+      // Close the matching open element, if any.
+      const name = /^[a-zA-Z][^\s/>]*/.exec(html.slice(lt + 2))?.[0].toLowerCase();
+      if (name) {
+        const index = open.map((entry) => entry.tag).lastIndexOf(name);
+        if (index !== -1) open.length = index;
+      }
+      const end = html.indexOf('>', lt + 1);
+      pos = end === -1 ? html.length : end + 1;
+      continue;
+    }
+    if (html[lt + 1] === '!' || html[lt + 1] === '?') {
       const end = html.indexOf('>', lt + 1);
       pos = end === -1 ? html.length : end + 1;
       continue;
@@ -150,13 +250,26 @@ const specStartTags = (html: string): StartTag[] => {
       pos = lt + 1;
       continue;
     }
-    tags.push(read.tag);
+    const { tag } = read;
+    tags.push(tag);
     pos = read.end;
-    if (read.tag.tag === 'plaintext') break;
-    if (TEXT_ONLY_ELEMENTS.has(read.tag.tag)) {
-      const close = lower.indexOf(`</${read.tag.tag}`, pos);
-      pos = close === -1 ? html.length : close;
+
+    // Inside SVG/MathML (outside an HTML integration point) elements are
+    // foreign: `<style>`, `<title>` & co. are not raw text there, so their
+    // content is markup. A breakout tag such as `<img>` returns to HTML.
+    let foreign = tag.tag === 'svg' || tag.tag === 'math' || inForeignContent();
+    if (foreign && FOREIGN_BREAKOUT_TAGS.has(tag.tag)) {
+      while (inForeignContent()) open.pop();
+      foreign = false;
     }
+    if (!foreign && tag.tag === 'plaintext') break;
+    if (!foreign && TEXT_ONLY_ELEMENTS.has(tag.tag)) {
+      const close = lower.indexOf(`</${tag.tag}`, pos);
+      pos = close === -1 ? html.length : close;
+      continue;
+    }
+    const isVoid = foreign ? tag.selfClosing : VOID_ELEMENTS.has(tag.tag);
+    if (!isVoid) open.push({ tag: tag.tag, foreign });
   }
   return tags;
 };

@@ -49,7 +49,7 @@ export const isRetryableStatus = (
  * Parse a `Retry-After` header value into a delay in milliseconds.
  *
  * Accepts delta-seconds (`120`) and HTTP dates. Returns `undefined` for a
- * missing or malformed value; a date in the past yields `0`.
+ * missing or malformed value and for a date that has already passed.
  *
  * @internal
  */
@@ -69,7 +69,9 @@ export const parseRetryAfter = (
   if (!/[a-z]/i.test(trimmed)) return undefined;
   const date = Date.parse(trimmed);
   if (Number.isNaN(date)) return undefined;
-  return Math.max(0, date - now);
+  // A date in the past says nothing about when to retry; fall back to backoff
+  // rather than retrying immediately.
+  return date > now ? date - now : undefined;
 };
 
 /**
@@ -95,4 +97,32 @@ export const resolveBackoffDelay = (
   if (delay == null) return Math.min(1000 * 2 ** attempt, 30_000);
   if (typeof delay === 'number') return delay;
   return delay(attempt);
+};
+
+/** Retry options both clients share. */
+export interface RetryDelayOptions {
+  delay?: number | ((attempt: number) => number);
+  maxRetryAfter?: number;
+  respectRetryAfter?: boolean;
+}
+
+/**
+ * Delay before the next attempt: the response's `Retry-After` first (capped
+ * at `maxRetryAfter`), then the configured backoff.
+ *
+ * @internal
+ */
+export const resolveRetryDelay = (
+  retry: RetryDelayOptions,
+  headers: Headers | undefined,
+  attempt: number
+): number => {
+  if (retry.respectRetryAfter !== false) {
+    const retryAfter = resolveRetryAfterDelay(
+      headers,
+      retry.maxRetryAfter ?? DEFAULT_MAX_RETRY_AFTER
+    );
+    if (retryAfter !== undefined) return retryAfter;
+  }
+  return resolveBackoffDelay(retry.delay, attempt);
 };

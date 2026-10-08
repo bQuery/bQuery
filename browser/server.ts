@@ -22,7 +22,11 @@ app.use(async (ctx, next) => {
   if (ctx.path.startsWith('/tt/')) {
     const headers = new Headers(response.headers);
     headers.set('content-security-policy', TRUSTED_TYPES_CSP);
-    return new Response(response.body, { headers, status: response.status });
+    return new Response(response.body, {
+      headers,
+      status: response.status,
+      statusText: response.statusText,
+    });
   }
   return response;
 });

@@ -10,7 +10,9 @@
  * list of summaries from repeated runs; the fastest median per benchmark
  * counts, which filters out runs a busy CI neighbour slowed down. The default threshold is generous
  * (20 %) so CI-runner noise does not block merges; a benchmark present on only
- * one side, or one that errored, is reported but never fails the gate.
+ * one side, or one that errored, is reported but never fails the gate. Missing
+ * base summaries are skipped with a warning (the base could not run the head's
+ * benchmarks); missing head summaries are an error.
  */
 
 import { readFile, writeFile } from 'node:fs/promises';
@@ -118,16 +120,25 @@ if (import.meta.main) {
     );
     process.exit(2);
   }
-  const load = async (paths) =>
-    mergeSummaries(
-      await Promise.all(
-        paths
-          .split(',')
-          .filter(Boolean)
-          .map(async (path) => JSON.parse(await readFile(path, 'utf8')))
-      )
-    );
-  const [base, head] = await Promise.all([load(basePath), load(headPath)]);
+  // A base run that could not load the head's benchmark files writes no
+  // summary; its benchmarks then count as new rather than failing the gate.
+  // Every head summary must exist.
+  const load = async (paths, { optional }) => {
+    const summaries = [];
+    for (const path of paths.split(',').filter(Boolean)) {
+      try {
+        summaries.push(JSON.parse(await readFile(path, 'utf8')));
+      } catch (error) {
+        if (!optional) throw error;
+        console.warn(`Skipping ${path}: ${error instanceof Error ? error.message : error}`);
+      }
+    }
+    return summaries.length > 0 ? mergeSummaries(summaries) : { results: {} };
+  };
+  const [base, head] = await Promise.all([
+    load(basePath, { optional: true }),
+    load(headPath, { optional: false }),
+  ]);
   const comparison = compareBenchmarks(base, head, threshold);
   const markdown = renderMarkdown(comparison, threshold);
   console.log(markdown);

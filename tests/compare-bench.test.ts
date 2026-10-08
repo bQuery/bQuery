@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'bun:test';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 interface Summary {
   results: Record<string, { p50: number; avg: number } | { error: string }>;
@@ -103,5 +106,24 @@ describe('compare-bench (#217)', () => {
       summary({ a: { p50: 104, avg: 104 } }),
     ]);
     expect(compareBenchmarks(base, head).regressions).toEqual([]);
+  });
+
+  it('skips missing base summaries but requires the head summaries', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'bench-'));
+    const head = join(dir, 'head.json');
+    await writeFile(head, JSON.stringify(summary({ a: { p50: 1, avg: 1 } })));
+    const run = (...args: string[]) =>
+      Bun.spawnSync([process.execPath, 'scripts/compare-bench.mjs', ...args], {
+        cwd: new URL('..', import.meta.url).pathname,
+      });
+
+    // The base could not load the head's benchmarks and wrote nothing.
+    const missingBase = run(`${join(dir, 'base-1.json')},${join(dir, 'base-2.json')}`, head);
+    expect(missingBase.exitCode).toBe(0);
+    expect(missingBase.stdout.toString()).toContain('| 🆕 | a |');
+
+    const missingHead = run(head, join(dir, 'nope.json'));
+    expect(missingHead.exitCode).not.toBe(0);
+    await rm(dir, { recursive: true, force: true });
   });
 });

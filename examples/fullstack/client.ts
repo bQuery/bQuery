@@ -65,7 +65,9 @@ const hydrateNotesPage = (): void => {
         const issues = (error as HttpError).response?.data as
           { issues?: Array<{ message: string; path: string[] }> } | undefined;
         for (const issue of issues?.issues ?? []) {
-          form.setErrors({ [issue.path[0]]: issue.message } as Record<string, string>);
+          if (issue.path.length > 0) {
+            form.setErrors({ [String(issue.path[0])]: issue.message } as Record<string, string>);
+          }
         }
         if (!issues?.issues) throw error;
       }

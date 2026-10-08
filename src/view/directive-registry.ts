@@ -50,14 +50,14 @@ export const BUILT_IN_DIRECTIVES: readonly DirectiveInfo[] = Object.freeze([
     value: 'expression',
     docs: 'bq-html',
     description:
-      'Renders the expression as HTML, sanitized with bQuery’s sanitizer. Child directives inside the rendered markup are not bound.\n\n```html\n<div bq-html="post.body"></div>\n```',
+      'Renders the expression as HTML, sanitized with bQuery’s sanitizer — unless the view was mounted with `sanitize: false`, which writes it raw (use `bq-html-safe` to sanitize regardless). Child directives inside the rendered markup are not bound.\n\n```html\n<div bq-html="post.body"></div>\n```',
   },
   {
     name: 'html-safe',
     value: 'expression',
     docs: 'directive-reference-1-15-0-frozen',
     description:
-      'Like `bq-html`, but always sanitizes before insertion, even when the value is already marked trusted.',
+      'Like `bq-html`, but always sanitizes before insertion, even in a view mounted with `sanitize: false`.',
   },
   {
     name: 'if',

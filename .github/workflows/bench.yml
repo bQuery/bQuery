@@ -35,6 +35,8 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          # PR code runs below; it needs no Git credentials.
+          persist-credentials: false
           ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
 
       - name: Setup Bun
@@ -52,7 +54,8 @@ jobs:
         run: |
           # Run the head's benchmark definitions against the base sources, so
           # both sides measure exactly the same scenarios. A benchmark the base
-          # cannot run is recorded as an error and skipped by the comparison.
+          # cannot run is recorded as an error, and a base that cannot load the
+          # files at all writes no summary; the comparison skips both.
           git worktree add ../bench-base "$BASE_SHA"
           rm -rf ../bench-base/bench
           cp -R bench ../bench-base/bench
@@ -77,11 +80,17 @@ jobs:
       - name: Compare with base
         if: github.event_name == 'pull_request'
         run: |
+          # Keep the comparator's status so the report reaches the job summary
+          # even when the gate fails.
+          status=0
           bun scripts/compare-bench.mjs \
             bench-base-1.json,bench-base-2.json,bench-base-3.json \
             bench-head-1.json,bench-head-2.json,bench-head-3.json \
-            --threshold 0.2 --markdown bench-report.md
-          cat bench-report.md >> "$GITHUB_STEP_SUMMARY"
+            --threshold 0.2 --markdown bench-report.md || status=$?
+          if [ -f bench-report.md ]; then
+            cat bench-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
 
       - name: Upload results
         if: always()
