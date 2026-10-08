@@ -1,0 +1,80 @@
+name: Browser tests
+
+# Real-browser test lane (#214). `bun test` runs every DOM test under
+# happy-dom; this lane runs a focused Playwright suite (component lifecycle and
+# slots, Trusted Types under an enforced CSP, view transitions and FLIP,
+# pointer and keyboard drag and drop, hydration mismatches) in Chromium,
+# Firefox and WebKit. It is kept apart from `bun test` so the fast lane stays
+# fast.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+      - dev
+  schedule:
+    - cron: '41 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: browser-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  playwright:
+    name: Playwright (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install ${{ matrix.browser }}
+        run: bunx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Build library
+        run: bun run build
+
+      - name: Run browser tests
+        run: bun run test:browser --project=${{ matrix.browser }}
+        env:
+          CI: 'true'
+
+      - name: Upload report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report-${{ matrix.browser }}
+          path: |
+            browser/playwright-report
+            browser/test-results
+          retention-days: 14

@@ -222,6 +222,7 @@
     "test:types": "tsc -p tsconfig.component-test.json --noEmit",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text",
     "test:watch": "bun test --watch",
+    "test:browser": "playwright test --config browser/playwright.config.ts",
     "lint": "eslint . --fix",
     "lint:types": "tsc --noEmit",
     "format": "prettier --write .",
@@ -265,6 +266,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@playwright/test": "1.64.0",
     "@storybook/addon-docs": "^10.5.10",
     "@storybook/web-components-vite": "^10.5.10",
     "@typescript-eslint/eslint-plugin": "^8.68.0",
