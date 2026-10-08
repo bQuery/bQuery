@@ -729,6 +729,47 @@ If you already have trusted HTML and need to skip sanitization, pass `{ trusted:
 
 `ctx.html()` sanitization needs no DOM. Since 1.17.0, `sanitizeHtml()` falls back to a DOM-free parser when no `DOMParser` is available, so plain Node.js ≥ 24, Deno and Bun sanitize without installing `happy-dom` or `linkedom`. See the [security model](/concepts/security-model).
 
+## Request body limits
+
+`ctx.body()` enforces a size limit per content type while it streams the body,
+so an oversized request is answered with `413 Payload Too Large` without being
+buffered. Every content type has a default:
+
+| Content type                        | Key         | Default |
+| ----------------------------------- | ----------- | ------- |
+| `application/json`, `*+json`        | `json`      | 1 MiB   |
+| `application/x-www-form-urlencoded` | `form`      | 1 MiB   |
+| `text/*`                            | `text`      | 1 MiB   |
+| `multipart/form-data`               | `multipart` | 10 MiB  |
+| anything else (raw `ArrayBuffer`)   | `raw`       | 1 MiB   |
+
+Override one key and the others keep their default. `Infinity` lifts a limit:
+
+```ts
+const app = createServer({
+  limits: {
+    json: 5 * 1024 * 1024, // 5 MiB API payloads
+    multipart: Infinity, // uploads are capped by the reverse proxy instead
+  },
+});
+```
+
+The body is read exactly once. `ctx.body()` caches its result, and
+`ctx.request` stays readable afterwards: it is rebuilt from the cached bytes
+when you access it.
+
+On Node, `app.listen()` streams the request body into the app on demand
+instead of reading it up front, so a route that never calls `ctx.body()` never
+buffers its body. The largest configured limit also caps the transport: a
+larger declared `Content-Length` is answered with `413` before any route runs.
+With an `Infinity` limit the transport cap is lifted too.
+
+::: warning Changed in 1.18
+Before 1.18 every limit was unbounded unless configured, and the Node adapter
+read each non-`GET` body completely into memory before the app ran. Set a limit
+to `Infinity` to restore the unbounded behaviour for that content type.
+:::
+
 <!-- uniform-template-footer -->
 
 ## Body parsing, cookies, and streaming (1.14.0 deep-dive)
@@ -814,7 +855,7 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 ## Pitfalls and gotchas
 
 - `params` and `query` are null-prototype dicts — do not rely on inherited methods (`hasOwnProperty`, etc.).
-- Configure `createServer({ limits })` to enforce body size limits _before_ JSON / form parsing to defend against billion-laughs-style attacks.
+- Body limits are on by default (1 MiB, 10 MiB for multipart) and are enforced _before_ JSON / form parsing; raise them per content type with `createServer({ limits })` rather than disabling them.
 - `ctx.setCookie()` validates header-safe characters and rejects malformed values.
 - `ctx.html()` sanitizes by default; pass `{ trusted: true }` only with fully trusted content.
 - The session and CSRF cookies are `__Host-bq.sid` and `__Host-bq.csrf` by default (since 1.17.2), and `bq.sid` / `bq.csrf` with `secure: false`, a custom `path` or a `domain`. Client code that reads the CSRF cookie must use the name that matches its attributes.

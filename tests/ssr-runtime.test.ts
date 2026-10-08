@@ -1779,7 +1779,7 @@ describe('runtime adapters', () => {
     expect(body).toContain('Request body exceeds 10 bytes.');
   });
 
-  it('createNodeHandler stops buffering once request bodies exceed the configured limit', async () => {
+  it('createNodeHandler stops buffering once a streamed body exceeds the configured limit', async () => {
     let body = '';
     let destroyedWith: Error | undefined;
     let onData: ((chunk: Uint8Array | string) => void) | undefined;
@@ -1826,12 +1826,16 @@ describe('runtime adapters', () => {
     };
     try {
       const wrapped = createNodeHandler(
-        async () => {
-          throw new Error('handler should not run');
+        async (request) => {
+          await request.arrayBuffer();
+          throw new Error('the body read should have failed');
         },
         { maxBodyBytes: 10 }
       );
       const pending = wrapped(req, res);
+      // The body is only read once the handler pulls from it.
+      for (let i = 0; i < 50 && !onData; i++) await Promise.resolve();
+      expect(onData).toBeDefined();
       onData?.(new Uint8Array(11));
       onData?.(new Uint8Array(1024));
       onEnd?.();

@@ -128,8 +128,11 @@ and this project adheres to Semantic Versioning.
 ### Changed (Unreleased)
 
 - **Reactive**: retries in `createHttp()` / `http` and `useFetch()` default to idempotent methods (`GET`, `HEAD`, `OPTIONS`, `PUT`, `DELETE`) and to the statuses `408`, `429`, `502`, `503` and `504` ([#257](https://github.com/bQuery/bQuery/issues/257)). Previously `retry: 3` on a client retried every method on any 5xx, timeout or network error, so a timed-out `post()` that the server had already processed could run up to four times — e.g. creating duplicate orders. `429` was not retried at all, and `500`/`501` (rarely transient) were. **Migration:** to keep retrying `POST`/`PATCH`, pass `retry: { count, methods: ['POST', 'PATCH'] }` (or `['*']`) for endpoints that are safe to repeat; to keep retrying `500`, pass `statuses: [500, 502, 503, 504]`. A custom `retryOn` still replaces the default policy entirely.
+- **Server**: `createServer()` applies request-body limits by default: 1 MiB for `json`, `form`, `text` and `raw`, 10 MiB for `multipart` ([#255](https://github.com/bQuery/bQuery/issues/255)). Previously every limit was unbounded unless configured, so a single large `POST` was buffered completely into memory. Overrides merge with the defaults and `Infinity` lifts a limit. On Node, `listen()` passes the largest configured limit to the adapter as `maxBodyBytes`, so an oversized declared `Content-Length` is rejected with `413` before any route runs. **Migration:** routes that accept larger bodies need `createServer({ limits: { json: 5 * 1024 * 1024 } })` (or `Infinity`).
 
 ### Fixed (Unreleased)
+
+- **Server/SSR**: request bodies are no longer buffered up to three times ([#255](https://github.com/bQuery/bQuery/issues/255)). The Node adapter (`createNodeHandler`, `listen({ runtime: 'node' })`) read every non-`GET` body into an `ArrayBuffer` before the app ran — even for routes that never read it — and `ctx.body()` then read from `request.clone()`, whose tee kept a second copy, and multipart parsing sliced a third. The adapter now streams the body on demand with backpressure, `ctx.body()` reads `request.body` once (`ctx.request` is rebuilt from the cached bytes if accessed afterwards), and multipart parsing reuses the buffer.
 
 ## [1.17.2] - 2026-10-01
 
