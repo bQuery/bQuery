@@ -391,7 +391,8 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
     result: Promise<SchemaValidationResult<unknown>>;
   } | null = null;
   // Every field validates against the same whole-form value, so one schema run
-  // serves all of them until a value changes.
+  // serves all of them until a value changes. Explicit validate() and
+  // validateField() calls start from a fresh run.
   const runSchema = (): Promise<SchemaValidationResult<unknown>> => {
     const values = getValuesUntracked() as Record<string, unknown>;
     if (schemaCache && shallowEqualValues(schemaCache.values, values)) return schemaCache.result;
@@ -417,20 +418,28 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
       runtime[name].validators = [...(runtime[name].validators ?? []), schemaValidator];
     }
   }
-  /** Whether the schema reports an issue that no enabled field displays. */
+  /**
+   * Whether the schema reports an issue that no enabled field displays: one
+   * without a field path, for an unknown field, or for a disabled field (whose
+   * validators are skipped but whose value is still submitted).
+   */
   const hasUnmappedSchemaIssue = async (): Promise<boolean> => {
     if (!formSchema) return false;
     const result = await runSchema();
     if (result.success) return false;
     return result.issues.some((issue) => {
       const name = issue.path.length > 0 ? String(issue.path[0]) : '';
-      return !Object.prototype.hasOwnProperty.call(runtime, name);
+      if (!Object.prototype.hasOwnProperty.call(runtime, name)) return true;
+      return runtime[name].field.disabled.peek();
     });
   };
 
   const validateField = async (name: keyof T & string): Promise<void> => {
     const entry = runtime[name as string];
     if (!entry) return;
+    // An explicit validation re-runs the schema: a value mutated in place
+    // (an array pushed to) still passes the shallow snapshot comparison.
+    schemaCache = null;
     await validateSingleField(entry.field, entry.validators, mode);
   };
 
@@ -551,6 +560,9 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
 
   const validate = async (): Promise<boolean> => {
     let hasError = false;
+    // One schema run per pass, shared by every field; never one from an
+    // earlier pass, whose values may have been mutated in place since.
+    schemaCache = null;
 
     for (const name of fieldOrder) {
       const entry = runtime[name];

@@ -12,7 +12,8 @@
  * busy CI neighbour slowed down, or one unusually fast run, cannot decide the
  * gate on either side. The default threshold is generous
  * (20 %) so CI-runner noise does not block merges; a benchmark present on only
- * one side, or one that errored, is reported but never fails the gate. Missing
+ * one side, or one only the base could not run, is reported but never fails
+ * the gate. A benchmark that errors on the head fails it. Missing
  * base summaries are skipped with a warning (the base could not run the head's
  * benchmarks); missing head summaries are an error.
  */
@@ -38,11 +39,15 @@ export const compareBenchmarks = (base, head, threshold = DEFAULT_THRESHOLD) => 
   const names = [...new Set([...Object.keys(base.results), ...Object.keys(head.results)])].sort();
   const rows = [];
   const regressions = [];
+  const failures = [];
   for (const name of names) {
     const before = base.results[name];
     const after = head.results[name];
     if (!before || !after || 'error' in before || 'error' in after) {
       const status = !before ? 'new' : !after ? 'removed' : 'errored';
+      // A benchmark the head cannot run is broken; one only the base cannot
+      // run (it predates the benchmark) is not the head's fault.
+      if (after && 'error' in after) failures.push(name);
       rows.push({ name, status, base: before?.p50, head: after?.p50 });
       continue;
     }
@@ -51,13 +56,13 @@ export const compareBenchmarks = (base, head, threshold = DEFAULT_THRESHOLD) => 
     if (status === 'regressed') regressions.push(name);
     rows.push({ name, status, base: before.p50, head: after.p50, ratio });
   }
-  return { rows, regressions };
+  return { rows, regressions, failures };
 };
 
 /**
  * Merge summaries from repeated runs, keeping per benchmark the run with the
- * middle median (the faster of the two middle runs for an even count). Errored
- * runs are ignored while any run of that benchmark succeeded.
+ * middle median (the faster of the two middle runs for an even count). A
+ * benchmark that errored in at least half of its runs stays errored.
  */
 export const mergeSummaries = (summaries) => {
   const runs = {};
@@ -69,7 +74,10 @@ export const mergeSummaries = (summaries) => {
   const results = {};
   for (const [name, entries] of Object.entries(runs)) {
     const ok = entries.filter((result) => !('error' in result)).sort((a, b) => a.p50 - b.p50);
-    results[name] = ok.length > 0 ? ok[Math.floor((ok.length - 1) / 2)] : entries[0];
+    const failed = entries.filter((result) => 'error' in result);
+    // A benchmark that failed in at least as many runs as it succeeded counts
+    // as errored, so a single lucky run cannot hide a broken benchmark.
+    results[name] = ok.length > failed.length ? ok[Math.floor((ok.length - 1) / 2)] : failed[0];
   }
   return { ...summaries[0], results };
 };
@@ -84,7 +92,10 @@ const ICONS = {
 };
 
 /** Render a comparison as a Markdown table. */
-export const renderMarkdown = ({ rows, regressions }, threshold = DEFAULT_THRESHOLD) => {
+export const renderMarkdown = (
+  { rows, regressions, failures = [] },
+  threshold = DEFAULT_THRESHOLD
+) => {
   const lines = [
     `### Benchmarks (median, gate: +${Math.round(threshold * 100)} %)`,
     '',
@@ -102,6 +113,12 @@ export const renderMarkdown = ({ rows, regressions }, threshold = DEFAULT_THRESH
       ? 'No benchmark regressed beyond the threshold.'
       : `**${regressions.length} benchmark(s) regressed beyond the threshold:** ${regressions.join(', ')}`
   );
+  if (failures.length > 0) {
+    lines.push(
+      '',
+      `**${failures.length} benchmark(s) failed on the head:** ${failures.join(', ')}`
+    );
+  }
   return `${lines.join('\n')}\n`;
 };
 
@@ -145,5 +162,5 @@ if (import.meta.main) {
   const markdown = renderMarkdown(comparison, threshold);
   console.log(markdown);
   if (markdownPath) await writeFile(markdownPath, markdown);
-  if (comparison.regressions.length > 0) process.exit(1);
+  if (comparison.regressions.length > 0 || comparison.failures.length > 0) process.exit(1);
 }

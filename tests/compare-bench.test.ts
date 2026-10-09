@@ -19,9 +19,9 @@ interface CompareBenchModule {
     base: Summary,
     head: Summary,
     threshold?: number
-  ) => { rows: Row[]; regressions: string[] };
+  ) => { rows: Row[]; regressions: string[]; failures: string[] };
   renderMarkdown: (
-    comparison: { rows: Row[]; regressions: string[] },
+    comparison: { rows: Row[]; regressions: string[]; failures?: string[] },
     threshold?: number
   ) => string;
   mergeSummaries: (summaries: Summary[]) => Summary;
@@ -62,13 +62,24 @@ describe('compare-bench (#217)', () => {
     });
   });
 
-  it('never fails on added, removed or errored benchmarks', () => {
-    const { rows, regressions } = compareBenchmarks(
-      summary({ removed: { p50: 1, avg: 1 }, broken: { p50: 1, avg: 1 } }),
-      summary({ added: { p50: 1, avg: 1 }, broken: { error: 'boom' } })
+  it('does not fail on added, removed or base-only errored benchmarks', () => {
+    const { rows, regressions, failures } = compareBenchmarks(
+      summary({ removed: { p50: 1, avg: 1 }, predates: { error: 'not defined' } }),
+      summary({ added: { p50: 1, avg: 1 }, predates: { p50: 1, avg: 1 } })
     );
     expect(regressions).toEqual([]);
+    expect(failures).toEqual([]);
     expect(rows.map((row) => row.status).sort()).toEqual(['errored', 'new', 'removed']);
+  });
+
+  it('fails on a benchmark that errors on the head', () => {
+    const comparison = compareBenchmarks(
+      summary({ broken: { p50: 1, avg: 1 } }),
+      summary({ broken: { error: 'boom' } })
+    );
+    expect(comparison.regressions).toEqual([]);
+    expect(comparison.failures).toEqual(['broken']);
+    expect(renderMarkdown(comparison)).toContain('failed on the head:** broken');
   });
 
   it('honours a custom threshold', () => {
@@ -94,9 +105,18 @@ describe('compare-bench (#217)', () => {
     const merged = mergeSummaries([
       summary({ a: { p50: 120, avg: 130 }, b: { error: 'flaky' } }),
       summary({ a: { p50: 100, avg: 140 }, b: { p50: 50, avg: 55 } }),
-      summary({ a: { p50: 110, avg: 110 } }),
+      summary({ a: { p50: 110, avg: 110 }, b: { p50: 60, avg: 60 } }),
     ]);
     expect(merged.results).toEqual({ a: { p50: 110, avg: 110 }, b: { p50: 50, avg: 55 } });
+  });
+
+  it('keeps a benchmark errored when it failed in at least half of its runs', () => {
+    const merged = mergeSummaries([
+      summary({ a: { error: 'boom' } }),
+      summary({ a: { p50: 100, avg: 100 } }),
+      summary({ a: { error: 'boom again' } }),
+    ]);
+    expect(merged.results).toEqual({ a: { error: 'boom' } });
   });
 
   it('keeps an errored benchmark when no run succeeded', () => {

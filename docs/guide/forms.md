@@ -229,8 +229,10 @@ const form = createSchemaForm({
 - Each issue becomes the error of the field named by its **first path
   segment** (`['address', 'city']` → `address`). A field's own `validators`
   (passed through `fields: { email: { validators: [...] } }`) run first.
-- An issue with no field path — a refinement over the whole object — makes
-  `validate()` return `false` without setting a field error.
+- An issue with no field path — a refinement over the whole object — or one
+  for a disabled field makes `validate()` return `false` without setting a
+  field error: disabled values are still submitted, so they must pass the
+  schema too.
 - Async schemas are awaited; the schema runs once per value snapshot no matter
   how many fields validate against it.
 - `schema` also works next to an explicit `fields` config.

@@ -205,6 +205,35 @@ describe('createSchemaForm() and createForm({ schema }) (#221)', () => {
     form.destroy();
   });
 
+  it('fails validation for a schema issue on a disabled field', async () => {
+    const submitted: unknown[] = [];
+    const form = createSchemaForm({
+      schema: Signup,
+      initialValues: { email: 'a@b.c', age: 10 },
+      fields: { age: { disabled: true } },
+      onSubmit: (values) => {
+        submitted.push(values);
+      },
+    });
+    // The disabled field shows no error, but its value is still submitted.
+    expect(await form.validate()).toBe(false);
+    expect(form.fields.age.error.value).toBe('');
+    await form.handleSubmit();
+    expect(submitted).toEqual([]);
+    form.destroy();
+  });
+
+  it('re-runs the schema after a value was mutated in place', async () => {
+    const tagSchema = objectSchema<{ tags: string[] }>((value) =>
+      (value.tags as string[]).length > 0 ? [] : [{ message: 'Add a tag', path: ['tags'] }]
+    );
+    const form = createSchemaForm({ schema: tagSchema, initialValues: { tags: [] as string[] } });
+    expect(await form.validate()).toBe(false);
+    form.fields.tags.value.peek().push('news');
+    expect(await form.validate()).toBe(true);
+    form.destroy();
+  });
+
   it('runs the schema once per value snapshot', async () => {
     let runs = 0;
     const schema = objectSchema<Signup>((value) => {
