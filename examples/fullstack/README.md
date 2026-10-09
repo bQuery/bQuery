@@ -19,7 +19,7 @@ sessions across restarts.
 | ------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | Auth                      | [`server/app.ts`](./server/app.ts)                  | `session()`, `$regenerate()` on sign-in, `guard()`, `rateLimit()` per account                     |
 | CSRF                      | `server/app.ts`, [`client.ts`](./client.ts)         | `csrf()` bound to the session, `csrfToken()`, `x-csrf-token` header                               |
-| Forms + server validation | [`shared/schema.ts`](./shared/schema.ts)            | one Standard Schema for `createForm({ schema })` and `validate()`                                 |
+| Forms + server validation | [`shared/schema.ts`](./shared/schema.ts)            | one Standard Schema for `createSchemaForm()` and `validate()`                                     |
 | Router with loaders       | `server/app.ts`                                     | routes with `meta.loader`, `createSSRRouterContext()`                                             |
 | SSR + hydration           | [`shared/pages.ts`](./shared/pages.ts), `client.ts` | `renderToString()`, embedded state, `hydrate({ onMismatch: 'repair' })`                           |
 | Store persistence         | `client.ts`                                         | `createPersistedStore()` keeps the unsent draft across reloads                                    |

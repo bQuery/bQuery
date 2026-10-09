@@ -237,30 +237,46 @@ const validateSingleField = async <T>(
  * });
  * ```
  */
-export function createForm<S extends StandardSchemaV1>(
+export const createForm = <T extends Record<string, unknown>>(config: FormConfig<T>): Form<T> =>
+  createFormFromConfig(config);
+
+/**
+ * Creates a form driven by a [Standard Schema](https://standardschema.dev)
+ * (Zod, Valibot, ArkType, …). The value type is inferred from the schema and
+ * the fields from `initialValues`; the schema validates the whole form value
+ * after each field's own `validators` pass.
+ *
+ * @example
+ * ```ts
+ * import { createSchemaForm } from '@bquery/bquery/forms';
+ * import { z } from 'zod';
+ *
+ * const Signup = z.object({ email: z.string().email(), age: z.number().min(18) });
+ *
+ * const form = createSchemaForm({
+ *   schema: Signup,
+ *   initialValues: { email: '', age: 0 },
+ *   onSubmit: async (values) => api.signup(values), // values: { email: string; age: number }
+ * });
+ * ```
+ */
+export const createSchemaForm = <S extends StandardSchemaV1>(
   config: SchemaFormConfig<S>
-): Form<SchemaFormValues<S>>;
-export function createForm<T extends Record<string, unknown>>(config: FormConfig<T>): Form<T>;
-export function createForm<T extends Record<string, unknown>>(
-  config: FormConfig<T> | SchemaFormConfig<StandardSchemaV1>
-): Form<T> {
-  return createFormFromConfig(normalizeFormConfig(config) as FormConfig<T>);
-}
+): Form<SchemaFormValues<S>> =>
+  createFormFromConfig(normalizeSchemaFormConfig(config) as FormConfig<SchemaFormValues<S>>);
 
 /** Expand a schema-driven config (`initialValues`) into per-field configs. */
-const normalizeFormConfig = <T extends Record<string, unknown>>(
-  config: FormConfig<T> | SchemaFormConfig<StandardSchemaV1>
-): FormConfig<T> => {
-  if (!('initialValues' in config) || config.initialValues == null) {
-    return config as FormConfig<T>;
-  }
+const normalizeSchemaFormConfig = <S extends StandardSchemaV1>(
+  config: SchemaFormConfig<S>
+): FormConfig<Record<string, unknown>> => {
   const extras = (config.fields ?? {}) as Record<string, Partial<FieldConfig<unknown>> | undefined>;
   const fields: Record<string, FieldConfig<unknown>> = {};
-  for (const [name, initialValue] of Object.entries(config.initialValues)) {
+  for (const [name, initialValue] of Object.entries(config.initialValues ?? {})) {
     if (isPrototypePollutionKey(name)) continue;
     fields[name] = { ...extras[name], initialValue };
   }
-  return { ...(config as unknown as FormConfig<T>), fields: fields as FormConfig<T>['fields'] };
+  const { initialValues: _initialValues, ...rest } = config;
+  return { ...(rest as unknown as FormConfig<Record<string, unknown>>), fields };
 };
 
 const shallowEqualValues = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {

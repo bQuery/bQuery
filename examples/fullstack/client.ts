@@ -5,7 +5,7 @@
  * Served as `/client.js`; `server.ts` bundles it with `Bun.build()` at start.
  */
 
-import { createForm } from '../../src/forms/index';
+import { createSchemaForm } from '../../src/forms/index';
 import { createI18n } from '../../src/i18n/index';
 import { computed, createHttp, HttpError, signal } from '../../src/reactive/index';
 import { hydrate } from '../../src/ssr/index';
@@ -50,7 +50,7 @@ const hydrateNotesPage = (): void => {
   });
   const draftSaved = signal(false);
 
-  const form = createForm({
+  const form = createSchemaForm({
     schema: NoteSchema,
     initialValues: { title: draft.title, body: draft.body },
     validationStrategy: 'onBlur',

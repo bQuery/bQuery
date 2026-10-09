@@ -38,13 +38,13 @@
  * ```
  */
 
-export { createForm } from './create-form';
+export { createForm, createSchemaForm } from './create-form';
 export { useFormField } from './use-field';
 export { createFieldArray } from './field-array';
 export { field, schema } from './schema';
 export { bindField, bindForm } from './bind';
 export { hydrateForm, readSerializedFormState, serializeFormState } from './ssr';
-export { useField, useFieldArray, useForm } from './composables';
+export { useField, useFieldArray, useForm, useSchemaForm } from './composables';
 export { optimistic } from './optimistic';
 export { FormActionError, formAction, useFormStatus } from './action';
 export {

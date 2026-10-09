@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import {
   createForm,
+  createSchemaForm,
   isStandardSchema,
   normalizeSchemaIssues,
   required,
@@ -90,9 +91,9 @@ describe('Standard Schema helpers (#221)', () => {
   });
 });
 
-describe('createForm({ schema }) (#221)', () => {
+describe('createSchemaForm() and createForm({ schema }) (#221)', () => {
   it('infers values from the schema and maps issues to fields', async () => {
-    const form = createForm({
+    const form = createSchemaForm({
       schema: Signup,
       initialValues: { email: '', age: 0 },
     });
@@ -111,7 +112,7 @@ describe('createForm({ schema }) (#221)', () => {
   });
 
   it('validates a single field against the whole value', async () => {
-    const form = createForm({ schema: Signup, initialValues: { email: 'bad', age: 0 } });
+    const form = createSchemaForm({ schema: Signup, initialValues: { email: 'bad', age: 0 } });
     await form.validateField('email');
     expect(form.fields.email.error.value).toBe('Invalid email');
     expect(form.fields.age.error.value).toBe('');
@@ -119,7 +120,7 @@ describe('createForm({ schema }) (#221)', () => {
   });
 
   it('runs field validators before the schema', async () => {
-    const form = createForm({
+    const form = createSchemaForm({
       schema: Signup,
       initialValues: { email: '', age: 20 },
       fields: { email: { validators: [required('Email is required')] } },
@@ -131,7 +132,7 @@ describe('createForm({ schema }) (#221)', () => {
 
   it('works with async schemas and submit', async () => {
     const submitted: unknown[] = [];
-    const form = createForm({
+    const form = createSchemaForm({
       schema: objectSchema<Signup>(signupChecks, { async: true }),
       initialValues: { email: 'x', age: 20 },
       onSubmit: (values) => {
@@ -153,12 +154,23 @@ describe('createForm({ schema }) (#221)', () => {
     const schema = objectSchema<{ a: string; b: string }>((value) =>
       value.a === value.b ? [] : [{ message: 'a and b must match' }]
     );
-    const form = createForm({ schema, initialValues: { a: 'x', b: 'y' } });
+    const form = createSchemaForm({ schema, initialValues: { a: 'x', b: 'y' } });
     expect(await form.validate()).toBe(false);
     expect(form.fields.a.error.value).toBe('');
 
     form.fields.b.value.value = 'x';
     expect(await form.validate()).toBe(true);
+    form.destroy();
+  });
+
+  it('keeps createForm a single generic signature', () => {
+    // Instantiation expressions bind T on every overload; with a schema
+    // overload on createForm this failed the StandardSchemaV1 constraint.
+    type NameForm = ReturnType<typeof createForm<{ name: string }>>;
+    const form: NameForm = createForm<{ name: string }>({
+      fields: { name: { initialValue: '' } },
+    });
+    expectType<{ name: string }>(form.getValues());
     form.destroy();
   });
 
@@ -185,7 +197,7 @@ describe('createForm({ schema }) (#221)', () => {
         },
       },
     };
-    const form = createForm({ schema, initialValues: { email: 'a@b.c', age: 20 } });
+    const form = createSchemaForm({ schema, initialValues: { email: 'a@b.c', age: 20 } });
 
     await expect(form.validate()).rejects.toThrow('network blip');
     expect(await form.validate()).toBe(true);
@@ -199,7 +211,7 @@ describe('createForm({ schema }) (#221)', () => {
       runs += 1;
       return signupChecks(value);
     });
-    const form = createForm({ schema, initialValues: { email: 'a@b.c', age: 20 } });
+    const form = createSchemaForm({ schema, initialValues: { email: 'a@b.c', age: 20 } });
     await form.validate();
     expect(runs).toBe(1);
     form.fields.age.value.value = 21;

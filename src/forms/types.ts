@@ -252,8 +252,8 @@ export type SchemaFormValues<S extends StandardSchemaV1> =
     : Record<string, unknown>;
 
 /**
- * `createForm()` configuration driven by a Standard Schema: the value type is
- * inferred from the schema and the fields from `initialValues`.
+ * `createSchemaForm()` configuration: the value type is inferred from the
+ * Standard Schema and the fields from `initialValues`.
  */
 export type SchemaFormConfig<S extends StandardSchemaV1> = Omit<
   FormConfig<SchemaFormValues<S>>,

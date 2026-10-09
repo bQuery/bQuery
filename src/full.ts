@@ -726,6 +726,7 @@ export {
   bindForm,
   createFieldArray,
   createForm,
+  createSchemaForm,
   isStandardSchema,
   normalizeSchemaIssues,
   schemaIssuesToFieldErrors,
@@ -766,6 +767,7 @@ export {
   useForm,
   useFormField,
   useFormStatus,
+  useSchemaForm,
   validDate,
   withMessage,
 } from './forms/index';

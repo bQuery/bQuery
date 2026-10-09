@@ -6,7 +6,7 @@ server, and TypeScript needs the shape too. Three definitions drift apart.
 **Solution.** Define the contract once as a
 [Standard Schema](https://standardschema.dev) — here with Zod; Valibot or
 ArkType work the same — and hand the same object to
-[`createForm({ schema })`](/guide/forms#standard-schema-zod-valibot-arktype)
+[`createSchemaForm()`](/guide/forms#standard-schema-zod-valibot-arktype)
 and to the server's [`validate()`](/guide/server#request-validation-with-standard-schema).
 
 ```ts
@@ -43,13 +43,13 @@ app.post(
 
 ```ts
 // client.ts
-import { createForm } from '@bquery/bquery/forms';
+import { createSchemaForm } from '@bquery/bquery/forms';
 import { createHttp, HttpError } from '@bquery/bquery/reactive';
 import { Signup } from './shared/signup';
 
 const api = createHttp({ baseUrl: '/api' });
 
-export const form = createForm({
+export const form = createSchemaForm({
   schema: Signup,
   initialValues: { email: '', password: '', age: '' },
   validationStrategy: 'onBlur',

@@ -22,7 +22,7 @@ import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 
 The frozen public surface of `@bquery/bquery/forms`:
 
-- **Entry points:** `createForm`, `useFormField`, `createFieldArray`, `useForm`, `useField`, `useFieldArray`.
+- **Entry points:** `createForm`, `useFormField`, `createFieldArray`, `useForm`, `useField`, `useFieldArray`; `createSchemaForm` and `useSchemaForm` for Standard Schema forms (Unreleased, 1.18).
 - **Validators:** `required`, `minLength`, `maxLength`, `pattern`, `email`, `url`, `min`, `max`, `integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `validDate`, `dateAfter`, `dateBefore`, `fileSize`, `fileType`, `custom`, `customAsync`, `matchField`.
 - **Combinators:** `compose`, `all`, `not`, `withMessage`.
 - **Schema builder:** `field`, `schema`.
@@ -195,7 +195,7 @@ const passwordForm = createForm({
 
 ## Standard Schema (Zod, Valibot, ArkType)
 
-`createForm()` accepts any [Standard Schema](https://standardschema.dev) — the
+`createSchemaForm()` builds a form from any [Standard Schema](https://standardschema.dev) — the
 interface that Zod, Valibot, ArkType and others implement — so a schema you
 already maintain for an API contract does not have to be restated with
 bQuery's validators. bQuery depends on none of these libraries; it only calls
@@ -203,14 +203,14 @@ the schema's `~standard.validate()`.
 
 ```ts
 import { z } from 'zod';
-import { createForm } from '@bquery/bquery/forms';
+import { createSchemaForm } from '@bquery/bquery/forms';
 
 const Signup = z.object({
   email: z.string().email('Enter a valid email'),
   age: z.number().min(18, 'You must be 18 or older'),
 });
 
-const form = createForm({
+const form = createSchemaForm({
   schema: Signup,
   initialValues: { email: '', age: 0 }, // typed from the schema's input type
   validationStrategy: 'onBlur',
@@ -220,6 +220,10 @@ const form = createForm({
 });
 ```
 
+- `createForm({ fields, schema })` also takes a schema next to explicit
+  field configs; the value type then comes from `fields`.
+- Inside a component, `useSchemaForm()` does the same and disposes the form
+  when the component disconnects.
 - The form value type is inferred from the schema (`~standard.types`), and the
   fields come from the keys of `initialValues`.
 - Each issue becomes the error of the field named by its **first path
@@ -661,7 +665,7 @@ only support `GET`/`POST`, so `PUT`/`PATCH`/`DELETE` degrade to a native `POST`
 
 ## Version history
 
-- **Unreleased (1.18)** — `createForm({ schema, initialValues })` accepts any Standard Schema (Zod, Valibot, ArkType, …) and infers the value type from it; new `isStandardSchema`, `validateWithSchema`, `normalizeSchemaIssues`, `schemaIssuesToFieldErrors` and the `StandardSchemaV1` type.
+- **Unreleased (1.18)** — `createSchemaForm({ schema, initialValues })` (and the component-scoped `useSchemaForm()`) builds a form from any Standard Schema (Zod, Valibot, ArkType, …) and infers the value type from it; new `isStandardSchema`, `validateWithSchema`, `normalizeSchemaIssues`, `schemaIssuesToFieldErrors` and the `StandardSchemaV1` type.
 
 - **1.17.1** — `email()` runs in linear time (the old pattern backtracked quadratically) and rejects empty domain labels (`a@b..c`) and addresses longer than 254 characters.
 - **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#139](https://github.com/bQuery/bQuery/issues/139)); `validationStrategy` default and SSR serialization boundary documented as guaranteed contracts; `createFieldArray()` `getKey` stable-key contract validated with clear errors (plus `keys()` / `keyAt()`). New progressive-enhancement actions ([#140](https://github.com/bQuery/bQuery/issues/140)): `formAction`, `useFormStatus`, `optimistic`.

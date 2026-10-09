@@ -17,7 +17,8 @@ import { useRef } from '../src/component/refs';
 import { hasSlot, slotText, useSlot } from '../src/component/slots';
 import { useAsync, whenIdle, type UseAsyncResult } from '../src/component/async';
 import { useSignal } from '../src/component/scope';
-import { useField, useFieldArray, useForm } from '../src/forms/composables';
+import { useField, useFieldArray, useForm, useSchemaForm } from '../src/forms/composables';
+import type { StandardSchemaV1 } from '../src/forms/index';
 
 const uniqueTag = (name: string): string => `${name}-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -923,12 +924,53 @@ describe('forms/useForm composable', () => {
     expect(() => (formRef!.fields.name.value.value = 'x')).not.toThrow();
   });
 
+  it('useSchemaForm creates a schema-driven form bound to the component scope', async () => {
+    const tag = uniqueTag('schema-form-host');
+    const nameSchema: StandardSchemaV1<{ name: string }> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: (value) => {
+          const { name } = value as { name: string };
+          return name
+            ? { value: { name } }
+            : { issues: [{ message: 'Name is required', path: ['name'] }] };
+        },
+      },
+    };
+    let formRef: ReturnType<typeof useSchemaForm<typeof nameSchema>> | null = null;
+    component(tag, {
+      connected() {
+        formRef = useSchemaForm({ schema: nameSchema, initialValues: { name: '' } });
+      },
+      render: () => html`<form></form>`,
+    });
+    const host = document.createElement(tag);
+    document.body.appendChild(host);
+    expect(await formRef!.validate()).toBe(false);
+    expect(formRef!.fields.name.error.value).toBe('Name is required');
+    formRef!.fields.name.value.value = 'Ada';
+    expect(await formRef!.validate()).toBe(true);
+    host.remove();
+  });
+
   it('rejects render-time form composables', () => {
     const cases = [
       {
         tag: uniqueTag('form-render'),
         run() {
           useForm<{ name: string }>({ fields: { name: { initialValue: '' } } });
+        },
+      },
+      {
+        tag: uniqueTag('schema-form-render'),
+        run() {
+          useSchemaForm({
+            schema: {
+              '~standard': { version: 1, vendor: 'test', validate: (value) => ({ value }) },
+            },
+            initialValues: { name: '' },
+          });
         },
       },
       {
