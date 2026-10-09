@@ -7,8 +7,10 @@
  *
  * Compares the median (p50) per benchmark and exits with 1 when any benchmark
  * is slower than `base * (1 + threshold)`. Each side may be a comma-separated
- * list of summaries from repeated runs; the fastest median per benchmark
- * counts, which filters out runs a busy CI neighbour slowed down. The default threshold is generous
+ * list of summaries from repeated runs; the middle run per benchmark counts
+ * (the lower one of the two middle runs for an even count), so one run that a
+ * busy CI neighbour slowed down, or one unusually fast run, cannot decide the
+ * gate on either side. The default threshold is generous
  * (20 %) so CI-runner noise does not block merges; a benchmark present on only
  * one side, or one that errored, is reported but never fails the gate. Missing
  * base summaries are skipped with a warning (the base could not run the head's
@@ -53,21 +55,21 @@ export const compareBenchmarks = (base, head, threshold = DEFAULT_THRESHOLD) => 
 };
 
 /**
- * Merge summaries from repeated runs, keeping the fastest median (and its
- * mean) per benchmark. A benchmark that errored in one run but succeeded in
- * another keeps the successful result.
+ * Merge summaries from repeated runs, keeping per benchmark the run with the
+ * middle median (the faster of the two middle runs for an even count). Errored
+ * runs are ignored while any run of that benchmark succeeded.
  */
 export const mergeSummaries = (summaries) => {
-  const results = {};
+  const runs = {};
   for (const summary of summaries) {
     for (const [name, result] of Object.entries(summary.results)) {
-      const current = results[name];
-      if (!current || ('error' in current && !('error' in result))) {
-        results[name] = result;
-      } else if (!('error' in result) && result.p50 < current.p50) {
-        results[name] = result;
-      }
+      (runs[name] ??= []).push(result);
     }
+  }
+  const results = {};
+  for (const [name, entries] of Object.entries(runs)) {
+    const ok = entries.filter((result) => !('error' in result)).sort((a, b) => a.p50 - b.p50);
+    results[name] = ok.length > 0 ? ok[Math.floor((ok.length - 1) / 2)] : entries[0];
   }
   return { ...summaries[0], results };
 };

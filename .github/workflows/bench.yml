@@ -69,9 +69,10 @@ jobs:
       - name: Benchmark base and head
         if: github.event_name == 'pull_request'
         run: |
-          # Alternate the two sides three times and keep each benchmark's
-          # fastest median: a shared runner's load drifts over a few seconds,
-          # so a single sequential pair can differ by more than the gate.
+          # Alternate the two sides three times and compare each benchmark's
+          # middle run: a shared runner's load drifts over a few seconds, so a
+          # single sequential pair can differ by more than the gate, and one
+          # outlier run on either side must not decide it.
           # Swap which side goes first each round, so a drift in one
           # direction does not favour the same side every time.
           run_base() {

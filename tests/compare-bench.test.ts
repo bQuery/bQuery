@@ -90,13 +90,49 @@ describe('compare-bench (#217)', () => {
     expect(markdown).toContain('regressed beyond the threshold:** slow');
   });
 
-  it('merges repeated runs by keeping the fastest median', () => {
+  it('merges repeated runs by keeping the middle run', () => {
     const merged = mergeSummaries([
       summary({ a: { p50: 120, avg: 130 }, b: { error: 'flaky' } }),
       summary({ a: { p50: 100, avg: 140 }, b: { p50: 50, avg: 55 } }),
       summary({ a: { p50: 110, avg: 110 } }),
     ]);
-    expect(merged.results).toEqual({ a: { p50: 100, avg: 140 }, b: { p50: 50, avg: 55 } });
+    expect(merged.results).toEqual({ a: { p50: 110, avg: 110 }, b: { p50: 50, avg: 55 } });
+  });
+
+  it('keeps an errored benchmark when no run succeeded', () => {
+    const merged = mergeSummaries([
+      summary({ a: { error: 'boom' } }),
+      summary({ a: { error: 'again' } }),
+    ]);
+    expect(merged.results).toEqual({ a: { error: 'boom' } });
+  });
+
+  it('does not flag a regression because one base run was unusually fast', () => {
+    const base = mergeSummaries([
+      summary({ a: { p50: 100, avg: 100 } }),
+      summary({ a: { p50: 70, avg: 70 } }),
+      summary({ a: { p50: 102, avg: 102 } }),
+    ]);
+    const head = mergeSummaries([
+      summary({ a: { p50: 105, avg: 105 } }),
+      summary({ a: { p50: 108, avg: 108 } }),
+      summary({ a: { p50: 101, avg: 101 } }),
+    ]);
+    expect(compareBenchmarks(base, head).regressions).toEqual([]);
+  });
+
+  it('still flags a regression that shows in most runs', () => {
+    const base = mergeSummaries([
+      summary({ a: { p50: 100, avg: 100 } }),
+      summary({ a: { p50: 98, avg: 98 } }),
+      summary({ a: { p50: 103, avg: 103 } }),
+    ]);
+    const head = mergeSummaries([
+      summary({ a: { p50: 130, avg: 130 } }),
+      summary({ a: { p50: 100, avg: 100 } }),
+      summary({ a: { p50: 128, avg: 128 } }),
+    ]);
+    expect(compareBenchmarks(base, head).regressions).toEqual(['a']);
   });
 
   it('does not flag a noisy run when another run of the same side is fast', () => {
