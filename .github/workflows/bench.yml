@@ -72,9 +72,22 @@ jobs:
           # Alternate the two sides three times and keep each benchmark's
           # fastest median: a shared runner's load drifts over a few seconds,
           # so a single sequential pair can differ by more than the gate.
+          # Swap which side goes first each round, so a drift in one
+          # direction does not favour the same side every time.
+          run_base() {
+            (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base-$1.json" > /dev/null) || true
+          }
+          run_head() {
+            bun run bench --json "bench-head-$1.json" > /dev/null
+          }
           for i in 1 2 3; do
-            (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base-$i.json" > /dev/null) || true
-            bun run bench --json "bench-head-$i.json" > /dev/null
+            if [ $((i % 2)) -eq 1 ]; then
+              run_base "$i"
+              run_head "$i"
+            else
+              run_head "$i"
+              run_base "$i"
+            fi
           done
 
       - name: Compare with base
