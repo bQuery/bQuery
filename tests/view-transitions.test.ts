@@ -1,13 +1,14 @@
 /**
  * View declarative transitions tests — issue #137.
  *
- * happy-dom has no Web Animations API, so transitions resolve as no-ops on a
+ * The Web Animations API is removed for these tests (happy-dom ≥ 20.14 ships
+ * one that runs in real time), so transitions resolve as no-ops on a
  * microtask. These tests cover the orchestration (enter/leave/move, race
  * safety, reduced-motion, passive-attribute handling) and use a lightweight
  * `animate` mock to assert the `motion`-delegating keyframe path.
  */
 
-import { afterEach, describe, expect, it, spyOn } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it, spyOn } from 'bun:test';
 import { signal } from '../src/reactive/index';
 import { mount } from '../src/view/index';
 import { resolveTransition, TRANSITION_ATTRS } from '../src/view/directives/index';
@@ -46,7 +47,28 @@ const installAnimateMock = (): { calls: AnimateCall[]; restore: () => void } => 
   };
 };
 
-afterEach(() => setReducedMotion(null));
+/**
+ * Shadow `animate` on HTMLElement.prototype with `undefined`, whatever the
+ * chain below it (or another suite) defines, and put the own property back
+ * afterwards.
+ */
+const elementProto = HTMLElement.prototype as unknown as Record<string, unknown>;
+let ownAnimate: PropertyDescriptor | undefined;
+
+beforeEach(() => {
+  ownAnimate = Object.getOwnPropertyDescriptor(elementProto, 'animate');
+  Object.defineProperty(elementProto, 'animate', {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
+});
+
+afterEach(() => {
+  if (ownAnimate) Object.defineProperty(elementProto, 'animate', ownAnimate);
+  else delete elementProto.animate;
+  setReducedMotion(null);
+});
 
 describe('resolveTransition (#137)', () => {
   it('returns null without transition attributes', () => {
