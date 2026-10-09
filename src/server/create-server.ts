@@ -433,6 +433,10 @@ const resolveServerLimits = (limits: ServerLimits | undefined): Required<ServerL
   return resolved;
 };
 
+/** Whether `limit` caps the body: a finite, non-negative number. */
+const isFiniteLimit = (limit: number | undefined): limit is number =>
+  typeof limit === 'number' && Number.isFinite(limit) && limit >= 0;
+
 /**
  * Largest finite limit, used as the transport-level cap for the Node adapter;
  * `undefined` when any content type is unbounded.
@@ -442,14 +446,12 @@ const resolveServerLimits = (limits: ServerLimits | undefined): Required<ServerL
 const resolveTransportLimit = (limits: Required<ServerLimits>): number | undefined => {
   let max = 0;
   for (const value of Object.values(limits)) {
-    if (!Number.isFinite(value)) return undefined;
+    // Same rule as the route-level check: a negative limit means unbounded.
+    if (!isFiniteLimit(value)) return undefined;
     max = Math.max(max, value);
   }
   return max;
 };
-
-const isFiniteLimit = (limit: number | undefined): limit is number =>
-  typeof limit === 'number' && Number.isFinite(limit) && limit >= 0;
 
 /**
  * Read the request body exactly once, enforcing `limit` while streaming so an
@@ -1329,6 +1331,13 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
         });
         return result;
       } catch (error) {
+        // A route that read `ctx.request` directly hit the Node transport cap.
+        if (isNodeRequestLimitError(error)) {
+          return await onError(
+            new ServerHttpError(413, 'Request body exceeds the configured limit.'),
+            context
+          );
+        }
         return await onError(error, context);
       }
     },

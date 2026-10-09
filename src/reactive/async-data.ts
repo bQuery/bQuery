@@ -9,13 +9,7 @@ import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
 import { computed } from './computed';
 import { effect } from './effect';
 import { Signal, signal } from './core';
-import {
-  DEFAULT_RETRY_METHODS,
-  DEFAULT_RETRY_STATUSES,
-  isRetryableMethod,
-  isRetryableStatus,
-  resolveRetryDelay,
-} from './retry-policy';
+import { isRetryableMethod, isRetryableStatus, resolveRetryDelay } from './retry-policy';
 import { untrack } from './untrack';
 
 /** Allowed status values for async composables. */
@@ -425,11 +419,9 @@ const shouldRetryByDefault = (
   ) {
     return false;
   }
-  if (!isRetryableMethod(method, retry.methods ?? DEFAULT_RETRY_METHODS)) return false;
+  if (!isRetryableMethod(method, retry.methods)) return false;
   const status = (error as Error & { status?: number }).status;
-  return (
-    status === undefined || isRetryableStatus(status, retry.statuses ?? DEFAULT_RETRY_STATUSES)
-  );
+  return status === undefined || isRetryableStatus(status, retry.statuses);
 };
 
 /** @internal */

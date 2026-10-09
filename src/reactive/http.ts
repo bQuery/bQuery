@@ -7,13 +7,7 @@
 
 import { merge, isPlainObject } from '../core/utils/object';
 import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
-import {
-  DEFAULT_RETRY_METHODS,
-  DEFAULT_RETRY_STATUSES,
-  isRetryableMethod,
-  isRetryableStatus,
-  resolveRetryDelay,
-} from './retry-policy';
+import { isRetryableMethod, isRetryableStatus, resolveRetryDelay } from './retry-policy';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -235,13 +229,11 @@ const shouldRetryByDefault = (
   method: string | undefined,
   retry: RetryConfig
 ): boolean => {
-  if (!isRetryableMethod(method, retry.methods ?? DEFAULT_RETRY_METHODS)) return false;
+  if (!isRetryableMethod(method, retry.methods)) return false;
   if (error.code === 'TIMEOUT' || error.code === 'NETWORK') return true;
   if (error.code === 'PARSE') return false;
   const status = error.response?.status;
-  return (
-    status !== undefined && isRetryableStatus(status, retry.statuses ?? DEFAULT_RETRY_STATUSES)
-  );
+  return status !== undefined && isRetryableStatus(status, retry.statuses);
 };
 
 /** @internal */

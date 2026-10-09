@@ -426,6 +426,46 @@ describe('listen({ runtime: "node" }) body limits (#255)', () => {
       await handle.close();
     }
   });
+
+  const tiny = { form: 64, json: 64, multipart: 64, raw: 64, text: 64 };
+
+  it('answers 413, not 500, when a route reads ctx.request past the transport cap', async () => {
+    const app = createServer({ limits: tiny });
+    app.post('/direct', async (ctx) =>
+      ctx.text(String((await ctx.request.arrayBuffer()).byteLength))
+    );
+
+    const handle = await app.listen({ hostname: '127.0.0.1', port: 0, runtime: 'node' });
+    try {
+      // Chunked, so the declared-length check cannot reject it up front.
+      const response = await fetch(
+        chunkedRequest(`${handle.url}/direct`, 'application/octet-stream', 1024)
+      );
+      expect(response.status).toBe(413);
+      expect(response.headers.get('connection')).toBe('close');
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('treats negative limits as unbounded at the transport level too', async () => {
+    const unbounded = { form: -1, json: -1, multipart: -1, raw: -1, text: -1 };
+    const app = createServer({ limits: unbounded });
+    app.post('/text', async (ctx) => ctx.text(String(((await ctx.body()) as string).length)));
+
+    const handle = await app.listen({ hostname: '127.0.0.1', port: 0, runtime: 'node' });
+    try {
+      const response = await fetch(`${handle.url}/text`, {
+        body: 'x'.repeat(4096),
+        headers: { 'content-type': 'text/plain' },
+        method: 'POST',
+      });
+      expect(response.status).toBe(200);
+      expect(await response.text()).toBe('4096');
+    } finally {
+      await handle.close();
+    }
+  });
 });
 
 describe('file-route handlers and the consumed body (#255)', () => {

@@ -408,6 +408,33 @@ describe('morph review follow-ups', () => {
     host.remove();
   });
 
+  it('keeps the event handlers of a nested shadow:false component across parent renders', () => {
+    const count = signal(0);
+    let clicks = 0;
+    const child = uniqueTag('handler-child');
+    component(child, {
+      shadow: false,
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: () => html`<button ${onClick(() => (clicks += 1))}>b</button>`,
+    });
+    const parent = uniqueTag('handler-parent');
+    component(parent, {
+      sanitize: { allowTags: [child], allowAttributes: ['data-bq-on-click'] },
+      signals: { count },
+      render: ({ signals }) => html`<p>${signals.count.value}</p><${child}></${child}>`,
+    });
+    const host = mount(parent);
+    $(host, 'button').click();
+
+    count.value = 1;
+    $(host, 'button').click();
+
+    expect(clicks).toBe(2);
+    host.remove();
+  });
+
   it('still updates and removes slotted children the template provides', () => {
     const label = signal<string | null>('first');
     const child = uniqueTag('slot-child');

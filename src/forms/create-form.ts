@@ -394,7 +394,9 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
       const schemaValidator: Validator<unknown> = async () => {
         const result = await runSchema();
         if (result.success) return undefined;
-        return result.issues.find((issue) => String(issue.path[0]) === name)?.message;
+        return result.issues.find(
+          (issue) => issue.path.length > 0 && String(issue.path[0]) === name
+        )?.message;
       };
       runtime[name].validators = [...(runtime[name].validators ?? []), schemaValidator];
     }
