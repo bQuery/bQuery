@@ -50,6 +50,7 @@ export {
   bindForm,
   createFieldArray,
   createForm,
+  createSchemaForm,
   custom,
   customAsync,
   dateAfter,
@@ -82,6 +83,7 @@ export {
   useFieldArray,
   useForm,
   useFormField,
+  useSchemaForm,
   validDate,
   withMessage,
 } from './forms/index';

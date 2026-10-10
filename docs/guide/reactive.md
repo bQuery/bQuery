@@ -300,13 +300,56 @@ const resilient = useFetch('/api/important', {
   retry: {
     count: 3,
     delay: (attempt) => 1000 * 2 ** attempt,
-    retryOn: (error) => error.message.includes('500'),
+    statuses: [500, 502, 503, 504],
   },
 });
 
 // Abort an in-flight request
 data.abort();
 ```
+
+### Retry policy
+
+Retries are safe by default — the same policy applies to `useFetch()` and the
+[`http` client](#retry-and-timeout):
+
+- **Only idempotent methods** are retried: `GET`, `HEAD`, `OPTIONS`, `PUT`,
+  `DELETE`. A `POST` or `PATCH` that timed out may already have been processed
+  by the server, so repeating it could, for example, create a duplicate order.
+- **Only transient failures** are retried: network errors, timeouts (`http`
+  client only — in `useFetch()` the timeout spans all attempts) and the
+  statuses `408`, `429`, `502`, `503`, `504`.
+- **`Retry-After` wins.** When the error response carries a `Retry-After`
+  header (seconds or an HTTP date), that delay replaces `delay`, capped by
+  `maxRetryAfter` (default 60 000 ms). Set `respectRetryAfter: false` to
+  ignore it.
+
+| Option              | Default                                       | Description                                                  |
+| ------------------- | --------------------------------------------- | ------------------------------------------------------------ |
+| `count`             | —                                             | Maximum number of retries                                    |
+| `delay`             | exponential, max 30 s                         | Fixed delay in ms or `(attempt) => ms`                       |
+| `methods`           | `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']` | Methods the default policy retries; `['*']` allows all       |
+| `statuses`          | `[408, 429, 502, 503, 504]`                   | Statuses the default policy retries                          |
+| `maxRetryAfter`     | `60_000`                                      | Upper bound for a server-requested delay                     |
+| `respectRetryAfter` | `true`                                        | Use the `Retry-After` header when present                    |
+| `retryOn`           | —                                             | Custom predicate; replaces the method/status policy entirely |
+
+Opt a non-idempotent request in only when the endpoint is safe to repeat, for
+example because it honours an idempotency key:
+
+```ts
+const order = useFetch('/api/orders', {
+  method: 'POST',
+  body: { sku: 'A-1' },
+  headers: { 'Idempotency-Key': crypto.randomUUID() },
+  retry: { count: 3, methods: ['POST'] },
+});
+```
+
+::: warning Changed in 1.18
+Before 1.18 every method was retried on any 5xx, timeout or network error, and
+`429` was not retried. Pass `methods` / `statuses` to restore the old scope.
+:::
 
 External `AbortSignal` support:
 
@@ -401,7 +444,18 @@ const api = createHttp({
     retryOn: (error, attempt) => error.code === 'TIMEOUT' || error.code === 'NETWORK',
   },
 });
+
+// Default policy: GET/HEAD/OPTIONS/PUT/DELETE on network errors, timeouts,
+// 408/429/502/503/504; Retry-After is honoured. POST is not retried:
+await createHttp({ retry: 3 }).post('/orders', order); // runs once on 503
+
+// Opt in for an idempotent endpoint
+await createHttp({ retry: { count: 3, methods: ['POST'] } }).post('/orders', order, {
+  headers: { 'Idempotency-Key': key },
+});
 ```
+
+See [Retry policy](#retry-policy) for every option.
 
 ### HttpResponse
 

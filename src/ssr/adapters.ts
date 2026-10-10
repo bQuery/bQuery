@@ -92,6 +92,12 @@ export interface NodeIncomingMessage {
   on(event: 'end', listener: () => void): void;
   on(event: 'error', listener: (err: unknown) => void): void;
   destroy?(error?: Error): void;
+  /** `false` while the body is still arriving; Node sets it once the message ended. */
+  complete?: boolean;
+  /** Stop emitting `data` events (backpressure). */
+  pause?(): void;
+  /** Resume emitting `data` events. */
+  resume?(): void;
 }
 
 /** Minimal subset of `node:http` ServerResponse we rely on. */
@@ -114,18 +120,43 @@ export interface NodeServerResponse {
 
 /** Optional hardening settings for the `node:http` adapter. */
 export interface NodeHandlerOptions {
-  /** Reject request bodies that exceed this many bytes. Default: unlimited. */
+  /**
+   * Reject request bodies that exceed this many bytes. A larger declared
+   * `Content-Length` is answered with `413` before the handler runs; a
+   * chunked body that grows past the limit errors the body stream and destroys
+   * the connection. Default: unlimited.
+   *
+   * The body is streamed to the handler on demand, so a route that never reads
+   * it never buffers it.
+   */
   maxBodyBytes?: number;
 }
 
 const shouldReadNodeBody = (method: string): boolean => method !== 'GET' && method !== 'HEAD';
 
-class NodeRequestLimitError extends Error {
+/**
+ * Raised by the Node adapter when a request body exceeds `maxBodyBytes`.
+ *
+ * @internal
+ */
+export class NodeRequestLimitError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'NodeRequestLimitError';
   }
 }
+
+/**
+ * Whether `error` (or its `cause`, as `Request#arrayBuffer()` may wrap a stream
+ * error) is a {@link NodeRequestLimitError}.
+ *
+ * @internal
+ */
+export const isNodeRequestLimitError = (error: unknown): error is Error => {
+  if (error instanceof NodeRequestLimitError) return true;
+  const cause = (error as { cause?: unknown } | null)?.cause;
+  return cause instanceof NodeRequestLimitError;
+};
 
 const getSingleHeader = (
   headers: NodeIncomingMessage['headers'],
@@ -143,50 +174,95 @@ const getContentLength = (req: NodeIncomingMessage): number | null => {
   return Number.isSafeInteger(value) && value >= 0 ? value : null;
 };
 
-const readNodeBody = (req: NodeIncomingMessage, maxBodyBytes?: number): Promise<ArrayBuffer> =>
-  new Promise((resolve, reject) => {
-    const chunks: Uint8Array[] = [];
-    let total = 0;
-    let done = false;
-    const fail = (error: unknown): void => {
-      if (done) return;
-      done = true;
-      chunks.length = 0;
-      total = 0;
-      req.destroy?.(error instanceof Error ? error : undefined);
-      reject(error);
-    };
+/** Read state of a streamed Node request body. */
+interface NodeBodyState {
+  /** `true` once the whole body was received. */
+  ended: boolean;
+}
 
-    const declaredLength = getContentLength(req);
-    if (maxBodyBytes !== undefined && declaredLength !== null && declaredLength > maxBodyBytes) {
-      fail(new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`));
-      return;
+/**
+ * Expose the Node request body as a `ReadableStream` that only starts reading
+ * when the handler pulls from it. Nothing is buffered up front, and
+ * `pause()`/`resume()` carry backpressure through to the socket.
+ *
+ * `error` and `close` are watched from the start, so a body that fails or is
+ * aborted before the handler reads it errors the stream instead of leaving the
+ * first read pending forever. Going over `maxBodyBytes` errors the stream and
+ * pauses the request without destroying the socket, so the `413` can still be
+ * written; the adapter then closes the connection instead of draining the rest.
+ */
+const createNodeBodyStream = (
+  req: NodeIncomingMessage,
+  state: NodeBodyState,
+  maxBodyBytes?: number
+): ReadableStream<Uint8Array> => {
+  let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let attached = false;
+  let done = false;
+  let failure: unknown = null;
+  let total = 0;
+
+  const fail = (error: unknown): void => {
+    if (done) return;
+    done = true;
+    failure = error;
+    req.pause?.();
+    controller?.error(error);
+  };
+
+  req.on('error', (error) => fail(error));
+  // `close` is not part of the minimal interface (mocks need not implement
+  // it); a real IncomingMessage emits it when the connection goes away.
+  (req.on as (event: string, listener: () => void) => void).call(req, 'close', () => {
+    if (!state.ended && req.complete === false) {
+      fail(new DOMException('The client aborted the request body.', 'AbortError'));
     }
-
-    req.on('data', (chunk) => {
-      if (done) return;
-      const bytes = typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk;
-      total += bytes.byteLength;
-      if (maxBodyBytes !== undefined && total > maxBodyBytes) {
-        fail(new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`));
-        return;
-      }
-      chunks.push(bytes);
-    });
-    req.on('end', () => {
-      if (done) return;
-      done = true;
-      const buffer = new ArrayBuffer(total);
-      const body = new Uint8Array(buffer);
-      let offset = 0;
-      for (const chunk of chunks) {
-        body.set(chunk, offset);
-        offset += chunk.byteLength;
-      }
-      resolve(buffer);
-    });
-    req.on('error', fail);
   });
+
+  return new ReadableStream<Uint8Array>(
+    {
+      start(streamController) {
+        controller = streamController;
+      },
+      pull(streamController) {
+        if (failure !== null) {
+          streamController.error(failure);
+          return;
+        }
+        if (attached) {
+          req.resume?.();
+          return;
+        }
+        attached = true;
+        req.on('data', (chunk) => {
+          if (done) return;
+          const bytes = typeof chunk === 'string' ? new TextEncoder().encode(chunk) : chunk;
+          total += bytes.byteLength;
+          if (maxBodyBytes !== undefined && total > maxBodyBytes) {
+            fail(new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`));
+            return;
+          }
+          streamController.enqueue(bytes);
+          if ((streamController.desiredSize ?? 0) <= 0) req.pause?.();
+        });
+        req.on('end', () => {
+          state.ended = true;
+          if (done) return;
+          done = true;
+          streamController.close();
+        });
+      },
+      cancel() {
+        // Stop reading. The rest of the body is not drained: the adapter
+        // answers with `Connection: close` while the body is unfinished, so a
+        // client cannot keep the server reading after a 413.
+        done = true;
+        req.pause?.();
+      },
+    },
+    { highWaterMark: 0 }
+  );
+};
 
 const buildNodeUrl = (req: NodeIncomingMessage, protocol: string): URL => {
   const fallbackOrigin = `${protocol}://localhost`;
@@ -205,7 +281,8 @@ const buildNodeUrl = (req: NodeIncomingMessage, protocol: string): URL => {
 const buildRequestFromNode = async (
   req: NodeIncomingMessage,
   options: NodeHandlerOptions = {},
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  bodyState: NodeBodyState = { ended: true }
 ): Promise<Request> => {
   // Only honour `x-forwarded-proto` when it advertises a known protocol.
   // This adapter assumes deployment behind a trusted reverse proxy; callers
@@ -242,7 +319,19 @@ const buildRequestFromNode = async (
   if (signal) init.signal = signal;
 
   if (shouldReadNodeBody(upperMethod)) {
-    init.body = await readNodeBody(req, options.maxBodyBytes);
+    const { maxBodyBytes } = options;
+    const declaredLength = getContentLength(req);
+    if (maxBodyBytes !== undefined && declaredLength !== null && declaredLength > maxBodyBytes) {
+      // Not destroyed: the 413 is still written, then the connection closes.
+      bodyState.ended = false;
+      throw new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`);
+    }
+    if (declaredLength !== 0) {
+      bodyState.ended = false;
+      init.body = createNodeBodyStream(req, bodyState, maxBodyBytes);
+      // Required by undici (Node's fetch) for a streamed request body.
+      (init as RequestInit & { duplex: 'half' }).duplex = 'half';
+    }
   }
 
   return new Request(url.toString(), init);
@@ -427,18 +516,37 @@ export const createNodeHandler = (
 ): ((req: NodeIncomingMessage, res: NodeServerResponse) => Promise<void>) => {
   return async (req, res) => {
     const signal = trackNodeDisconnect(res);
+    const bodyState: NodeBodyState = { ended: true };
+    // An unread or partly read body is not drained after the response (a
+    // client could stream it forever); close the connection instead.
+    const closeIfBodyUnfinished = (): void => {
+      if (!bodyState.ended) res.setHeader('connection', 'close');
+    };
     try {
       let request: Request;
       try {
-        request = await buildRequestFromNode(req, options, signal);
+        request = await buildRequestFromNode(req, options, signal, bodyState);
       } catch (error) {
         if (error instanceof NodeRequestLimitError) {
+          closeIfBodyUnfinished();
           await writeResponseToNode(new Response(error.message, { status: 413 }), res, signal);
           return;
         }
         throw error;
       }
-      const response = await Promise.resolve(handler(request));
+      let response: Response;
+      try {
+        response = await Promise.resolve(handler(request));
+      } catch (error) {
+        // A chunked body outgrew `maxBodyBytes` while the handler read it.
+        if (isNodeRequestLimitError(error) && !res.headersSent) {
+          const limitError = error instanceof NodeRequestLimitError ? error : error.cause;
+          response = new Response((limitError as Error).message, { status: 413 });
+        } else {
+          throw error;
+        }
+      }
+      closeIfBodyUnfinished();
       await writeResponseToNode(response, res, signal);
     } catch (error) {
       // Never let the returned promise reject: `node:http` ignores it, so a

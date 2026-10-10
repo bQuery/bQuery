@@ -1,0 +1,118 @@
+name: Benchmarks
+
+# Performance regression gate (#217). On a pull request the suite runs against
+# the base commit and the head on the same runner, alternating three times, so
+# the comparison is not skewed by runner-to-runner variance or load drift; the
+# job fails when the best median regresses by more than 20 %. The nightly run records the
+# current numbers of `dev` as an artifact.
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bench:
+    name: Run benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          # PR code runs below; it needs no Git credentials.
+          persist-credentials: false
+          ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 'latest'
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prepare base worktree
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          # Run the head's benchmark definitions against the base sources, so
+          # both sides measure exactly the same scenarios. A benchmark the base
+          # cannot run is recorded as an error, and a base that cannot load the
+          # files at all writes no summary; the comparison skips both.
+          git worktree add ../bench-base "$BASE_SHA"
+          rm -rf ../bench-base/bench
+          cp -R bench ../bench-base/bench
+          ln -s "$PWD/node_modules" ../bench-base/node_modules
+          cp tests/setup.ts ../bench-base/tests/setup.ts
+
+      - name: Benchmark head
+        if: github.event_name != 'pull_request'
+        run: bun run bench --json bench-head.json
+
+      - name: Benchmark base and head
+        if: github.event_name == 'pull_request'
+        run: |
+          # Alternate the two sides three times and compare each benchmark's
+          # middle run: a shared runner's load drifts over a few seconds, so a
+          # single sequential pair can differ by more than the gate, and one
+          # outlier run on either side must not decide it.
+          # Swap which side goes first each round, so a drift in one
+          # direction does not favour the same side every time.
+          run_base() {
+            (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base-$1.json" > /dev/null) || true
+          }
+          run_head() {
+            bun run bench --json "bench-head-$1.json" > /dev/null
+          }
+          for i in 1 2 3; do
+            if [ $((i % 2)) -eq 1 ]; then
+              run_base "$i"
+              run_head "$i"
+            else
+              run_head "$i"
+              run_base "$i"
+            fi
+          done
+
+      - name: Compare with base
+        if: github.event_name == 'pull_request'
+        run: |
+          # Keep the comparator's status so the report reaches the job summary
+          # even when the gate fails.
+          status=0
+          bun scripts/compare-bench.mjs \
+            bench-base-1.json,bench-base-2.json,bench-base-3.json \
+            bench-head-1.json,bench-head-2.json,bench-head-3.json \
+            --threshold 0.2 --markdown bench-report.md || status=$?
+          if [ -f bench-report.md ]; then
+            cat bench-report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$status"
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmarks-${{ github.event_name }}-${{ github.run_id }}
+          path: |
+            bench-*.json
+            bench-report.md
+          if-no-files-found: ignore
+          retention-days: 90

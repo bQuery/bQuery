@@ -1917,13 +1917,14 @@ describe('component/registerDefaultComponents', () => {
     ) as HTMLTextAreaElement | null;
     expect(textarea.shadowRoot?.querySelector('.label')?.textContent).toBe('Notes');
     expect(nextControl).not.toBeNull();
-    expect(nextControl).not.toBe(originalControl);
+    // The re-render restores the label and patches the live control in place.
+    expect(nextControl).toBe(originalControl);
     expect(nextControl?.value).toBe('Updated notes');
 
     textarea.remove();
   });
 
-  it('re-renders input and textarea controls when non-value props change', () => {
+  it('patches input and textarea controls in place when non-value props change', () => {
     const prefix = `rerender${Date.now()}`;
     const tags = registerDefaultComponents({ prefix });
 
@@ -1941,7 +1942,7 @@ describe('component/registerDefaultComponents', () => {
       'input'
     ) as HTMLInputElement | null;
     expect(inputControlAfterLabelUpdate).not.toBeNull();
-    expect(inputControlAfterLabelUpdate).not.toBe(inputControl);
+    expect(inputControlAfterLabelUpdate).toBe(inputControl);
     expect(input.shadowRoot?.textContent).toContain('Full name');
 
     const textarea = document.createElement(tags.textarea);
@@ -1960,7 +1961,7 @@ describe('component/registerDefaultComponents', () => {
       'textarea'
     ) as HTMLTextAreaElement | null;
     expect(textareaControlAfterRowsUpdate).not.toBeNull();
-    expect(textareaControlAfterRowsUpdate).not.toBe(textareaControl);
+    expect(textareaControlAfterRowsUpdate).toBe(textareaControl);
     expect(textareaControlAfterRowsUpdate?.getAttribute('rows')).toBe('6');
 
     input.remove();

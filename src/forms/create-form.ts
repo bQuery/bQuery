@@ -8,6 +8,8 @@ import { isPrototypePollutionKey } from '../core/utils/object';
 import { isPromise } from '../core/utils/type-guards';
 import { computed, effect, signal } from '../reactive/index';
 import type { Signal } from '../reactive/index';
+import { validateWithSchema, type SchemaValidationResult } from './standard-schema';
+import type { StandardSchemaV1 } from './standard-schema';
 import type {
   CrossFieldValidator,
   FieldConfig,
@@ -18,6 +20,8 @@ import type {
   FormField,
   FormFields,
   FormSnapshot,
+  SchemaFormConfig,
+  SchemaFormValues,
   SetFieldValueOptions,
   ValidationResult,
   Validator,
@@ -38,6 +42,8 @@ type FieldRuntime = {
   config: FieldConfig<unknown>;
   parse: (raw: unknown) => unknown;
   format: (value: unknown) => unknown;
+  /** The field's own validators, followed by the schema check when a schema is set. */
+  validators: Validator<unknown>[] | undefined;
   blurCount: Signal<number>;
   consumeSilentNotifyWrite: () => boolean;
   consumeSilentValidationWrite: () => boolean;
@@ -231,7 +237,57 @@ const validateSingleField = async <T>(
  * });
  * ```
  */
-export const createForm = <T extends Record<string, unknown>>(config: FormConfig<T>): Form<T> => {
+export const createForm = <T extends Record<string, unknown>>(config: FormConfig<T>): Form<T> =>
+  createFormFromConfig(config);
+
+/**
+ * Creates a form driven by a [Standard Schema](https://standardschema.dev)
+ * (Zod, Valibot, ArkType, …). The value type is inferred from the schema and
+ * the fields from `initialValues`; the schema validates the whole form value
+ * after each field's own `validators` pass.
+ *
+ * @example
+ * ```ts
+ * import { createSchemaForm } from '@bquery/bquery/forms';
+ * import { z } from 'zod';
+ *
+ * const Signup = z.object({ email: z.string().email(), age: z.number().min(18) });
+ *
+ * const form = createSchemaForm({
+ *   schema: Signup,
+ *   initialValues: { email: '', age: 0 },
+ *   onSubmit: async (values) => api.signup(values), // values: { email: string; age: number }
+ * });
+ * ```
+ */
+export const createSchemaForm = <S extends StandardSchemaV1>(
+  config: SchemaFormConfig<S>
+): Form<SchemaFormValues<S>> =>
+  createFormFromConfig(normalizeSchemaFormConfig(config) as FormConfig<SchemaFormValues<S>>);
+
+/** Expand a schema-driven config (`initialValues`) into per-field configs. */
+const normalizeSchemaFormConfig = <S extends StandardSchemaV1>(
+  config: SchemaFormConfig<S>
+): FormConfig<Record<string, unknown>> => {
+  const extras = (config.fields ?? {}) as Record<string, Partial<FieldConfig<unknown>> | undefined>;
+  const fields: Record<string, FieldConfig<unknown>> = {};
+  for (const [name, initialValue] of Object.entries(config.initialValues ?? {})) {
+    if (isPrototypePollutionKey(name)) continue;
+    fields[name] = { ...extras[name], initialValue };
+  }
+  const { initialValues: _initialValues, ...rest } = config;
+  return { ...(rest as unknown as FormConfig<Record<string, unknown>>), fields };
+};
+
+const shallowEqualValues = (a: Record<string, unknown>, b: Record<string, unknown>): boolean => {
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.is(a[key], b[key]));
+};
+
+const createFormFromConfig = <T extends Record<string, unknown>>(
+  config: FormConfig<T>
+): Form<T> => {
   const fieldEntries = Object.entries(config.fields) as [
     keyof T & string,
     FieldConfig<T[keyof T]>,
@@ -265,6 +321,7 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
       config: fieldConfig as FieldConfig<unknown>,
       parse: (fieldConfig as FieldConfig<unknown>).parse ?? ((raw: unknown) => raw),
       format: (fieldConfig as FieldConfig<unknown>).format ?? ((value: unknown) => value),
+      validators: (fieldConfig as FieldConfig<unknown>).validators,
       blurCount,
       consumeSilentNotifyWrite,
       consumeSilentValidationWrite,
@@ -326,10 +383,64 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
     return values as T;
   };
 
+  // --- Standard Schema ------------------------------------------------------
+
+  const formSchema = config.schema;
+  let schemaCache: {
+    values: Record<string, unknown>;
+    result: Promise<SchemaValidationResult<unknown>>;
+  } | null = null;
+  // Every field validates against the same whole-form value, so one schema run
+  // serves all of them until a value changes. Explicit validate() and
+  // validateField() calls start from a fresh run.
+  const runSchema = (): Promise<SchemaValidationResult<unknown>> => {
+    const values = getValuesUntracked() as Record<string, unknown>;
+    if (schemaCache && shallowEqualValues(schemaCache.values, values)) return schemaCache.result;
+    const result = validateWithSchema(formSchema as StandardSchemaV1, values);
+    const entry = { values, result };
+    schemaCache = entry;
+    // A rejected run (an async refinement's network call failed) must not be
+    // replayed: drop it so the next validation calls the schema again.
+    result.catch(() => {
+      if (schemaCache === entry) schemaCache = null;
+    });
+    return result;
+  };
+  if (formSchema) {
+    for (const name of fieldOrder) {
+      const schemaValidator: Validator<unknown> = async () => {
+        const result = await runSchema();
+        if (result.success) return undefined;
+        return result.issues.find(
+          (issue) => issue.path.length > 0 && String(issue.path[0]) === name
+        )?.message;
+      };
+      runtime[name].validators = [...(runtime[name].validators ?? []), schemaValidator];
+    }
+  }
+  /**
+   * Whether the schema reports an issue that no enabled field displays: one
+   * without a field path, for an unknown field, or for a disabled field (whose
+   * validators are skipped but whose value is still submitted).
+   */
+  const hasUnmappedSchemaIssue = async (): Promise<boolean> => {
+    if (!formSchema) return false;
+    const result = await runSchema();
+    if (result.success) return false;
+    return result.issues.some((issue) => {
+      const name = issue.path.length > 0 ? String(issue.path[0]) : '';
+      if (!Object.prototype.hasOwnProperty.call(runtime, name)) return true;
+      return runtime[name].field.disabled.peek();
+    });
+  };
+
   const validateField = async (name: keyof T & string): Promise<void> => {
     const entry = runtime[name as string];
     if (!entry) return;
-    await validateSingleField(entry.field, entry.config.validators, mode);
+    // An explicit validation re-runs the schema: a value mutated in place
+    // (an array pushed to) still passes the shallow snapshot comparison.
+    schemaCache = null;
+    await validateSingleField(entry.field, entry.validators, mode);
   };
 
   // --- subscribe() ----------------------------------------------------------
@@ -449,12 +560,18 @@ export const createForm = <T extends Record<string, unknown>>(config: FormConfig
 
   const validate = async (): Promise<boolean> => {
     let hasError = false;
+    // One schema run per pass, shared by every field; never one from an
+    // earlier pass, whose values may have been mutated in place since.
+    schemaCache = null;
 
     for (const name of fieldOrder) {
       const entry = runtime[name];
-      const msg = await validateSingleField(entry.field, entry.config.validators, mode);
+      const msg = await validateSingleField(entry.field, entry.validators, mode);
       if (msg) hasError = true;
     }
+
+    // Only await with a schema: an extra tick would delay onSubmit for every form.
+    if (formSchema && (await hasUnmappedSchemaIssue())) hasError = true;
 
     if (config.crossValidators && config.crossValidators.length > 0) {
       const values = getValuesUntracked();

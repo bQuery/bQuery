@@ -1779,11 +1779,12 @@ describe('runtime adapters', () => {
     expect(body).toContain('Request body exceeds 10 bytes.');
   });
 
-  it('createNodeHandler stops buffering once request bodies exceed the configured limit', async () => {
+  it('createNodeHandler stops buffering once a streamed body exceeds the configured limit', async () => {
     let body = '';
     let destroyedWith: Error | undefined;
+    let paused = false;
+    const headers: Record<string, unknown> = {};
     let onData: ((chunk: Uint8Array | string) => void) | undefined;
-    let onEnd: (() => void) | undefined;
     const allocatedSizes: number[] = [];
     const OriginalArrayBuffer = globalThis.ArrayBuffer;
     Object.defineProperty(globalThis, 'ArrayBuffer', {
@@ -1797,8 +1798,8 @@ describe('runtime adapters', () => {
     });
     const res = {
       statusCode: 0,
-      setHeader(_name: string, _value: string | number | readonly string[]) {
-        /* no-op */
+      setHeader(name: string, value: string | number | readonly string[]) {
+        headers[name.toLowerCase()] = value;
       },
       write(chunk: string | Uint8Array) {
         body += typeof chunk === 'string' ? chunk : new TextDecoder().decode(chunk);
@@ -1815,30 +1816,39 @@ describe('runtime adapters', () => {
       destroy(error?: Error) {
         destroyedWith = error;
       },
+      pause() {
+        paused = true;
+      },
       on(
         event: 'data' | 'end' | 'error',
         listener: ((chunk: Uint8Array | string) => void) | (() => void) | ((err: unknown) => void)
       ): NodeIncomingMessage {
         if (event === 'data') onData = listener as (chunk: Uint8Array | string) => void;
-        if (event === 'end') onEnd = listener as () => void;
         return this as NodeIncomingMessage;
       },
     };
     try {
       const wrapped = createNodeHandler(
-        async () => {
-          throw new Error('handler should not run');
+        async (request) => {
+          await request.arrayBuffer();
+          throw new Error('the body read should have failed');
         },
         { maxBodyBytes: 10 }
       );
       const pending = wrapped(req, res);
+      // The body is only read once the handler pulls from it.
+      for (let i = 0; i < 50 && !onData; i++) await Promise.resolve();
+      expect(onData).toBeDefined();
       onData?.(new Uint8Array(11));
       onData?.(new Uint8Array(1024));
-      onEnd?.();
       await pending;
       expect(res.statusCode).toBe(413);
       expect(body).toContain('Request body exceeds 10 bytes.');
-      expect(destroyedWith?.name).toBe('NodeRequestLimitError');
+      // The socket is not destroyed, so the 413 reaches the client; the request
+      // is paused and the connection closes after the response.
+      expect(destroyedWith).toBeUndefined();
+      expect(paused).toBe(true);
+      expect(headers.connection).toBe('close');
       expect(allocatedSizes).not.toContain(1035);
     } finally {
       Object.defineProperty(globalThis, 'ArrayBuffer', {

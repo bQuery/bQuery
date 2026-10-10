@@ -13,13 +13,16 @@
 import { getCurrentScope, isCurrentScopeRendering } from '../component/scope';
 import type { MaybeSignal } from '../reactive/index';
 import { createFieldArray } from './field-array';
-import { createForm } from './create-form';
+import { createForm, createSchemaForm } from './create-form';
 import { useFormField } from './use-field';
+import type { StandardSchemaV1 } from './standard-schema';
 import type {
   FieldArrayConfig,
   Form,
   FormConfig,
   FormFieldArray,
+  SchemaFormConfig,
+  SchemaFormValues,
   UseFormFieldOptions,
   UseFormFieldReturn,
 } from './types';
@@ -61,6 +64,35 @@ const requireScope = (api: string) => {
 export const useForm = <T extends Record<string, unknown>>(config: FormConfig<T>): Form<T> => {
   const scope = requireScope('useForm');
   const form = createForm(config);
+  scope.addDisposer(() => form.destroy());
+  return form;
+};
+
+/**
+ * Scope-aware wrapper around {@link createSchemaForm}.
+ *
+ * Creates a Standard Schema-driven {@link Form} bound to the current component
+ * scope and disposes it when the component disconnects.
+ *
+ * @example
+ * ```ts
+ * component('signup-form', {
+ *   connected() {
+ *     this._form = useSchemaForm({
+ *       schema: Signup,
+ *       initialValues: { email: '', age: 0 },
+ *       onSubmit: async (values) => api.signup(values),
+ *     });
+ *   },
+ *   render() { ... },
+ * });
+ * ```
+ */
+export const useSchemaForm = <S extends StandardSchemaV1>(
+  config: SchemaFormConfig<S>
+): Form<SchemaFormValues<S>> => {
+  const scope = requireScope('useSchemaForm');
+  const form = createSchemaForm(config);
   scope.addDisposer(() => form.destroy());
   return form;
 };

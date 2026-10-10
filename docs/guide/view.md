@@ -591,6 +591,29 @@ Use a custom directive prefix:
 mount('#app', context, { prefix: 'x' });
 ```
 
+## Editor support
+
+The package ships a VS Code [HTML custom data](https://code.visualstudio.com/api/extension-guides/custom-data-extension)
+file for the built-in directives, so `bq-if`, `bq-for`, `bq-model` and the
+rest get completion and hover documentation, and no longer show up as unknown
+attributes. Point the HTML language service at it in `.vscode/settings.json`:
+
+```json
+{
+  "html.customData": ["./node_modules/@bquery/bquery/editor/html-custom-data.json"]
+}
+```
+
+`bq-on:` and `bq-bind:` are offered for common events (`click`, `input`,
+`submit`, …) and attributes (`href`, `disabled`, `value`, …); any other name
+works at runtime. The file describes the default `bq` prefix — a [custom
+prefix](#custom-prefix) gets no completion. Other editors that read the same
+format (for example WebStorm via `web-types`-compatible plugins) can use it too.
+
+The file is generated from the directive registry in the source, and the test
+suite fails when a directive is added without regenerating it
+(`bun run generate:editor-data`), so it cannot drift from the implementation.
+
 ## Expressions
 
 Directives accept JavaScript expressions:
@@ -827,6 +850,8 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 - [Plugin](./plugin) — register custom directives (`tooltip`, `tooltip:arrow`, …).
 
 ## Version history
+
+- **Unreleased (1.18)** — editor IntelliSense: `editor/html-custom-data.json` (VS Code custom data for every built-in directive, generated from the directive registry).
 
 - **1.17.1** — `createTemplate()` templates pass through the `bquery-sanitizer` Trusted Types policy and work under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws).
 - **1.16.0** — per-update work moved to bind time (object-expression parsing, transition resolution, directive parsing memoized, sandbox proxies cached per context); unchanged DOM writes skipped in `bq-text`/`bq-bind`/`bq-model`/`bq-html` (fixes the `bq-model` caret reset); `bq-for` dispatched before other directives on the same element; `bq-once`/`bq-memo`/`bq-init` evaluate untracked; `bq-html` children are no longer directive-bound.

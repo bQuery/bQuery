@@ -729,6 +729,101 @@ If you already have trusted HTML and need to skip sanitization, pass `{ trusted:
 
 `ctx.html()` sanitization needs no DOM. Since 1.17.0, `sanitizeHtml()` falls back to a DOM-free parser when no `DOMParser` is available, so plain Node.js ≥ 24, Deno and Bun sanitize without installing `happy-dom` or `linkedom`. See the [security model](/concepts/security-model).
 
+## Request validation with Standard Schema
+
+`validate(schema)` checks the request against any
+[Standard Schema](https://standardschema.dev) — Zod, Valibot, ArkType, … —
+before the route runs. bQuery does not depend on the library; it calls the
+schema's `~standard.validate()`.
+
+```ts
+import { z } from 'zod';
+import { createServer, validate } from '@bquery/bquery/server';
+
+const Signup = z.object({ email: z.string().email(), age: z.number().min(18) });
+const signup = validate(Signup);
+
+const app = createServer();
+app.post(
+  '/signup',
+  (ctx) => {
+    const { email, age } = signup.data(ctx); // typed as z.output<typeof Signup>
+    return ctx.json({ email, age }, { status: 201 });
+  },
+  [signup]
+);
+```
+
+An invalid request is answered with `400` and
+
+```json
+{
+  "error": "Validation failed",
+  "issues": [{ "message": "Invalid email", "path": ["email"] }]
+}
+```
+
+On success, `signup.data(ctx)` returns the validated value — the schema's
+_output_, so transforms and coercions apply — and for body validation
+`ctx.body()` returns it too. JSON, URL-encoded and multipart bodies are
+supported (multipart fields become a plain object).
+
+| Option      | Default  | Description                                               |
+| ----------- | -------- | --------------------------------------------------------- |
+| `source`    | `'body'` | Validate `'body'`, `'query'` or route `'params'`          |
+| `status`    | `400`    | Status of the default failure response                    |
+| `onInvalid` | —        | `(issues, ctx) => Response` for a custom failure response |
+
+The same schema drives `createForm({ schema })` on the client — see the
+[shared-schema recipe](/cookbook/shared-schema-validation).
+
+## Request body limits
+
+`ctx.body()` enforces a size limit per content type while it streams the body,
+so an oversized request is answered with `413 Payload Too Large` without being
+buffered. Every content type has a default:
+
+| Content type                        | Key         | Default |
+| ----------------------------------- | ----------- | ------- |
+| `application/json`, `*+json`        | `json`      | 1 MiB   |
+| `application/x-www-form-urlencoded` | `form`      | 1 MiB   |
+| `text/*`                            | `text`      | 1 MiB   |
+| `multipart/form-data`               | `multipart` | 10 MiB  |
+| anything else (raw `ArrayBuffer`)   | `raw`       | 1 MiB   |
+
+Override one key and the others keep their default. `Infinity` lifts a limit:
+
+```ts
+const app = createServer({
+  limits: {
+    json: 5 * 1024 * 1024, // 5 MiB API payloads
+    multipart: Infinity, // uploads are capped by the reverse proxy instead
+  },
+});
+```
+
+The body is read exactly once. `ctx.body()` caches its result, and
+`ctx.request` stays readable afterwards: it is rebuilt from the cached bytes
+when you access it. Read `ctx.request` **after** `ctx.body()`; a reference you
+stored before (`const req = ctx.request`) points at the consumed original.
+File-route `load`/`action` handlers are the exception — the `request` they
+receive stays readable either way.
+
+On Node, `app.listen()` streams the request body into the app on demand
+instead of reading it up front, so a route that never calls `ctx.body()` never
+buffers its body. The largest configured limit also caps the transport: a
+larger declared `Content-Length` is answered with `413` before any route runs.
+With an `Infinity` limit the transport cap is lifted too. After a `413`, or
+whenever a route answers without reading the whole body, the response carries
+`Connection: close` and the rest of the body is not read, so a client cannot
+keep the server busy by streaming on.
+
+::: warning Changed in 1.18
+Before 1.18 every limit was unbounded unless configured, and the Node adapter
+read each non-`GET` body completely into memory before the app ran. Set a limit
+to `Infinity` to restore the unbounded behaviour for that content type.
+:::
+
 <!-- uniform-template-footer -->
 
 ## Body parsing, cookies, and streaming (1.14.0 deep-dive)
@@ -814,7 +909,7 @@ When `app.listen()` is unavailable (e.g. edge), use `handle()` / `handleWebSocke
 ## Pitfalls and gotchas
 
 - `params` and `query` are null-prototype dicts — do not rely on inherited methods (`hasOwnProperty`, etc.).
-- Configure `createServer({ limits })` to enforce body size limits _before_ JSON / form parsing to defend against billion-laughs-style attacks.
+- Body limits are on by default (1 MiB, 10 MiB for multipart) and are enforced _before_ JSON / form parsing; raise them per content type with `createServer({ limits })` rather than disabling them.
 - `ctx.setCookie()` validates header-safe characters and rejects malformed values.
 - `ctx.html()` sanitizes by default; pass `{ trusted: true }` only with fully trusted content.
 - The session and CSRF cookies are `__Host-bq.sid` and `__Host-bq.csrf` by default (since 1.17.2), and `bq.sid` / `bq.csrf` with `secure: false`, a custom `path` or a `domain`. Client code that reads the CSRF cookie must use the name that matches its attributes.

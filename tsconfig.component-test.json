@@ -6,6 +6,6 @@
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "bench", "browser"],
   "exclude": ["dist", "node_modules"]
 }

@@ -63,3 +63,9 @@ package-lock.json
 # Generated documentation outputs
 docs/api/
 docs/.vitepress/dist/
+
+# Playwright (browser test lane)
+browser/test-results/
+browser/playwright-report/
+test-results/
+playwright-report/

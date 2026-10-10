@@ -77,11 +77,15 @@ export const BUNDLE_BUDGETS = [
   { subpath: './plugin', gzip: 2700 },
   { subpath: './devtools', gzip: 3600 },
   { subpath: './testing', gzip: 7800 },
-  { subpath: './ssr', gzip: 38600, note: 'Pulls in the view renderer and the HTML parser.' },
+  {
+    subpath: './ssr',
+    gzip: 39100,
+    note: 'Pulls in the view renderer and the HTML parser. The Node adapter streams request bodies on demand with backpressure and abort handling instead of buffering them (+0.5 kB, #255).',
+  },
   {
     subpath: './server',
-    gzip: 41300,
-    note: 'Pulls in the router, SSR and the sanitizer, so it grew with #229 too.',
+    gzip: 41700,
+    note: 'Pulls in the router, SSR and the sanitizer, so it grew with #229 too. Default body limits with single-read bodies (#255) and the Standard Schema validate() middleware (#221) add 1.3 kB.',
   },
 ];
 

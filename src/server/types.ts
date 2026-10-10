@@ -90,8 +90,8 @@ export interface ServerLimits {
   text?: number;
   /**
    * Cap for any other (unrecognized) content type read as a raw `ArrayBuffer`
-   * via `ctx.body()`. Unset means unbounded, so set this when accepting
-   * arbitrary binary uploads to avoid buffering an unbounded body in memory.
+   * via `ctx.body()`. Defaults to 1 MiB; pass `Infinity` to lift it when
+   * accepting large binary uploads.
    */
   raw?: number;
 }

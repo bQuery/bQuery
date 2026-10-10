@@ -123,6 +123,10 @@ export const cleanupDelegatedHandlers = (root: ParentNode, scope?: ComponentScop
   nodes.push(...Array.from(root.querySelectorAll('*')));
 
   const scopedIds = scope ? handlerIdsByScope.get(scope) : undefined;
+  // A scope that never called `on()` owns no handlers. Any IDs below the root
+  // belong to nested components (e.g. a `shadow: false` child whose light DOM
+  // survives a morph re-render) and must not be deleted here.
+  if (scope && !scopedIds) return;
   for (const node of nodes) {
     for (const attr of Array.from(node.attributes)) {
       if (attr.name.startsWith(delegatedAttributePrefix) && attr.value) {
