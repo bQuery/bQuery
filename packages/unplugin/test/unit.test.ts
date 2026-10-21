@@ -49,18 +49,23 @@ describe('adapters', () => {
   });
 
   it('enables views and file routes by default, the rest on demand', () => {
-    expect(names(unpluginFactory({}, { framework: 'rollup' }))).toEqual([
+    expect(names(unpluginFactory({}, { framework: 'rollup', versions: {} }))).toEqual([
       'bquery',
       'bquery:views',
       'bquery:routes',
     ]);
     expect(
-      names(unpluginFactory({ views: false, fileRoutes: false }, { framework: 'vite' }))
+      names(
+        unpluginFactory({ views: false, fileRoutes: false }, { framework: 'vite', versions: {} })
+      )
     ).toEqual(['bquery']);
   });
 
   it('drops the Vite-only csp/ssr features for other bundlers', () => {
-    const plugins = unpluginFactory({ csp: true, ssr: true }, { framework: 'esbuild' });
+    const plugins = unpluginFactory(
+      { csp: true, ssr: true },
+      { framework: 'esbuild', versions: {} }
+    );
     expect(names(plugins)).not.toContain('bquery:csp');
     expect(names(plugins)).not.toContain('bquery:ssr');
   });

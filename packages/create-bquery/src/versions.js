@@ -21,7 +21,7 @@ export const BQUERY_RANGE = `^${BQUERY_VERSION}`;
  */
 export const DEV_DEPENDENCY_RANGES = Object.freeze({
   '@types/node': '^24.0.0',
-  'happy-dom': '^20.14.6',
+  'happy-dom': '^21.0.4',
   typescript: '^6.0.3',
-  vite: '^8.3.4',
+  vite: '^8.3.5',
 });

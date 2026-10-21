@@ -23,7 +23,10 @@ const buildWith = async (project: TempProject, i18n: I18nOptions) => {
 
 /** The i18n sub-plugin plus a minimal Rollup-like hook context. */
 const i18nPlugin = (project: TempProject, i18n: I18nOptions) => {
-  const plugins = unpluginFactory({ root: project.root, i18n }, { framework: 'rollup' });
+  const plugins = unpluginFactory(
+    { root: project.root, i18n },
+    { framework: 'rollup', versions: {} }
+  );
   const plugin = plugins.find((p) => p.name === 'bquery:i18n')!;
   const warnings: string[] = [];
   const context = { warn: (msg: string) => warnings.push(msg) };
