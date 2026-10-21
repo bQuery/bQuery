@@ -5,7 +5,13 @@
 import { isPrototypePollutionKey } from '../core/utils/object';
 import { createStore } from './create-store';
 import { isDev } from './utils';
-import type { PersistedStoreOptions, StorageBackend, Store, StoreDefinition } from './types';
+import type {
+  EmptyStoreRecord,
+  PersistedStoreOptions,
+  StorageBackend,
+  Store,
+  StoreDefinition,
+} from './types';
 
 /** @internal Version key suffix */
 const VERSION_SUFFIX = '__version';
@@ -95,9 +101,9 @@ const getDefaultStorage = (): StorageBackend | undefined => {
  */
 export const createPersistedStore = <
   S extends Record<string, unknown>,
-  G extends Record<string, unknown> = Record<string, never>,
+  G extends Record<string, unknown> = EmptyStoreRecord,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- actions may declare specific parameter types
-  A extends Record<string, (...args: any[]) => any> = Record<string, never>,
+  A extends Record<string, (...args: any[]) => any> = EmptyStoreRecord,
 >(
   definition: StoreDefinition<S, G, A>,
   options?: PersistedStoreOptions | string
