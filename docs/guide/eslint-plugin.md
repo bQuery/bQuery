@@ -10,6 +10,8 @@
 | [`no-value-in-untracked`](#no-value-in-untracked)       | `warn`      | suggestion | `.value` reads in `untrack()` / `watch()` callbacks               |
 | [`prefer-subpath-imports`](#prefer-subpath-imports)     | `warn`      | autofix    | Imports from the root entry instead of `@bquery/bquery/<module>`  |
 
+The plugin is developed in its own repository, [bQuery/eslint-plugin](https://github.com/bQuery/eslint-plugin); report issues there.
+
 All rules follow imports: they only fire for functions imported from `@bquery/bquery`, its module subpaths or `@bquery/bquery/full` (named, renamed or namespace imports). A local function that happens to be called `$` or `trusted` is ignored.
 
 ## Installation
@@ -226,8 +228,4 @@ import { component } from '@bquery/bquery/component';
 import { signal, type Signal } from '@bquery/bquery/reactive';
 ```
 
-The export → subpath map ships with the plugin and is generated from bQuery's module barrels. In the bQuery repository, regenerate it after changing a public export:
-
-```sh
-bun packages/eslint-plugin/scripts/generate-export-map.mjs
-```
+The export → subpath map ships with the plugin and is generated from the export map and module entries of the published `@bquery/bquery`. The plugin repository regenerates it for each bQuery release (`bun run generate:export-map`), and its CI fails when the map is stale.

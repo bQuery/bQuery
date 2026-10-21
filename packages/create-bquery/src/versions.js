@@ -5,7 +5,11 @@
  * is stored here. `test/versions.test.ts` fails when it drifts from the root
  * `package.json`, and when the dev-dependency ranges drift from the ones the
  * repository itself is tested with. Templates only use APIs that exist in
- * `BQUERY_VERSION`.
+ * `BQUERY_VERSION` — which, being the root version, is the release that ships
+ * this copy of the scaffolder. `@bquery/bquery` carries it as the
+ * `create-bquery` bin, so the two always come out together; the standalone
+ * package's `prepublishOnly` (`scripts/check-release.js`) refuses to publish
+ * before that release is on npm.
  */
 
 /** The bQuery release the templates are written against (exact, for CDN URLs). */

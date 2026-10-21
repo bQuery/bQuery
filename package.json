@@ -178,13 +178,17 @@
     "!dist/**/*.cjs.map",
     "src",
     "bin",
+    "packages/create-bquery/templates",
+    "packages/create-bquery/package.json",
+    "packages/create-bquery/src",
     "editor",
     "README.md",
     "LICENSE.md"
   ],
   "bin": {
     "bquery-view-compile": "bin/bquery-view-compile.mjs",
-    "bquery-i18n": "bin/bquery-i18n.mjs"
+    "bquery-i18n": "bin/bquery-i18n.mjs",
+    "create-bquery": "bin/create-bquery.mjs"
   },
   "sideEffects": false,
   "scripts": {
@@ -284,7 +288,6 @@
     "storybook": "^10.6.3",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
-    "unplugin": "^3.4.0",
     "vite": "^8.3.5",
     "vitepress": "^1.6.4"
   }

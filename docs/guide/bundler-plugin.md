@@ -1,8 +1,10 @@
 # Bundler Plugin
 
 > **Status:** new, `0.1.0`. Ships as a separate, optional package,
-> `@bquery/unplugin`. bQuery itself stays zero-build: nothing on this page is
-> needed to use the library from a CDN or without a bundler.
+> `@bquery/unplugin`, developed in its own repository,
+> [bQuery/unplugin](https://github.com/bQuery/unplugin). bQuery itself stays
+> zero-build: nothing on this page is needed to use the library from a CDN or
+> without a bundler.
 
 `@bquery/unplugin` connects bQuery's build-time tools to your bundler. It is
 built on [unplugin](https://unplugin.unjs.io/): one implementation, with

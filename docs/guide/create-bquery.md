@@ -12,6 +12,16 @@ npm create bquery@latest my-app
 The scaffolder has no dependencies of its own; it only copies files. Nothing
 is installed until you run your package manager in the new project.
 
+`@bquery/bquery` ships the same scaffolder as its `create-bquery` command, so
+once bQuery is installed — globally or in an existing project — you can run
+it without fetching anything:
+
+```bash
+npx create-bquery my-app --template spa
+```
+
+The bundled copy is always the one written for the installed bQuery release.
+
 ## Usage
 
 Run it with the package manager you use — the printed next steps follow it:
