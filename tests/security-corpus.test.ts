@@ -116,12 +116,12 @@ const canonical = (html: string): string =>
     .replace(/&#x60;/g, '`');
 
 describe('property-based: random tag and attribute soup (#230)', () => {
-  // The two `sanitizeHtml()` backends. Fixed seeds keep runs reproducible; bump
-  // CASES locally (or add seeds) to search harder.
+  // All three sanitizer paths. Fixed seeds keep runs reproducible; bump CASES
+  // locally (or add seeds) to search harder.
   const SEEDS = [0x5eed, 0xb0e, 0x230];
   const CASES = 150;
 
-  for (const [name, sanitize] of SANITIZERS.slice(0, 2)) {
+  for (const [name, sanitize] of SANITIZERS) {
     for (const seed of SEEDS) {
       it(`${name}: output is never executable and a second pass is stable (seed ${seed})`, () => {
         const random = createRandom(seed);

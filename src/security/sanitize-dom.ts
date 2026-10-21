@@ -142,6 +142,29 @@ const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
 
 /**
+ * Elements whose content a browser parses as text (RCDATA or raw text), so
+ * they can never have element children there. A DOM that builds element
+ * children for them anyway (happy-dom does for `<textarea>` and `<title>`)
+ * serializes those children as markup, and a browser that re-parses the
+ * output ends the element at the first `</textarea>` inside an attribute
+ * value — mutation XSS that the double parse below cannot see, because the
+ * same DOM produces both parses. Their element children are dropped.
+ * @internal
+ */
+const TEXT_ONLY_ELEMENTS = new Set([
+  'textarea',
+  'title',
+  'xmp',
+  'iframe',
+  'noembed',
+  'noframes',
+  'noscript',
+  'plaintext',
+  'script',
+  'style',
+]);
+
+/**
  * The text of a subtree, minus the elements whose content is not prose.
  *
  * `Node.textContent` would do this in one property read, but it includes the
@@ -217,6 +240,10 @@ export const sanitizeHtmlDom = (html: string, options: SanitizeOptions = {}): st
     if (!policy.allowedTags.has(tagName)) {
       toRemove.push(el);
       continue;
+    }
+
+    if (TEXT_ONLY_ELEMENTS.has(tagName)) {
+      for (const child of Array.from(el.children)) toRemove.push(child);
     }
 
     // Process attributes against the shared policy
