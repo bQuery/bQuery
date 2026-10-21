@@ -148,7 +148,7 @@ Replace the body of the page with:
 <main id="app">
   <h1>Notes</h1>
 
-  <form bq-on:submit="$event.preventDefault(); addNote()">
+  <form bq-on:submit.prevent="addNote()">
     <input bq-model="draft" placeholder="Write a note…" autocomplete="off" />
     <button type="submit" bq-bind:disabled="!draft.trim()">Add</button>
   </form>
@@ -196,6 +196,7 @@ What changed:
 
 - `mount('#app', context)` walks the DOM under `#app` and wires up every `bq-*` directive against the context object.
 - `bq-model` does two-way binding to a signal (no `.value` in the template — the view evaluates expressions in the context's scope).
+- `bq-on:submit.prevent` calls `event.preventDefault()` before running the handler, so the form never reloads the page. (Handlers can also be a `;`-separated statement list, e.g. `$event.preventDefault(); addNote()` — see [View › bq-on](./view.md#bq-on-event).)
 - `bq-for="note in notes"` with `:key="note.id"` enables **keyed reconciliation** so reordering or removing items moves existing DOM nodes instead of recreating them.
 - Inline expressions like `bq-bind:disabled="!draft.trim()"` are first-class — the view re-evaluates them whenever any signal they read changes.
 - `bq-text` writes to `textContent`, so user input is never interpreted as HTML.
@@ -347,7 +348,7 @@ mount('#app', { composer, store: notesStore });
 ```
 
 ```html
-<form bq-on:submit="$event.preventDefault(); composer.handleSubmit()">
+<form bq-on:submit.prevent="composer.handleSubmit()">
   <input bq-model="composer.fields.text.value" placeholder="Write a note…" />
   <p bq-error="composer.fields.text" class="error-text"></p>
 

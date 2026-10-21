@@ -301,7 +301,7 @@ mount('#login-form', { form });
 ```html
 <form
   id="login-form"
-  bq-on:submit="$event.preventDefault(); void form.handleSubmit().catch((error) => console.error('Login submission failed', error))"
+  bq-on:submit.prevent="void form.handleSubmit().catch((error) => console.error('Login submission failed', error))"
 >
   <div>
     <label>Email</label>

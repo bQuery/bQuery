@@ -135,6 +135,76 @@ describe('compileExpression — conservative bail-outs (#138)', () => {
   });
 });
 
+describe('compileExpression — bq-on statement lists', () => {
+  it('joins `;`-separated statements with the comma operator', () => {
+    const r = compileExpression('$event.preventDefault(); add();', { statements: true });
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.code).toBe('(__bq_ctx) => ((__bq_ctx.$event.preventDefault()), (__bq_ctx.add()))');
+
+    const calls: string[] = [];
+    let prevented = false;
+    const result = instantiate(r.code)({
+      $event: { preventDefault: () => (prevented = true) },
+      add: () => (calls.push('add'), 'last'),
+    });
+    expect(prevented).toBe(true);
+    expect(calls).toEqual(['add']);
+    expect(result).toBe('last');
+  });
+
+  it('does not split inside strings or calls', () => {
+    const r = compileExpression("log('a;b'); log(join(xs, ';'))", { statements: true });
+    if (!r.ok) throw new Error(r.reason);
+    const calls: string[] = [];
+    instantiate(r.code)({
+      log: (s: string) => calls.push(s),
+      join: (xs: string[], sep: string) => xs.join(sep),
+      xs: ['c', 'd'],
+    });
+    expect(calls).toEqual(['a;b', 'c;d']);
+  });
+
+  it('stays expression-only without the option and bails on unsupported statements', () => {
+    expect(compileExpression('a(); b()').ok).toBe(false);
+    expect(compileExpression('if (a) b(); c()', { statements: true }).ok).toBe(false);
+    expect(compileExpression(';;', { statements: true }).ok).toBe(false);
+    expect(
+      compileExpression("a(); x.constructor.constructor('1')()", { statements: true }).ok
+    ).toBe(false);
+  });
+
+  it('compiles bq-on statement lists in templates and runs them without the runtime path', () => {
+    const template =
+      '<form bq-on:submit="$event.preventDefault(); add()"><p bq-text="a; b"></p></form>';
+    const { expressions, stats } = compileViews(template);
+    expect(expressions['$event.preventDefault(); add()']).toBeDefined();
+    // Other directives stay expression-only.
+    expect(stats.skipped.some((s) => s.expression === 'a; b')).toBe(true);
+
+    const source = '$event.preventDefault(); add()';
+    let compiledRan = false;
+    const fn = instantiate(expressions[source]);
+    registerCompiledExpressions({
+      [source]: (ctx) => {
+        compiledRan = true;
+        return fn(ctx);
+      },
+    });
+    const root = document.createElement('div');
+    root.innerHTML = '<form bq-on:submit="$event.preventDefault(); add()"></form>';
+    document.body.appendChild(root);
+    let added = 0;
+    const view = mount(root, { add: () => added++ });
+    const event = new Event('submit', { cancelable: true });
+    root.querySelector('form')!.dispatchEvent(event);
+    expect(compiledRan).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+    expect(added).toBe(1);
+    view.destroy();
+    root.remove();
+  });
+});
+
 describe('compileViews — template walking (#138)', () => {
   it('collects expressions, mirrors directive eval strategies, and reports skips', () => {
     const template = `

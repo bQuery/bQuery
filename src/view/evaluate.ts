@@ -66,6 +66,9 @@ const evaluateCache = new LRUCache(MAX_CACHE_SIZE);
 /** LRU cache for compiled evaluateRaw functions, keyed by expression string */
 const evaluateRawCache = new LRUCache(MAX_CACHE_SIZE);
 
+/** LRU cache for compiled `bq-on` statement lists, keyed by source */
+const statementsCache = new LRUCache(MAX_CACHE_SIZE);
+
 /**
  * Registry of ahead-of-time compiled expression functions, seeded by the
  * optional `@bquery/bquery/view/compiler` build step. Entries here take
@@ -134,6 +137,7 @@ export const clearCompiledExpressions = (): void => {
 export const clearExpressionCache = (): void => {
   evaluateCache.clear();
   evaluateRawCache.clear();
+  statementsCache.clear();
 };
 
 /**
@@ -254,6 +258,25 @@ const createHardenedContext = (context: BindingContext): BindingContext => {
 };
 
 /**
+ * Compiles a `with`-scoped function from `body`, or returns {@link BLOCKED_FN}
+ * (logging why) when `expression` accesses constructor/prototype/__proto__ as
+ * a member: identifier shadowing alone does not stop
+ * `foo.constructor.constructor('…')()` reaching the Function constructor
+ * through any reachable object.
+ * @internal
+ */
+const compileGuarded = (expression: string, body: string): CompiledFn => {
+  if (hasDangerousMemberAccess(expression)) {
+    console.error(
+      `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
+    );
+    return BLOCKED_FN;
+  }
+  // `new Function()` runs in non-strict mode, so `with` is allowed.
+  return new Function('$ctx', `with($ctx) { ${body} }`) as CompiledFn;
+};
+
+/**
  * Evaluates an expression in the given context using `new Function()`.
  *
  * Signals and computed values in the context are lazily unwrapped only when
@@ -282,26 +305,13 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
     // Use cached function or compile and cache a new one
     let fn = evaluateCache.get(expression);
     if (!fn) {
-      // Block member access to constructor/prototype/__proto__: identifier
-      // shadowing alone does not stop `foo.constructor.constructor('…')()`
-      // reaching the Function constructor through any reachable object.
-      if (hasDangerousMemberAccess(expression)) {
-        console.error(
-          `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
-        );
-        fn = BLOCKED_FN;
-      } else {
-        // Use `with` to enable direct property access from proxy scope.
-        // Note: `new Function()` runs in non-strict mode, so `with` is allowed.
-        fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
-          ctx: BindingContext
-        ) => unknown;
-      }
+      // `with` enables direct property access from the lazy proxy scope.
+      fn = compileGuarded(expression, `return (${expression});`);
       evaluateCache.set(expression, fn);
     }
     return fn(lazyContext) as T;
   } catch (error) {
-    console.error(`bQuery view: Error evaluating "${expression}"`, error);
+    reportEvaluationError(expression, error);
     return undefined as T;
   }
 };
@@ -325,28 +335,134 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
     // Use cached function or compile and cache a new one
     let fn = evaluateRawCache.get(expression);
     if (!fn) {
-      // Block member access to constructor/prototype/__proto__ — see evaluate().
-      if (hasDangerousMemberAccess(expression)) {
-        console.error(
-          `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
-        );
-        fn = BLOCKED_FN;
-      } else {
-        // Use `with` to enable direct property access from context scope.
-        // Unlike `evaluate`, we don't unwrap signals — but we still wrap the
-        // context in a hardened proxy so `with` cannot resolve inherited
-        // prototype members (e.g. `constructor.constructor`).
-        fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
-          ctx: BindingContext
-        ) => unknown;
-      }
+      // Unlike `evaluate`, signals are not unwrapped — but the context is still
+      // wrapped in a hardened proxy (below) so `with` cannot resolve inherited
+      // prototype members (e.g. `constructor.constructor`).
+      fn = compileGuarded(expression, `return (${expression});`);
       evaluateRawCache.set(expression, fn);
     }
     return fn(createHardenedContext(context)) as T;
   } catch (error) {
-    console.error(`bQuery view: Error evaluating "${expression}"`, error);
+    reportEvaluationError(expression, error);
     return undefined as T;
   }
+};
+
+/**
+ * Splits `input` at every top-level `separator` character, skipping separators
+ * inside quoted strings, template literals (including nested `${…}`
+ * substitutions), and `()`/`[]`/`{}` nesting. Returns the trimmed, non-empty
+ * parts, so empty segments (`a;;b`, a trailing `;`) are dropped.
+ *
+ * Shared by the object-syntax parser (`,`) and `bq-on` statement lists (`;`).
+ * Regular-expression literals are not recognised, so a separator inside a
+ * top-level regex literal is still split on — wrap such a regex in a call.
+ * @internal
+ */
+export const splitTopLevel = (input: string, separator: string): string[] => {
+  const parts: string[] = [];
+  // Open brackets, plus '`' while inside a template literal body.
+  const stack: string[] = [];
+  let quote = '';
+  let start = 0;
+
+  for (let i = 0; i < input.length; i++) {
+    const char = input[i];
+    const top = stack[stack.length - 1];
+    if (quote) {
+      // Inside a quoted string: skip escaped characters, find the end.
+      if (char === '\\') i++;
+      else if (char === quote) quote = '';
+    } else if (top === '`') {
+      // Inside a template body: `${` opens a nested expression.
+      if (char === '\\') i++;
+      else if (char === '`') stack.pop();
+      else if (char === '$' && input[i + 1] === '{') {
+        stack.push('{');
+        i++;
+      }
+    } else if (char === '"' || char === "'") {
+      quote = char;
+    } else if (char === '`' || char === '(' || char === '[' || char === '{') {
+      stack.push(char);
+    } else if (char === ')' || char === ']' || char === '}') {
+      stack.pop();
+    } else if (char === separator && stack.length === 0) {
+      parts.push(input.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(input.slice(start));
+
+  return parts.map((part) => part.trim()).filter(Boolean);
+};
+
+/**
+ * Statement keywords that cannot follow `return` — a final `bq-on` statement
+ * starting with one is run as a statement and the handler returns `undefined`.
+ */
+const STATEMENT_START = /^(?:if|else|for|while|do|switch|try|throw|return|var|let|const)\b/;
+
+/**
+ * Evaluates a `bq-on` handler: a `;`-separated list of statements (like Vue's
+ * inline handlers), e.g. `$event.preventDefault(); add()`. Statements run in
+ * order and the value of the last one is returned. Separators inside strings,
+ * template literals and brackets do not split, a trailing `;` and empty
+ * statements are ignored, and a single expression behaves exactly like
+ * {@link evaluateRaw} (signals are not unwrapped).
+ *
+ * The dangerous-member-access guard applies to the whole source, so a blocked
+ * access in any statement blocks the handler. Ahead-of-time compiled entries
+ * (registered under the full source) take precedence, as in {@link evaluateRaw}.
+ *
+ * @security **WARNING:** Uses dynamic code execution. See {@link evaluate} for security notes.
+ * @internal
+ */
+export const evaluateStatements = <T = unknown>(source: string, context: BindingContext): T => {
+  try {
+    const compiled = compiledRegistry.get(source);
+    if (compiled) {
+      return compiled(context) as T;
+    }
+
+    let fn = statementsCache.get(source);
+    if (!fn) {
+      const statements = splitTopLevel(source, ';');
+      if (statements.length < 2 && !STATEMENT_START.test(statements[0] ?? '')) {
+        // No statement list: identical to a plain expression (same cache,
+        // same compiled-registry lookup, same error reporting).
+        const expression = statements[0] === source.trim() ? source : (statements[0] ?? '');
+        fn = (ctx) => (expression ? evaluateRaw(expression, ctx) : undefined);
+      } else {
+        const last = statements.pop() as string;
+        const tail = STATEMENT_START.test(last) ? `${last};` : `return (${last});`;
+        // The guard checks the whole source, so it covers every statement.
+        const body = compileGuarded(source, `${statements.join(';\n')};\n${tail}`);
+        fn = (ctx) => body(createHardenedContext(ctx));
+      }
+      statementsCache.set(source, fn);
+    }
+    return fn(context) as T;
+  } catch (error) {
+    console.error(`bQuery view: Error evaluating "${source}"`, error);
+    return undefined as T;
+  }
+};
+
+/**
+ * Logs a runtime evaluation error, pointing at `bq-on` when the expression is
+ * a `;`-separated statement list (only event handlers accept those).
+ * @internal
+ */
+const reportEvaluationError = (expression: string, error: unknown): void => {
+  console.error(
+    `bQuery view: Error evaluating "${expression}"${
+      splitTopLevel(expression, ';').length > 1
+        ? ' — ";"-separated statements are only supported in bq-on event handlers'
+        : ''
+    }`,
+    error
+  );
 };
 
 /**
@@ -388,61 +504,7 @@ export const parseObjectExpression = (expression: string): Record<string, string
   if (!inner) return result;
 
   // Split by comma at depth 0, respecting strings and nesting
-  const parts: string[] = [];
-  let current = '';
-  let depth = 0;
-  let inString: string | null = null;
-
-  for (let i = 0; i < inner.length; i++) {
-    const char = inner[i];
-
-    // Handle string literals: count consecutive backslashes before a quote
-    // to correctly distinguish escaped quotes from end-of-string
-    if (char === '"' || char === "'" || char === '`') {
-      let backslashCount = 0;
-      let j = i - 1;
-      while (j >= 0 && inner[j] === '\\') {
-        backslashCount++;
-        j--;
-      }
-      // Quote is escaped only if preceded by an odd number of backslashes
-      if (backslashCount % 2 === 0) {
-        if (inString === null) {
-          inString = char;
-        } else if (inString === char) {
-          inString = null;
-        }
-      }
-      current += char;
-      continue;
-    }
-
-    // Skip if inside string
-    if (inString !== null) {
-      current += char;
-      continue;
-    }
-
-    // Track nesting depth for parentheses, brackets, and braces
-    if (char === '(' || char === '[' || char === '{') {
-      depth++;
-      current += char;
-    } else if (char === ')' || char === ']' || char === '}') {
-      depth--;
-      current += char;
-    } else if (char === ',' && depth === 0) {
-      // Top-level comma - split point
-      parts.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  // Add the last part
-  if (current.trim()) {
-    parts.push(current.trim());
-  }
+  const parts = splitTopLevel(inner, ',');
 
   // Parse each part to extract key and value
   for (const part of parts) {

@@ -127,12 +127,17 @@ export const compileViews = (template: string, options: CompileOptions = {}): Co
   const seen = new Set<string>();
   let total = 0;
 
-  for (const { expression } of found) {
+  for (const { directive, expression } of found) {
     if (seen.has(expression)) continue;
     seen.add(expression);
     total++;
 
-    const result = compileExpression(expression, { globals: options.globals });
+    // `bq-on` handlers accept `;`-separated statement lists; every other
+    // directive stays expression-only, exactly as at runtime.
+    const result = compileExpression(expression, {
+      globals: options.globals,
+      statements: directive === 'on',
+    });
     if (result.ok) {
       expressions[expression] = result.code;
     } else {
