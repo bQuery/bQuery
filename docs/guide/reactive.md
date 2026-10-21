@@ -493,6 +493,15 @@ example), and `undefined` when the body is empty. A body that cannot be read
 or parsed never replaces the `HttpError`. Response error interceptors and
 `retry.retryOn` see the same `data`.
 
+Reading the error body is bounded so a broken endpoint cannot stall the
+rejection or the retries: at most 1 MiB is read, within the remaining
+`timeout` of the request — or 5 seconds when no `timeout` is set — and the
+read stops as soon as the request's `signal` aborts. A body that is larger,
+slower or aborted is cancelled and leaves `data` as `undefined`; the
+`HttpError` keeps its `ERR_BAD_RESPONSE` code and status either way.
+`onDownloadProgress` reports successful bodies only, and with
+`parseAs: 'response'` the unread `Response` is passed through as `data`.
+
 ```ts
 try {
   await api.post('/notes', note);

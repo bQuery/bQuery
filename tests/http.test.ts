@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it } from 'bun:test';
+import { errorBodyLimits } from '../src/reactive/http';
 import {
   createHttp,
   http,
@@ -496,6 +497,142 @@ describe('HttpError', () => {
       await expect(api.get('/notes')).rejects.toBeInstanceOf(HttpError);
       expect(seenByRetry).toEqual([{ errors: { title: 'Taken' } }, { errors: { title: 'Taken' } }]);
       expect(seenByInterceptor).toEqual({ errors: { title: 'Taken' } });
+    });
+
+    describe('limits', () => {
+      const defaults = { ...errorBodyLimits };
+      afterEach(() => Object.assign(errorBodyLimits, defaults));
+
+      /** A body that sends `chunk` once (or forever with `endless`) and never closes. */
+      const openStream = (chunk = '{"partial":', endless = false) => {
+        const state = { cancelled: false, pulls: 0 };
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            if (!endless) controller.enqueue(new TextEncoder().encode(chunk));
+          },
+          pull(controller) {
+            if (!endless) return new Promise<void>(() => undefined);
+            state.pulls++;
+            controller.enqueue(new TextEncoder().encode(chunk));
+          },
+          cancel() {
+            state.cancelled = true;
+          },
+        });
+        return { stream, state };
+      };
+
+      it('rejects when an error body never ends and the request has no timeout', async () => {
+        errorBodyLimits.timeout = 20;
+        const states: Array<{ cancelled: boolean }> = [];
+        const seenByRetry: unknown[] = [];
+        const started = Date.now();
+        const respond = () => {
+          const { stream, state } = openStream();
+          states.push(state);
+          return new Response(stream, { status: 503 });
+        };
+        const error = await rejectWith(respond, {
+          retry: {
+            count: 1,
+            delay: 0,
+            retryOn: (err) => {
+              seenByRetry.push(err.response?.data);
+              return true;
+            },
+          },
+        });
+        expect(Date.now() - started).toBeLessThan(1000);
+        expect(error.code).toBe('ERR_BAD_RESPONSE');
+        expect(error.response?.status).toBe(503);
+        expect(error.response?.data).toBeUndefined();
+        expect(seenByRetry).toEqual([undefined, undefined]);
+        expect(states.map((state) => state.cancelled)).toEqual([true, true]);
+      });
+
+      it('stops at the request timeout while reading the error body', async () => {
+        const { stream, state } = openStream();
+        const started = Date.now();
+        const error = await rejectWith(() => new Response(stream, { status: 500 }), {
+          timeout: 30,
+        });
+        expect(Date.now() - started).toBeLessThan(1000);
+        expect(error.code).toBe('ERR_BAD_RESPONSE');
+        expect(error.response?.data).toBeUndefined();
+        expect(state.cancelled).toBe(true);
+      });
+
+      it('drops an error body larger than the cap and cancels the stream', async () => {
+        errorBodyLimits.maxBytes = 64;
+        const { stream, state } = openStream('x'.repeat(16), true);
+        const error = await rejectWith(() => new Response(stream, { status: 500 }));
+        expect(error.code).toBe('ERR_BAD_RESPONSE');
+        expect(error.response?.data).toBeUndefined();
+        expect(state.cancelled).toBe(true);
+        expect(state.pulls).toBeLessThan(10);
+      });
+
+      it('keeps an error body at the cap', async () => {
+        errorBodyLimits.maxBytes = 16;
+        const error = await rejectWith(() => new Response('"0123456789abcd"', { status: 400 }));
+        expect(error.response?.data).toBe('0123456789abcd');
+      });
+
+      it('rejects promptly when the signal aborts during the error-body read', async () => {
+        const controller = new AbortController();
+        const { stream, state } = openStream();
+        setTimeout(() => controller.abort(), 20);
+        const started = Date.now();
+        const error = await rejectWith(() => new Response(stream, { status: 500 }), {
+          signal: controller.signal,
+        });
+        expect(Date.now() - started).toBeLessThan(1000);
+        expect(error.code).toBe('ERR_BAD_RESPONSE');
+        expect(error.response?.status).toBe(500);
+        expect(error.response?.data).toBeUndefined();
+        expect(state.cancelled).toBe(true);
+      });
+
+      it('does not report download progress for an error body', async () => {
+        const progress: number[] = [];
+        const onDownloadProgress = (event: { loaded: number }) => progress.push(event.loaded);
+        const error = await rejectWith(
+          () =>
+            new Response(JSON.stringify({ message: 'nope' }), {
+              status: 400,
+              headers: { 'content-type': 'application/json' },
+            }),
+          { onDownloadProgress }
+        );
+        expect(error.response?.data).toEqual({ message: 'nope' });
+        expect(progress).toEqual([]);
+
+        const api = createHttp({
+          onDownloadProgress,
+          fetcher: asMockFetch(async () => new Response('{"ok":true}', { status: 200 })),
+        });
+        await api.get('/ok');
+        expect(progress.length).toBeGreaterThan(0);
+      });
+
+      it('falls back to the body methods when the response has no readable stream', async () => {
+        errorBodyLimits.timeout = 20;
+        const fake = (text: () => Promise<string>) =>
+          ({
+            status: 500,
+            statusText: 'Internal Server Error',
+            headers: new Headers(),
+            body: null,
+            text,
+          }) as unknown as Response;
+
+        const error = await rejectWith(() => fake(async () => 'boom'));
+        expect(error.response?.data).toBe('boom');
+
+        const hung = await rejectWith(() => fake(() => new Promise<string>(() => undefined)));
+        expect(hung.code).toBe('ERR_BAD_RESPONSE');
+        expect(hung.response?.data).toBeUndefined();
+      });
     });
   });
 });
