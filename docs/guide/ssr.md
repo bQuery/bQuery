@@ -460,7 +460,7 @@ hydrateMount('#app', { title: 'Welcome' }, { hydrate: true });
 - `globalKey` can be customized when integrating with existing server frameworks (e.g., Express, Hono, Elysia).
 - Hydration reuses existing markup and attaches view bindings instead of replacing the DOM wholesale.
 - `renderToString()` automatically falls back to the DOM-free renderer when no `DOMParser` is available; only explicitly forcing the DOM backend requires a custom DOM implementation such as `happy-dom` or `linkedom`.
-- Full-page templates keep their `<!DOCTYPE html>` and their `<html>`, `<head>` and `<body>` elements. The doctype is re-emitted as `<!DOCTYPE html>` (keyword case kept), never copied verbatim, and only counts at the very start of the template. Legacy doctypes with `PUBLIC`/`SYSTEM` identifiers, other doctypes and processing instructions are dropped.
+- Full-page templates keep their `<!DOCTYPE html>` and their `<html>`, `<head>` and `<body>` elements. The doctype counts when only whitespace, a BOM or comments come before it, and is then emitted first. It is rebuilt as `<!DOCTYPE html>` (keyword case kept), never copied verbatim: a legacy `html` doctype with `PUBLIC`/`SYSTEM` identifiers becomes `<!DOCTYPE html>` too, without its identifiers. Other doctypes and processing instructions are dropped.
 - Prototype-pollution keys (`__proto__`, `constructor`, `prototype`) are filtered during serialization.
 
 ---
@@ -484,7 +484,7 @@ configureSSR({ backend: 'dom', documentImpl: { DOMParser } });
 // Default ('auto') uses DOM if available, otherwise the pure renderer.
 ```
 
-Templates that are whole documents — a leading doctype, or a template that starts with `<html>`, `<head>` or `<body>` — always use the pure renderer, whatever the backend: `DOMParser` files a document's wrappers away where a fragment render cannot keep them. A page therefore renders the same with or without a DOM installed (for example under happy-dom in tests).
+Templates that are whole documents — a leading doctype, or a template that starts with `<html>`, `<head>` or `<body>` (leading whitespace and comments aside) — always use the pure renderer, whatever the backend: `DOMParser` files a document's wrappers away where a fragment render cannot keep them. A page therefore renders the same with or without a DOM installed (for example under happy-dom in tests).
 
 The pure renderer is CSP-safe: it never calls `eval` or `new Function()` and parses expressions through a tightly-scoped Pratt parser supporting property access (`a.b`, `a?.b`, `a[0]`), comparisons, ternary, `&&`/`||`/`??`, unary `!`/`+`/`-`/`typeof`, function calls on context-bound functions and basic arithmetic.
 
@@ -571,6 +571,8 @@ const stream = renderToStream(
   }
 );
 ```
+
+In a full-page template (a doctype, or an `<html>`/`<head>`/`<body>` root) the boundaries necessarily sit inside `<body>`. Such a page is rendered once and its output split at the boundaries, so a boundary may sit inside any element (just not inside a tag or attribute) and the chunks join up to the `renderToStringAsync()` output less the markers: `</body></html>` closes once, in the last chunk, and the head output and store-state script are injected once. A boundary inside a `bq-for` or `bq-if` element is repeated or dropped with it.
 
 ### `createSSRMetrics()`
 
@@ -779,7 +781,7 @@ Recovery is boundary-scoped (per directive-bearing element), never whole-documen
 
 ## Suspense out-of-order streaming
 
-`renderToStreamSuspense()` flushes the synchronous shell first (with each `defer(...)` value's fallback), then streams `<template id="bq-r-N">…</template>` + a tiny CSP-nonce-aware patch script per resolved promise. Add `bq-defer="key"` on the wrapping element to mark where each placeholder should be installed; without a marker the patches append at the end of `<body>`.
+`renderToStreamSuspense()` flushes the synchronous shell first (with each `defer(...)` value's fallback), then streams `<template id="bq-r-N">…</template>` + a tiny CSP-nonce-aware patch script per resolved promise. Add `bq-defer="key"` on the wrapping element to mark where each placeholder should be installed; without a marker the patches append at the end of `<body>`. In a full page the closing `</body></html>` is held back and streamed last, so every patch lands inside `<body>`.
 
 ```ts
 import { defer, renderToStreamSuspense } from '@bquery/bquery/ssr';

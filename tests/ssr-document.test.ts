@@ -4,11 +4,12 @@
  * global DOM (happy-dom here) is installed.
  */
 import { afterEach, describe, expect, it } from 'bun:test';
-import { splitLeadingDoctype } from '../src/ssr/html-parser';
+import { splitDocumentPrologue } from '../src/ssr/html-parser';
 import {
   configureSSR,
   createSSRContext,
   defer,
+  flushBoundary,
   renderToResponse,
   renderToStream,
   renderToStreamSuspense,
@@ -38,6 +39,18 @@ const DATA = { title: 'Home', items: ['a', 'b'] };
 const readStream = async (stream: ReadableStream<Uint8Array>): Promise<string> =>
   new Response(stream).text();
 
+/** Runs `run` with the global `DOMParser` removed, i.e. without any DOM at all. */
+const withoutDom = async <T>(run: () => T | Promise<T>): Promise<T> => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'DOMParser');
+  Reflect.deleteProperty(globalThis, 'DOMParser');
+  try {
+    expect(typeof globalThis.DOMParser).toBe('undefined');
+    return await run();
+  } finally {
+    if (descriptor) Object.defineProperty(globalThis, 'DOMParser', descriptor);
+  }
+};
+
 /** Renders with the global `DOMParser` removed, i.e. without any DOM at all. */
 const renderWithoutDom = (template: string, data: BindingContext): string => {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, 'DOMParser');
@@ -49,6 +62,19 @@ const renderWithoutDom = (template: string, data: BindingContext): string => {
     if (descriptor) Object.defineProperty(globalThis, 'DOMParser', descriptor);
   }
 };
+
+const readChunks = async (stream: ReadableStream<Uint8Array>): Promise<string[]> => {
+  const chunks: string[] = [];
+  const decoder = new TextDecoder();
+  const reader = stream.getReader();
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) return chunks;
+    chunks.push(decoder.decode(value));
+  }
+};
+
+const count = (haystack: string, needle: string): number => haystack.split(needle).length - 1;
 
 /** Renders `template` on every backend configuration and returns each output. */
 const renderOnEveryBackend = (template: string, data: BindingContext = DATA) => {
@@ -135,14 +161,16 @@ describe('SSR full documents', () => {
     );
   });
 
-  it('emits only the HTML5 doctype and drops legacy or other doctypes', () => {
+  it('rebuilds legacy html doctypes as <!doctype html> and drops other doctypes', () => {
     for (const template of [
       '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd"><p></p>',
-      '<!doctype html SYSTEM "about:legacy-compat"><p></p>',
-      '<!doctype svg><p></p>',
+      '<!DOCTYPE HTML SYSTEM "about:legacy-compat"><p></p>',
     ]) {
-      expect(renderToString(template, {}).html).toBe('<p></p>');
+      expect(new Set(Object.values(renderOnEveryBackend(template, {})))).toEqual(
+        new Set(['<!DOCTYPE html><p></p>'])
+      );
     }
+    expect(renderToString('<!doctype svg><p></p>', {}).html).toBe('<p></p>');
     expect(renderToString('<!doctype\n  html  ><p></p>', {}).html).toBe('<!doctype html><p></p>');
   });
 });
@@ -174,11 +202,13 @@ describe('SSR doctype safety', () => {
 
   it('drops a malformed doctype whole instead of re-emitting part of it', () => {
     expect(renderBoth('<!doctype x "><img src=x onerror=alert(1)>')).toEqual(['<img src="x">']);
+    // A legacy doctype ends at its first `>`, as in the HTML tokenizer, and
+    // only the rebuilt `<!doctype html>` is emitted for it.
     expect(renderBoth('<!doctype html PUBLIC "-//x//<b onclick=alert(1)>" "y"><p>x</p>')).toEqual([
-      '" "y"&gt;<p>x</p>',
+      '<!doctype html>" "y"&gt;<p>x</p>',
     ]);
     expect(renderBoth(`<!doctype html SYSTEM "x' onload='alert(1)"><p>x</p>`)).toEqual([
-      '<p>x</p>',
+      '<!doctype html><p>x</p>',
     ]);
   });
 
@@ -205,16 +235,76 @@ describe('SSR doctype safety', () => {
   });
 });
 
-describe('splitLeadingDoctype', () => {
-  it('splits only a leading, well-formed doctype token', () => {
-    expect(splitLeadingDoctype('<!DOCTYPE html>\n<p>')).toEqual({
+describe('splitDocumentPrologue', () => {
+  it('splits off a doctype after a BOM, whitespace and comments', () => {
+    expect(splitDocumentPrologue('<!DOCTYPE html>\n<p>')).toEqual({
       doctype: '<!DOCTYPE html>',
       rest: '\n<p>',
+      document: true,
     });
-    expect(splitLeadingDoctype('<p></p><!doctype html>')).toBeNull();
-    expect(splitLeadingDoctype('<!doctype html')).toBeNull();
-    expect(splitLeadingDoctype('<!doctype 1html>')).toBeNull();
-    expect(splitLeadingDoctype('<!doctype html junk>')).toBeNull();
+    expect(splitDocumentPrologue('\uFEFF <!-- a --><!---->\n<!doctype html><html>')).toEqual({
+      doctype: '<!doctype html>',
+      rest: '\uFEFF <!-- a --><!---->\n<html>',
+      document: true,
+    });
+    expect(
+      splitDocumentPrologue('<!DocType html PUBLIC "-//W3C//DTD HTML 4.01//EN" "x.dtd"><p>')
+    ).toEqual({ doctype: '<!DocType html>', rest: '<p>', document: true });
+  });
+
+  it('leaves templates without a well-formed leading doctype alone', () => {
+    for (const template of [
+      '<p></p><!doctype html>',
+      '<!doctype html',
+      '<!doctype 1html>',
+      '<!doctype htmlx>',
+      '<!doctype html junk>',
+      '<!-- unterminated <!doctype html>',
+    ]) {
+      expect(splitDocumentPrologue(template)).toEqual({
+        doctype: '',
+        rest: template,
+        document: false,
+      });
+    }
+  });
+
+  it('detects html/head/body roots after comments and whitespace', () => {
+    for (const template of ['<html>', ' <!-- c -->\n<HEAD >', '\uFEFF<!----><body/>']) {
+      expect(splitDocumentPrologue(template)).toEqual({
+        doctype: '',
+        rest: template,
+        document: true,
+      });
+    }
+    for (const template of [
+      '<header>',
+      '<!-- c --><p><html>',
+      '<bodyguard>',
+      'x<html>',
+      '< body>',
+    ]) {
+      expect(splitDocumentPrologue(template).document).toBe(false);
+    }
+  });
+
+  it('stays linear on long runs of comment openers, spaces and doctypes', () => {
+    for (const template of [
+      '<!--'.repeat(100_000),
+      ' '.repeat(100_000) + '<p>',
+      '<!doctype'.repeat(100_000),
+      '<!doctype html'.repeat(100_000),
+      '<!---->'.repeat(100_000) + '<html>',
+      '<!doctype html PUBLIC "'.repeat(100_000),
+    ]) {
+      const startedAt = performance.now();
+      splitDocumentPrologue(template);
+      renderToString(template, {});
+      configureSSR({ backend: 'pure' });
+      renderToString(template, {});
+      configureSSR({ backend: 'auto' });
+      expect(performance.now() - startedAt).toBeLessThan(200);
+    }
   });
 });
 
@@ -230,5 +320,183 @@ describe('SSR document detection', () => {
     ]) {
       expect(renderToString(template, {}).html).not.toContain('<!--');
     }
+  });
+});
+
+describe('SSR full documents with flush boundaries', () => {
+  const STREAMED_PAGE = `<!DOCTYPE html>
+<html lang="en">
+  <head><title bq-text="title"></title></head>
+  <body>
+    <h1 bq-text="title"></h1>
+    ${flushBoundary()}
+    <ul><li bq-for="item in items" bq-text="item"></li></ul>
+    ${flushBoundary()}
+    <footer>end</footer>
+  </body>
+</html>`;
+
+  const newContext = () => {
+    const context = createSSRContext({ nonce: 'n0nce' });
+    context.head.add({ meta: [{ name: 'streamed', content: 'yes' }] });
+    return context;
+  };
+
+  /** Streams the page and renders it in one piece with the same options. */
+  const renderBoth = async () => {
+    const chunks = await readChunks(
+      renderToStream(STREAMED_PAGE, DATA, { context: newContext(), includeStoreState: true })
+    );
+    const { html } = await renderToStringAsync(
+      STREAMED_PAGE.split(flushBoundary()).join(''),
+      DATA,
+      { context: newContext(), includeStoreState: true }
+    );
+    return { chunks, html };
+  };
+
+  const expectStreamedPage = ({ chunks, html }: { chunks: string[]; html: string }): void => {
+    expect(chunks).toHaveLength(3);
+    expect(chunks.join('')).toBe(html);
+    expect(chunks[0]).toStartWith('<!DOCTYPE html>\n<html lang="en">');
+    expect(chunks[0]).toContain('<meta name="streamed" content="yes"></head>');
+    expect(chunks[0]).toContain('<h1 bq-text="title">Home</h1>');
+    expect(chunks[1]).toContain('<li bq-text="item">a</li><li bq-text="item">b</li>');
+    for (const chunk of chunks.slice(0, 2)) {
+      expect(chunk).not.toContain('</body>');
+      expect(chunk).not.toContain('</html>');
+    }
+    const joined = chunks.join('');
+    for (const tag of ['<html', '</html>', '<head>', '</head>', '<body>', '</body>', '<script']) {
+      expect(count(joined, tag)).toBe(1);
+    }
+    expect(joined).not.toContain('bq-flush');
+    expect(chunks[2]).toMatch(
+      /<footer>end<\/footer>\s*<script nonce="n0nce"[^>]*>[^<]*<\/script><\/body>\s*<\/html>$/
+    );
+  };
+
+  it('streams a page as one document with a global DOM installed', async () => {
+    expect(typeof globalThis.DOMParser).toBe('function');
+    expectStreamedPage(await renderBoth());
+  });
+
+  it('streams the same page without a DOM and on every backend', async () => {
+    const withDom = await renderBoth();
+    const noDom = await withoutDom(renderBoth);
+    expectStreamedPage(noDom);
+    expect(noDom).toEqual(withDom);
+    for (const backend of ['pure', 'dom'] as const) {
+      configureSSR({ backend, documentImpl: { DOMParser: globalThis.DOMParser } });
+      expect(await renderBoth()).toEqual(withDom);
+    }
+  });
+
+  it('streams a page whose doctype follows a comment', async () => {
+    const template = `<!-- page -->${STREAMED_PAGE}`;
+    const chunks = await readChunks(renderToStream(template, DATA, { includeStoreState: true }));
+    expect(chunks).toHaveLength(3);
+    expect(chunks[0]).toStartWith('<!DOCTYPE html><!-- page -->\n<html lang="en">');
+    expect(count(chunks.join(''), '</body>')).toBe(1);
+    expect(chunks[2]).toMatch(/<\/script><\/body>\s*<\/html>$/);
+  });
+
+  it('still renders fragment templates part by part', async () => {
+    expect(
+      await readChunks(renderToStream(`<p bq-text="title"></p>  ${flushBoundary()}<p>b</p>`, DATA))
+    ).toEqual(['<p bq-text="title">Home</p>', '<p>b</p>']);
+  });
+
+  it('keeps Suspense patches inside <body> and closes the page last', async () => {
+    const template = STREAMED_PAGE.split(flushBoundary())
+      .join('')
+      .replace('<h1 bq-text', '<h1 bq-defer="title" bq-text');
+    const stream = () =>
+      readChunks(
+        renderToStreamSuspense(
+          template,
+          {
+            ...DATA,
+            title: defer(Promise.resolve('Late'), 'Loading'),
+            extra: Promise.resolve('More'),
+          },
+          { context: createSSRContext({ nonce: 'n0nce' }) }
+        )
+      );
+    const chunks = await stream();
+    expect(chunks).toHaveLength(4);
+    expect(chunks[0]).toStartWith('<!DOCTYPE html>\n<html lang="en">');
+    expect(chunks[0]).toContain('<bq-slot id="bq-s-0">Loading</bq-slot>');
+    expect(chunks[0]).not.toContain('</body>');
+    expect(chunks[1]).toStartWith('<template id="bq-r-');
+    expect(chunks[3]).toMatch(/^<\/body>\s*<\/html>$/);
+    const joined = chunks.join('');
+    expect(count(joined, '</body>')).toBe(1);
+    expect(joined.indexOf('Late')).toBeLessThan(joined.indexOf('</body>'));
+    expect(await withoutDom(stream)).toEqual(chunks);
+  });
+
+  it('streams Suspense fragments without holding anything back', async () => {
+    const chunks = await readChunks(
+      renderToStreamSuspense('<main bq-defer="title"></main>', {
+        title: defer(Promise.resolve('Late'), 'Loading'),
+      })
+    );
+    expect(chunks).toHaveLength(2);
+    expect(chunks[0]).toBe('<main><bq-slot id="bq-s-0"></bq-slot></main>');
+  });
+});
+
+describe('SSR document detection after a prologue', () => {
+  it('keeps the wrappers after a leading comment, BOM or whitespace on every backend', () => {
+    for (const [template, start] of [
+      ['<!-- c --><html><body><p bq-text="title"></p></body></html>', '<!-- c --><html><body>'],
+      ['\uFEFF<html><body><p bq-text="title"></p></body></html>', '<html><body>'],
+      [
+        '\n\t <!-- a -->\n<!-- b --><body><p bq-text="title"></p></body>',
+        '<!-- a -->\n<!-- b --><body>',
+      ],
+      [
+        '<!-- c -->\n<!DOCTYPE html><html><body><p bq-text="title"></p></body></html>',
+        '<!DOCTYPE html><!-- c -->\n<html><body>',
+      ],
+    ]) {
+      const outputs = new Set(Object.values(renderOnEveryBackend(template)));
+      expect([template, [...outputs]]).toEqual([
+        template,
+        [
+          `${start}<p bq-text="title">Home</p></body>${template.includes('</html>') ? '</html>' : ''}`,
+        ],
+      ]);
+    }
+  });
+
+  it('treats legacy doctypes as documents and emits a rebuilt <!DOCTYPE html>', () => {
+    for (const doctype of [
+      '<!DOCTYPE html SYSTEM "about:legacy-compat">',
+      '<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">',
+      "<!doctype HTML public '-//W3C//DTD XHTML 1.0 Strict//EN'>",
+    ]) {
+      const template = `${doctype}\n<html><head></head><body><p bq-text="title"></p></body></html>`;
+      const outputs = new Set(Object.values(renderOnEveryBackend(template)));
+      expect(outputs.size).toBe(1);
+      const [html] = outputs;
+      expect(html).toBe(
+        `<!${doctype.slice(2, 9)} html>\n<html><head></head><body><p bq-text="title">Home</p></body></html>`
+      );
+    }
+  });
+
+  it('never echoes the identifiers of a legacy doctype', () => {
+    const template =
+      '<!DOCTYPE html PUBLIC "-//EVIL//<script" SYSTEM \'javascript:alert(1)\' x="<img src=x onerror=alert(1)"' +
+      '><html><body><p bq-text="title"></p></body></html>';
+    for (const html of new Set(Object.values(renderOnEveryBackend(template)))) {
+      expect(html).toBe('<!DOCTYPE html><html><body><p bq-text="title">Home</p></body></html>');
+    }
+    const context = createSSRContext();
+    return renderToStringAsync(template, DATA, { context }).then(({ html }) => {
+      expect(html).not.toMatch(/EVIL|alert|javascript|PUBLIC|SYSTEM/);
+    });
   });
 });

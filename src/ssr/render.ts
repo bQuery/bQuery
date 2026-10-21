@@ -14,7 +14,7 @@ import { isValidAttributeName } from '../security/sanitize-policy';
 import type { BindingContext } from '../view/types';
 import { getDOMParserImpl, resolveBackend } from './config';
 import { evaluateExpression } from './expression';
-import { splitLeadingDoctype } from './html-parser';
+import { splitDocumentPrologue } from './html-parser';
 import {
   classifyUnsupportedDirective,
   collectOnEvents,
@@ -555,13 +555,10 @@ export const renderToString = (
     throw new Error('bQuery SSR: template must be a non-empty string.');
   }
 
-  // A leading doctype is split off here and re-emitted from its parsed parts:
-  // neither backend's parser keeps it, and a page without one renders in
-  // quirks mode.
-  const trimmedTemplate = template.trim();
-  const leadingDoctype = splitLeadingDoctype(trimmedTemplate);
-  const doctype = leadingDoctype?.doctype ?? '';
-  const normalizedTemplate = leadingDoctype ? leadingDoctype.rest : trimmedTemplate;
+  // A leading doctype is split off here and re-emitted rebuilt: neither
+  // backend's parser keeps it, and a page without one renders in quirks mode.
+  const prologue = splitDocumentPrologue(template.trim());
+  const normalizedTemplate = prologue.rest;
   const domDirectiveOpts: DomDirectiveOpts = {
     annotateHydration,
     mode: directives,
@@ -573,14 +570,11 @@ export const renderToString = (
   // pure DOM-free renderer kicks in automatically — this is what makes
   // `renderToString()` work seamlessly on Bun, Deno and Node ≥ 24.
   //
-  // Whole documents (a doctype, or an `<html>`/`<head>`/`<body>` root) always
-  // take the DOM-free path: `DOMParser` files them into a document whose
-  // wrappers the fragment serializer below cannot keep, so the output would
-  // depend on whether a DOM happens to be installed.
-  const backend =
-    leadingDoctype || /^<(?:html|head|body)[\s/>]/i.test(normalizedTemplate)
-      ? 'pure'
-      : resolveBackend();
+  // Whole documents (a doctype, or an `<html>`/`<head>`/`<body>` root after
+  // any leading comments) always take the DOM-free path: `DOMParser` files
+  // them into a document whose wrappers the fragment serializer below cannot
+  // keep, so the output would depend on whether a DOM happens to be installed.
+  const backend = prologue.document ? 'pure' : resolveBackend();
 
   if (backend === 'pure') {
     const html = renderTemplatePure(normalizedTemplate, data, {
@@ -595,7 +589,7 @@ export const renderToString = (
       const storeIds = Array.isArray(includeStoreState) ? includeStoreState : undefined;
       storeState = serializeStoreState({ storeIds }).stateJson;
     }
-    return { html: doctype + html, storeState };
+    return { html: prologue.doctype + html, storeState };
   }
 
   const DOMParserImpl = getDOMParserImpl();
