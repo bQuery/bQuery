@@ -474,6 +474,13 @@ registerCompiledExpressions({ 'count + 1': ($ctx) => $ctx.count + 1 });
 clearCompiledExpressions();
 ```
 
+`bq-on` handlers are compiled as statement lists, so `compileViews()` returns
+them in a separate `statements` map and the emitted module passes them as a
+second argument: `registerCompiledExpressions(expressions, statements)`. The
+runtime uses a `statements` entry only for `bq-on` and an `expressions` entry
+only for other directives, so `bq-show="a(); b()"` stays an error even when the
+same source is a compiled `bq-on` handler.
+
 ### CLI
 
 A dependency-free CLI compiles template files to sibling modules (pass explicit paths; let your shell expand globs):

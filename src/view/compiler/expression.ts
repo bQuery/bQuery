@@ -17,7 +17,7 @@
  */
 
 import { hasDangerousMemberAccess } from '../dangerous-access';
-import { splitTopLevel } from '../evaluate';
+import { splitTopLevel } from '../split';
 import type { CompiledExpression } from './types';
 
 /** Default context parameter name — unlikely to collide with author vars. */

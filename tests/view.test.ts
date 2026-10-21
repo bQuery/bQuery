@@ -1671,12 +1671,33 @@ describe('evaluateStatements', () => {
     expect(log).toEqual(['big']);
   });
 
-  it('prefers a compiled function registered under the full source', () => {
-    registerCompiledExpressions({ 'x(); y()': () => 'COMPILED' });
+  it('prefers a compiled statement function registered under the full source', () => {
+    registerCompiledExpressions({}, { 'x(); y()': () => 'COMPILED' });
     try {
       expect(evaluateStatements('x(); y()', {})).toBe('COMPILED');
     } finally {
       clearCompiledExpressions();
+    }
+  });
+
+  it('keeps expression and statement registrations apart', () => {
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+    registerCompiledExpressions(
+      { 'p(); q()': () => 'EXPRESSION' },
+      { 'r(); s()': () => 'STATEMENTS' }
+    );
+    try {
+      const ctx = { p: () => 1, q: () => 2, r: () => 3, s: () => 4 };
+      // A statement list never uses an expression entry, and vice versa.
+      expect(evaluateStatements('p(); q()', ctx)).toBe(2);
+      expect(evaluate('r(); s()', ctx)).toBeUndefined();
+      expect(evaluateRaw('r(); s()', ctx)).toBeUndefined();
+      // A single-expression handler still uses an expression entry.
+      registerCompiledExpressions({ 'p()': () => 'EXPRESSION' });
+      expect(evaluateStatements('p()', ctx)).toBe('EXPRESSION');
+    } finally {
+      clearCompiledExpressions();
+      errorSpy.mockRestore();
     }
   });
 });
