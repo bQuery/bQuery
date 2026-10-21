@@ -16,7 +16,7 @@ import bqueryRspack from '../rspack.js';
 import bqueryVite from '../vite.js';
 import bqueryWebpack from '../webpack.js';
 // @ts-expect-error -- plain JS helpers without declarations (internal module)
-import { createFilter, globToRegExp, writeIfChanged } from '../src/utils.js';
+import { createFilter, globToRegExp, toJsLiteral, writeIfChanged } from '../src/utils.js';
 import { createProject, SAMPLE_FILES } from './helpers';
 
 const names = (plugins: Array<{ name: string }>) => plugins.map((plugin) => plugin.name);
@@ -107,6 +107,28 @@ describe('utils', () => {
 });
 
 describe('generators', () => {
+  it('escapes markup and line separators in generated literals', () => {
+    const value = { file: '/x/</script><img onerror=alert(1)>.ts', text: 'a\u2028b\u2029c' };
+    const literal = toJsLiteral(value);
+    expect(literal).not.toMatch(/[<>\u2028\u2029]/);
+    expect(new Function(`return ${literal};`)()).toEqual(value);
+
+    const module = generateRoutesModule(
+      [
+        {
+          key: '/src/routes/</script>.ts',
+          file: '/p/src/routes/</script>.ts',
+          kind: 'page',
+          pattern: '/',
+        },
+      ],
+      {},
+      '/p'
+    );
+    expect(module).not.toContain('</script>');
+    expect(module).toContain('\\u003c/script\\u003e');
+  });
+
   const project = createProject(SAMPLE_FILES);
   afterAll(() => project.cleanup());
 

@@ -10,7 +10,7 @@ import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { compileViews, emitModule } from '@bquery/bquery/view/compiler';
-import { cleanId, createFilter, hasQueryFlag, toPosix, warnVia } from './utils.js';
+import { cleanId, createFilter, hasQueryFlag, toJsLiteral, toPosix, warnVia } from './utils.js';
 
 /** Default glob for files treated as view templates without a query flag. */
 export const DEFAULT_VIEW_INCLUDE = ['**/*.view.html'];
@@ -30,7 +30,7 @@ export const DEFAULT_VIEW_QUERY = 'bq-view';
 export const buildViewModule = (template, options, hmr) => {
   const compiled = compileViews(template, { prefix: options.prefix, globals: options.globals });
   let code = emitModule(compiled, options.importSpecifier);
-  code += `\nconst template = ${JSON.stringify(template)};\nexport default template;\n`;
+  code += `\nconst template = ${toJsLiteral(template)};\nexport default template;\n`;
   if (hmr) {
     // The new module instance re-registers its expressions when it executes.
     // The markup itself lives in importers, so let them update when it changed.

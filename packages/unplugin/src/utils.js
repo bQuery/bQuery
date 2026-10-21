@@ -18,6 +18,28 @@ const ALWAYS_SKIPPED_DIRS = new Set(['node_modules', '.git']);
  */
 export const toPosix = (value) => value.split(path.sep).join('/').replace(/\\/g, '/');
 
+/** Characters escaped by {@link toJsLiteral}, mapped to their `\uXXXX` form. */
+const UNSAFE_LITERAL_CHARS = /[<>\u2028\u2029]/g;
+
+/**
+ * Serialises a value as a JavaScript literal for generated module source.
+ *
+ * `JSON.stringify` alone leaves `<`, `>`, U+2028 and U+2029 as they are, so a
+ * file name or message containing `</script>` would end an inline script the
+ * module is embedded in. These are escaped as `\uXXXX`, which every JS parser
+ * reads back as the same characters (`</script>` becomes `\u003c/script\u003e`).
+ * Slashes stay readable: without a literal `<` there is no `</` to close a tag.
+ *
+ * @param {unknown} value - A JSON-serialisable value.
+ * @param {number} [space] - Indentation passed to `JSON.stringify`.
+ * @returns {string} A JS expression evaluating to `value`.
+ */
+export const toJsLiteral = (value, space) =>
+  JSON.stringify(value, null, space).replace(
+    UNSAFE_LITERAL_CHARS,
+    (char) => `\\u${char.charCodeAt(0).toString(16).padStart(4, '0')}`
+  );
+
 /**
  * Strips a `?query` / `#hash` suffix from a module id.
  *
