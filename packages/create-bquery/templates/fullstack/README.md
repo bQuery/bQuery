@@ -42,8 +42,8 @@ bun run typecheck    # tsc
 ```
 
 The tests use [`@bquery/bquery/testing`](https://bquery.js.org/guide/testing):
-`within()` / `screen` queries, `userEvent`, `fireEvent`, `waitFor` and
-`mockFetch()`.
+`screen` queries (by role and accessible name, label and text), `userEvent`,
+`waitFor` and `mockFetch()`.
 
 ## Where to go next
 

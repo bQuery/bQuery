@@ -501,11 +501,95 @@ export function mockRouter(options: MockRouterOptions = {}): MockRouter {
 // fireEvent
 // ============================================================================
 
+type EventConstructorName =
+  'MouseEvent' | 'PointerEvent' | 'KeyboardEvent' | 'InputEvent' | 'FocusEvent';
+
+/** The `Event` subclass a browser dispatches for a well-known event name. */
+const getEventConstructorName = (name: string): EventConstructorName | undefined =>
+  /^(click|dblclick|auxclick|contextmenu|mouse(down|up|move|over|out|enter|leave))$/.test(name)
+    ? 'MouseEvent'
+    : /^(pointer(down|up|move|over|out|enter|leave|cancel)|(got|lost)pointercapture)$/.test(name)
+      ? 'PointerEvent'
+      : /^key(down|up|press)$/.test(name)
+        ? 'KeyboardEvent'
+        : /^(before)?input$/.test(name)
+          ? 'InputEvent'
+          : /^(focus(in|out)?|blur)$/.test(name)
+            ? 'FocusEvent'
+            : undefined;
+
+/**
+ * Per-event defaults that mirror what a browser sends for a primary-button
+ * mouse / pointer interaction (`button: 0`, a click count in `detail`, ...).
+ */
+const getEventDefaults = (
+  name: string,
+  ctor: EventConstructorName
+): MouseEventInit & PointerEventInit => {
+  const pointer = ctor === 'PointerEvent';
+  if (!pointer && ctor !== 'MouseEvent') return {};
+  const pressed = /down$/.test(name);
+  const changed = pressed || /up$/.test(name);
+  return {
+    // A pointer event that does not change the button state reports -1.
+    button: name === 'auxclick' ? 1 : name === 'contextmenu' ? 2 : pointer && !changed ? -1 : 0,
+    buttons: pressed ? 1 : 0,
+    detail: name === 'dblclick' ? 2 : /click$/.test(name) || (!pointer && changed) ? 1 : 0,
+    ...(pointer && {
+      pointerId: 1,
+      pointerType: 'mouse',
+      isPrimary: true,
+      pressure: pressed ? 0.5 : 0,
+    }),
+  };
+};
+
+/**
+ * Creates the event with the matching subclass, preferring the global
+ * constructor (what code under test compares against with `instanceof`) and
+ * falling back to the element's own window, e.g. for a document created by a
+ * separate happy-dom `Window`. `PointerEvent` falls back to `MouseEvent`.
+ */
+const createTypedEvent = (
+  el: Element,
+  name: string,
+  ctor: EventConstructorName | undefined,
+  init: EventInit
+): Event => {
+  type Ctor = new (type: string, init?: EventInit) => Event;
+  const view = el.ownerDocument?.defaultView as unknown as Record<string, Ctor | undefined> | null;
+  const global = globalThis as unknown as Record<string, Ctor | undefined>;
+  for (const ctorName of ctor === 'PointerEvent' ? [ctor, 'MouseEvent'] : ctor ? [ctor] : []) {
+    const EventCtor = global[ctorName] ?? view?.[ctorName];
+    if (typeof EventCtor === 'function') return new EventCtor(name, init);
+  }
+  return new Event(name, init);
+};
+
+const assertFireEventElement = (el: Element): void => {
+  if (!el) {
+    throw new Error('bQuery testing: fireEvent requires a valid element');
+  }
+};
+
 /**
  * Dispatches a synthetic event on an element and flushes pending effects.
  *
  * By default the event bubbles, is cancelable, and is composed (crosses
- * shadow DOM boundaries). Pass a `detail` option to create a `CustomEvent`.
+ * shadow DOM boundaries). Well-known event names are dispatched with the
+ * matching `Event` subclass, the way a browser sends them:
+ *
+ * - `click`, `dblclick`, `mousedown`, `mouseup`, `mouseover`, `contextmenu`, ...
+ *   → `MouseEvent` (`button: 0` for the primary button, `detail` = click count)
+ * - `pointerdown`, `pointerup`, `pointermove`, ... → `PointerEvent`
+ *   (`pointerType: 'mouse'`, `pointerId: 1`, `isPrimary: true`)
+ * - `keydown`, `keyup`, `keypress` → `KeyboardEvent`
+ * - `input`, `beforeinput` → `InputEvent`
+ * - `focus`, `blur`, `focusin`, `focusout` → `FocusEvent`
+ *
+ * Any other event init field (`button`, `key`, `ctrlKey`, `clientX`, ...)
+ * passed in `options` overrides those defaults. A non-numeric `detail` (or a
+ * `detail` on an event name not listed above) creates a `CustomEvent` instead.
  *
  * @param el - The target element
  * @param eventName - The event type (e.g. 'click', 'input', 'my-event')
@@ -521,27 +605,30 @@ export function mockRouter(options: MockRouterOptions = {}): MockRouter {
  * button.addEventListener('click', () => { clicked = true; });
  * fireEvent(button, 'click');
  * expect(clicked).toBe(true);
+ * fireEvent(button, 'click', { button: 1, ctrlKey: true });
  * ```
  */
-const assertFireEventElement = (el: Element): void => {
-  if (!el) {
-    throw new Error('bQuery testing: fireEvent requires a valid element');
-  }
-};
-
 const baseFireEvent = (el: Element, eventName: string, options: FireEventOptions = {}): boolean => {
   assertFireEventElement(el);
   if (!eventName) {
     throw new Error('bQuery testing: fireEvent requires an event name');
   }
 
-  const { bubbles = true, cancelable = true, composed = true, detail } = options;
+  const { bubbles = true, cancelable = true, composed = true, detail, ...init } = options;
+  const ctor = getEventConstructorName(eventName);
 
   let event: Event;
-  if (detail !== undefined) {
+  if (detail !== undefined && (typeof detail !== 'number' || !ctor)) {
     event = new CustomEvent(eventName, { bubbles, cancelable, composed, detail });
   } else {
-    event = new Event(eventName, { bubbles, cancelable, composed });
+    event = createTypedEvent(el, eventName, ctor, {
+      ...(ctor ? getEventDefaults(eventName, ctor) : {}),
+      ...(detail !== undefined ? { detail } : {}),
+      ...init,
+      bubbles,
+      cancelable,
+      composed,
+    } as EventInit);
   }
 
   const result = el.dispatchEvent(event);
@@ -550,28 +637,6 @@ const baseFireEvent = (el: Element, eventName: string, options: FireEventOptions
   flushEffects();
 
   return result;
-};
-
-const dispatchShortcutEvent = (el: Element, event: Event): boolean => {
-  assertFireEventElement(el);
-  const result = el.dispatchEvent(event);
-  flushEffects();
-  return result;
-};
-
-const createKeyboardShortcutEvent = (
-  eventName: 'keydown' | 'keyup',
-  init?: KeyboardEventInit
-): Event => {
-  const eventInit: KeyboardEventInit = {
-    bubbles: true,
-    cancelable: true,
-    composed: true,
-    ...init,
-  };
-  return typeof KeyboardEvent === 'function'
-    ? new KeyboardEvent(eventName, eventInit)
-    : new Event(eventName, eventInit);
 };
 
 // Attach shortcut methods (1.14+) so callers can use `fireEvent.click(el)`,
@@ -595,33 +660,33 @@ const setInputValue = (el: Element, value: string): void => {
 };
 
 interface FireEventShortcuts {
-  click: (el: Element) => boolean;
-  dblClick: (el: Element) => boolean;
-  input: (el: Element, value: string) => boolean;
-  change: (el: Element, value: string) => boolean;
-  submit: (el: Element) => boolean;
-  focus: (el: Element) => boolean;
-  blur: (el: Element) => boolean;
-  keyDown: (el: Element, init?: KeyboardEventInit) => boolean;
-  keyUp: (el: Element, init?: KeyboardEventInit) => boolean;
+  click: (el: Element, init?: FireEventOptions) => boolean;
+  dblClick: (el: Element, init?: FireEventOptions) => boolean;
+  input: (el: Element, value: string, init?: FireEventOptions) => boolean;
+  change: (el: Element, value: string, init?: FireEventOptions) => boolean;
+  submit: (el: Element, init?: FireEventOptions) => boolean;
+  focus: (el: Element, init?: FireEventOptions) => boolean;
+  blur: (el: Element, init?: FireEventOptions) => boolean;
+  keyDown: (el: Element, init?: FireEventOptions) => boolean;
+  keyUp: (el: Element, init?: FireEventOptions) => boolean;
 }
 
 const shortcuts: FireEventShortcuts = {
-  click: (el) => baseFireEvent(el, 'click'),
-  dblClick: (el) => baseFireEvent(el, 'dblclick'),
-  input: (el, value) => {
+  click: (el, init) => baseFireEvent(el, 'click', init),
+  dblClick: (el, init) => baseFireEvent(el, 'dblclick', init),
+  input: (el, value, init) => {
     setInputValue(el, value);
-    return baseFireEvent(el, 'input');
+    return baseFireEvent(el, 'input', init);
   },
-  change: (el, value) => {
+  change: (el, value, init) => {
     setInputValue(el, value);
-    return baseFireEvent(el, 'change');
+    return baseFireEvent(el, 'change', init);
   },
-  submit: (el) => baseFireEvent(el, 'submit'),
-  focus: (el) => baseFireEvent(el, 'focus'),
-  blur: (el) => baseFireEvent(el, 'blur'),
-  keyDown: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keydown', init)),
-  keyUp: (el, init) => dispatchShortcutEvent(el, createKeyboardShortcutEvent('keyup', init)),
+  submit: (el, init) => baseFireEvent(el, 'submit', init),
+  focus: (el, init) => baseFireEvent(el, 'focus', init),
+  blur: (el, init) => baseFireEvent(el, 'blur', init),
+  keyDown: (el, init) => baseFireEvent(el, 'keydown', init),
+  keyUp: (el, init) => baseFireEvent(el, 'keyup', init),
 };
 
 type FireEventFn = ((el: Element, eventName: string, options?: FireEventOptions) => boolean) &

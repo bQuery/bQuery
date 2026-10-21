@@ -70,7 +70,32 @@ await screen.findByText('Loaded'); // async
 ```
 
 Each query has `getBy*` (throws), `queryBy*` (returns `null`), and `findBy*`
-(async, retries up to a timeout) variants.
+(async, retries up to a timeout) variants. `findBy*` takes the timeout in
+milliseconds or as `{ timeout, interval }` (defaults: 1000 ms / 10 ms).
+
+#### Filtering roles by accessible name
+
+The `*ByRole` queries take a `ByRoleOptions` object whose `name` filters by
+accessible name — a string must match exactly, a `RegExp` is tested:
+
+```ts
+screen.getByRole('button', { name: 'Save' });
+screen.getByRole('link', { name: /about/i });
+within(form).getByRole('textbox', { name: 'Email' });
+await screen.findByRole('heading', { name: 'Loaded' }, { timeout: 2000 });
+```
+
+The name is computed, in order, from `aria-labelledby`, `aria-label`, the
+`value` of button-type inputs, associated `<label>`s (`for`/`id` or a wrapping
+label) for form controls, `alt` for images, the text content for roles named
+from content (`button`, `link`, `heading`, `checkbox`, `option`, `tab`, ...),
+then `placeholder` and `title`. It is trimmed with whitespace collapsed, and
+the same normalisation applies to a string `name`. When nothing matches, the
+error lists the names of the elements that have the role.
+
+`getByLabelText` matches a label's full text, including text inside nested
+elements (`<label><span>Title</span><input /></label>`), and ignores the
+control's own content.
 
 ### User interactions
 
@@ -84,13 +109,20 @@ await userEvent.selectOptions(select, ['a', 'b']);
 await userEvent.hover(menu);
 ```
 
+`userEvent.click()` sends `mousedown`, `mouseup` and `click` as left-button
+`MouseEvent`s, so it activates elements the way a real click does: a submit
+button submits its form, a checkbox toggles, and `<bq-link>` navigates.
+
 ### `fireEvent` shortcuts
 
 ```ts
 fireEvent.click(button);
+fireEvent.click(link, { button: 1, ctrlKey: true }); // override event init fields
 fireEvent.input(textbox, 'value');
 fireEvent.submit(form);
 ```
+
+Every shortcut takes an optional `FireEventOptions` as its last argument.
 
 ### Reactive helpers
 
@@ -521,19 +553,45 @@ function fireEvent(el: Element, eventName: string, options?: FireEventOptions): 
 | `eventName` | `string`           | Event name (e.g., `'click'`, `'input'`, `'submit'`) |
 | `options`   | `FireEventOptions` | Optional event configuration                        |
 
+#### Event types
+
+Well-known event names are dispatched with the `Event` subclass a browser uses,
+with defaults for a primary-button interaction:
+
+| Event names                                                                                                                              | Dispatched as   | Defaults                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------------------------------- |
+| `click`, `dblclick`, `mousedown`, `mouseup`, `mousemove`, `mouseover`, `mouseout`, `mouseenter`, `mouseleave`, `contextmenu`, `auxclick` | `MouseEvent`    | `button: 0` (`auxclick` 1, `contextmenu` 2), `detail` = click count (`dblclick` 2) |
+| `pointerdown`, `pointerup`, `pointermove`, `pointerover`, `pointerout`, `pointerenter`, `pointerleave`, `pointercancel`, ...             | `PointerEvent`  | `pointerType: 'mouse'`, `pointerId: 1`, `isPrimary: true`                          |
+| `keydown`, `keyup`, `keypress`                                                                                                           | `KeyboardEvent` | —                                                                                  |
+| `input`, `beforeinput`                                                                                                                   | `InputEvent`    | —                                                                                  |
+| `focus`, `blur`, `focusin`, `focusout`                                                                                                   | `FocusEvent`    | —                                                                                  |
+| anything else                                                                                                                            | `Event`         | —                                                                                  |
+
+All events bubble, are cancelable and composed unless you say otherwise. Any
+event init field in `options` (`button`, `ctrlKey`, `key`, `clientX`,
+`inputType`, `relatedTarget`, ...) overrides the defaults. A non-numeric
+`detail` — or a `detail` on an event name not in the table — dispatches a
+`CustomEvent` instead.
+
 #### `FireEventOptions`
 
 ```ts
-interface FireEventOptions {
+interface FireEventOptions extends FireEventInit {
   /** Whether the event bubbles. Default: `true` */
   bubbles?: boolean;
   /** Whether the event is cancelable. Default: `true` */
   cancelable?: boolean;
   /** Whether the event crosses shadow DOM. Default: `true` */
   composed?: boolean;
-  /** Custom data for `CustomEvent.detail`. */
+  /** `CustomEvent.detail`, or a number for a UI event's `detail`. */
   detail?: unknown;
 }
+
+/** Init fields of MouseEvent, PointerEvent, KeyboardEvent, InputEvent and FocusEvent. */
+type FireEventInit = Omit<
+  MouseEventInit & PointerEventInit & KeyboardEventInit & InputEventInit & FocusEventInit,
+  'bubbles' | 'cancelable' | 'composed' | 'detail'
+>;
 ```
 
 **Returns:** `true` if the event was not canceled (same as `EventTarget.dispatchEvent()`), or `false` if `preventDefault()` was called on a cancelable event.
@@ -727,6 +785,7 @@ describe('router', () => {
 - `renderComponent()` creates and removes DOM elements — always call `unmount()` to prevent leaks.
 - `mockRouter()` does not touch `window.history` — it is purely signal-based.
 - `fireEvent()` dispatches events and calls `flushEffects()` automatically so you don't need to flush manually after events.
+- `fireEvent()` picks the `Event` subclass from the event name (`click` → `MouseEvent`, `keydown` → `KeyboardEvent`, ...), so listeners that check `instanceof MouseEvent` or `event.button` — like `<bq-link>` — react to it.
 - `waitFor()` supports both synchronous and asynchronous predicates.
 
 <!-- uniform-template-footer -->

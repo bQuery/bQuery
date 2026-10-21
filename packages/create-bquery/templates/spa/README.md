@@ -25,7 +25,7 @@ npm run preview      # serve dist/
 │   └── style.css
 └── test/
     ├── setup.ts         # happy-dom, preloaded by bunfig.toml
-    ├── app.test.ts      # the app in a DOM: screen, userEvent, fireEvent, waitFor
+    ├── app.test.ts      # the app in a DOM: screen, within, userEvent, waitFor
     └── todos.test.ts    # the store on its own
 ```
 

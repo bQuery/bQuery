@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'bun:test';
-import { fireEvent, mockFetch, screen, userEvent, waitFor, within } from '@bquery/bquery/testing';
+import { mockFetch, screen, userEvent, waitFor } from '@bquery/bquery/testing';
 import { hydrateNotes, type PageState } from '../client/notes';
 import { createApp } from '../server/app';
 import { createNotesRepo } from '../server/notes-repo';
@@ -31,7 +31,7 @@ describe('notes page in the browser', () => {
     restoreFetch = api.restore;
     await loadNotesPage();
 
-    fireEvent.submit(document.querySelector('#note-form')!);
+    await userEvent.click(screen.getByRole('button', { name: 'Add note' }));
 
     expect(await screen.findByText('Give the note a title.')).toBeTruthy();
     expect(api.calls).toHaveLength(0);
@@ -49,7 +49,7 @@ describe('notes page in the browser', () => {
     const { state } = await loadNotesPage();
 
     await userEvent.type(screen.getByLabelText('Title'), 'Hello');
-    fireEvent.submit(document.querySelector('#note-form')!);
+    await userEvent.click(screen.getByRole('button', { name: 'Add note' }));
 
     expect(await screen.findByText('Hello')).toBeTruthy();
     expect(screen.getByText('1 note')).toBeTruthy();
@@ -68,7 +68,7 @@ describe('notes page in the browser', () => {
     await loadNotesPage();
 
     await userEvent.type(screen.getByLabelText('Title'), 'Hello');
-    fireEvent.submit(document.querySelector('#note-form')!);
+    await userEvent.click(screen.getByRole('button', { name: 'Add note' }));
 
     expect(await screen.findByText('The server says no.')).toBeTruthy();
   });
@@ -78,8 +78,7 @@ describe('notes page in the browser', () => {
     restoreFetch = api.restore;
     const { notes } = await loadNotesPage([{ title: 'Keep me', body: '' }]);
 
-    const item = screen.getByText('Keep me').closest('li')!;
-    await userEvent.click(within(item).getByRole('button'));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Keep me' }));
 
     await waitFor(() => api.calls.length === 1);
     await waitFor(() => notes.value.length === 1);

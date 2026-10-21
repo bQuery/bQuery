@@ -171,24 +171,19 @@ shows how to add them.
 
 Each template's tests use `@bquery/bquery/testing` from the start:
 
-| Template    | Runner                                   | Helpers shown                                                           |
-| ----------- | ---------------------------------------- | ----------------------------------------------------------------------- |
-| `cdn`       | `bun test` + happy-dom                   | `renderComponent`, `fireEvent.input`, `within`, `waitFor`               |
-| `spa`       | `bun test` + happy-dom                   | `screen`, `within`, `userEvent`, `fireEvent`, `waitFor`, `flushEffects` |
-| `ssr`       | `node --test` / `bun test` / `deno test` | `within` on server-rendered HTML                                        |
-| `fullstack` | `bun test` + happy-dom                   | `within`, `screen`, `userEvent`, `fireEvent`, `waitFor`, `mockFetch`    |
+| Template    | Runner                                   | Helpers shown                                              |
+| ----------- | ---------------------------------------- | ---------------------------------------------------------- |
+| `cdn`       | `bun test` + happy-dom                   | `renderComponent`, `fireEvent.input`, `within`, `waitFor`  |
+| `spa`       | `bun test` + happy-dom                   | `screen`, `within`, `userEvent`, `waitFor`, `flushEffects` |
+| `ssr`       | `node --test` / `bun test` / `deno test` | `within` on server-rendered HTML                           |
+| `fullstack` | `bun test` + happy-dom                   | `screen`, `userEvent`, `waitFor`, `mockFetch`              |
 
 The `cdn`, `spa` and `fullstack` tests run with [Bun](https://bun.sh), whatever
-package manager installed the project. A few things worth knowing when you
-extend them:
-
-- `getByRole()` takes only the role; narrow it with `within(container)` or
-  query by text or label instead.
-- happy-dom does not turn a synthetic click on a submit button into a `submit`
-  event — use `fireEvent.submit(form)`.
-- `userEvent.click()` dispatches a plain `Event`, which `<bq-link>` ignores
-  (it follows left mouse clicks only); press Enter with
-  `fireEvent.keyDown(link, { key: 'Enter' })` to navigate.
+package manager installed the project. When you extend them, query the way a
+user finds things — `screen.getByRole('button', { name: 'Add' })`,
+`getByLabelText('Title')` — and interact through `userEvent`. Its clicks are
+left-button `MouseEvent`s, so clicking a submit button submits its form, a
+checkbox toggles and fires `change`, and a `<bq-link>` navigates.
 
 ## Versions
 

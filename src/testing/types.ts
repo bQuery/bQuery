@@ -142,17 +142,52 @@ export interface TestRoute {
 // ---------------------------------------------------------------------------
 
 /**
+ * Event-specific init fields accepted by {@link FireEventOptions} — the union
+ * of `MouseEventInit`, `PointerEventInit`, `KeyboardEventInit`,
+ * `InputEventInit` and `FocusEventInit` (e.g. `button`, `ctrlKey`, `clientX`,
+ * `key`, `inputType`, `relatedTarget`). They override the defaults `fireEvent`
+ * picks for the event type.
+ */
+export type FireEventInit = Omit<
+  MouseEventInit & PointerEventInit & KeyboardEventInit & InputEventInit & FocusEventInit,
+  'bubbles' | 'cancelable' | 'composed' | 'detail'
+>;
+
+/**
  * Options for dispatching a synthetic event.
  */
-export interface FireEventOptions {
+export interface FireEventOptions extends FireEventInit {
   /** Whether the event bubbles. Defaults to `true`. */
   bubbles?: boolean;
   /** Whether the event is cancelable. Defaults to `true`. */
   cancelable?: boolean;
   /** Whether the event crosses shadow DOM boundaries. Defaults to `true`. */
   composed?: boolean;
-  /** Extra detail data for CustomEvent. */
+  /**
+   * Extra detail data. A non-numeric value (or any value for an event name
+   * without a dedicated `Event` subclass) dispatches a `CustomEvent`; a number
+   * on a mouse / pointer / keyboard / input / focus event sets its UI `detail`.
+   */
   detail?: unknown;
+}
+
+// ---------------------------------------------------------------------------
+// screen / within queries
+// ---------------------------------------------------------------------------
+
+/**
+ * Options for the `*ByRole` queries on `screen` and `within()`.
+ */
+export interface ByRoleOptions {
+  /**
+   * Only match elements whose accessible name matches. The name is computed
+   * from `aria-labelledby`, then `aria-label`, then associated `<label>`s
+   * (form controls), `alt` (images), and finally the text content for roles
+   * named from content (buttons, links, headings, ...). It is trimmed and its
+   * whitespace collapsed. A string must equal the name exactly (after the same
+   * normalisation); a RegExp is tested against it.
+   */
+  name?: string | RegExp;
 }
 
 // ---------------------------------------------------------------------------

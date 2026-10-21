@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
 import { navigate } from '@bquery/bquery/router';
-import { fireEvent, screen, userEvent, waitFor, within } from '@bquery/bquery/testing';
+import { screen, userEvent, waitFor, within } from '@bquery/bquery/testing';
 import { createApp, type App } from '../src/app';
 import { todos } from '../src/stores/todos';
 
@@ -32,20 +32,18 @@ describe('app', () => {
   it('adds, completes and deletes a todo', async () => {
     const input = (await screen.findByLabelText('New todo')) as HTMLInputElement;
     await userEvent.type(input, 'Write a test');
-    // happy-dom does not turn a synthetic click on a submit button into a
-    // submit event, so submit the form itself.
-    fireEvent.submit(input.form!);
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     expect(screen.getByText('Write a test')).toBeTruthy();
     expect(screen.getByText('1 of 1 left')).toBeTruthy();
     expect(input.value).toBe('');
 
-    fireEvent(screen.getByRole('checkbox'), 'change');
+    // The checkbox is named by the label wrapped around it.
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Write a test' }));
     expect(todos.remaining).toBe(0);
     expect(screen.getByText('0 of 1 left')).toBeTruthy();
 
-    const item = screen.getByText('Write a test').closest('li')!;
-    await userEvent.click(within(item).getByRole('button'));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete Write a test' }));
     expect(screen.queryByText('Write a test')).toBeNull();
   });
 
@@ -53,9 +51,8 @@ describe('app', () => {
     todos.add('Survive navigation');
     await waitFor(() => document.title === 'Todos');
 
-    // `<bq-link>` follows real left clicks and Enter; the testing helpers'
-    // `click` is a plain `Event` without a mouse button, so press Enter.
-    fireEvent.keyDown(screen.getByText('About'), { key: 'Enter' });
+    // `<bq-link>` has the `link` role and navigates on a left click.
+    await userEvent.click(screen.getByRole('link', { name: 'About' }));
     await waitFor(() => document.title === 'About');
 
     expect(location.pathname).toBe('/about');
