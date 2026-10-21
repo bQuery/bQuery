@@ -1,0 +1,23 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.ts",
+    "start": "node src/server.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@bquery/bquery": "{{bqueryRange}}"
+  },
+  "devDependencies": {
+    "@types/node": "{{typesNodeRange}}",
+    "happy-dom": "{{happyDomRange}}",
+    "typescript": "{{typescriptRange}}"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

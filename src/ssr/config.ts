@@ -12,6 +12,11 @@
 
 /**
  * Backend used by `renderToString()` and `renderToStringAsync()`.
+ *
+ * Whole-document templates (a leading doctype, or a template that starts
+ * with `<html>`/`<head>`/`<body>`, leading whitespace and comments aside)
+ * always use the DOM-free renderer, so their wrappers survive and the output
+ * does not depend on the backend.
  */
 export type SSRRendererBackend = 'auto' | 'pure' | 'dom';
 

@@ -17,6 +17,7 @@
  */
 
 import { hasDangerousMemberAccess } from '../dangerous-access';
+import { splitTopLevel } from '../split';
 import type { CompiledExpression } from './types';
 
 /** Default context parameter name — unlikely to collide with author vars. */
@@ -385,6 +386,13 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
 /**
  * Compiles a single directive expression to a `with`-free arrow function.
  *
+ * With `statements: true` (used for `bq-on` handlers) the source may be a
+ * `;`-separated list of expressions, e.g. `$event.preventDefault(); add()`.
+ * Each one is rewritten on its own and they are joined with the comma operator,
+ * so they run in order and the last value is returned — the same semantics as
+ * the runtime statement evaluator. Statement keywords (`if`, `for`, …) still
+ * bail to the runtime evaluator.
+ *
  * @example
  * ```ts
  * compileExpression('count + 1');
@@ -393,7 +401,7 @@ const rewrite = (src: string, param: string, globals: ReadonlySet<string>): stri
  */
 export const compileExpression = (
   expression: string,
-  options: { param?: string; globals?: Iterable<string> } = {}
+  options: { param?: string; globals?: Iterable<string>; statements?: boolean } = {}
 ): CompiledExpression => {
   const param = options.param ?? DEFAULT_PARAM;
   const globals = options.globals
@@ -413,7 +421,14 @@ export const compileExpression = (
   }
 
   try {
-    const body = rewrite(expression, param, globals);
+    let body: string;
+    if (options.statements) {
+      const statements = splitTopLevel(expression, ';');
+      if (statements.length === 0) throw new Bail('empty expression');
+      body = statements.map((statement) => `(${rewrite(statement, param, globals)})`).join(', ');
+    } else {
+      body = rewrite(expression, param, globals);
+    }
     return { ok: true, expression, code: `(${param}) => (${body})` };
   } catch (error) {
     const reason = error instanceof Bail ? error.message : 'could not compile expression';

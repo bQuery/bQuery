@@ -4,7 +4,7 @@
 
 import { createStore } from './create-store';
 import { getStore, hasStore } from './registry';
-import type { Store, StoreDefinition } from './types';
+import type { EmptyStoreRecord, Store, StoreDefinition } from './types';
 
 /**
  * Creates a store factory that returns the store instance.
@@ -30,9 +30,9 @@ import type { Store, StoreDefinition } from './types';
  */
 export const defineStore = <
   S extends Record<string, unknown>,
-  G extends Record<string, unknown> = Record<string, never>,
+  G extends Record<string, unknown> = EmptyStoreRecord,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- actions may declare specific parameter types
-  A extends Record<string, (...args: any[]) => any> = Record<string, never>,
+  A extends Record<string, (...args: any[]) => any> = EmptyStoreRecord,
 >(
   id: string,
   definition: Omit<StoreDefinition<S, G, A>, 'id'>

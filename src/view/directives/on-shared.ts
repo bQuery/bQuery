@@ -1,9 +1,14 @@
-import { evaluateRaw } from '../evaluate';
+import { evaluateStatements } from '../evaluate';
 import type { BindingContext } from '../types';
 
 /**
  * Evaluates a `bq-on` handler expression and, if it resolves to a function,
  * invokes it with the event.
+ *
+ * The handler may be a `;`-separated statement list (like Vue's inline
+ * handlers), e.g. `$event.preventDefault(); add()` — the statements run in
+ * order and the last one's value is the handler's value. Other directives stay
+ * expression-only.
  *
  * Rather than guessing "bare reference vs. call" by string-scanning for `(`
  * (which misfires on expressions like `items.find(x => x).handler` — a paren
@@ -22,7 +27,7 @@ export const runOnExpression = (
   eventContext: BindingContext,
   event: Event
 ): void => {
-  const result = evaluateRaw<unknown>(expression, eventContext);
+  const result = evaluateStatements<unknown>(expression, eventContext);
   if (typeof result === 'function') {
     (result as (e: Event) => void)(event);
   }

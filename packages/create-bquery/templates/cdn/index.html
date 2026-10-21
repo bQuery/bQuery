@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{projectName}}</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <!--
+      The import map lets app.js import "@bquery/bquery" like an npm package.
+      The browser loads it from the CDN; the tests load the same version from
+      node_modules. Bump both (here and in package.json) together.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@bquery/bquery": "https://unpkg.com/@bquery/bquery@{{bqueryVersion}}/dist/full.es.mjs"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main>
+      <h1>{{projectName}}</h1>
+
+      <label for="name">Your name</label>
+      <input id="name" autocomplete="off" placeholder="Ada" />
+      <p id="greeting"></p>
+
+      <click-counter label="Clicks"></click-counter>
+    </main>
+
+    <script type="module">
+      import { mountGreeting } from './app.js';
+
+      mountGreeting(document.body);
+    </script>
+  </body>
+</html>

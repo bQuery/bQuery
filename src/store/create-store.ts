@@ -16,6 +16,7 @@ import { applyPlugins } from './plugins';
 import { getStore, hasStore, registerStore } from './registry';
 import type {
   ActionContext,
+  EmptyStoreRecord,
   Getters,
   OnActionCallback,
   Store,
@@ -35,9 +36,9 @@ import { deepClone, detectNestedMutations, isDev } from './utils';
  */
 export const createStore = <
   S extends Record<string, unknown>,
-  G extends Record<string, unknown> = Record<string, never>,
+  G extends Record<string, unknown> = EmptyStoreRecord,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  A extends Record<string, (...args: any[]) => any> = Record<string, never>,
+  A extends Record<string, (...args: any[]) => any> = EmptyStoreRecord,
 >(
   definition: StoreDefinition<S, G, A>
 ): Store<S, G, A> => {

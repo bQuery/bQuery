@@ -83,7 +83,7 @@ export interface HttpRequestConfig extends Omit<RequestInit, 'body' | 'headers' 
   signal?: AbortSignal;
   /** Retry configuration. Pass a number for simple retry count, or a `RetryConfig` object. */
   retry?: number | RetryConfig;
-  /** Called repeatedly as response body chunks arrive. */
+  /** Called repeatedly as the body chunks of a successful response arrive. */
   onDownloadProgress?: (event: HttpProgressEvent) => void;
 }
 
@@ -103,11 +103,18 @@ export interface HttpResponse<T = unknown> {
 
 /** Error subclass thrown on failed HTTP requests with rich metadata. */
 export class HttpError extends Error {
-  /** HTTP response (available when the server replied). */
+  /**
+   * HTTP response (available when the server replied). For a status rejected
+   * by `validateStatus` (`code: 'ERR_BAD_RESPONSE'`), `response.data` holds the
+   * error body parsed like a successful one — JSON when it parses, otherwise
+   * the raw text, `undefined` when empty. At most 1 MiB is read, within the
+   * remaining `timeout` (5 s without one) and until `signal` aborts; a larger,
+   * slower or aborted body is cancelled and leaves `data` `undefined`.
+   */
   response?: HttpResponse;
   /** Resolved request configuration. */
   config: HttpRequestConfig;
-  /** Original error code string (e.g. `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`). */
+  /** Error code: `'ERR_BAD_RESPONSE'`, `'TIMEOUT'`, `'ABORT'`, `'NETWORK'` or `'PARSE'`. */
   code: string;
 
   constructor(message: string, config: HttpRequestConfig, code: string, response?: HttpResponse) {
@@ -359,6 +366,79 @@ const parseResponseBody = async <T>(
   }
 };
 
+/**
+ * @internal Limits for reading a rejected response's body: at most `maxBytes`
+ * bytes (1 MiB), within `timeout` ms when the request has no `timeout` of its
+ * own (5 s — room for a large error page on a slow link, short enough that a
+ * stalled body barely delays the rejection). Mutable for tests only.
+ */
+export const errorBodyLimits = { maxBytes: 1 << 20, timeout: 5000 };
+
+/**
+ * @internal Best-effort parse of a rejected response's body for
+ * `HttpError.response.data`. Uses the same `parseAs` strategy as a successful
+ * response; with `'json'` a body that is not valid JSON (an HTML error page,
+ * plain text) is returned as text, and an empty body yields `undefined`.
+ *
+ * The body is read with a cap of `errorBodyLimits.maxBytes` and stops when
+ * `signal` aborts (the caller's signal or the request `timeout`) or, without
+ * a request timeout, after `errorBodyLimits.timeout` ms. A body that is too
+ * large, too slow, aborted or unreadable yields `undefined` and the stream is
+ * cancelled. Never throws, so a broken error body cannot mask the status error.
+ */
+const parseErrorBody = async (
+  response: Response,
+  parseAs: BqueryFetchParseAs,
+  config: HttpRequestConfig,
+  signal?: AbortSignal
+): Promise<unknown> => {
+  if (parseAs === 'response') return response;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stop!: () => void;
+  const stopped = new Promise<undefined>((resolve) => {
+    stop = () => resolve(undefined);
+  });
+  if (!(config.timeout! > 0)) timer = setTimeout(stop, errorBodyLimits.timeout);
+  if (signal?.aborted) stop();
+  signal?.addEventListener('abort', stop);
+
+  const read = async (): Promise<unknown> => {
+    let body = response;
+    reader = response.body?.getReader?.();
+    if (reader) {
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if ((size += value.byteLength) > errorBodyLimits.maxBytes) return undefined;
+        chunks.push(value);
+      }
+      reader = undefined;
+      body = new Response(new Blob(chunks as BlobPart[]), { headers: response.headers });
+    }
+    if (parseAs !== 'json') return await parseResponseBody(body, parseAs, config);
+    const text = await body.text();
+    if (!text) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  };
+
+  try {
+    return await Promise.race([read(), stopped]);
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', stop);
+    reader?.cancel().catch(() => undefined);
+  }
+};
+
 /** @internal – wrap a response body stream to report download progress. */
 const wrapDownloadStream = (
   response: Response,
@@ -465,23 +545,23 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
   try {
     let response = await fetcher(url.toString(), requestInit);
 
-    if (config.onDownloadProgress) {
-      response = wrapDownloadStream(response, config.onDownloadProgress);
-    }
-
     if (!validateStatus(response.status)) {
       throw new HttpError(
         `Request failed with status ${response.status}`,
         config,
         'ERR_BAD_RESPONSE',
         {
-          data: undefined,
+          data: await parseErrorBody(response, parseAs, config, mergedSignal),
           status: response.status,
           statusText: response.statusText,
           headers: response.headers,
           config,
         }
       );
+    }
+
+    if (config.onDownloadProgress) {
+      response = wrapDownloadStream(response, config.onDownloadProgress);
     }
 
     const data = await parseResponseBody<T>(response, parseAs, config);

@@ -13,7 +13,7 @@
  */
 
 import { parseTemplate, type SSRNode } from '../../ssr/html-parser';
-import { parseObjectExpression } from '../evaluate';
+import { parseObjectExpression } from '../split';
 import { parseDirective } from '../parse-directive';
 import { compileExpression } from './expression';
 import type { CompiledView, CompileOptions, DirectiveExpression } from './types';
@@ -101,11 +101,12 @@ const walk = (node: SSRNode, prefix: string, found: DirectiveExpression[]): void
 /**
  * Compiles every `bq-*` expression in an HTML template ahead of time.
  *
- * Returns the compiled subset (expression → emitted function source) plus
- * coverage statistics. Expressions that cannot be statically compiled are
- * listed in `stats.skipped` with a reason and transparently fall back to the
- * runtime evaluator — so a partially compiled template still behaves
- * identically.
+ * Returns the compiled subset — `expressions` (expression → emitted function
+ * source) and `statements` (`bq-on` handler → emitted statement-list function
+ * source) — plus coverage statistics. Expressions that cannot be statically
+ * compiled are listed in `stats.skipped` with a reason and transparently fall
+ * back to the runtime evaluator — so a partially compiled template still
+ * behaves identically.
  *
  * @example
  * ```ts
@@ -123,18 +124,28 @@ export const compileViews = (template: string, options: CompileOptions = {}): Co
   walk(fragment, prefix, found);
 
   const expressions: Record<string, string> = {};
+  const statements: Record<string, string> = {};
   const skipped: Array<{ expression: string; reason: string }> = [];
-  const seen = new Set<string>();
+  // Deduplicate per compile mode: the same source can be a valid `bq-on`
+  // statement list and an invalid expression elsewhere (`bq-show="a(); b()"`),
+  // so each mode is compiled and registered on its own.
+  const seen = { expression: new Set<string>(), statements: new Set<string>() };
   let total = 0;
 
-  for (const { expression } of found) {
-    if (seen.has(expression)) continue;
-    seen.add(expression);
+  for (const { directive, expression } of found) {
+    // `bq-on` handlers accept `;`-separated statement lists; every other
+    // directive stays expression-only, exactly as at runtime.
+    const mode = directive === 'on' ? 'statements' : 'expression';
+    if (seen[mode].has(expression)) continue;
+    seen[mode].add(expression);
     total++;
 
-    const result = compileExpression(expression, { globals: options.globals });
+    const result = compileExpression(expression, {
+      globals: options.globals,
+      statements: mode === 'statements',
+    });
     if (result.ok) {
-      expressions[expression] = result.code;
+      (mode === 'statements' ? statements : expressions)[expression] = result.code;
     } else {
       skipped.push({ expression, reason: result.reason });
     }
@@ -142,6 +153,11 @@ export const compileViews = (template: string, options: CompileOptions = {}): Co
 
   return {
     expressions,
-    stats: { total, compiled: Object.keys(expressions).length, skipped },
+    statements,
+    stats: {
+      total,
+      compiled: Object.keys(expressions).length + Object.keys(statements).length,
+      skipped,
+    },
   };
 };

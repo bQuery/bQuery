@@ -74,7 +74,10 @@
       "<svg><set attributeName=\"onmouseover\" to=\"alert(1)\"/></svg>",
       "<video poster=\"javascript:alert(1)\"></video>",
       "<table background=\"javascript:alert(1)\"></table>",
-      "<blockquote cite=\"javascript:alert(1)\">x</blockquote>"
+      "<blockquote cite=\"javascript:alert(1)\">x</blockquote>",
+      "<img src=\"x\" srcset=\"javascript:alert(1) 1x\">",
+      "<img srcset=\"ok.png 1x, javascript:alert(1) 2x\">",
+      "<picture><source srcset=\"javascript:alert(1)\"><img src=\"x\"></picture>"
     ],
     "mxss-namespace-confusion": [
       "<svg><style><img src=x onerror=alert(1)></style></svg>",
@@ -96,7 +99,8 @@
       "<select><template><img src=x onerror=alert(1)></template></select>",
       "<table><caption><svg><desc><img src=x onerror=alert(1)></desc></svg></caption></table>",
       "<svg><![CDATA[><img src=x onerror=alert(1)>]]></svg>",
-      "<a href=\"x\"><svg><a href=\"javascript:alert(1)\">y</a></svg></a>"
+      "<a href=\"x\"><svg><a href=\"javascript:alert(1)\">y</a></svg></a>",
+      "<textarea><img title=\"</textarea><img src=x onerror=alert(1)>\"></textarea>"
     ],
     "dom-clobbering": [
       "<a id=\"location\" href=\"x\">x</a>",
@@ -134,7 +138,13 @@
       "<<img src=x onerror=alert(1)>",
       "<img src=x onerror=alert(1)//",
       "<img src=\"x\"\u0000onerror=alert(1)>",
-      "<a href=\"x\">a</a\u0000><script>alert(1)</script>"
+      "<a href=\"x\">a</a\u0000><script>alert(1)</script>",
+      "<!--><img src=x onerror=alert(1)>-->",
+      "<!---><img src=x onerror=alert(1)>-->",
+      "<!-- --!><img src=x onerror=alert(1)> -->",
+      "<textarea><!--</textarea><img src=x onerror=alert(1)>--></textarea>",
+      "<title><!--</title><svg onload=alert(1)>--></title>",
+      "<p><!--><img src=x onerror=alert(1)>--></p>"
     ]
   },
   "wellFormed": [

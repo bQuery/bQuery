@@ -1148,6 +1148,8 @@ export {
 } from './testing/index';
 export type {
   AccessibilityResult,
+  ByRoleOptions,
+  FireEventInit,
   FireEventOptions,
   MockFetchRoute,
   MockForm,

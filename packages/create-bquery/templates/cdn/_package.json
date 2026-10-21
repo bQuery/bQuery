@@ -1,0 +1,14 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node serve.js",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@bquery/bquery": "{{bqueryVersion}}",
+    "happy-dom": "{{happyDomRange}}"
+  }
+}

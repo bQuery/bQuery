@@ -60,6 +60,11 @@ const { routes } = createFileRoutes({
 });
 ```
 
+With [`@bquery/unplugin`](/guide/bundler-plugin#file-routes), the manifest is
+generated for you — `import { routes } from 'virtual:bquery/routes'` replaces the
+`import.meta.glob` wiring, and Vite picks up added or removed route files without
+a restart.
+
 Routes are sorted by specificity (`sortEntriesBySpecificity`) so the existing
 first-match router resolves the most specific pattern: a static `/users/new`
 beats a dynamic `/users/:id`, and catch-all routes always sort last. `parseFilePath`

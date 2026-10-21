@@ -17,6 +17,7 @@ import type { BindingContext } from '../view/types';
 import { createSSRCache, type SSRCache } from './cache';
 import { resolveContext } from './async';
 import { createSSRContext, type SSRContext } from './context';
+import { splitDocumentPrologue } from './html-parser';
 import { renderToString } from './render';
 import { serializeStoreState } from './serialize';
 import type { RenderOptions, SSRResult } from './types';
@@ -103,37 +104,6 @@ const injectBeforeBodyEnd = (html: string, fragment: string): string => {
   return html.slice(0, idx) + fragment + html.slice(idx);
 };
 
-const injectStreamFragments = (
-  chunks: string[],
-  headFragment: string,
-  bodyFragment: string
-): string[] => {
-  if (!headFragment && !bodyFragment) {
-    return chunks;
-  }
-
-  const output = [...chunks];
-
-  if (headFragment) {
-    const headChunkIndex = output.findIndex((chunk) => chunk.toLowerCase().includes('</head>'));
-    if (headChunkIndex !== -1) {
-      output[headChunkIndex] = injectIntoHead(output[headChunkIndex], headFragment);
-    }
-  }
-
-  if (bodyFragment) {
-    for (let index = output.length - 1; index >= 0; index--) {
-      if (!output[index].toLowerCase().includes('</body>')) {
-        continue;
-      }
-      output[index] = injectBeforeBodyEnd(output[index], bodyFragment);
-      break;
-    }
-  }
-
-  return output;
-};
-
 const mergeHeaderValues = (
   existingValue: string | null,
   nextValues: readonly string[]
@@ -217,11 +187,21 @@ const renderResolvedToStringResult = (
   resolvedData: BindingContext,
   context: SSRContext,
   options: AsyncRenderOptions,
-  startedAt = performance.now()
+  startedAt: number,
+  byPart: boolean
 ): AsyncSSRResult => {
   const baseOptions = createBaseRenderOptions(options);
 
-  let { html, storeState } = renderToString(template, resolvedData, baseOptions);
+  // `byPart` renders each `flushBoundary()` section on its own and keeps the
+  // markers between them, for `renderToStream()` to split at.
+  let { html, storeState }: SSRResult = byPart
+    ? {
+        html: template
+          .split(FLUSH_BOUNDARY_MARKER)
+          .map((part) => (part ? renderToString(part, resolvedData, baseOptions).html : ''))
+          .join(FLUSH_BOUNDARY_MARKER),
+      }
+    : renderToString(template, resolvedData, baseOptions);
   const fragments = createRenderFragments(context, options);
   const headHtml = fragments.headHtml;
   const assetsHtml = fragments.assetsHtml;
@@ -245,15 +225,11 @@ const renderResolvedToStringResult = (
   };
 };
 
-/**
- * Async-aware render. Resolves all `Promise`/`defer()` values in the context,
- * then delegates to `renderToString()` and applies head/asset/store-state
- * injection based on the SSR context.
- */
-export const renderToStringAsync = async (
+const renderAsync = async (
   template: string,
   data: BindingContext,
-  options: AsyncRenderOptions = {}
+  options: AsyncRenderOptions,
+  byPart = false
 ): Promise<AsyncSSRResult> => {
   const startedAt = performance.now();
   const context = options.context ?? createSSRContext({ mode: 'string' });
@@ -268,8 +244,19 @@ export const renderToStringAsync = async (
     throw new DOMException('SSR render aborted', 'AbortError');
   }
 
-  return renderResolvedToStringResult(template, resolvedData, context, options, startedAt);
+  return renderResolvedToStringResult(template, resolvedData, context, options, startedAt, byPart);
 };
+
+/**
+ * Async-aware render. Resolves all `Promise`/`defer()` values in the context,
+ * then delegates to `renderToString()` and applies head/asset/store-state
+ * injection based on the SSR context.
+ */
+export const renderToStringAsync = (
+  template: string,
+  data: BindingContext,
+  options: AsyncRenderOptions = {}
+): Promise<AsyncSSRResult> => renderAsync(template, data, options);
 
 const getEncoder = (): TextEncoder => {
   if (typeof TextEncoder === 'undefined') {
@@ -279,12 +266,12 @@ const getEncoder = (): TextEncoder => {
 };
 
 /**
- * Renders a template into a Web `ReadableStream<Uint8Array>`. The stream is
- * single-chunk for now (the HTML is fully resolved before flushing) but is
- * exposed as a stream so adapters can pipe it directly into Bun/Deno/Node
- * responses without buffering into memory twice.
- *
- * Future Suspense-style streaming patches will reuse the same return type.
+ * Renders a template into a Web `ReadableStream<Uint8Array>`. The HTML is
+ * fully resolved before flushing and emitted as one chunk, or as one chunk per
+ * `flushBoundary()` section, so adapters can pipe it directly into
+ * Bun/Deno/Node responses. In a whole page the chunks join up to exactly what
+ * `renderToStringAsync()` returns (less the markers): the document wrappers
+ * close once, at the end, and head and store-state injection happen once.
  */
 export const renderToStream = (
   template: string,
@@ -315,42 +302,20 @@ export const renderToStream = (
       ctx.signal.addEventListener('abort', onAbort, { once: true });
 
       try {
-        if (template.includes(FLUSH_BOUNDARY_MARKER)) {
-          const startedAt = performance.now();
-          const parts = template.split(FLUSH_BOUNDARY_MARKER);
-          const chunks: string[] = [];
-          const resolvedData = await resolveContext(data, ctx);
-          const baseOptions = createBaseRenderOptions(merged);
-          for (const part of parts) {
-            if (!part) {
-              continue;
-            }
-            if (ctx.signal.aborted) {
-              throw new DOMException('SSR stream aborted', 'AbortError');
-            }
-            const result = renderToString(part, resolvedData, baseOptions);
-            if (result.html) {
-              chunks.push(result.html);
-            }
-          }
-          const renderedChunks =
-            merged.injectHead === false
-              ? chunks
-              : (() => {
-                  const fragments = createRenderFragments(ctx, merged);
-                  return injectStreamFragments(
-                    chunks,
-                    fragments.headHtml + fragments.assetsHtml,
-                    fragments.storeScriptTag
-                  );
-                })();
-          ctx.metrics?.recordRender(performance.now() - startedAt);
-          for (const chunk of renderedChunks) {
-            controller.enqueue(encoder.encode(chunk));
-          }
-        } else {
-          const result = await renderToStringAsync(template, data, merged);
-          controller.enqueue(encoder.encode(result.html));
+        // Fragments are rendered part by part. A whole page is not — each part
+        // would close `<body>`/`<html>` on its own — but rendered in one piece,
+        // keeping the markers as comments (data cannot forge one: text is
+        // escaped, HTML sanitized). Either way head and store-state injection
+        // run once on the joined HTML, which is then split at the markers.
+        const { html } = await renderAsync(
+          template,
+          data,
+          merged,
+          template.includes(FLUSH_BOUNDARY_MARKER) &&
+            !splitDocumentPrologue(template.trim()).document
+        );
+        for (const chunk of html.split(FLUSH_BOUNDARY_MARKER)) {
+          if (chunk) controller.enqueue(encoder.encode(chunk));
         }
         controller.close();
       } catch (error) {

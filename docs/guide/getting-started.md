@@ -27,6 +27,10 @@ You do not need to adopt the whole framework at once. Start with the layer that 
 
 ## Installation
 
+::: tip Start a new project
+`npm create bquery@latest` (or `bun create bquery`) scaffolds a ready-to-run project — a zero-build CDN page, a Vite SPA, an SSR app for Node, Bun or Deno, or a full-stack app — with tests already wired to `@bquery/bquery/testing`. See [Create a project](/guide/create-bquery).
+:::
+
 ### Zero-build via CDN
 
 The quickest way to use bQuery is directly in the browser without any build step. The example below is fully self-contained — save it as `index.html`, open it in a browser, and clicking the button updates the label reactively.

@@ -1,0 +1,57 @@
+{
+  "name": "create-bquery",
+  "version": "0.1.0",
+  "description": "Scaffold a bQuery.js project — zero-build CDN page, SPA, SSR (Node, Bun or Deno) or full-stack app — with tests wired to @bquery/bquery/testing.",
+  "type": "module",
+  "bin": {
+    "create-bquery": "bin/create-bquery.js"
+  },
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "prepublishOnly": "node scripts/check-release.js"
+  },
+  "files": [
+    "bin",
+    "src",
+    "templates",
+    "README.md",
+    "LICENSE.md"
+  ],
+  "keywords": [
+    "bquery",
+    "create",
+    "scaffold",
+    "starter",
+    "template",
+    "ssr",
+    "spa",
+    "zero-build"
+  ],
+  "author": "Jonas Pfalzgraf <support@josunlp.de>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bQuery/bQuery.git",
+    "directory": "packages/create-bquery"
+  },
+  "homepage": "https://bquery.js.org/guide/create-bquery",
+  "bugs": {
+    "url": "https://github.com/bQuery/bQuery/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "engines": {
+    "node": ">=24.0.0",
+    "bun": ">=1.4.0"
+  }
+}

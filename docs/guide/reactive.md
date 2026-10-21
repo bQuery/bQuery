@@ -369,6 +369,11 @@ const data = useFetch('/api/resource', {
 });
 ```
 
+A rejected status sets `error` to an `Error` carrying `status`, `statusText`
+and the unread `response` (a `Response`), so the body can still be read with
+`await error.response.json()`. The imperative client below parses it for you
+into `HttpError.response.data`.
+
 ## Imperative HTTP client
 
 `createHttp()` returns an Axios-style imperative client with method
@@ -473,12 +478,45 @@ Every imperative method returns a structured `HttpResponse<T>`:
 
 Failed requests throw `HttpError` with rich metadata:
 
-| Field      | Type                | Description                                               |
-| ---------- | ------------------- | --------------------------------------------------------- |
-| `message`  | `string`            | Human-readable error message                              |
-| `code`     | `string`            | `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`, `'ERR_BAD_RESPONSE'` |
-| `config`   | `HttpRequestConfig` | Resolved request config                                   |
-| `response` | `HttpResponse?`     | Response if server replied                                |
+| Field      | Type                | Description                                                          |
+| ---------- | ------------------- | -------------------------------------------------------------------- |
+| `message`  | `string`            | Human-readable error message                                         |
+| `code`     | `string`            | `'ERR_BAD_RESPONSE'`, `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`, `'PARSE'` |
+| `config`   | `HttpRequestConfig` | Resolved request config                                              |
+| `response` | `HttpResponse?`     | Response if server replied                                           |
+
+When `validateStatus` rejects a status (`code: 'ERR_BAD_RESPONSE'`), the error
+body is parsed with the same `parseAs` strategy as a successful response and
+exposed as `error.response.data`: with the default `'json'` it is the parsed
+JSON, or the raw text when the body is not valid JSON (an HTML error page, for
+example), and `undefined` when the body is empty. A body that cannot be read
+or parsed never replaces the `HttpError`. Response error interceptors and
+`retry.retryOn` see the same `data`.
+
+Reading the error body is bounded so a broken endpoint cannot stall the
+rejection or the retries: at most 1 MiB is read, within the remaining
+`timeout` of the request — or 5 seconds when no `timeout` is set — and the
+read stops as soon as the request's `signal` aborts. A body that is larger,
+slower or aborted is cancelled and leaves `data` as `undefined`; the
+`HttpError` keeps its `ERR_BAD_RESPONSE` code and status either way.
+`onDownloadProgress` reports successful bodies only, and with
+`parseAs: 'response'` the unread `Response` is passed through as `data`.
+
+```ts
+try {
+  await api.post('/notes', note);
+} catch (error) {
+  if (error instanceof HttpError && error.response?.status === 422) {
+    const { errors } = error.response.data as { errors: Record<string, string> };
+    form.setErrors(errors);
+  } else {
+    throw error;
+  }
+}
+```
+
+A successful response whose body is not valid JSON under `parseAs: 'json'`
+throws `HttpError` with `code: 'PARSE'` and the raw text in `response.data`.
 
 ## Polling
 

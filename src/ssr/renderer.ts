@@ -71,6 +71,13 @@ const isUnsafeUrlValue = (value: string): boolean => {
   return DANGEROUS_PROTOCOLS.some((protocol) => normalized.startsWith(protocol));
 };
 
+/** Whether any candidate URL in a `srcset` value ("url [descriptor], …") is unsafe. */
+const isUnsafeSrcsetValue = (value: string): boolean =>
+  value.split(',').some((entry) => {
+    const url = entry.trim().split(/\s+/)[0];
+    return url !== undefined && url !== '' && isUnsafeUrlValue(url);
+  });
+
 const URL_PROTOCOL_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const REL_SPLIT_PATTERN = /\s+/;
 
@@ -290,7 +297,10 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
     }
 
     if (node.type !== 'element') {
-      return node;
+      // Comments are dropped, as both sanitizeHtml() backends do: browsers end
+      // a comment early at `<!-->`, `<!--->` and `--!>`, so a comment kept
+      // verbatim can carry live markup past this parser.
+      return node.type === 'comment' ? null : node;
     }
 
     if (DANGEROUS_TAGS.has(node.tag) || !DEFAULT_ALLOWED_TAGS.has(node.tag)) {
@@ -311,7 +321,12 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
         continue;
       }
 
-      if ((attrName === 'href' || attrName === 'src') && isUnsafeUrlValue(value)) {
+      if (isUnsafeUrlAttribute(attrName) && isUnsafeUrlValue(value)) {
+        removeAttr(node, name);
+        continue;
+      }
+
+      if (attrName === 'srcset' && isUnsafeSrcsetValue(value)) {
         removeAttr(node, name);
         continue;
       }

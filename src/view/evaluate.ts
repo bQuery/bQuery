@@ -1,7 +1,20 @@
-import { isPrototypePollutionKey } from '../core/utils/object';
 import { isComputed, isSignal, type Signal } from '../reactive/index';
+import { getCompiledExpression, getCompiledStatements } from './compiled-registry';
 import { hasDangerousMemberAccess } from './dangerous-access';
+import { parseObjectExpression, splitTopLevel } from './split';
 import type { BindingContext } from './types';
+
+// Ahead-of-time compiled entries (seeded by `@bquery/bquery/view/compiler`)
+// take precedence over the runtime `new Function()` path and are never
+// evicted, so a build that precompiles every expression in a template avoids
+// the runtime evaluator (and its `'unsafe-eval'` requirement) entirely.
+// Unregistered sources transparently fall back to runtime compilation; for any
+// well-formed expression the two paths produce the same value. (They differ
+// only for an unresolved free identifier, which the `with`-based runtime path
+// turns into a caught ReferenceError — i.e. `undefined` for the whole
+// expression — whereas the compiled path reads it as `undefined` in place.)
+export { clearCompiledExpressions, registerCompiledExpressions } from './compiled-registry';
+export { parseObjectExpression, splitTopLevel } from './split';
 
 /** A cached compiled function that always evaluates to `undefined`. */
 const BLOCKED_FN: (ctx: BindingContext) => unknown = () => undefined;
@@ -66,58 +79,8 @@ const evaluateCache = new LRUCache(MAX_CACHE_SIZE);
 /** LRU cache for compiled evaluateRaw functions, keyed by expression string */
 const evaluateRawCache = new LRUCache(MAX_CACHE_SIZE);
 
-/**
- * Registry of ahead-of-time compiled expression functions, seeded by the
- * optional `@bquery/bquery/view/compiler` build step. Entries here take
- * precedence over the runtime `new Function()` path and are never evicted, so
- * a build that precompiles every expression in a template avoids the runtime
- * evaluator (and its `'unsafe-eval'` requirement) entirely. Expressions not
- * present here transparently fall back to runtime compilation; for any
- * well-formed expression the two paths produce the same value. (They differ
- * only for an unresolved free identifier, which the `with`-based runtime path
- * turns into a caught ReferenceError — i.e. `undefined` for the whole
- * expression — whereas the compiled path reads it as `undefined` in place.)
- * @internal
- */
-const compiledRegistry = new Map<string, CompiledFn>();
-
-/**
- * Registers ahead-of-time compiled expression functions produced by the
- * optional view compiler ({@link https://bquery.js.org/guide/view | view guide}).
- *
- * Each function must accept the binding context (or its lazy proxy) and return
- * the expression's value — exactly the calling convention the runtime evaluator
- * uses — so the same function serves both {@link evaluate} (signals unwrapped)
- * and {@link evaluateRaw} (raw signals). Registering an expression is purely an
- * optimization: unregistered expressions still evaluate at runtime, unchanged.
- *
- * This is normally called by the module emitted from
- * `@bquery/bquery/view/compiler`, not by hand.
- *
- * @example
- * ```ts
- * import { registerCompiledExpressions } from '@bquery/bquery/view';
- *
- * registerCompiledExpressions({
- *   'count + 1': ($ctx) => $ctx.count + 1,
- * });
- * ```
- */
-export const registerCompiledExpressions = (
-  entries: Record<string, (ctx: BindingContext) => unknown>
-): void => {
-  for (const key of Object.keys(entries)) {
-    compiledRegistry.set(key, entries[key] as CompiledFn);
-  }
-};
-
-/**
- * Removes all registered ahead-of-time compiled expressions. Mainly useful for
- * tests that want to assert the runtime fallback path.
- */
-export const clearCompiledExpressions = (): void => {
-  compiledRegistry.clear();
-};
+/** LRU cache for compiled `bq-on` statement lists, keyed by source */
+const statementsCache = new LRUCache(MAX_CACHE_SIZE);
 
 /**
  * Clears all cached compiled expression functions.
@@ -134,6 +97,7 @@ export const clearCompiledExpressions = (): void => {
 export const clearExpressionCache = (): void => {
   evaluateCache.clear();
   evaluateRawCache.clear();
+  statementsCache.clear();
 };
 
 /**
@@ -254,6 +218,25 @@ const createHardenedContext = (context: BindingContext): BindingContext => {
 };
 
 /**
+ * Compiles a `with`-scoped function from `body`, or returns {@link BLOCKED_FN}
+ * (logging why) when `expression` accesses constructor/prototype/__proto__ as
+ * a member: identifier shadowing alone does not stop
+ * `foo.constructor.constructor('…')()` reaching the Function constructor
+ * through any reachable object.
+ * @internal
+ */
+const compileGuarded = (expression: string, body: string): CompiledFn => {
+  if (hasDangerousMemberAccess(expression)) {
+    console.error(
+      `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
+    );
+    return BLOCKED_FN;
+  }
+  // `new Function()` runs in non-strict mode, so `with` is allowed.
+  return new Function('$ctx', `with($ctx) { ${body} }`) as CompiledFn;
+};
+
+/**
  * Evaluates an expression in the given context using `new Function()`.
  *
  * Signals and computed values in the context are lazily unwrapped only when
@@ -274,7 +257,7 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
 
     // Prefer an ahead-of-time compiled function when one was registered by the
     // optional view compiler — this skips the runtime `new Function()` path.
-    const compiled = compiledRegistry.get(expression);
+    const compiled = getCompiledExpression(expression);
     if (compiled) {
       return compiled(lazyContext) as T;
     }
@@ -282,26 +265,13 @@ export const evaluate = <T = unknown>(expression: string, context: BindingContex
     // Use cached function or compile and cache a new one
     let fn = evaluateCache.get(expression);
     if (!fn) {
-      // Block member access to constructor/prototype/__proto__: identifier
-      // shadowing alone does not stop `foo.constructor.constructor('…')()`
-      // reaching the Function constructor through any reachable object.
-      if (hasDangerousMemberAccess(expression)) {
-        console.error(
-          `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
-        );
-        fn = BLOCKED_FN;
-      } else {
-        // Use `with` to enable direct property access from proxy scope.
-        // Note: `new Function()` runs in non-strict mode, so `with` is allowed.
-        fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
-          ctx: BindingContext
-        ) => unknown;
-      }
+      // `with` enables direct property access from the lazy proxy scope.
+      fn = compileGuarded(expression, `return (${expression});`);
       evaluateCache.set(expression, fn);
     }
     return fn(lazyContext) as T;
   } catch (error) {
-    console.error(`bQuery view: Error evaluating "${expression}"`, error);
+    reportEvaluationError(expression, error);
     return undefined as T;
   }
 };
@@ -317,7 +287,7 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
     // Prefer an ahead-of-time compiled function when one was registered. The
     // raw context is passed directly (no signal unwrapping), so directives like
     // bq-model still receive the underlying signal.
-    const compiled = compiledRegistry.get(expression);
+    const compiled = getCompiledExpression(expression);
     if (compiled) {
       return compiled(context) as T;
     }
@@ -325,28 +295,88 @@ export const evaluateRaw = <T = unknown>(expression: string, context: BindingCon
     // Use cached function or compile and cache a new one
     let fn = evaluateRawCache.get(expression);
     if (!fn) {
-      // Block member access to constructor/prototype/__proto__ — see evaluate().
-      if (hasDangerousMemberAccess(expression)) {
-        console.error(
-          `bQuery view: refusing to evaluate "${expression}" — member access to constructor/prototype/__proto__ is blocked`
-        );
-        fn = BLOCKED_FN;
-      } else {
-        // Use `with` to enable direct property access from context scope.
-        // Unlike `evaluate`, we don't unwrap signals — but we still wrap the
-        // context in a hardened proxy so `with` cannot resolve inherited
-        // prototype members (e.g. `constructor.constructor`).
-        fn = new Function('$ctx', `with($ctx) { return (${expression}); }`) as (
-          ctx: BindingContext
-        ) => unknown;
-      }
+      // Unlike `evaluate`, signals are not unwrapped — but the context is still
+      // wrapped in a hardened proxy (below) so `with` cannot resolve inherited
+      // prototype members (e.g. `constructor.constructor`).
+      fn = compileGuarded(expression, `return (${expression});`);
       evaluateRawCache.set(expression, fn);
     }
     return fn(createHardenedContext(context)) as T;
   } catch (error) {
-    console.error(`bQuery view: Error evaluating "${expression}"`, error);
+    reportEvaluationError(expression, error);
     return undefined as T;
   }
+};
+
+/**
+ * Statement keywords that cannot follow `return` — a final `bq-on` statement
+ * starting with one is run as a statement and the handler returns `undefined`.
+ */
+const STATEMENT_START = /^(?:if|else|for|while|do|switch|try|throw|return|var|let|const)\b/;
+
+/**
+ * Evaluates a `bq-on` handler: a `;`-separated list of statements (like Vue's
+ * inline handlers), e.g. `$event.preventDefault(); add()`. Statements run in
+ * order and the value of the last one is returned. Separators inside strings,
+ * template literals and brackets do not split, a trailing `;` and empty
+ * statements are ignored, and a single expression behaves exactly like
+ * {@link evaluateRaw} (signals are not unwrapped).
+ *
+ * The dangerous-member-access guard applies to the whole source, so a blocked
+ * access in any statement blocks the handler. An ahead-of-time compiled
+ * statement-list entry (the `statements` map of `registerCompiledExpressions`,
+ * keyed by the full source) takes precedence. Expression entries are never
+ * used for a statement list; a single-expression handler goes through
+ * {@link evaluateRaw} and so still uses an expression entry, if registered.
+ *
+ * @security **WARNING:** Uses dynamic code execution. See {@link evaluate} for security notes.
+ * @internal
+ */
+export const evaluateStatements = <T = unknown>(source: string, context: BindingContext): T => {
+  try {
+    const compiled = getCompiledStatements(source);
+    if (compiled) {
+      return compiled(context) as T;
+    }
+
+    let fn = statementsCache.get(source);
+    if (!fn) {
+      const statements = splitTopLevel(source, ';');
+      if (statements.length < 2 && !STATEMENT_START.test(statements[0] ?? '')) {
+        // No statement list: identical to a plain expression (same cache,
+        // same expression-registry lookup, same error reporting).
+        const expression = statements[0] === source.trim() ? source : (statements[0] ?? '');
+        fn = (ctx) => (expression ? evaluateRaw(expression, ctx) : undefined);
+      } else {
+        const last = statements.pop() as string;
+        const tail = STATEMENT_START.test(last) ? `${last};` : `return (${last});`;
+        // The guard checks the whole source, so it covers every statement.
+        const body = compileGuarded(source, `${statements.join(';\n')};\n${tail}`);
+        fn = (ctx) => body(createHardenedContext(ctx));
+      }
+      statementsCache.set(source, fn);
+    }
+    return fn(context) as T;
+  } catch (error) {
+    console.error(`bQuery view: Error evaluating "${source}"`, error);
+    return undefined as T;
+  }
+};
+
+/**
+ * Logs a runtime evaluation error, pointing at `bq-on` when the expression is
+ * a `;`-separated statement list (only event handlers accept those).
+ * @internal
+ */
+const reportEvaluationError = (expression: string, error: unknown): void => {
+  console.error(
+    `bQuery view: Error evaluating "${expression}"${
+      splitTopLevel(expression, ';').length > 1
+        ? ' — ";"-separated statements are only supported in bq-on event handlers'
+        : ''
+    }`,
+    error
+  );
 };
 
 /**
@@ -370,136 +400,4 @@ export const parseObjectExpressionCached = (expression: string): Record<string, 
     parsedObjectExpressions.set(expression, parsed);
   }
   return parsed;
-};
-
-/**
- * Parses object expression like "{ active: isActive, disabled: !enabled }".
- * Handles nested structures like function calls, arrays, and template literals.
- * @internal
- */
-export const parseObjectExpression = (expression: string): Record<string, string> => {
-  const result: Record<string, string> = {};
-
-  // Remove outer braces and trim
-  const inner = expression
-    .trim()
-    .replace(/^\{|\}$/g, '')
-    .trim();
-  if (!inner) return result;
-
-  // Split by comma at depth 0, respecting strings and nesting
-  const parts: string[] = [];
-  let current = '';
-  let depth = 0;
-  let inString: string | null = null;
-
-  for (let i = 0; i < inner.length; i++) {
-    const char = inner[i];
-
-    // Handle string literals: count consecutive backslashes before a quote
-    // to correctly distinguish escaped quotes from end-of-string
-    if (char === '"' || char === "'" || char === '`') {
-      let backslashCount = 0;
-      let j = i - 1;
-      while (j >= 0 && inner[j] === '\\') {
-        backslashCount++;
-        j--;
-      }
-      // Quote is escaped only if preceded by an odd number of backslashes
-      if (backslashCount % 2 === 0) {
-        if (inString === null) {
-          inString = char;
-        } else if (inString === char) {
-          inString = null;
-        }
-      }
-      current += char;
-      continue;
-    }
-
-    // Skip if inside string
-    if (inString !== null) {
-      current += char;
-      continue;
-    }
-
-    // Track nesting depth for parentheses, brackets, and braces
-    if (char === '(' || char === '[' || char === '{') {
-      depth++;
-      current += char;
-    } else if (char === ')' || char === ']' || char === '}') {
-      depth--;
-      current += char;
-    } else if (char === ',' && depth === 0) {
-      // Top-level comma - split point
-      parts.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-
-  // Add the last part
-  if (current.trim()) {
-    parts.push(current.trim());
-  }
-
-  // Parse each part to extract key and value
-  for (const part of parts) {
-    // Find the first colon at depth 0 (to handle ternary operators in values)
-    let colonIndex = -1;
-    let partDepth = 0;
-    let partInString: string | null = null;
-
-    for (let i = 0; i < part.length; i++) {
-      const char = part[i];
-
-      if (char === '"' || char === "'" || char === '`') {
-        let backslashCount = 0;
-        let j = i - 1;
-        while (j >= 0 && part[j] === '\\') {
-          backslashCount++;
-          j--;
-        }
-        if (backslashCount % 2 === 0) {
-          if (partInString === null) {
-            partInString = char;
-          } else if (partInString === char) {
-            partInString = null;
-          }
-        }
-        continue;
-      }
-
-      if (partInString !== null) continue;
-
-      if (char === '(' || char === '[' || char === '{') {
-        partDepth++;
-      } else if (char === ')' || char === ']' || char === '}') {
-        partDepth--;
-      } else if (char === ':' && partDepth === 0) {
-        colonIndex = i;
-        break;
-      }
-    }
-
-    if (colonIndex > -1) {
-      const key = part
-        .slice(0, colonIndex)
-        .trim()
-        .replace(/^['"]|['"]$/g, '');
-      if (isPrototypePollutionKey(key)) continue;
-      const value = part.slice(colonIndex + 1).trim();
-      result[key] = value;
-    } else if (/^[A-Za-z_$][\w$]*$/.test(part)) {
-      // Shorthand property: `{ active }` is equivalent to `{ active: active }`,
-      // matching JS object-literal shorthand. Previously a part with no
-      // top-level colon was silently dropped, so `bq-class="{ active }"` added
-      // no class even when `active` was truthy — a documented parsing edge case.
-      if (isPrototypePollutionKey(part)) continue;
-      result[part] = part;
-    }
-  }
-
-  return result;
 };

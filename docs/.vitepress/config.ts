@@ -54,6 +54,12 @@ const moduleItems = [
   { text: 'Agents', link: '/guide/agents' },
 ];
 
+const toolingItems = [
+  { text: 'Create a project', link: '/guide/create-bquery' },
+  { text: 'Bundler Plugin', link: '/guide/bundler-plugin' },
+  { text: 'ESLint Plugin', link: '/guide/eslint-plugin' },
+];
+
 const workflowsItems = [
   { text: 'Overview', link: '/workflows/' },
   { text: 'Todo SPA', link: '/workflows/todo-spa' },
@@ -170,6 +176,7 @@ const fullSidebar = [
   { text: 'Introduction', collapsed: false, items: introductionItems },
   { text: 'Core Concepts', collapsed: false, items: conceptsItems },
   { text: 'Modules', collapsed: false, items: moduleItems },
+  { text: 'Tooling', collapsed: false, items: toolingItems },
   { text: 'Full-Stack Workflows', collapsed: true, items: workflowsItems },
   { text: 'Cookbook', collapsed: true, items: cookbookItems },
   { text: 'Release Notes', collapsed: true, items: releaseNotesItems },
