@@ -141,7 +141,10 @@
       "<a href=\"x\">a</a\u0000><script>alert(1)</script>",
       "<!--><img src=x onerror=alert(1)>-->",
       "<!---><img src=x onerror=alert(1)>-->",
-      "<!-- --!><img src=x onerror=alert(1)> -->"
+      "<!-- --!><img src=x onerror=alert(1)> -->",
+      "<textarea><!--</textarea><img src=x onerror=alert(1)>--></textarea>",
+      "<title><!--</title><svg onload=alert(1)>--></title>",
+      "<p><!--><img src=x onerror=alert(1)>--></p>"
     ]
   },
   "wellFormed": [
