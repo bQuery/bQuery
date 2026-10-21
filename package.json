@@ -284,6 +284,7 @@
     "storybook": "^10.6.1",
     "typedoc": "^0.28.20",
     "typescript": "^6.0.3",
+    "unplugin": "^2.3.11",
     "vite": "^8.3.4",
     "vitepress": "^1.6.4"
   }
