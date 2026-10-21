@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig.component-test.json",
+  "compilerOptions": {
+    "paths": {
+      "@bquery/bquery": ["../src/index.ts"],
+      "@bquery/bquery/*": ["../src/*"]
+    }
+  },
+  "include": ["."]
+}

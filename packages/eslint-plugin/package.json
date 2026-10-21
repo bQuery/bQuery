@@ -1,0 +1,53 @@
+{
+  "name": "@bquery/eslint-plugin",
+  "version": "0.1.0",
+  "description": "ESLint rules for bQuery.js: catch top-level $() calls, unsafe trusted HTML, unscoped component reactivity, untracked signal reads and root-entry imports.",
+  "type": "module",
+  "main": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "generate:export-map": "bun scripts/generate-export-map.mjs",
+    "check:export-map": "bun scripts/generate-export-map.mjs --check"
+  },
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "eslint-plugin",
+    "bquery",
+    "signals",
+    "web-components",
+    "lint"
+  ],
+  "author": "Jonas Pfalzgraf <support@josunlp.de>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bQuery/bQuery.git",
+    "directory": "packages/eslint-plugin"
+  },
+  "homepage": "https://bquery.js.org/guide/eslint-plugin",
+  "bugs": {
+    "url": "https://github.com/bQuery/bQuery/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "peerDependencies": {
+    "eslint": ">=9"
+  }
+}
