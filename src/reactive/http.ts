@@ -103,11 +103,16 @@ export interface HttpResponse<T = unknown> {
 
 /** Error subclass thrown on failed HTTP requests with rich metadata. */
 export class HttpError extends Error {
-  /** HTTP response (available when the server replied). */
+  /**
+   * HTTP response (available when the server replied). For a status rejected
+   * by `validateStatus` (`code: 'ERR_BAD_RESPONSE'`), `response.data` holds the
+   * error body parsed like a successful one — JSON when it parses, otherwise
+   * the raw text, `undefined` when empty.
+   */
   response?: HttpResponse;
   /** Resolved request configuration. */
   config: HttpRequestConfig;
-  /** Original error code string (e.g. `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`). */
+  /** Error code: `'ERR_BAD_RESPONSE'`, `'TIMEOUT'`, `'ABORT'`, `'NETWORK'` or `'PARSE'`. */
   code: string;
 
   constructor(message: string, config: HttpRequestConfig, code: string, response?: HttpResponse) {
@@ -359,6 +364,32 @@ const parseResponseBody = async <T>(
   }
 };
 
+/**
+ * @internal Best-effort parse of a rejected response's body for
+ * `HttpError.response.data`. Uses the same `parseAs` strategy as a successful
+ * response; with `'json'` a body that is not valid JSON (an HTML error page,
+ * plain text) is returned as text, and an empty body yields `undefined`. Never
+ * throws, so a broken error body cannot mask the status error.
+ */
+const parseErrorBody = async (
+  response: Response,
+  parseAs: BqueryFetchParseAs,
+  config: HttpRequestConfig
+): Promise<unknown> => {
+  try {
+    if (parseAs !== 'json') return await parseResponseBody(response, parseAs, config);
+    const text = await response.text();
+    if (!text) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  } catch {
+    return undefined;
+  }
+};
+
 /** @internal – wrap a response body stream to report download progress. */
 const wrapDownloadStream = (
   response: Response,
@@ -475,7 +506,7 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
         config,
         'ERR_BAD_RESPONSE',
         {
-          data: undefined,
+          data: await parseErrorBody(response, parseAs, config),
           status: response.status,
           statusText: response.statusText,
           headers: response.headers,

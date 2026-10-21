@@ -373,6 +373,131 @@ describe('HttpError', () => {
     const res = await api.get('/missing');
     expect(res.status).toBe(404);
   });
+
+  describe('error response body', () => {
+    const rejectWith = async (
+      response: () => Response,
+      config: Parameters<typeof createHttp>[0] = {}
+    ): Promise<HttpError> => {
+      const api = createHttp({ ...config, fetcher: asMockFetch(async () => response()) });
+      try {
+        await api.post('/notes', { title: '' });
+      } catch (error) {
+        expect(error).toBeInstanceOf(HttpError);
+        return error as HttpError;
+      }
+      throw new Error('expected the request to reject');
+    };
+
+    it('parses a JSON error body into error.response.data', async () => {
+      const error = await rejectWith(
+        () =>
+          new Response(JSON.stringify({ errors: { title: 'Title is required' } }), {
+            status: 422,
+            statusText: 'Unprocessable Entity',
+            headers: { 'content-type': 'application/json' },
+          })
+      );
+      expect(error.code).toBe('ERR_BAD_RESPONSE');
+      expect(error.response?.status).toBe(422);
+      expect(error.response?.statusText).toBe('Unprocessable Entity');
+      expect(error.response?.data).toEqual({ errors: { title: 'Title is required' } });
+    });
+
+    it('exposes a non-JSON error body as text', async () => {
+      const error = await rejectWith(
+        () =>
+          new Response('<h1>Bad Gateway</h1>', {
+            status: 502,
+            headers: { 'content-type': 'text/html' },
+          })
+      );
+      expect(error.code).toBe('ERR_BAD_RESPONSE');
+      expect(error.response?.data).toBe('<h1>Bad Gateway</h1>');
+    });
+
+    it('does not let invalid JSON with a JSON content type mask the HttpError', async () => {
+      const error = await rejectWith(
+        () =>
+          new Response('{"errors": ', {
+            status: 500,
+            headers: { 'content-type': 'application/json' },
+          })
+      );
+      expect(error.code).toBe('ERR_BAD_RESPONSE');
+      expect(error.response?.status).toBe(500);
+      expect(error.response?.data).toBe('{"errors": ');
+    });
+
+    it('leaves data undefined for an empty error body', async () => {
+      const error = await rejectWith(() => new Response(null, { status: 404 }));
+      expect(error.code).toBe('ERR_BAD_RESPONSE');
+      expect(error.response?.status).toBe(404);
+      expect(error.response?.data).toBeUndefined();
+    });
+
+    it('treats a 204 as an error with undefined data when validateStatus rejects it', async () => {
+      const error = await rejectWith(() => new Response(null, { status: 204 }), {
+        validateStatus: (status) => status === 200,
+      });
+      expect(error.response?.status).toBe(204);
+      expect(error.response?.data).toBeUndefined();
+    });
+
+    it('respects parseAs for the error body', async () => {
+      const error = await rejectWith(
+        () =>
+          new Response('{"message":"nope"}', {
+            status: 400,
+            headers: { 'content-type': 'application/json' },
+          }),
+        { parseAs: 'text' }
+      );
+      expect(error.response?.data).toBe('{"message":"nope"}');
+    });
+
+    it('keeps the HttpError when the error body cannot be read', async () => {
+      const broken = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.error(new Error('connection reset'));
+        },
+      });
+      const error = await rejectWith(() => new Response(broken, { status: 503 }));
+      expect(error.code).toBe('ERR_BAD_RESPONSE');
+      expect(error.response?.status).toBe(503);
+      expect(error.response?.data).toBeUndefined();
+    });
+
+    it('passes the parsed error body to response error interceptors and retryOn', async () => {
+      let seenByInterceptor: unknown;
+      const seenByRetry: unknown[] = [];
+      const api = createHttp({
+        retry: {
+          count: 1,
+          delay: 0,
+          retryOn: (error) => {
+            seenByRetry.push(error.response?.data);
+            return true;
+          },
+        },
+        fetcher: asMockFetch(
+          async () =>
+            new Response(JSON.stringify({ errors: { title: 'Taken' } }), {
+              status: 422,
+              headers: { 'content-type': 'application/json' },
+            })
+        ),
+      });
+      api.interceptors.response.use(undefined, (error) => {
+        seenByInterceptor = (error as HttpError).response?.data;
+        throw error;
+      });
+
+      await expect(api.get('/notes')).rejects.toBeInstanceOf(HttpError);
+      expect(seenByRetry).toEqual([{ errors: { title: 'Taken' } }, { errors: { title: 'Taken' } }]);
+      expect(seenByInterceptor).toEqual({ errors: { title: 'Taken' } });
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------

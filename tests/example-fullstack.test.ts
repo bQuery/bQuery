@@ -153,6 +153,61 @@ describe('full-stack example (#226)', () => {
     expect((await client.json(`/api/notes/${note.id}`, 'DELETE')).status).toBe(404);
   });
 
+  it('shows server-side validation issues on the hydrated form', async () => {
+    const client = createClient();
+    await client.signIn();
+    // The real server's 400 for an invalid note, replayed to the browser for a
+    // note the client-side check lets through (e.g. a rule only the server knows).
+    const rejected = await client.json('/api/notes', 'POST', { title: '   ', body: '' });
+    expect(rejected.status).toBe(400);
+    const errorBody = await rejected.text();
+
+    const html = await (await client.request('/', { headers: { 'accept-language': 'en' } })).text();
+    const page = new DOMParser().parseFromString(html, 'text/html');
+    document.body.innerHTML = `<div id="app">${page.querySelector('#app')!.innerHTML}</div>`;
+    const stateScript = document.createElement('script');
+    stateScript.id = 'bq-state';
+    stateScript.type = 'application/json';
+    stateScript.textContent = page.querySelector('#bq-state')!.textContent;
+    document.body.append(stateScript);
+
+    const originalFetch = globalThis.fetch;
+    const posted: string[] = [];
+    globalThis.fetch = Object.assign(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        posted.push(`${init?.method ?? 'GET'} ${new URL(String(input)).pathname}`);
+        return new Response(errorBody, {
+          status: rejected.status,
+          headers: { 'content-type': rejected.headers.get('content-type') ?? 'application/json' },
+        });
+      },
+      { preconnect: originalFetch.preconnect }
+    ) as typeof fetch;
+
+    try {
+      await import('../examples/fullstack/client');
+      expect(document.documentElement.dataset.hydrated).toBe('true');
+
+      const input = document.querySelector<HTMLInputElement>('#note-form input[name="title"]')!;
+      input.value = 'Passes the client check';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      document
+        .querySelector('#note-form')!
+        .dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+      const titleError = document.querySelector('#note-form small.error')!;
+      for (let i = 0; i < 50 && !titleError.textContent; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      expect(posted).toEqual(['POST /api/notes']);
+      expect(titleError.textContent).toBe('Give the note a title.');
+    } finally {
+      globalThis.fetch = originalFetch;
+      document.body.replaceChildren();
+      delete document.documentElement.dataset.hydrated;
+    }
+  });
+
   it('signs out', async () => {
     const client = createClient();
     await client.signIn();
