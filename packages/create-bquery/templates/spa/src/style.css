@@ -1,0 +1,64 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  --accent: #0b7285;
+}
+
+body {
+  margin: 0;
+}
+
+#app {
+  width: min(40rem, calc(100% - 2rem));
+  margin: 0 auto;
+}
+
+nav {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+bq-link {
+  color: var(--accent);
+  cursor: pointer;
+}
+
+bq-link.active {
+  font-weight: bold;
+}
+
+form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+input,
+button {
+  font: inherit;
+  padding: 0.4rem;
+}
+
+.todos {
+  padding: 0;
+  list-style: none;
+}
+
+.todos li {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+}
+
+.todos li.done span {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+button.link {
+  background: none;
+  border: 0;
+  color: var(--accent);
+  cursor: pointer;
+}

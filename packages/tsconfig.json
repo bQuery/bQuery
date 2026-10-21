@@ -6,5 +6,6 @@
       "@bquery/bquery/*": ["../src/*"]
     }
   },
-  "include": ["."]
+  "include": ["."],
+  "exclude": ["create-bquery/templates"]
 }
