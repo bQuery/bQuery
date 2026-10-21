@@ -124,7 +124,11 @@ export function toValidProjectName(name) {
     .replace(/^[._]+/, '')
     .replace(/[^a-z0-9._-]+/g, '-')
     .replace(/-+/g, '-')
-    .replace(/^[-._]+|-+$/g, '');
+    // Two anchored passes instead of `/^[-._]+|-+$/g`: the unanchored `-+$`
+    // alternative backtracks over every run of dashes (quadratic on long
+    // input). Runs are already collapsed, so at most one trailing dash is left.
+    .replace(/^[-._]+/, '')
+    .replace(/-$/, '');
   if (!candidate || !validateProjectName(candidate).valid) return 'bquery-app';
   return candidate;
 }

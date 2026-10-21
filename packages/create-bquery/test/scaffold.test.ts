@@ -272,6 +272,14 @@ describe('validateProjectName()', () => {
     expect(toValidProjectName('__Private')).toBe('private');
     expect(toValidProjectName('???')).toBe('bquery-app');
     expect(toValidProjectName('http')).toBe('bquery-app');
+    expect(toValidProjectName('--my--app--')).toBe('my-app');
+    expect(toValidProjectName('._-app')).toBe('app');
+  });
+
+  it('stays linear on long runs of dashes', () => {
+    const start = performance.now();
+    expect(toValidProjectName(`${'-'.repeat(100_000)}x${'-'.repeat(100_000)}!`)).toBe('x');
+    expect(performance.now() - start).toBeLessThan(500);
   });
 });
 
