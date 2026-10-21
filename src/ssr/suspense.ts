@@ -17,7 +17,13 @@ import { isComputed, isSignal, type Signal } from '../reactive/index';
 import type { BindingContext } from '../view/types';
 import { createSSRContext, type SSRContext } from './context';
 import { DEFER_BRAND } from './defer-brand';
-import { parseTemplate, serializeTree, type SSRElement, type SSRNode } from './html-parser';
+import {
+  parseTemplate,
+  serializeTree,
+  splitLeadingDoctype,
+  type SSRElement,
+  type SSRNode,
+} from './html-parser';
 import { renderToString } from './render';
 import type { AsyncRenderOptions } from './render-async';
 
@@ -265,7 +271,9 @@ const replaceSlotsInShell = (
   // Without such a marker, the slot fallback is already inlined and we
   // append the resolved templates at the end of <body>.
   const slotTag = sanitizeSlotTag(options.slotTag, 'bq-slot');
-  const root = parseTemplate(html);
+  // The parser skips doctypes, so carry the shell's one past the re-parse.
+  const leadingDoctype = splitLeadingDoctype(html);
+  const root = parseTemplate(leadingDoctype ? leadingDoctype.rest : html);
   const slotsByKey = new Map(slots.map((slot) => [slot.key, slot]));
   const placed = new Set<string>();
 
@@ -291,7 +299,7 @@ const replaceSlotsInShell = (
   // `context` reference suppressed to keep the function side-effect free
   // for the static analysis; the render uses syncContext where needed.
   void context;
-  return serializeTree(root);
+  return (leadingDoctype?.doctype ?? '') + serializeTree(root);
 };
 
 /** Returns true for characters that can appear immediately before an attribute name. */

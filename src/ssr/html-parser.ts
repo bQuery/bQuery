@@ -218,6 +218,19 @@ const parseAttributes = (
 };
 
 /**
+ * Splits an HTML5 doctype (`<!doctype html>`, any case) off the start of a
+ * template, or returns `null` when it does not begin with one. Only the
+ * keyword is taken from the source, so nothing else in the token can reach
+ * the output.
+ *
+ * @internal
+ */
+export const splitLeadingDoctype = (template: string): { doctype: string; rest: string } | null => {
+  const match = /^<!(doctype)\s+html\s*>/i.exec(template);
+  return match && { doctype: `<!${match[1]} html>`, rest: template.slice(match[0].length) };
+};
+
+/**
  * Parses an HTML template string into a virtual node tree without depending
  * on a DOM implementation. The parser is intentionally permissive: it does
  * not validate nesting, but it preserves attribute order and never throws on

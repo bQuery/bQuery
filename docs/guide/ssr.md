@@ -460,6 +460,7 @@ hydrateMount('#app', { title: 'Welcome' }, { hydrate: true });
 - `globalKey` can be customized when integrating with existing server frameworks (e.g., Express, Hono, Elysia).
 - Hydration reuses existing markup and attaches view bindings instead of replacing the DOM wholesale.
 - `renderToString()` automatically falls back to the DOM-free renderer when no `DOMParser` is available; only explicitly forcing the DOM backend requires a custom DOM implementation such as `happy-dom` or `linkedom`.
+- Full-page templates keep their `<!DOCTYPE html>` and their `<html>`, `<head>` and `<body>` elements. The doctype is re-emitted as `<!DOCTYPE html>` (keyword case kept), never copied verbatim, and only counts at the very start of the template. Legacy doctypes with `PUBLIC`/`SYSTEM` identifiers, other doctypes and processing instructions are dropped.
 - Prototype-pollution keys (`__proto__`, `constructor`, `prototype`) are filtered during serialization.
 
 ---
@@ -482,6 +483,8 @@ configureSSR({ backend: 'dom', documentImpl: { DOMParser } });
 
 // Default ('auto') uses DOM if available, otherwise the pure renderer.
 ```
+
+Templates that are whole documents — a leading doctype, or a template that starts with `<html>`, `<head>` or `<body>` — always use the pure renderer, whatever the backend: `DOMParser` files a document's wrappers away where a fragment render cannot keep them. A page therefore renders the same with or without a DOM installed (for example under happy-dom in tests).
 
 The pure renderer is CSP-safe: it never calls `eval` or `new Function()` and parses expressions through a tightly-scoped Pratt parser supporting property access (`a.b`, `a?.b`, `a[0]`), comparisons, ternary, `&&`/`||`/`??`, unary `!`/`+`/`-`/`typeof`, function calls on context-bound functions and basic arithmetic.
 

@@ -6,7 +6,8 @@
 import { createSSRContext, renderToResponse, resolveSSRRoute } from '@bquery/bquery/ssr';
 
 // The `bq-*` directives are the same ones the view module uses in the browser.
-const TEMPLATE = `<html lang="en">
+const TEMPLATE = `<!doctype html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -73,7 +74,7 @@ export const handle = async (request: Request, runtime: string): Promise<Respons
 
   const page = resolved.matched ? (resolved.route.matched?.meta as unknown as PageMeta) : NOT_FOUND;
 
-  const response = await renderToResponse(
+  return renderToResponse(
     TEMPLATE,
     { ...page, runtime, route: resolved.route },
     {
@@ -84,16 +85,4 @@ export const handle = async (request: Request, runtime: string): Promise<Respons
       status: resolved.matched ? 200 : 404,
     }
   );
-  return withDoctype(response);
-};
-
-/**
- * The SSR renderer drops `<!doctype html>` from templates, and a page without
- * one renders in quirks mode, so add it to the rendered HTML.
- */
-const withDoctype = async (response: Response): Promise<Response> => {
-  if (!response.body) return response; // e.g. 304 Not Modified
-  const html = (await response.text()).trimStart();
-  const body = /^<!doctype/i.test(html) ? html : `<!doctype html>\n${html}`;
-  return new Response(body, response);
 };
