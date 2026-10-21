@@ -80,7 +80,7 @@ my-app/
     └── app.test.js # fireEvent, renderComponent, within, waitFor
 ```
 
-`npm start` serves the folder on <http://localhost:3000/>; any static server
+`npm start` serves the folder on `http://localhost:3000/`; any static server
 works. The bQuery version is pinned in two places, the import map and
 `package.json` — change both together.
 

@@ -219,7 +219,7 @@
     "test": "bun test",
     "bench": "bun bench/index.ts",
     "bench:compare": "bun scripts/compare-bench.mjs",
-    "test:types": "tsc -p tsconfig.component-test.json --noEmit",
+    "test:types": "tsc -p tsconfig.component-test.json --noEmit && tsc -p packages/tsconfig.json --noEmit",
     "test:coverage": "bun test --coverage --coverage-reporter=lcov --coverage-reporter=text",
     "test:watch": "bun test --watch",
     "test:browser": "playwright test --config browser/playwright.config.ts",

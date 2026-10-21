@@ -463,6 +463,8 @@ bquery-view-compile --out-dir src/views/.compiled src/views/*.html
 
 Or drive it from a build script with `compileFiles()` / `runCompileCli()`. The compiler is intentionally **not** a build tool of its own — `compileViews()` and `compileToModule()` are small transforms usable from any bundler (Vite/esbuild/Rollup).
 
+With a bundler, [`@bquery/unplugin`](/guide/bundler-plugin#view-precompilation) runs the compiler for you: `*.view.html` imports are compiled on the fly, with HMR in Vite and skipped expressions reported as build warnings.
+
 ### What compiles
 
 The transform is conservative: identifiers, member access, calls, arithmetic/logical/comparison operators, ternaries, array and object literals (including shorthand), and string literals compile. It bails — and the expression falls back to runtime — on assignments (except `++`/`--`, which compile), arrow/`function` bodies, `new`, spread, regex and template literals. Those skipped expressions are listed in `stats.skipped` with a reason, so nothing is silently dropped.
