@@ -963,6 +963,7 @@ export default createEdgeHandler(async (request) => {
 
 ## Version history
 
+- **1.18.0** — `sanitizeHtmlForSSR()` drops HTML comments and checks every URL attribute, including each `srcset` candidate; full-page templates keep `<!DOCTYPE html>` and always use the DOM-free renderer; `renderToStream()` streams a full page with `flushBoundary()` markers as one document; the Node adapter streams request bodies on demand.
 - **1.17.1** — `createNodeHandler()` answers a throwing handler with `500` instead of an unhandled rejection that terminated Node, aborts `request.signal` and cancels the response stream when the client disconnects.
 - **1.17.0** — attribute and tag names are validated before serialization.
 - **1.15.0 (graduated to Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.

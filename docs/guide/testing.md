@@ -810,5 +810,6 @@ describe('router', () => {
 
 ## Version history
 
+- **1.18.0** — `*ByRole()` queries accept `{ name: string | RegExp }`; every `find*` query accepts its timeout as a number or `{ timeout, interval }`; `fireEvent` and `userEvent` dispatch real `MouseEvent` / `PointerEvent` / `KeyboardEvent` / `InputEvent` / `FocusEvent` objects with browser-like defaults; `getByLabelText()` finds controls whose label text sits in nested elements.
 - **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#147](https://github.com/bQuery/bQuery/issues/147)). Runner integration documented beyond `bun:test` (Vitest / Jest); shadow-DOM-aware queries, `userEvent` / `fireEvent`, and mocks covered by tests across light + shadow DOM; `expectAccessible` aligned with the `a11y` audit's rule definitions.
 - **1.14.0** — auto cleanup, `fireEvent.*` shortcuts, `userEvent` namespace, shadow-DOM-aware `screen` / `within`, reactive harnesses (`mockComputed`, `mockEffect`), async helpers (`tick`, `nextTick`, `flushPromises`, `runScheduled`), module mocks (`mockStore`, `mockI18n`, `mockForm`, `mockFetch`, `mockWebSocket`), snapshot/a11y helpers (`prettyDOM`, `getReactiveSummary`, `expectAccessible`).

@@ -16,7 +16,7 @@ Work autonomously inside the scope of the current request, but do not invent a h
 
 bQuery.js is a batteries-included framework, not a utility library. It is modular, tree-shakeable, has zero runtime dependencies, and currently ships **23 public entry points**.
 
-Current release baseline: **1.17.2**.
+Current release baseline: **1.18.0**.
 
 Version `1.15.0` graduates the final thirteen modules to **Stable** — `view`, `forms`, `i18n`, `a11y`, `dnd`, `media`, `plugin`, `devtools`, `testing`, `storybook`, `concurrency`, `ssr`, `server` — so every module is now Stable, with no Beta or Experimental tiers (canonical record: `STABILITY.md`, enforced by `bun run check:stability`). Additive APIs this cycle: `@bquery/bquery/view` enter/leave/move transitions + the optional `@bquery/bquery/view/compiler` (no `'unsafe-eval'`); `@bquery/bquery/forms` `formAction`/`useFormStatus`/`optimistic`; `@bquery/bquery/i18n` ICU MessageFormat + `@bquery/bquery/i18n/extract` (`bquery-i18n` CLI); an opt-in file-route convention (`createFileRoutes`, `mountFileRoutes`) with typed `load`/`action`; `@bquery/bquery/server` `session`/`csrf`/`guard`/`basicAuth`/`bearerAuth`; `@bquery/bquery/ssr` production `hydrate`/`detectHydrationMismatches` + resumable boundaries; a versioned `@bquery/bquery/devtools` bridge protocol + reference extension; and `definePlugin()`. No breaking changes.
 
@@ -31,6 +31,10 @@ Start here before making assumptions:
 Prefer pointing back to those files instead of duplicating large architecture sections into new instructions or docs.
 
 For repo guidance refreshes, keep the role split clear: `AGENT.md` is the deep reference, `llms.txt` is the compact mirror, this file stays behavioral/meta-oriented, and `.cursorrules` / `.clinerules` are derivative tool snapshots.
+
+## Version 1.18.0 highlights
+
+- Version `1.18.0` is a feature release. No API removals, no module status transitions. Added: `createSchemaForm()` / `useSchemaForm()` and `createForm({ fields, schema })` accept any Standard Schema (Zod, Valibot, ArkType, …) with the value type inferred from it; `validate(schema, { source })` server middleware validates the body, query or params against the same schema and exposes the typed output via `middleware.data(ctx)`; components take `renderStrategy: 'morph' | 'replace'`; `RetryConfig` gains `methods`, `statuses`, `maxRetryAfter`, `respectRetryAfter` and honours `Retry-After`; `bq-on` handlers accept `;`-separated statements (the compiler emits them in a separate `statements` map for `registerCompiledExpressions(expressions, statements?)`); `editor/html-custom-data.json` and `editor/bquery-config.schema.json`; the `create-bquery` scaffolder (`npm create bquery@latest`, also shipped as the `create-bquery` bin of `@bquery/bquery`). Behaviour changes: component re-renders morph the existing DOM instead of replacing `innerHTML` (`renderStrategy: 'replace'` restores the old behaviour); `http` / `useFetch()` retries default to idempotent methods and the statuses 408/429/502/503/504 (pass `methods` / `statuses` to widen); `createServer()` limits request bodies to 1 MiB (`json`, `form`, `text`, `raw`) and 10 MiB (`multipart`) by default (`limits: { json: Infinity }` lifts a limit). Security: `sanitizeHtmlForSSR()` drops comments and checks every URL attribute and `srcset` candidate; the DOM backend of `sanitizeHtml()` drops comments and non-text children of text-only elements. Fixes: full-page SSR templates keep `<!DOCTYPE html>` and their `<html>`/`<head>`/`<body>` wrappers; `HttpError.response.data` carries the parsed error body; store types are inferred from the definition; `*ByRole({ name })`, typed `fireEvent`/`userEvent` events and nested label text in `@bquery/bquery/testing`.
 
 ## Version 1.17.2 highlights
 

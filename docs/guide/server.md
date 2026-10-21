@@ -971,6 +971,7 @@ type documents `actionMethod`, `dataPath`, `basePath`, and the middleware hooks.
 
 ## Version history
 
+- **1.18.0** — `validate(schema, options)` middleware for Standard Schema validation of the body, query or params; request-body limits by default (1 MiB for `json`, `form`, `text`, `raw`; 10 MiB for `multipart`; `Infinity` lifts a limit); `ctx.body()` reads the body once, and the Node adapter streams it on demand and rejects an oversized declared `Content-Length` with `413`.
 - **1.17.2** — `csrf()` and `session()` name their cookies `__Host-bq.csrf` / `__Host-bq.sid` by default so a sibling subdomain cannot plant them; `__Host-`/`__Secure-` `cookieName`s whose attributes a browser would reject, or whose prefix is mis-cased, throw at startup. Users are logged out once on upgrade.
 - **1.17.1** — signed CSRF tokens bound to the session (`bindToSession`); `memoryStore()` sweeps expired sessions and evicts the least recently used beyond `maxEntries`, and the default store is capped at 10 000; the Node adapter answers handler errors with `500` and cancels streams on disconnect; `serveStatic` checks precompressed sidecars against `root`; encoded static route segments match; `listen({ signal })` honours an aborted signal.
 - **1.17.0** — `serveStatic()` and `rateLimit()`; global middleware also runs for unmatched routes; `ctx.html()` sanitizes without a DOM.
