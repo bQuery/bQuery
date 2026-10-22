@@ -35,6 +35,7 @@ import { evaluateExpression } from './expression';
 import { cheapHash, collectDirectiveSignatureFromAttrs, HYDRATION_HASH_ATTR } from './hash';
 import {
   cloneNode,
+  decodeEntities,
   escapeText,
   parseTemplate,
   serializeTree,
@@ -346,6 +347,20 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
         relValues.add('noreferrer');
         setAttr(node, 'rel', Array.from(relValues).join(' '));
       }
+    }
+
+    if (node.raw) {
+      // `textarea` / `title` content is kept as raw text by the parser and
+      // serialized verbatim. That is only safe if whatever parses the output
+      // also treats it as text; DOM implementations such as happy-dom build
+      // elements inside a textarea, so `<span><textarea></span><iframe …>`
+      // came back out as live markup. Decode it as a browser would (RCDATA)
+      // and let the serializer escape it: the visible text is unchanged.
+      let text = '';
+      for (const child of node.children) if (child.type === 'text') text += child.value;
+      node.raw = false;
+      node.children = text ? [{ type: 'text', value: decodeEntities(text) }] : [];
+      return node;
     }
 
     node.children = node.children.flatMap((child) => {
