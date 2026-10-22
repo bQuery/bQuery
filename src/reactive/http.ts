@@ -768,7 +768,13 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
           ? resolveRetryDelay(retryConfig, httpError.response?.headers, attempt)
           : 0;
         retryConfig?.onRetry?.(httpError, attempt + 1);
-        await sleep(retryDelay, resolvedConfig.signal);
+        try {
+          await sleep(retryDelay, resolvedConfig.signal);
+        } catch {
+          // Aborted while waiting for the next attempt: report it like an
+          // abort during the request, not as the signal's raw reason.
+          throw new HttpError('Request aborted', resolvedConfig, 'ABORT');
+        }
       }
     }
 

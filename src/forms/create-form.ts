@@ -112,6 +112,9 @@ const createField = <T>(
       isTouched.value = true;
     },
     reset: () => {
+      // A validation still in flight must not write its error back afterwards.
+      const id = fieldValidationIds.get(field as FormField<unknown>) ?? 0;
+      fieldValidationIds.set(field as FormField<unknown>, id + 1);
       value.value = initial;
       error.value = '';
       isTouched.value = false;
@@ -392,12 +395,17 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
   } | null = null;
   // Every field validates against the same whole-form value, so one schema run
   // serves all of them until a value changes. Explicit validate() and
-  // validateField() calls start from a fresh run.
+  // validateField() calls start from a fresh run. The cache is keyed on the
+  // raw field values: a `format` that builds a new array or object on every
+  // call would never match a formatted snapshot.
   const runSchema = (): Promise<SchemaValidationResult<unknown>> => {
-    const values = getValuesUntracked() as Record<string, unknown>;
-    if (schemaCache && shallowEqualValues(schemaCache.values, values)) return schemaCache.result;
-    const result = validateWithSchema(formSchema as StandardSchemaV1, values);
-    const entry = { values, result };
+    const raw: Record<string, unknown> = {};
+    for (const name of fieldOrder) {
+      raw[name] = (fields as Record<string, FormField>)[name].value.peek();
+    }
+    if (schemaCache && shallowEqualValues(schemaCache.values, raw)) return schemaCache.result;
+    const result = validateWithSchema(formSchema as StandardSchemaV1, getValuesUntracked());
+    const entry = { values: raw, result };
     schemaCache = entry;
     // A rejected run (an async refinement's network call failed) must not be
     // replayed: drop it so the next validation calls the schema again.
@@ -636,6 +644,7 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
   };
 
   const reset = (): void => {
+    schemaCache = null;
     for (const name of fieldOrder) {
       (fields as Record<string, FormField>)[name].reset();
     }
@@ -644,6 +653,7 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
   const resetField = (name: keyof T & string): void => {
     const entry = runtime[name as string];
     if (!entry) return;
+    schemaCache = null;
     entry.field.reset();
   };
 

@@ -6,6 +6,7 @@ import {
   isRetryableMethod,
   parseRetryAfter,
   resolveRetryAfterDelay,
+  resolveRetryDelay,
 } from '../src/reactive/retry-policy';
 
 const asMockFetch = (
@@ -61,6 +62,17 @@ describe('retry policy helpers', () => {
     const headers = new Headers({ 'retry-after': '3600' });
     expect(resolveRetryAfterDelay(headers, 2000)).toBe(2000);
     expect(resolveRetryAfterDelay(new Headers(), 2000)).toBeUndefined();
+  });
+
+  it('keeps unusable maxRetryAfter values from turning into an immediate retry', () => {
+    const headers = (value: string) => new Headers({ 'retry-after': value });
+    // NaN falls back to the default cap of 60 s.
+    expect(resolveRetryDelay({ maxRetryAfter: NaN }, headers('10'), 0)).toBe(10_000);
+    expect(resolveRetryDelay({ maxRetryAfter: NaN }, headers('3600'), 0)).toBe(60_000);
+    // No cap: the delay stays within what setTimeout honours (larger fires at ~1 ms).
+    expect(resolveRetryDelay({ maxRetryAfter: Infinity }, headers('2592000'), 0)).toBe(
+      2_147_483_647
+    );
   });
 });
 
@@ -198,6 +210,25 @@ describe('http retry defaults', () => {
     const started = Date.now();
     await api.get('/x');
     expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('http retry abort', () => {
+  it('rejects with an ABORT HttpError when aborted while waiting for Retry-After', async () => {
+    const counter = { calls: 0 };
+    const api = createHttp({
+      fetcher: flaky(
+        () => new Response('busy', { status: 503, headers: { 'retry-after': '30' } }),
+        counter
+      ),
+      retry: 2,
+    });
+    const controller = new AbortController();
+    setTimeout(() => controller.abort(), 20);
+    const error = await api.get('/x', { signal: controller.signal }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(HttpError);
+    expect((error as HttpError).code).toBe('ABORT');
+    expect(counter.calls).toBe(1);
   });
 });
 

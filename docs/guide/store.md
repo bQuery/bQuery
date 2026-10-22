@@ -133,7 +133,7 @@ console.log(cartStore.subtotal); // number
 console.log(cartStore.itemCount); // number
 ```
 
-A getter can read other getters through its second argument. TypeScript cannot infer a getter's type from the getters themselves, so declare the state and getter types explicitly in that case (add the actions type as the third generic if the store has actions):
+A getter can read other getters through its second argument. TypeScript cannot infer a getter's type from the getters themselves, so declare the state and getter types explicitly in that case (add the actions type as the third generic if the store has actions). Without them, every getter drops out of the store's type, and the error names `EmptyStoreRecord` (for example `Property 'total' does not exist on type 'EmptyStoreRecord'`):
 
 ```ts
 type CartState = { items: { price: number; qty: number }[]; discount: number };
