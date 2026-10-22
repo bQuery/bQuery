@@ -34,6 +34,9 @@ const { app } = createApp({
   secureCookies: process.env.NODE_ENV === 'production',
   clientScript: buildClient,
   stylesheet: await readFile(here('./styles.css'), 'utf8'),
+  loginAttemptsPerMinute: process.env.LOGIN_ATTEMPTS
+    ? Number(process.env.LOGIN_ATTEMPTS)
+    : undefined,
 });
 
 const port = Number(process.env.PORT ?? 3000);
