@@ -693,7 +693,7 @@ describe('morph release review (1.18)', () => {
       root.remove();
     } finally {
       if (original) proto.moveBefore = original;
-      else delete proto.moveBefore;
+      else delete (proto as { moveBefore?: unknown }).moveBefore;
     }
   });
 
