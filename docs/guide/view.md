@@ -245,8 +245,10 @@ Access the element with `$el`:
 
 A handler can run several statements separated by `;` (like Vue's inline
 handlers). They run in order, and a trailing `;` is fine. A `;` inside a string,
-template literal, or brackets doesn't split the handler, and the
-constructor/prototype guards still apply to every statement:
+template literal, brackets or a `//` / `/* */` comment doesn't split the
+handler, and the same constructor/prototype guards as for single expressions
+apply to every statement (view expressions are still author-trusted code, not a
+sandbox):
 
 ```html
 <form bq-on:submit="$event.preventDefault(); add()">...</form>
@@ -258,6 +260,12 @@ single expression, and a `;` there logs an error that points at `bq-on`. If the
 last statement evaluates to a function, it is called with the event, the same
 as a bare `bq-on:click="handleClick"`. If one statement throws, the statements
 after it don't run.
+
+Regular-expression literals are not recognised when the handler is split: a
+`;`, quote or bracket inside one is read as code (`/;/.test(s); next()` splits
+inside the regex), and a `//` or `/*` inside one starts a comment unless its
+first `/` is escaped. Move such a regex into a method on the context, or build
+it with `new RegExp('…')`.
 
 Event listeners also support common modifiers such as `.stop`, `.prevent`,
 `.self`, `.capture`, `.passive`, and `.once`. When `.prevent` is present,
@@ -477,9 +485,11 @@ clearCompiledExpressions();
 `bq-on` handlers are compiled as statement lists, so `compileViews()` returns
 them in a separate `statements` map and the emitted module passes them as a
 second argument: `registerCompiledExpressions(expressions, statements)`. The
-runtime uses a `statements` entry only for `bq-on` and an `expressions` entry
-only for other directives, so `bq-show="a(); b()"` stays an error even when the
-same source is a compiled `bq-on` handler.
+runtime uses a `statements` entry only for `bq-on`, so `bq-show="a(); b()"`
+stays an error even when the same source is a compiled `bq-on` handler. An
+`expressions` entry serves every directive, including a `bq-on` handler that is
+a single expression (modules emitted before statement lists keep working), but
+never a `bq-on` statement list.
 
 ### CLI
 

@@ -327,20 +327,35 @@ so enabling it for untrusted input can reintroduce security risks.
 
 A re-render does not replace the component's `innerHTML`. The new sanitized
 markup is parsed into an inert `<template>` and the live tree is **morphed**
-into it: nodes are matched by tag and `data-bq-key` / `id`, then by position,
-and only what changed is written. Because the nodes survive:
+into it: nodes are matched by tag and `data-bq-key` / `id`, then by position
+(with a short lookahead, so an element inserted or removed in front of a sibling
+— a validation message before an `<input>` — leaves that sibling in place), and
+only what changed is written. Because the nodes survive:
 
 - text typed into an `<input>` or `<textarea>`, the focused element and the
   caret/selection are kept when an unrelated signal or prop changes;
 - scroll positions, media playback and running CSS transitions are not reset;
-- nested custom elements are not disconnected and reconnected, so their own
-  state and lifecycles are untouched.
+- nested custom elements that stay in place are not disconnected and
+  reconnected, so their own state and lifecycles are untouched.
+
+A keyed reorder has to move nodes. Where the browser supports the
+state-preserving `Element.prototype.moveBefore()`, the move keeps focus and
+media state, and bQuery components stay mounted (they define
+`connectedMoveCallback`). Elsewhere a moved node is detached and re-attached: a
+moved input loses focus, and a moved custom element runs its `disconnected` and
+`connected` hooks. A moved bQuery component re-renders on reconnect, so its
+`on()` handlers keep working, but state kept outside its signals, state and
+props is reset by its own hooks as usual.
 
 Attributes are diffed against the markup the component rendered **last time**,
 not against the live DOM. The template owns only what it writes: an attribute
 added at runtime — `<details open>` toggled by the user, a class set by an
-animation — survives a re-render, and a form control's `value` / `checked` /
-`selected` property is updated only when the template changes that attribute.
+animation — survives a re-render, an attribute the template keeps unchanged is
+not re-asserted (a user-collapsed `<details open>` stays collapsed), and a form
+control's `value` / `checked` / `selected` property is updated only when the
+template changes that attribute. A nested bQuery component with
+`shadow: false` owns its light DOM: a parent re-render never patches it back to
+placeholder children written in the parent's template.
 An update whose sanitized markup is identical to the previous render skips the
 DOM write entirely.
 

@@ -19,9 +19,16 @@ import { isPrototypePollutionKey } from '../core/utils/object';
  * substitutions), and `()`/`[]`/`{}` nesting. Returns the trimmed, non-empty
  * parts, so empty segments (`a;;b`, a trailing `;`) are dropped.
  *
+ * `//` and `/* … *\/` comments are skipped and left out of the parts, so a
+ * separator, quote or bracket inside a comment does not count and a trailing
+ * `// note` does not become a statement of its own.
+ *
  * Shared by the object-syntax parser (`,`) and `bq-on` statement lists (`;`).
- * Regular-expression literals are not recognised, so a separator inside a
- * top-level regex literal is still split on — wrap such a regex in a call.
+ * Regular-expression literals are not recognised: a separator, quote or
+ * bracket inside a regex literal is read as code (so `/;/.test(s); next()`
+ * or `/[(]/.test(s)` split wrongly), and a `//` or `/*` in one starts a
+ * comment unless its first `/` is escaped, as in `/^https?:\/\//`. Build such a
+ * regex in a method or with `new RegExp('…')` instead.
  * @internal
  */
 export const splitTopLevel = (input: string, separator: string): string[] => {
@@ -30,6 +37,8 @@ export const splitTopLevel = (input: string, separator: string): string[] => {
   const stack: string[] = [];
   let quote = '';
   let start = 0;
+  // Text of the current part before the last skipped comment.
+  let kept = '';
 
   for (let i = 0; i < input.length; i++) {
     const char = input[i];
@@ -46,6 +55,17 @@ export const splitTopLevel = (input: string, separator: string): string[] => {
         stack.push('{');
         i++;
       }
+    } else if (
+      char === '/' &&
+      (input[i + 1] === '/' || input[i + 1] === '*') &&
+      input[i - 1] !== '\\'
+    ) {
+      // A comment: drop it from the part (a line comment up to its newline).
+      const close = input[i + 1] === '/' ? input.indexOf('\n', i) : input.indexOf('*/', i + 2);
+      const end = close < 0 ? input.length : input[i + 1] === '/' ? close : close + 2;
+      kept += `${input.slice(start, i)} `;
+      start = end;
+      i = end - 1;
     } else if (char === '"' || char === "'") {
       quote = char;
     } else if (char === '`' || char === '(' || char === '[' || char === '{') {
@@ -53,11 +73,12 @@ export const splitTopLevel = (input: string, separator: string): string[] => {
     } else if (char === ')' || char === ']' || char === '}') {
       stack.pop();
     } else if (char === separator && stack.length === 0) {
-      parts.push(input.slice(start, i));
+      parts.push(kept + input.slice(start, i));
+      kept = '';
       start = i + 1;
     }
   }
-  parts.push(input.slice(start));
+  parts.push(kept + input.slice(start));
 
   return parts.map((part) => part.trim()).filter(Boolean);
 };

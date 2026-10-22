@@ -481,3 +481,275 @@ describe('morph review follow-ups', () => {
     host.remove();
   });
 });
+
+describe('morph release review (1.18)', () => {
+  // Identity checks compare booleans: a failing `toBe(node)` would print the
+  // whole happy-dom node graph.
+  const expectSame = (actual: unknown, expected: unknown): void => {
+    expect(actual === expected).toBe(true);
+  };
+  const parse = (markup: string): DocumentFragment => {
+    const template = document.createElement('template');
+    template.innerHTML = markup;
+    return template.content;
+  };
+
+  it('keeps an unkeyed input when a message is inserted before it', () => {
+    const error = signal(false);
+    const tag = uniqueTag('inserted-message');
+    component(tag, {
+      signals: { error },
+      render: ({ signals }) => html`
+        <label>Name</label>
+        ${signals.error.value ? '<span class="err">Required</span>' : ''}
+        <input class="field" />
+        <button>Save</button>
+      `,
+    });
+    const host = mount(tag);
+    const input = $<HTMLInputElement>(host, 'input');
+    input.value = 'typed';
+    input.focus();
+
+    error.value = true;
+
+    expect($(host, '.err').textContent).toBe('Required');
+    expectSame($(host, 'input'), input);
+    expect(input.value).toBe('typed');
+    expectSame(host.shadowRoot!.activeElement, input);
+
+    error.value = false;
+
+    expect($(host, '.err')).toBeNull();
+    expectSame($(host, 'input'), input);
+    host.remove();
+  });
+
+  it('does not let a text node skip past an element it would orphan', () => {
+    const root = document.createElement('div');
+    morphChildren(root, parse('<p>a</p> <input> '));
+    const input = root.querySelector('input');
+
+    morphChildren(root, parse('<p>a</p> <b>x</b> <input> '));
+
+    expect(root.innerHTML).toBe('<p>a</p> <b>x</b> <input> ');
+    expectSame(root.querySelector('input'), input);
+
+    // Also past the matcher's bounded lookahead: a long inserted run.
+    const run = '<b>x</b> '.repeat(20);
+    morphChildren(root, parse(`<p>a</p> ${run}<input> `));
+
+    expect(root.innerHTML).toBe(`<p>a</p> ${run}<input> `);
+    expectSame(root.querySelector('input'), input);
+  });
+
+  it('inserts an element in front of an unkeyed sibling instead of skipping it', () => {
+    const root = document.createElement('div');
+    morphChildren(root, parse('<input><div>footer</div>'));
+    const input = root.querySelector('input');
+    const footer = root.querySelector('div');
+
+    morphChildren(root, parse('<div class="alert">x</div><input><div>footer</div>'));
+
+    expect(root.innerHTML).toBe('<div class="alert">x</div><input><div>footer</div>');
+    expectSame(root.querySelector('input'), input);
+    expectSame(root.lastElementChild, footer);
+
+    // …and removing it again keeps them too.
+    morphChildren(root, parse('<input><div>footer</div>'));
+
+    expect(root.innerHTML).toBe('<input><div>footer</div>');
+    expectSame(root.querySelector('input'), input);
+    expectSame(root.lastElementChild, footer);
+  });
+
+  it('always ends with the target markup (seeded fuzz)', () => {
+    let seed = 12345;
+    const random = (): number => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    const pick = <T>(values: readonly T[]): T => values[Math.floor(random() * values.length)];
+    const node = (depth: number): string => {
+      const roll = random();
+      if (roll < 0.25) return pick([' ', 'a', 'b', '\n ']);
+      if (roll < 0.3) return '<!--c-->';
+      const tag = pick(['p', 'div', 'span', 'input', 'li']);
+      const key =
+        random() < 0.4
+          ? ` data-bq-key="${pick(['1', '2', '3', '4'])}"`
+          : random() < 0.2
+            ? ` id="${pick(['x', 'y'])}"`
+            : '';
+      const cls = random() < 0.5 ? ` class="${pick(['c1', 'c2'])}"` : '';
+      if (tag === 'input') return `<input${key}${cls}>`;
+      const children =
+        depth > 0
+          ? Array.from({ length: Math.floor(random() * 4) }, () => node(depth - 1)).join('')
+          : '';
+      return `<${tag}${key}${cls}>${children}</${tag}>`;
+    };
+    const tree = (): string =>
+      Array.from({ length: Math.floor(random() * 7) }, () => node(2)).join('');
+    const normalize = (markup: string): string => {
+      const element = document.createElement('div');
+      element.innerHTML = markup;
+      return element.innerHTML;
+    };
+
+    const failures: string[] = [];
+    for (let run = 0; run < 400; run++) {
+      const root = document.createElement('div');
+      for (let step = 0; step < 5; step++) {
+        const markup = tree();
+        morphChildren(root, parse(markup));
+        if (root.innerHTML !== normalize(markup)) failures.push(markup);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it('keeps on() handlers of child components moved by a keyed reorder', () => {
+    const clicks: string[] = [];
+    const child = uniqueTag('row');
+    component(child, {
+      props: { label: { type: String, default: '' } },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: ({ props }) =>
+        html`<button ${onClick(() => clicks.push(String(props.label)))}>${props.label}</button>`,
+    });
+    const items = signal(['a', 'b', 'c']);
+    const parent = uniqueTag('rows');
+    component(parent, {
+      sanitize: { allowTags: [child], allowAttributes: ['label'] },
+      signals: { items },
+      render: ({ signals }) =>
+        html`<ul>
+          ${keyedList(
+            signals.items.value,
+            (item) => item,
+            (item) => `<${child} label="${item}"></${child}>`
+          )}
+        </ul>`,
+    });
+    const host = mount(parent);
+    const button = (label: string): HTMLButtonElement =>
+      host
+        .shadowRoot!.querySelector(`${child}[label="${label}"]`)!
+        .shadowRoot!.querySelector('button') as HTMLButtonElement;
+
+    items.value = ['c', 'a', 'b'];
+    button('c').click();
+    button('a').click();
+    button('b').click();
+
+    expect(clicks).toEqual(['c', 'a', 'b']);
+    host.remove();
+  });
+
+  it('re-renders a signal-less component on reconnect so its handlers work', () => {
+    let clicks = 0;
+    const tag = uniqueTag('reconnect-handlers');
+    component(tag, {
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: () => html`<button ${onClick(() => (clicks += 1))}>b</button>`,
+    });
+    const host = mount(tag);
+    $(host, 'button').click();
+
+    host.remove();
+    document.body.appendChild(host);
+    $(host, 'button').click();
+
+    expect(clicks).toBe(2);
+    host.remove();
+  });
+
+  it('moves keyed nodes with moveBefore() when the browser has it', () => {
+    const proto = Element.prototype as Element & {
+      moveBefore?: (node: Node, child: Node | null) => void;
+    };
+    const original = proto.moveBefore;
+    const moved: Node[] = [];
+    proto.moveBefore = function (this: Element, node: Node, child: Node | null) {
+      moved.push(node);
+      this.insertBefore(node, child);
+    };
+    try {
+      const root = document.createElement('div');
+      document.body.appendChild(root);
+      morphChildren(root, parse('<p id="a">A</p><p id="b">B</p><p id="c">C</p>'));
+      const c = root.querySelector('#c')!;
+
+      morphChildren(root, parse('<p id="c">C</p><p id="a">A</p><p id="b">B</p>'));
+
+      expectSame(root.firstElementChild, c);
+      expect(moved.length).toBe(1);
+      expectSame(moved[0], c);
+      root.remove();
+    } finally {
+      if (original) proto.moveBefore = original;
+      else delete proto.moveBefore;
+    }
+  });
+
+  it('defines connectedMoveCallback so a moveBefore() keeps components mounted', () => {
+    const tag = uniqueTag('move');
+    component(tag, { render: () => html`<b>x</b>` });
+    const ctor = customElements.get(tag)!;
+    expect(typeof ctor.prototype.connectedMoveCallback).toBe('function');
+  });
+
+  it('leaves a shadow:false child its own render over placeholder children', () => {
+    const count = signal(0);
+    const child = uniqueTag('own-light');
+    component(child, { shadow: false, render: () => html`<b>own</b>` });
+    const parent = uniqueTag('own-light-parent');
+    component(parent, {
+      sanitize: { allowTags: [child] },
+      signals: { count },
+      render: ({ signals }) =>
+        html`<p>${signals.count.value}</p>
+          <${child}>Loading…</${child}>`,
+    });
+    const host = mount(parent);
+    const nested = host.shadowRoot!.querySelector(child)!;
+    expect(nested.innerHTML).toBe('<b>own</b>');
+
+    count.value = 1;
+
+    expectSame(host.shadowRoot!.querySelector(child), nested);
+    expect(nested.innerHTML).toBe('<b>own</b>');
+    expect($(host, 'p').textContent).toBe('1');
+    host.remove();
+  });
+
+  it('does not re-assert a template attribute removed at runtime', () => {
+    const count = signal(0);
+    const tag = uniqueTag('collapsed');
+    component(tag, {
+      sanitize: { allowTags: ['details', 'summary'], allowAttributes: ['open'] },
+      signals: { count },
+      render: ({ signals }) =>
+        html`<details open>
+            <summary>More</summary>
+            body
+          </details>
+          <p>${signals.count.value}</p>`,
+    });
+    const host = mount(tag);
+    const details = $<HTMLDetailsElement>(host, 'details');
+    expect(details.hasAttribute('open')).toBe(true);
+    details.removeAttribute('open'); // the user collapsed it
+
+    count.value = 1;
+
+    expectSame($(host, 'details'), details);
+    expect(details.hasAttribute('open')).toBe(false);
+    host.remove();
+  });
+});

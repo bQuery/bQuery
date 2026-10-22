@@ -8,7 +8,7 @@ import type { CleanupFn } from '../reactive/signal';
 import { effect, untrack } from '../reactive/signal';
 import { sanitizeHtml } from '../security/sanitize';
 import { trustedPreparedHtmlForSink } from '../security/trusted-types';
-import { morphInnerHtml } from './morph';
+import { morphInnerHtml, selfRenderedHosts } from './morph';
 import { applyAdoptedStyles, isComponentStyles } from './css';
 import { cleanupDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
@@ -204,6 +204,13 @@ const createComponentClass = <
           } finally {
             setCurrentScope(previousScope);
           }
+          if (signalSources.length === 0) {
+            // Disconnecting disposed the scope and with it the `on()` handlers
+            // of the last render (a keyed move without `moveBefore()` detaches
+            // and re-attaches the element, too). Re-render so the markup gets
+            // live handler ids again; with signals the subscription below does.
+            this.render(true, this.cloneProps(), undefined, false);
+          }
           this.setupSignalSubscriptions(true);
           return;
         }
@@ -211,6 +218,16 @@ const createComponentClass = <
       } catch (error) {
         this.handleError(error as Error);
       }
+    }
+
+    /**
+     * Called instead of `disconnectedCallback()` + `connectedCallback()` when
+     * the element is moved with the state-preserving `moveBefore()` (e.g. a
+     * keyed reorder in a parent's re-render): the component stays mounted and
+     * keeps its scope, handlers and subscriptions.
+     */
+    connectedMoveCallback(): void {
+      // Intentionally empty: defining it opts in to state-preserving moves.
     }
 
     /**
@@ -533,6 +550,9 @@ const createComponentClass = <
         };
 
         const renderRoot = this.renderRootNode;
+        // A light-DOM host owns its children from now on: a parent re-render
+        // must not morph them back to the placeholder children it supplied.
+        if (shadowMode === false) selfRenderedHosts.add(this);
 
         let markup: string;
         try {

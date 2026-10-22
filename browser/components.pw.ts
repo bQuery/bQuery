@@ -104,3 +104,103 @@ test('keeps typed input, focus and caret across a re-render (#254)', async ({ pa
 
   expect(state).toEqual({ value: 'typed', focused: true, caret: 4, counter: '1' });
 });
+
+test('keeps an unkeyed input when a message appears before it (#254)', async ({ page }) => {
+  await page.evaluate(async (url) => {
+    const { component, html, signal } = await import(url);
+    const error = signal(false);
+    (window as unknown as { error: typeof error }).error = error;
+    component('x-field', {
+      signals: { error },
+      render: ({ signals }: { signals: { error: { value: boolean } } }) => html`
+        <label>Name</label>
+        ${signals.error.value ? '<span class="err">Required</span>' : ''}
+        <input class="field" />
+        <button>Save</button>
+      `,
+    });
+    document.getElementById('app')!.innerHTML = '<x-field></x-field>';
+  }, FULL);
+
+  const input = page.locator('x-field').locator('input');
+  await input.click();
+  await input.pressSequentially('typed');
+  await input.press('ArrowLeft');
+
+  const state = await page.evaluate(() => {
+    const root = document.querySelector('x-field')!.shadowRoot!;
+    const before = root.querySelector('input');
+    (window as unknown as { error: { value: boolean } }).error.value = true;
+    const field = root.querySelector('input') as HTMLInputElement;
+    return {
+      same: field === before,
+      value: field.value,
+      focused: root.activeElement === field,
+      caret: field.selectionStart,
+      message: root.querySelector('.err')?.textContent,
+    };
+  });
+
+  expect(state).toEqual({
+    same: true,
+    value: 'typed',
+    focused: true,
+    caret: 4,
+    message: 'Required',
+  });
+});
+
+test('keyed reorder keeps child components and their handlers working', async ({ page }) => {
+  const result = await page.evaluate(async (url) => {
+    const { bindDelegatedEvents, component, html, keyedList, onClick, signal } = await import(url);
+    const clicks: string[] = [];
+    let connects = 0;
+    component('x-row', {
+      props: { label: { type: String, default: '' } },
+      connected() {
+        connects += 1;
+        bindDelegatedEvents(this);
+      },
+      render: ({ props }: { props: { label: string } }) =>
+        html`<button ${onClick(() => clicks.push(props.label))}>${props.label}</button>`,
+    });
+    const items = signal(['a', 'b', 'c']);
+    component('x-rows', {
+      sanitize: { allowTags: ['x-row'], allowAttributes: ['label'] },
+      signals: { items },
+      render: ({ signals }: { signals: { items: { value: string[] } } }) =>
+        html`<ul>
+          ${keyedList(
+            signals.items.value,
+            (item: string) => item,
+            (item: string) => `<x-row label="${item}"></x-row>`
+          )}
+        </ul>`,
+    });
+    const host = document.createElement('x-rows');
+    document.getElementById('app')!.append(host);
+    const button = (label: string): HTMLButtonElement =>
+      host
+        .shadowRoot!.querySelector(`x-row[label="${label}"]`)!
+        .shadowRoot!.querySelector('button') as HTMLButtonElement;
+    const rows = Array.from(host.shadowRoot!.querySelectorAll('x-row'));
+
+    items.value = ['c', 'a', 'b'];
+    button('c').click();
+    button('a').click();
+    button('b').click();
+
+    const after = Array.from(host.shadowRoot!.querySelectorAll('x-row'));
+    return {
+      clicks,
+      sameNodes: after.every((row, index) => row === rows[[2, 0, 1][index]]),
+      hasMoveBefore: 'moveBefore' in Element.prototype,
+      connects,
+    };
+  }, FULL);
+
+  expect(result.clicks).toEqual(['c', 'a', 'b']);
+  expect(result.sameNodes).toBe(true);
+  // With moveBefore() the moved row stays mounted; without it, one reconnect.
+  expect(result.connects).toBe(result.hasMoveBefore ? 3 : 4);
+});
