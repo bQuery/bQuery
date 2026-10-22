@@ -1068,6 +1068,52 @@ describe('forms/createForm', () => {
       expect(form.fields.name.error.value).toBe('Required');
     });
   });
+
+  it('does not submit when reset() overtakes the submit validation', async () => {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    let submitted: unknown = null;
+    const form = createForm({
+      fields: {
+        email: {
+          initialValue: '',
+          validators: [
+            async (value: string) => {
+              await sleep(20);
+              return value.includes('@') ? undefined : 'Invalid email';
+            },
+          ],
+        },
+      },
+      onSubmit: (values) => {
+        submitted = values;
+      },
+    });
+    form.fields.email.value.value = 'not-an-email';
+    const pending = form.handleSubmit();
+    await sleep(5);
+    form.reset();
+    await pending;
+    expect(submitted).toBeNull();
+    expect(form.fields.email.error.value).toBe('');
+  });
+
+  it('writes no cross-field error from a validate() pass that reset() overtook', async () => {
+    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+    const form = createForm({
+      fields: { a: { initialValue: 'x' } },
+      crossValidators: [
+        async () => {
+          await sleep(20);
+          return { a: 'Cross error' };
+        },
+      ],
+    });
+    const pending = form.validate();
+    await sleep(5);
+    form.reset();
+    expect(await pending).toBe(false);
+    expect(form.fields.a.error.value).toBe('');
+  });
 });
 
 // ---------------------------------------------------------------------------

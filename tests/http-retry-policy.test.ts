@@ -230,6 +230,26 @@ describe('http retry abort', () => {
     expect((error as HttpError).code).toBe('ABORT');
     expect(counter.calls).toBe(1);
   });
+
+  it('runs the error interceptors and reports TIMEOUT for a signal timeout during the wait', async () => {
+    const counter = { calls: 0 };
+    const api = createHttp({
+      fetcher: flaky(
+        () => new Response('busy', { status: 503, headers: { 'retry-after': '30' } }),
+        counter
+      ),
+      retry: 2,
+    });
+    const seen: unknown[] = [];
+    api.interceptors.response.use(undefined, (error) => {
+      seen.push(error);
+      throw error;
+    });
+    const error = await api.get('/x', { signal: AbortSignal.timeout(20) }).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(HttpError);
+    expect((error as HttpError).code).toBe('TIMEOUT');
+    expect(seen).toEqual([error]);
+  });
 });
 
 describe('useFetch retry defaults', () => {

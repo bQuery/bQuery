@@ -388,6 +388,8 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
 
   // --- Standard Schema ------------------------------------------------------
 
+  /** Bumped by reset() / resetField(); validate() passes it overtook report false. */
+  let resetGeneration = 0;
   const formSchema = config.schema;
   let schemaCache: {
     values: Record<string, unknown>;
@@ -571,20 +573,27 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
     // One schema run per pass, shared by every field; never one from an
     // earlier pass, whose values may have been mutated in place since.
     schemaCache = null;
+    // A reset while this pass awaits makes its result meaningless: the values
+    // it checked are gone. Report it as not valid (so handleSubmit() does not
+    // submit unvalidated reset values) and write no further errors.
+    const generation = resetGeneration;
 
     for (const name of fieldOrder) {
       const entry = runtime[name];
       const msg = await validateSingleField(entry.field, entry.validators, mode);
+      if (generation !== resetGeneration) return false;
       if (msg) hasError = true;
     }
 
     // Only await with a schema: an extra tick would delay onSubmit for every form.
     if (formSchema && (await hasUnmappedSchemaIssue())) hasError = true;
+    if (generation !== resetGeneration) return false;
 
     if (config.crossValidators && config.crossValidators.length > 0) {
       const values = getValuesUntracked();
       for (const crossValidator of config.crossValidators as CrossFieldValidator<T>[]) {
         const crossErrors = await crossValidator(values);
+        if (generation !== resetGeneration) return false;
         if (crossErrors) {
           for (const [fieldName, msg] of Object.entries(crossErrors) as [
             string,
@@ -644,6 +653,7 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
   };
 
   const reset = (): void => {
+    resetGeneration += 1;
     schemaCache = null;
     for (const name of fieldOrder) {
       (fields as Record<string, FormField>)[name].reset();
@@ -653,6 +663,7 @@ const createFormFromConfig = <T extends Record<string, unknown>>(
   const resetField = (name: keyof T & string): void => {
     const entry = runtime[name as string];
     if (!entry) return;
+    resetGeneration += 1;
     schemaCache = null;
     entry.field.reset();
   };

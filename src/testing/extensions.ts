@@ -117,13 +117,28 @@ const getSelectElement = (el: Element): HTMLSelectElement => {
  * `el` and its ancestors in the flattened tree (slotted nodes go through their
  * slot, shadow roots through their host), outermost first.
  */
+/**
+ * The slot `el` is assigned to. Falls back to searching the parent's shadow
+ * root where `assignedSlot` is not implemented (happy-dom).
+ */
+const findAssignedSlot = (el: Element): HTMLSlotElement | null => {
+  const native = (el as { assignedSlot?: HTMLSlotElement | null }).assignedSlot;
+  if (native !== undefined) return native;
+  const root = (el.parentNode as Element | null)?.shadowRoot;
+  if (!root) return null;
+  for (const slot of Array.from(root.querySelectorAll('slot'))) {
+    if (slot.assignedNodes({ flatten: false }).includes(el)) return slot;
+  }
+  return null;
+};
+
 const getAncestry = (el: Element): Element[] => {
   const chain: Element[] = [];
   let node: Node | null = el;
   while (node) {
     if (node.nodeType === 1) {
       chain.unshift(node as Element);
-      node = (node as Element).assignedSlot ?? node.parentNode;
+      node = findAssignedSlot(node as Element) ?? node.parentNode;
     } else {
       node = node.nodeType === 11 ? ((node as ShadowRoot).host ?? null) : node.parentNode;
     }

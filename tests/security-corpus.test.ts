@@ -168,5 +168,9 @@ describe('output re-parsed by a non-browser DOM', () => {
       '<textarea>a &amp; b &lt;i&gt;</textarea>'
     );
     expect(sanitizeHtmlForSSR('<textarea>a < b</textarea>')).toBe('<textarea>a &lt; b</textarea>');
+    // Character references stay as written, so a browser shows the same text.
+    expect(sanitizeHtmlForSSR('<textarea>&copy; &hellip; &lt</textarea>')).toBe(
+      '<textarea>&copy; &hellip; &lt</textarea>'
+    );
   });
 });

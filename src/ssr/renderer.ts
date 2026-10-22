@@ -35,7 +35,6 @@ import { evaluateExpression } from './expression';
 import { cheapHash, collectDirectiveSignatureFromAttrs, HYDRATION_HASH_ATTR } from './hash';
 import {
   cloneNode,
-  decodeEntities,
   escapeText,
   parseTemplate,
   serializeTree,
@@ -354,12 +353,13 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
       // serialized verbatim. That is only safe if whatever parses the output
       // also treats it as text; DOM implementations such as happy-dom build
       // elements inside a textarea, so `<span><textarea></span><iframe …>`
-      // came back out as live markup. Decode it as a browser would (RCDATA)
-      // and let the serializer escape it: the visible text is unchanged.
-      let text = '';
-      for (const child of node.children) if (child.type === 'text') text += child.value;
-      node.raw = false;
-      node.children = text ? [{ type: 'text', value: decodeEntities(text) }] : [];
+      // came back out as live markup. Escaping `<` and `>` leaves no markup
+      // to build, and leaving `&` alone keeps every character reference — so
+      // the text a browser shows is unchanged.
+      for (const child of node.children) {
+        if (child.type === 'text')
+          child.value = child.value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
       return node;
     }
 

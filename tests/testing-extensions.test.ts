@@ -935,6 +935,27 @@ describe('userEvent hover / type follow browser event order', () => {
     expect(entered).toEqual([host]);
   });
 
+  it('hover enters the slot and shadow wrappers of a slotted element', async () => {
+    const host = document.createElement('div');
+    host.attachShadow({ mode: 'open' }).innerHTML = '<section><slot></slot></section>';
+    const child = document.createElement('span');
+    host.appendChild(child);
+    document.body.appendChild(host);
+    const entered: string[] = [];
+    const shadow = host.shadowRoot!;
+    for (const el of [
+      host,
+      shadow.querySelector('section')!,
+      shadow.querySelector('slot')!,
+      child,
+    ]) {
+      el.addEventListener('mouseenter', () => entered.push(el.tagName));
+    }
+    await userEvent.hover(child);
+    expect(entered).toEqual(['DIV', 'SECTION', 'SLOT', 'SPAN']);
+    host.remove();
+  });
+
   it('type sends keydown, keypress, beforeinput, input and keyup per character', async () => {
     const input = document.createElement('input');
     document.body.appendChild(input);
