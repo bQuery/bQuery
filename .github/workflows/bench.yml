@@ -79,7 +79,9 @@ jobs:
             (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base-$1.json" > /dev/null) || true
           }
           run_head() {
-            bun run bench --json "bench-head-$1.json" > /dev/null
+            # A benchmark that errors exits non-zero; compare-bench reports
+            # it (and fails on a missing JSON), so the comparison still runs.
+            bun run bench --json "bench-head-$1.json" > /dev/null || true
           }
           for i in 1 2 3; do
             if [ $((i % 2)) -eq 1 ]; then

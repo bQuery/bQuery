@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import { fileURLToPath } from 'node:url';
 import { within } from '@bquery/bquery/testing';
 import { createApp } from '../server/app';
 
@@ -88,7 +89,7 @@ describe('server', () => {
 
   it('bundles the browser entry', async () => {
     const result = await Bun.build({
-      entrypoints: [new URL('../client.ts', import.meta.url).pathname],
+      entrypoints: [fileURLToPath(new URL('../client.ts', import.meta.url))],
       target: 'browser',
     });
     expect(result.success).toBe(true);

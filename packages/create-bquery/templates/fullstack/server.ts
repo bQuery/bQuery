@@ -6,9 +6,12 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { createApp } from './server/app';
 
-const here = (path: string): string => new URL(path, import.meta.url).pathname;
+// fileURLToPath, not URL#pathname: the pathname stays percent-encoded (a space
+// in the project path becomes %20) and has a leading slash on Windows.
+const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
 /** Bundles client.ts for the browser once, on first request. */
 let clientBundle: Promise<string> | undefined;

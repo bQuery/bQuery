@@ -66,7 +66,9 @@ The scaffolder refuses to write into a directory that has files in it (a lone
 `.git` folder is fine) unless you pass `--force` or confirm the prompt. Package
 names follow npm's rules: lowercase, URL-safe, no leading `.` or `_`, not a
 Node.js core module name. An invalid directory name is rejected with a
-suggestion, e.g. `My App` → `--name my-app`.
+suggestion, e.g. `My App` → `--name my-app`. With `--force`, it refuses to
+write through a symbolic link inside the directory, so it never changes files
+outside it.
 
 ## Templates
 
@@ -219,7 +221,7 @@ const { targetDir, files } = await scaffold({
 
 It throws a `ScaffoldError` with a `code` (`INVALID_TEMPLATE`,
 `INVALID_RUNTIME`, `INVALID_NAME`, `DIR_NOT_EMPTY`, `NOT_A_DIRECTORY`,
-`MISSING_TARGET`). `validateProjectName()`, `detectPackageManager()` and
+`MISSING_TARGET`, `SYMLINK_IN_TARGET`). `validateProjectName()`, `detectPackageManager()` and
 `projectCommands()` are exported too.
 
 ## Related

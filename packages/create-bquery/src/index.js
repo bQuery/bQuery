@@ -8,7 +8,7 @@
  * @module create-bquery
  */
 
-import { existsSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readdirSync, statSync } from 'node:fs';
 import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { builtinModules } from 'node:module';
 import { basename, dirname, join, relative, resolve, sep } from 'node:path';
@@ -66,7 +66,7 @@ const RENAMES = Object.freeze({
 export class ScaffoldError extends Error {
   /**
    * @param {string} message - Human-readable explanation.
-   * @param {'INVALID_TEMPLATE' | 'INVALID_RUNTIME' | 'INVALID_NAME' | 'DIR_NOT_EMPTY' | 'NOT_A_DIRECTORY' | 'MISSING_TARGET'} code - Machine-readable reason.
+   * @param {'INVALID_TEMPLATE' | 'INVALID_RUNTIME' | 'INVALID_NAME' | 'DIR_NOT_EMPTY' | 'NOT_A_DIRECTORY' | 'MISSING_TARGET' | 'SYMLINK_IN_TARGET'} code - Machine-readable reason.
    */
   constructor(message, code) {
     super(message);
@@ -283,6 +283,28 @@ export async function scaffold(options) {
       const segments = file.split(sep);
       segments[segments.length - 1] = projectFileName(segments[segments.length - 1]);
       sources.set(segments.join('/'), join(layerDir, file));
+    }
+  }
+
+  // With --force the target may hold files already. A symlink at a path we
+  // write (or at a directory on the way to it) would make mkdir/writeFile
+  // follow it out of the target, so refuse before writing anything.
+  for (const file of sources.keys()) {
+    const segments = file.split('/');
+    for (let i = 1; i <= segments.length; i++) {
+      const path = join(root, ...segments.slice(0, i));
+      let isLink = false;
+      try {
+        isLink = lstatSync(path).isSymbolicLink();
+      } catch {
+        break; // does not exist yet, so neither does anything below it
+      }
+      if (isLink) {
+        throw new ScaffoldError(
+          `"${path}" is a symbolic link; writing through it could change files outside "${root}". Remove it or choose another directory.`,
+          'SYMLINK_IN_TARGET'
+        );
+      }
     }
   }
 
