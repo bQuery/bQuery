@@ -390,4 +390,28 @@ describe('validate() server middleware (#221)', () => {
     const response = await app.handle(post('/signup', '{}'));
     expect(response.status).toBe(500);
   });
+
+  it("gives a second body validator the request body, not the first one's output", async () => {
+    // Each schema strips keys it does not know, as Zod objects do by default.
+    const picks = (key: string): StandardSchemaV1<Record<string, unknown>> => ({
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: (value) => {
+          const input = value as Record<string, unknown>;
+          return key in input
+            ? { value: { [key]: input[key] } }
+            : { issues: [{ message: `${key} required`, path: [key] }] };
+        },
+      },
+    });
+    const title = validate(picks('title'));
+    const tags = validate(picks('tags'));
+    const app = createServer();
+    app.post('/notes', (ctx) => ctx.json({ ...title.data(ctx), ...tags.data(ctx) }), [title, tags]);
+
+    const response = await app.handle(post('/notes', JSON.stringify({ title: 't', tags: ['x'] })));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ title: 't', tags: ['x'] });
+  });
 });

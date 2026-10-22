@@ -593,6 +593,25 @@ describe('server/csrf', () => {
     expect(res.status).toBe(200);
   });
 
+  it('answers an oversized form body with 413, not a CSRF failure', async () => {
+    const app = createServer({ limits: { form: 1024 } });
+    app.use(csrf({ secret: SECRET }));
+    app.get('/token', (ctx) => ctx.json({ token: csrfToken(ctx) }));
+    app.post('/x', (ctx) => ctx.json({ ok: true }));
+
+    const tokenRes = await app.handle('/token');
+    const { token } = await tokenRes.json();
+    const cookie = cookiePair(tokenRes, '__Host-bq.csrf');
+
+    const res = await app.handle({
+      url: '/x',
+      method: 'POST',
+      headers: { cookie, 'content-type': 'application/x-www-form-urlencoded' },
+      body: `_csrf=${encodeURIComponent(token)}&foo=${'a'.repeat(4096)}`,
+    });
+    expect(res.status).toBe(413);
+  });
+
   it('rejects a tampered token', async () => {
     const app = createServer();
     app.use(csrf({ secret: SECRET }));
