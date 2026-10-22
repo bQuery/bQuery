@@ -9,6 +9,7 @@ import { readFileSync } from 'node:fs';
 import { basename, relative, resolve } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { parseArgs } from 'node:util';
+import { BQUERY_VERSION } from './versions.js';
 import {
   DEFAULT_RUNTIME,
   DEFAULT_TEMPLATE,
@@ -41,7 +42,7 @@ Options:
   -y, --yes              do not prompt; use defaults for everything not given
   -f, --force            write into a non-empty directory, overwriting files with the same name
   -h, --help             show this help
-  -v, --version          print the create-bquery version
+  -v, --version          print the create-bquery version and the bQuery release it targets
 
 Templates:
 ${TEMPLATES.map((name) => `  ${name.padEnd(10)} ${TEMPLATE_DESCRIPTIONS[name]}`).join('\n')}
@@ -131,7 +132,7 @@ export async function run(argv = process.argv.slice(2), io = {}) {
     return 0;
   }
   if (values.version) {
-    write(`${packageVersion()}\n`);
+    write(`${packageVersion()} (templates for @bquery/bquery ${BQUERY_VERSION})\n`);
     return 0;
   }
   if (positionals.length > 1) {

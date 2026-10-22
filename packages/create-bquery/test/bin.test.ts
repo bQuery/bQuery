@@ -25,6 +25,6 @@ describe('create-bquery bin of @bquery/bquery', () => {
       encoding: 'utf8',
     });
     expect(result.status).toBe(0);
-    expect(result.stdout.trim()).toBe(pkg.version);
+    expect(result.stdout.trim()).toStartWith(`${pkg.version} (templates for @bquery/bquery `);
   });
 });

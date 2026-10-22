@@ -45,8 +45,9 @@ const validatedValues = new WeakMap<ServerContext, Map<object, unknown>>();
 
 /**
  * The request's own body reader, kept before a body validator replaces
- * `ctx.body` with its output: a second body validator (or `csrf()` after it)
- * must see the request, not what an earlier schema stripped or transformed.
+ * `ctx.body` with its output: a second body validator must see the request,
+ * not what an earlier schema stripped or transformed. (`csrf()` reads
+ * `ctx.body()`, so register it before body validators, as `app.use()` does.)
  */
 const requestBodyReaders = new WeakMap<ServerContext, ServerContext['body']>();
 

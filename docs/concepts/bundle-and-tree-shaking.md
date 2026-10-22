@@ -48,21 +48,21 @@ entire module, so tree-shaking brings it in under the figure shown.
 
 | Entry point                    | Minified | Minified + gzip | Budget   |
 | ------------------------------ | -------- | --------------- | -------- |
-| `@bquery/bquery`               | 424.7 kB | **139.2 kB**    | 144.0 kB |
-| `@bquery/bquery/full`          | 428.0 kB | **140.4 kB**    | 145.3 kB |
-| `@bquery/bquery/core`          | 45.4 kB  | **16.1 kB**     | 18.2 kB  |
-| `@bquery/bquery/reactive`      | 35.2 kB  | **12.2 kB**     | 13.1 kB  |
+| `@bquery/bquery`               | 429.0 kB | **140.7 kB**    | 144.0 kB |
+| `@bquery/bquery/full`          | 432.3 kB | **141.9 kB**    | 145.3 kB |
+| `@bquery/bquery/core`          | 45.6 kB  | **16.1 kB**     | 18.2 kB  |
+| `@bquery/bquery/reactive`      | 35.9 kB  | **12.4 kB**     | 13.1 kB  |
 | `@bquery/bquery/concurrency`   | 30.8 kB  | **9.6 kB**      | 10.8 kB  |
-| `@bquery/bquery/component`     | 44.9 kB  | **16.0 kB**     | 16.8 kB  |
+| `@bquery/bquery/component`     | 45.7 kB  | **16.2 kB**     | 16.8 kB  |
 | `@bquery/bquery/motion`        | 30.3 kB  | **11.1 kB**     | 12.3 kB  |
-| `@bquery/bquery/security`      | 15.2 kB  | **6.5 kB**      | 7.4 kB   |
+| `@bquery/bquery/security`      | 15.3 kB  | **6.5 kB**      | 7.4 kB   |
 | `@bquery/bquery/platform`      | 11.3 kB  | **4.2 kB**      | 4.4 kB   |
 | `@bquery/bquery/router`        | 26.3 kB  | **9.5 kB**      | 10.3 kB  |
 | `@bquery/bquery/store`         | 12.5 kB  | **4.5 kB**      | 5.0 kB   |
-| `@bquery/bquery/view`          | 46.2 kB  | **18.0 kB**     | 19.7 kB  |
-| `@bquery/bquery/view/compiler` | 12.3 kB  | **4.9 kB**      | 5.6 kB   |
-| `@bquery/bquery/storybook`     | 18.1 kB  | **7.5 kB**      | 8.4 kB   |
-| `@bquery/bquery/forms`         | 31.1 kB  | **10.9 kB**     | 11.3 kB  |
+| `@bquery/bquery/view`          | 47.3 kB  | **18.4 kB**     | 19.7 kB  |
+| `@bquery/bquery/view/compiler` | 12.4 kB  | **4.9 kB**      | 5.6 kB   |
+| `@bquery/bquery/storybook`     | 18.2 kB  | **7.6 kB**      | 8.4 kB   |
+| `@bquery/bquery/forms`         | 31.3 kB  | **11.0 kB**     | 11.3 kB  |
 | `@bquery/bquery/i18n`          | 11.7 kB  | **4.5 kB**      | 4.7 kB   |
 | `@bquery/bquery/i18n/extract`  | 5.6 kB   | **2.4 kB**      | 2.8 kB   |
 | `@bquery/bquery/a11y`          | 18.3 kB  | **6.4 kB**      | 6.8 kB   |
@@ -70,9 +70,9 @@ entire module, so tree-shaking brings it in under the figure shown.
 | `@bquery/bquery/media`         | 23.5 kB  | **6.8 kB**      | 7.2 kB   |
 | `@bquery/bquery/plugin`        | 6.4 kB   | **2.3 kB**      | 2.6 kB   |
 | `@bquery/bquery/devtools`      | 7.1 kB   | **3.0 kB**      | 3.5 kB   |
-| `@bquery/bquery/testing`       | 21.5 kB  | **8.1 kB**      | 9.4 kB   |
-| `@bquery/bquery/ssr`           | 112.1 kB | **38.5 kB**     | 38.9 kB  |
-| `@bquery/bquery/server`        | 117.9 kB | **40.9 kB**     | 41.3 kB  |
+| `@bquery/bquery/testing`       | 23.4 kB  | **8.7 kB**      | 9.4 kB   |
+| `@bquery/bquery/ssr`           | 113.5 kB | **39.0 kB**     | 39.1 kB  |
+| `@bquery/bquery/server`        | 119.3 kB | **41.4 kB**     | 41.5 kB  |
 
 `bun run check:size` enforces the budget column and runs in CI, so a
 regression fails the build rather than showing up on Bundlephobia weeks later.

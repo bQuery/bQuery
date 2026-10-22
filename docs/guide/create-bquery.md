@@ -60,7 +60,7 @@ Yarn pass them through directly: `pnpm create bquery api --template ssr`.
 | `-y, --yes`             | —                  | Do not prompt.                                                                               |
 | `-f, --force`           | —                  | Write into a non-empty directory. Files with the same name are overwritten; others are kept. |
 | `-h, --help`            | —                  | Show the help.                                                                               |
-| `-v, --version`         | —                  | Print the scaffolder's version.                                                              |
+| `-v, --version`         | —                  | Print the scaffolder's version and the bQuery release its templates target.                  |
 
 The scaffolder refuses to write into a directory that has files in it (a lone
 `.git` folder is fine) unless you pass `--force` or confirm the prompt. Package

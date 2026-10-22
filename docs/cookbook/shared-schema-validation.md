@@ -4,7 +4,7 @@
 server, and TypeScript needs the shape too. Three definitions drift apart.
 
 **Solution.** Define the contract once as a
-[Standard Schema](https://standardschema.dev) — here with Zod; Valibot or
+[Standard Schema](https://standardschema.dev) — here with Zod 4; Valibot or
 ArkType work the same — and hand the same object to
 [`createSchemaForm()`](/guide/forms#standard-schema-zod-valibot-arktype)
 and to the server's [`validate()`](/guide/server#request-validation-with-standard-schema).
@@ -21,6 +21,9 @@ export const Signup = z.object({
 
 export type SignupInput = z.input<typeof Signup>;
 ```
+
+With Zod 3, the input type of `z.coerce.number()` is `number`, not `unknown`, so the
+client's `age: ''` below needs `as unknown as number` there.
 
 ```ts
 // server.ts
