@@ -157,11 +157,24 @@ export type FireEventInit = Omit<
  * Options for dispatching a synthetic event.
  */
 export interface FireEventOptions extends FireEventInit {
-  /** Whether the event bubbles. Defaults to `true`. */
+  /**
+   * Whether the event bubbles. Defaults to what a browser uses for the event
+   * type: `false` for `focus`, `blur`, `mouseenter`, `mouseleave`,
+   * `pointerenter`, `pointerleave`, `load`, `scroll`, ...; `true` otherwise.
+   */
   bubbles?: boolean;
-  /** Whether the event is cancelable. Defaults to `true`. */
+  /**
+   * Whether the event is cancelable. Defaults to what a browser uses for the
+   * event type: `false` for `input`, `change`, `focus`, `blur`, `mouseenter`,
+   * ...; `true` otherwise.
+   */
   cancelable?: boolean;
-  /** Whether the event crosses shadow DOM boundaries. Defaults to `true`. */
+  /**
+   * Whether the event crosses shadow DOM boundaries. Defaults to what a
+   * browser uses for the event type: `false` for `change`, `submit`, `reset`,
+   * `mouseenter`, `mouseleave`, `pointerenter`, `pointerleave`, ...; `true`
+   * otherwise.
+   */
   composed?: boolean;
   /**
    * Extra detail data. A non-numeric value (or any value for an event name

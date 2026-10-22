@@ -766,3 +766,276 @@ describe('getByLabelText with wrapped labels', () => {
     expect(screen.queryByLabelText('Apples')).toBeNull();
   });
 });
+
+describe('find* / waitFor deadlines', () => {
+  it('find* never sleeps past its timeout, whatever the interval', async () => {
+    const started = Date.now();
+    await expect(screen.findByTestId('missing', { timeout: 50, interval: 1000 })).rejects.toThrow(
+      /timed out after 50ms/
+    );
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
+  it('find* runs a last check when the timeout is due', async () => {
+    setTimeout(() => {
+      document.body.innerHTML = '<p data-testid="late">late</p>';
+    }, 20);
+    const started = Date.now();
+    expect((await screen.findByTestId('late', { timeout: 80, interval: 1000 })).textContent).toBe(
+      'late'
+    );
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
+  it('waitFor never sleeps past its timeout', async () => {
+    const started = Date.now();
+    await expect(waitFor(() => false, { timeout: 50, interval: 1000 })).rejects.toThrow(
+      /timed out after 50ms/
+    );
+    expect(Date.now() - started).toBeLessThan(500);
+  });
+
+  it('findByRole reads timeout / interval from its role options', async () => {
+    document.body.innerHTML = '<button>Cancel</button>';
+    const started = Date.now();
+    await expect(
+      screen.findByRole('button', { name: 'Save', timeout: 50, interval: 1000 })
+    ).rejects.toThrow(/timed out after 50ms waiting for role "button" with name "Save"/);
+    expect(Date.now() - started).toBeLessThan(500);
+    // A separate third argument still wins.
+    await expect(
+      screen.findByRole('button', { name: 'Save', timeout: 5000 }, { timeout: 20 })
+    ).rejects.toThrow(/timed out after 20ms/);
+    expect((await screen.findByRole('button', { name: 'Cancel', timeout: 50 })).textContent).toBe(
+      'Cancel'
+    );
+  });
+});
+
+describe('fireEvent browser-like event flags', () => {
+  const flagsOf = (type: string, fire: (el: HTMLInputElement) => void): boolean[] => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    let event: Event | undefined;
+    input.addEventListener(type, (e) => {
+      event = e;
+    });
+    fire(input);
+    input.remove();
+    return [event!.bubbles, event!.cancelable, event!.composed];
+  };
+
+  it('uses the flags a browser sends for each event type', () => {
+    const expected: Record<string, boolean[]> = {
+      focus: [false, false, true],
+      blur: [false, false, true],
+      focusin: [true, false, true],
+      focusout: [true, false, true],
+      mouseenter: [false, false, false],
+      mouseleave: [false, false, false],
+      pointerenter: [false, false, false],
+      pointerleave: [false, false, false],
+      mouseover: [true, true, true],
+      click: [true, true, true],
+      keydown: [true, true, true],
+      beforeinput: [true, true, true],
+      input: [true, false, true],
+      change: [true, false, false],
+      submit: [true, true, false],
+      load: [false, false, false],
+      scroll: [false, false, false],
+      'my-event': [true, true, true],
+    };
+    for (const [type, flags] of Object.entries(expected)) {
+      expect([type, ...flagsOf(type, (el) => fireEvent(el, type))]).toEqual([type, ...flags]);
+    }
+    expect(flagsOf('focus', (el) => fireEvent.focus(el))).toEqual([false, false, true]);
+    expect(flagsOf('input', (el) => fireEvent.input(el, 'x'))).toEqual([true, false, true]);
+    expect(flagsOf('change', (el) => fireEvent.change(el, 'x'))).toEqual([true, false, false]);
+  });
+
+  it('non-bubbling events skip ancestors unless the call says otherwise', () => {
+    const parent = document.createElement('div');
+    const input = document.createElement('input');
+    parent.appendChild(input);
+    document.body.appendChild(parent);
+    const seen: string[] = [];
+    for (const type of ['focus', 'blur', 'focusin', 'mouseenter']) {
+      parent.addEventListener(type, () => seen.push(type));
+    }
+    fireEvent.focus(input);
+    fireEvent.blur(input);
+    fireEvent(input, 'mouseenter');
+    fireEvent(input, 'focusin');
+    expect(seen).toEqual(['focusin']);
+
+    fireEvent.focus(input, { bubbles: true });
+    expect(seen).toEqual(['focusin', 'focus']);
+    expect(fireEvent.input(input, 'x', { cancelable: true })).toBe(true);
+  });
+
+  it('a change event does not leave its shadow root', () => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<input />';
+    document.body.appendChild(host);
+    const seen: string[] = [];
+    for (const type of ['change', 'input']) host.addEventListener(type, () => seen.push(type));
+    const input = shadow.querySelector('input')!;
+    fireEvent.change(input, 'a');
+    fireEvent.input(input, 'b');
+    expect(seen).toEqual(['input']);
+  });
+});
+
+describe('userEvent hover / type follow browser event order', () => {
+  it('hover sends mouseenter to every entered element, outermost first', async () => {
+    const outer = document.createElement('div');
+    const inner = document.createElement('span');
+    outer.appendChild(inner);
+    document.body.appendChild(outer);
+    const seen: string[] = [];
+    for (const [name, el] of [
+      ['outer', outer],
+      ['inner', inner],
+    ] as const) {
+      for (const type of ['mouseover', 'mouseenter', 'mouseout', 'mouseleave']) {
+        el.addEventListener(type, (e) =>
+          seen.push(`${type}@${name}:${e.target === inner ? 'inner' : 'outer'}`)
+        );
+      }
+    }
+
+    await userEvent.hover(inner);
+    expect(seen).toEqual([
+      'mouseover@inner:inner',
+      'mouseover@outer:inner',
+      'mouseenter@outer:outer',
+      'mouseenter@inner:inner',
+    ]);
+
+    seen.length = 0;
+    await userEvent.unhover(inner);
+    expect(seen).toEqual([
+      'mouseout@inner:inner',
+      'mouseout@outer:inner',
+      'mouseleave@inner:inner',
+      'mouseleave@outer:outer',
+    ]);
+  });
+
+  it('hover enters the shadow host of an element in a shadow root', async () => {
+    const host = document.createElement('div');
+    const shadow = host.attachShadow({ mode: 'open' });
+    shadow.innerHTML = '<button>Menu</button>';
+    document.body.appendChild(host);
+    const entered: EventTarget[] = [];
+    host.addEventListener('mouseenter', (e) => entered.push(e.target!));
+    await userEvent.hover(shadow.querySelector('button')!);
+    expect(entered).toEqual([host]);
+  });
+
+  it('type sends keydown, keypress, beforeinput, input and keyup per character', async () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    const seen: string[] = [];
+    for (const type of ['keydown', 'keypress', 'beforeinput', 'input', 'keyup']) {
+      input.addEventListener(type, () => seen.push(`${type}:${input.value}`));
+    }
+    await userEvent.type(input, 'a');
+    expect(seen).toEqual(['keydown:', 'keypress:', 'beforeinput:', 'input:a', 'keyup:a']);
+  });
+
+  it('type keeps a character out when keydown, keypress or beforeinput is cancelled', async () => {
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    const seen: string[] = [];
+    for (const type of ['keypress', 'beforeinput', 'input', 'keyup']) {
+      input.addEventListener(type, () => seen.push(type));
+    }
+    input.addEventListener('keydown', (e) => {
+      if ((e as KeyboardEvent).key === 'x') e.preventDefault();
+    });
+    input.addEventListener('keypress', (e) => {
+      if ((e as KeyboardEvent).key === 'y') e.preventDefault();
+    });
+    input.addEventListener('beforeinput', (e) => {
+      if ((e as InputEvent).data === 'z') e.preventDefault();
+    });
+
+    await userEvent.type(input, 'axbycz');
+    expect(input.value).toBe('abc');
+
+    seen.length = 0;
+    await userEvent.type(input, 'x');
+    expect(seen).toEqual(['keyup']);
+    seen.length = 0;
+    await userEvent.type(input, 'z');
+    expect(seen).toEqual(['keypress', 'beforeinput', 'keyup']);
+    expect(input.value).toBe('abc');
+  });
+});
+
+describe('*ByRole accessible-name edge cases', () => {
+  it('uses the text of an aria-labelledby target whose aria-label is empty', () => {
+    document.body.innerHTML = `
+      <span id="l1" aria-label="">Visible text</span>
+      <button aria-labelledby="l1">fallback</button>
+    `;
+    expect(screen.getByRole('button', { name: 'Visible text' }).textContent).toBe('fallback');
+  });
+
+  it('treats submit / reset / image / button inputs as buttons', () => {
+    document.body.innerHTML = `
+      <input type="submit" value="Send" />
+      <input type="submit" />
+      <input type="reset" />
+      <input type="image" alt="Search" />
+      <input type="image" />
+      <input type="button" value="Plain" />
+      <input type="text" value="Not a button" />
+    `;
+    const inputs = document.querySelectorAll('input');
+    expect(screen.getByRole('button', { name: 'Send' })).toBe(inputs[0]);
+    expect(screen.getByRole('button', { name: 'Submit' })).toBe(inputs[1]);
+    expect(screen.getByRole('button', { name: 'Reset' })).toBe(inputs[2]);
+    expect(screen.getByRole('button', { name: 'Search' })).toBe(inputs[3]);
+    expect(screen.getByRole('button', { name: 'Submit Query' })).toBe(inputs[4]);
+    expect(screen.getByRole('button', { name: 'Plain' })).toBe(inputs[5]);
+    expect(screen.queryByRole('button', { name: 'Not a button' })).toBeNull();
+  });
+
+  it('leaves CSS-hidden content out of the name', () => {
+    document.body.innerHTML = `
+      <style>.gone { display: none } .ghost { visibility: hidden }</style>
+      <button id="a"><div style="display:none">invisible</div>Go</button>
+      <button id="b"><span style="visibility: hidden">Ghost</span> Stop</button>
+      <button id="c"><span class="gone">x</span><span class="ghost">y</span>Next</button>
+      <button id="d"><span class="ghost">Outer <b style="visibility: visible">Shown</b></span></button>
+      <button id="e"><img alt="Hidden icon" style="visibility:hidden" /> Back</button>
+      <label for="mail">Email <span class="gone">(required)</span></label><input id="mail" />
+    `;
+    expect(screen.getByRole('button', { name: 'Go' }).id).toBe('a');
+    expect(screen.getByRole('button', { name: 'Stop' }).id).toBe('b');
+    expect(screen.getByRole('button', { name: 'Next' }).id).toBe('c');
+    expect(screen.getByRole('button', { name: 'Shown' }).id).toBe('d');
+    expect(screen.getByRole('button', { name: 'Back' }).id).toBe('e');
+    expect(screen.getByLabelText('Email').id).toBe('mail');
+  });
+
+  it('still names an element from a hidden aria-labelledby target', () => {
+    document.body.innerHTML = `
+      <div style="display:none" id="hid">Hidden <span hidden>label</span></div>
+      <button aria-labelledby="hid">x</button>
+    `;
+    expect(screen.getByRole('button', { name: 'Hidden label' }).textContent).toBe('x');
+  });
+
+  it("honours a slotted element's own alt, aria-label and hidden", () => {
+    const host = document.createElement('div');
+    host.attachShadow({ mode: 'open' }).innerHTML = '<button><slot></slot></button>';
+    host.innerHTML = '<img alt="Home" /><span hidden>secret</span><i aria-label="Go">→</i>';
+    document.body.appendChild(host);
+    expect(within(host).getByRole('button', { name: 'Home Go' })).toBeTruthy();
+  });
+});
