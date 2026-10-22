@@ -1821,6 +1821,18 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
     expect(evaluate('items.__proto__', { items: [] })).toBeUndefined();
   });
 
+  it('blocks member escapes hidden behind comments', () => {
+    console.error = () => {};
+    const ctx = { name: 'x', run: () => 1, items: [] };
+    expect(evaluate('name./**/constructor', ctx)).toBeUndefined();
+    expect(evaluate("run./* c */constructor('return 42')()", ctx)).toBeUndefined();
+    expect(evaluate("items[/**/'constructor']", ctx)).toBeUndefined();
+    expect(evaluate('items.//\n__proto__', ctx)).toBeUndefined();
+    expect(evaluateStatements("run(); run./**/constructor('return 42')()", ctx)).toBeUndefined();
+    // A comment marker inside a string is not a comment.
+    expect(evaluate<string>("'a./**/b' + name", ctx)).toBe('a./**/bx');
+  });
+
   it('still allows non-dangerous member chains on context values (#202)', () => {
     expect(evaluate<number>('user.profile.age', { user: { profile: { age: 30 } } })).toBe(30);
     expect(evaluate<string>('items[0].name', { items: [{ name: 'ada' }] })).toBe('ada');

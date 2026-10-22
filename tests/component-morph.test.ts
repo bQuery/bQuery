@@ -753,3 +753,329 @@ describe('morph release review (1.18)', () => {
     host.remove();
   });
 });
+
+describe('morph release review, round 2 (1.18)', () => {
+  const expectSame = (actual: unknown, expected: unknown): void => {
+    expect(actual === expected).toBe(true);
+  };
+  const parse = (markup: string): DocumentFragment => {
+    const template = document.createElement('template');
+    template.innerHTML = markup;
+    return template.content;
+  };
+
+  it('keeps an unkeyed input when a sibling moves from after it to before it', () => {
+    const cases: Array<[string, string]> = [
+      [
+        '\n<input>\n<small class="hint">8+ chars</small>\n',
+        '\n<small class="err">Too short</small>\n<input>\n',
+      ],
+      ['<input><small>hint</small>', '<small>err</small><input>'],
+      [
+        '<label>L</label><input><small>hint</small><button>b</button>',
+        '<label>L</label><small>err</small><input><button>b</button>',
+      ],
+      [
+        '<input data-x="1"><li data-bq-key="a"></li>',
+        '<li data-bq-key="a"></li><input data-x="1">',
+      ],
+    ];
+    for (const [before, after] of cases) {
+      const root = document.createElement('div');
+      morphChildren(root, parse(before));
+      const input = root.querySelector('input');
+
+      morphChildren(root, parse(after));
+
+      expect(root.innerHTML).toBe(after);
+      expectSame(root.querySelector('input'), input);
+    }
+  });
+
+  it('keeps a typed, focused input when its hint turns into an error above it', () => {
+    const error = signal(false);
+    const tag = uniqueTag('hint-error');
+    component(tag, {
+      signals: { error },
+      render: ({ signals }) => html`
+        <label>Password</label>
+        ${signals.error.value ? '<small class="err">Too short</small>' : ''}
+        <input class="pw" />
+        ${signals.error.value ? '' : '<small class="hint">8+ characters</small>'}
+        <button>Save</button>
+      `,
+    });
+    const host = mount(tag);
+    const input = $<HTMLInputElement>(host, 'input');
+    input.value = 'abc';
+    input.focus();
+
+    error.value = true;
+
+    expect($(host, '.err').textContent).toBe('Too short');
+    expect($(host, '.hint')).toBeNull();
+    expectSame($(host, 'input'), input);
+    expect(input.value).toBe('abc');
+    expectSame(host.shadowRoot!.activeElement, input);
+
+    error.value = false;
+
+    expect($(host, '.hint')).not.toBeNull();
+    expectSame($(host, 'input'), input);
+    host.remove();
+  });
+
+  it('drops a removed value attribute from options and checkboxes', () => {
+    const root = document.createElement('div');
+    morphChildren(
+      root,
+      parse(
+        '<select><option value="a">A</option><option value="b">B</option></select>' +
+          '<input type="checkbox" value="yes"><input type="hidden" value="h">'
+      )
+    );
+
+    morphChildren(
+      root,
+      parse(
+        '<select><option>A</option><option>B</option></select>' +
+          '<input type="checkbox"><input type="hidden">'
+      )
+    );
+
+    const select = root.querySelector('select')!;
+    const [checkbox, hidden] = Array.from(root.querySelectorAll('input'));
+    expect(select.options[0].hasAttribute('value')).toBe(false);
+    expect(select.options[0].value).toBe('A');
+    expect(select.value).toBe('A');
+    expect(checkbox.hasAttribute('value')).toBe(false);
+    expect(checkbox.value).toBe('on');
+    expect(hidden.hasAttribute('value')).toBe(false);
+    expect(hidden.value).toBe('');
+  });
+
+  it('does a bounded amount of work for rows that match nothing (perf)', () => {
+    // Count sibling steps instead of timing, so the check is not flaky: an
+    // unbounded positional scan is quadratic (~n²/2 steps for li → div).
+    const descriptor = Object.getOwnPropertyDescriptor(Node.prototype, 'nextSibling')!;
+    let steps = 0;
+    Object.defineProperty(Node.prototype, 'nextSibling', {
+      ...descriptor,
+      get(this: Node) {
+        steps++;
+        return descriptor.get!.call(this);
+      },
+    });
+    const measure = (before: string, after: string): number => {
+      const root = document.createElement('div');
+      morphChildren(root, parse(before));
+      const source = parse(after);
+      steps = 0;
+      morphChildren(root, source);
+      expect(root.innerHTML).toBe(after);
+      return steps;
+    };
+    try {
+      const rows = (n: number, row: (i: number) => string, separator = ''): string =>
+        Array.from({ length: n }, (_, i) => row(i)).join(separator);
+      const n = 1000;
+      // Tag switch: every <div> scans the remaining <li> rows.
+      const tagSwitch = measure(
+        rows(n, (i) => `<li>${i}</li>`, '\n'),
+        rows(n, (i) => `<div>${i}</div>`, '\n')
+      );
+      // Keyed rows become unkeyed: no live row can be claimed positionally.
+      const unkeyed = measure(
+        rows(n, (i) => `<li data-bq-key="${i}">${i}</li>`),
+        rows(n, (i) => `<li>${i}</li>`)
+      );
+      // Keyed reverse with whitespace between rows: each text node used to
+      // scan over every pending keyed row.
+      const m = 500;
+      const reverse = measure(
+        rows(m, (i) => `<li data-bq-key="${i}">${i}</li>`, '\n  '),
+        rows(m, (i) => `<li data-bq-key="${m - 1 - i}">${m - 1 - i}</li>`, '\n  ')
+      );
+      expect(tagSwitch).toBeLessThan(40 * n);
+      expect(unkeyed).toBeLessThan(40 * n);
+      expect(reverse).toBeLessThan(40 * m);
+    } finally {
+      Object.defineProperty(Node.prototype, 'nextSibling', descriptor);
+    }
+  });
+
+  it('does not keep re-inserting the siblings after a duplicate key', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const markup = (n: number): string =>
+      `<li data-bq-key="a">1</li><li data-bq-key="a">2</li><input><p>${n}</p><span>x</span>`;
+    morphChildren(root, parse(markup(0)));
+    const input = root.querySelector('input')!;
+    const span = root.querySelector('span')!;
+    const inserted: string[] = [];
+    const insertBefore = root.insertBefore.bind(root);
+    root.insertBefore = <T extends Node>(node: T, child: Node | null): T => {
+      inserted.push(node.nodeName.toLowerCase());
+      return insertBefore(node, child);
+    };
+
+    morphChildren(root, parse(markup(1)));
+    morphChildren(root, parse(markup(2)));
+
+    expect(root.innerHTML).toBe(markup(2));
+    expectSame(root.querySelector('input'), input);
+    expectSame(root.querySelector('span'), span);
+    // Only the unclaimable duplicate is recreated; nothing after it moves.
+    expect(inserted).toEqual(['li', 'li']);
+    root.remove();
+  });
+
+  it('does not re-render a signal-less component without on() handlers when it is moved', () => {
+    let renders = 0;
+    const tag = uniqueTag('replace-move');
+    component(tag, {
+      renderStrategy: 'replace',
+      render: () => {
+        renders++;
+        return html`<input class="f" />`;
+      },
+    });
+    const first = document.createElement('div');
+    const second = document.createElement('div');
+    document.body.append(first, second);
+    const host = document.createElement(tag);
+    first.appendChild(host);
+    const input = $<HTMLInputElement>(host, 'input');
+    input.value = 'typed';
+
+    second.appendChild(host); // e.g. a drag-and-drop drop into another column
+
+    expect(renders).toBe(1);
+    expectSame($(host, 'input'), input);
+    expect(input.value).toBe('typed');
+    first.remove();
+    second.remove();
+  });
+
+  it('restores on() handlers on reconnect without running updated() or rendering twice', () => {
+    const log: string[] = [];
+    let clicks = 0;
+    const tag = uniqueTag('restore-quiet');
+    component(tag, {
+      state: { n: 0 },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      updated() {
+        log.push('updated');
+      },
+      render: ({ state }) => {
+        log.push('render');
+        return html`<button ${onClick(() => (clicks += 1))}>${state.n}</button>`;
+      },
+    });
+    const host = mount(tag);
+    log.length = 0;
+
+    host.remove();
+    document.body.appendChild(host);
+    $(host, 'button').click();
+
+    expect(log).toEqual(['render']);
+    expect(clicks).toBe(1);
+
+    // A connected() hook that renders itself (setState) is not followed by a
+    // second restoring render.
+    const tag2 = uniqueTag('restore-setstate');
+    component(tag2, {
+      state: { n: 0 },
+      connected() {
+        bindDelegatedEvents(this);
+        (this as unknown as { setState(k: string, v: number): void }).setState(
+          'n',
+          ((this as unknown as { getState(k: string): number }).getState('n') ?? 0) + 1
+        );
+      },
+      render: ({ state }) => {
+        log.push(`render ${state.n}`);
+        return html`<button ${onClick(() => (clicks += 1))}>${state.n}</button>`;
+      },
+    });
+    const host2 = mount(tag2);
+    log.length = 0;
+
+    host2.remove();
+    document.body.appendChild(host2);
+    $(host2, 'button').click();
+
+    expect(log).toEqual(['render 2']);
+    expect(clicks).toBe(2);
+    host.remove();
+    host2.remove();
+  });
+
+  it('runs an on() handler once when nested shadow:false hosts both delegate', () => {
+    const clicks: string[] = [];
+    const count = signal(0);
+    const inner = uniqueTag('nested-inner');
+    component(inner, {
+      shadow: false,
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: () => html`<button class="ib" ${onClick(() => clicks.push('inner'))}>i</button>`,
+    });
+    const outer = uniqueTag('nested-outer');
+    component(outer, {
+      shadow: false,
+      signals: { count },
+      sanitize: { allowTags: [inner] },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: ({ signals }) =>
+        html`<p ${onClick(() => clicks.push('outer'))}>${signals.count.value}</p>
+          <${inner}>placeholder</${inner}>`,
+    });
+    const host = mount(outer);
+    host.querySelector<HTMLElement>('.ib')!.click();
+    expect(clicks).toEqual(['inner']);
+
+    count.value = 1;
+    clicks.length = 0;
+    host.querySelector<HTMLElement>('.ib')!.click();
+    host.querySelector<HTMLElement>('p')!.click();
+    expect(clicks).toEqual(['inner', 'outer']);
+
+    host.remove();
+    document.body.appendChild(host);
+    clicks.length = 0;
+    host.querySelector<HTMLElement>('.ib')!.click();
+    host.querySelector<HTMLElement>('p')!.click();
+    expect(clicks).toEqual(['inner', 'outer']);
+    host.remove();
+  });
+
+  it('still dispatches a nested shadow:false child that does not delegate itself', () => {
+    const clicks: string[] = [];
+    const inner = uniqueTag('nested-plain');
+    component(inner, {
+      shadow: false,
+      render: () => html`<button ${onClick(() => clicks.push('inner'))}>i</button>`,
+    });
+    const outer = uniqueTag('nested-plain-outer');
+    component(outer, {
+      shadow: false,
+      sanitize: { allowTags: [inner] },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: () => html`<p ${onClick(() => clicks.push('outer'))}>p</p><${inner}></${inner}>`,
+    });
+    const host = mount(outer);
+    host.querySelector<HTMLElement>('button')!.click();
+    host.querySelector<HTMLElement>('p')!.click();
+    expect(clicks).toEqual(['inner', 'outer']);
+    host.remove();
+  });
+});

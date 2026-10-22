@@ -10,7 +10,7 @@ import { sanitizeHtml } from '../security/sanitize';
 import { trustedPreparedHtmlForSink } from '../security/trusted-types';
 import { morphInnerHtml, selfRenderedHosts } from './morph';
 import { applyAdoptedStyles, isComponentStyles } from './css';
-import { cleanupDelegatedHandlers } from './events';
+import { cleanupDelegatedHandlers, scopeHasDelegatedHandlers } from './events';
 import { coercePropValue } from './props';
 import {
   createComponentScope,
@@ -162,6 +162,11 @@ const createComponentClass = <
     private lastRenderedMarkup: string | null = null;
     /** Top-level nodes the last render left in the render root. */
     private lastRenderedNodes: readonly Node[] = [];
+    /**
+     * Set on disconnect when the rendered markup references `on()` handlers
+     * that disposing the scope removed; cleared by the next render.
+     */
+    private handlersDisposed = false;
 
     constructor() {
       super();
@@ -204,12 +209,15 @@ const createComponentClass = <
           } finally {
             setCurrentScope(previousScope);
           }
-          if (signalSources.length === 0) {
+          if (signalSources.length === 0 && this.handlersDisposed) {
             // Disconnecting disposed the scope and with it the `on()` handlers
             // of the last render (a keyed move without `moveBefore()` detaches
             // and re-attaches the element, too). Re-render so the markup gets
-            // live handler ids again; with signals the subscription below does.
-            this.render(true, this.cloneProps(), undefined, false);
+            // live handler ids again — unless `connected()` already rendered.
+            // It restores the last render rather than updating it, so
+            // `beforeUpdate()` / `updated()` do not run. With signals the
+            // subscription below re-renders.
+            this.render();
           }
           this.setupSignalSubscriptions(true);
           return;
@@ -316,6 +324,7 @@ const createComponentClass = <
         }
         this.signalEffectCleanup?.();
         this.signalEffectCleanup = undefined;
+        this.handlersDisposed = scopeHasDelegatedHandlers(this.scope);
         // Dispose all scoped reactive resources (useSignal, useComputed, useEffect)
         this.scope?.dispose();
         this.scope = undefined;
@@ -625,6 +634,7 @@ const createComponentClass = <
         }
         this.lastRenderedMarkup = sanitizedMarkup;
         this.lastRenderedNodes = renderedNodesOf(renderRoot);
+        this.handlersDisposed = false;
 
         if (stylesText && !usedAdoptedSheet) {
           const styleElement = existingStyleElement ?? document.createElement('style');

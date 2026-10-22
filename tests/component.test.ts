@@ -703,11 +703,9 @@ describe('component/component', () => {
     el.remove();
     document.body.appendChild(el);
 
-    // No effect is set up, but a reconnect still re-renders once: disconnecting
-    // disposed the scope (and any `on()` handler ids of the last render), so the
-    // component renders again to restore them — like components with signals,
-    // whose re-subscription renders on reconnect.
-    expect(renderCount).toBe(2);
+    // No effect is set up and the last render bound no `on()` handlers, so a
+    // reconnect has nothing to restore and does not re-render.
+    expect(renderCount).toBe(1);
     expect(el.shadowRoot?.textContent).toContain('Static');
 
     el.remove();

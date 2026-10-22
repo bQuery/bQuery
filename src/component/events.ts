@@ -32,6 +32,14 @@ const listenerRegistrationsByScope = new WeakMap<ComponentScope, Set<(type: stri
  */
 const handlerIdsByScope = new WeakMap<ComponentScope, Set<string>>();
 const delegatedAttributePrefix = 'data-bq-on-';
+/**
+ * Light-DOM hosts (no shadow root) with an active `bindDelegatedEvents()`
+ * listener, counted per binding. An outer light-DOM host leaves the nodes
+ * inside such a nested host to that host's own listener, so a handler does not
+ * run once per enclosing host.
+ * @internal
+ */
+const lightDomDelegationHosts = new WeakMap<Element, number>();
 
 /**
  * @internal
@@ -113,6 +121,14 @@ export const on = (event: string, handler: EventHandler): string => {
 };
 
 /**
+ * Whether `scope` still holds `on()` handler ids — i.e. the markup currently
+ * rendered with it references handlers that disposing the scope removes.
+ * @internal
+ */
+export const scopeHasDelegatedHandlers = (scope: ComponentScope | undefined): boolean =>
+  scope !== undefined && (handlerIdsByScope.get(scope)?.size ?? 0) > 0;
+
+/**
  * @internal
  */
 export const cleanupDelegatedHandlers = (root: ParentNode, scope?: ComponentScope): void => {
@@ -176,7 +192,17 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
     const listener: EventHandler = (event) => {
       const path = (event.composedPath?.() ?? []) as EventTarget[];
       const attrName = `${delegatedAttributePrefix}${type.toLowerCase()}`;
-      for (const node of path) {
+      let start = 0;
+      if (!usesShadowRoot) {
+        // Nodes inside a nested light-DOM host with its own delegated
+        // listener are that host's: its listener already dispatched them.
+        for (let index = 0; index < path.length && path[index] !== host; index++) {
+          const node = path[index];
+          if (node instanceof Element && lightDomDelegationHosts.has(node)) start = index;
+        }
+      }
+      for (let index = start; index < path.length; index++) {
+        const node = path[index];
         if (!(node instanceof Element)) continue;
         if (node === host) break; // don't walk past the host
         // Only dispatch to nodes that live in this component's shadow root;
@@ -227,6 +253,10 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
   }
 
   scanAndRegister(root);
+  if (!usesShadowRoot) {
+    lightDomDelegationHosts.set(host, (lightDomDelegationHosts.get(host) ?? 0) + 1);
+  }
+  let released = false;
 
   const observer =
     typeof MutationObserver !== 'undefined'
@@ -255,6 +285,12 @@ export const bindDelegatedEvents = (host: HTMLElement): (() => void) => {
   observer?.observe(root, { childList: true, subtree: true, attributes: true });
 
   const cleanup = (): void => {
+    if (!usesShadowRoot && !released) {
+      const count = (lightDomDelegationHosts.get(host) ?? 1) - 1;
+      if (count > 0) lightDomDelegationHosts.set(host, count);
+      else lightDomDelegationHosts.delete(host);
+    }
+    released = true;
     if (scope) {
       const registrations = listenerRegistrationsByScope.get(scope);
       registrations?.delete(ensureListener);

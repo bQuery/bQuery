@@ -99,6 +99,11 @@ const isCompatible = (live: Node, next: Node): boolean => {
 const syncFormProperty = (element: Element, name: string, value: string | null): void => {
   if (name === 'value' && (element.localName === 'input' || element.localName === 'option')) {
     (element as HTMLInputElement).value = value ?? '';
+    // For an `<option>` and a checkbox, radio or hidden input the `value`
+    // property reflects the content attribute, so the write above put back a
+    // `value=""` the template dropped. Without it they fall back to their
+    // text / `on`, as freshly parsed markup does.
+    if (value === null && element.hasAttribute('value')) element.removeAttribute('value');
   } else if (name === 'checked' && element.localName === 'input') {
     (element as HTMLInputElement).checked = value !== null;
   } else if (name === 'selected' && element.localName === 'option') {
@@ -174,6 +179,24 @@ const morphNode = (live: Node, next: Node): void => {
   morphChildren(liveElement, nextElement);
 };
 
+/** Elements whose own state (value, playback, a loaded frame) a recreation loses. */
+const STATEFUL_ELEMENTS = 'input,textarea,select,video,audio,iframe';
+
+/**
+ * Whether recreating `node` would lose state: a form control, media element,
+ * frame or custom element, or an element holding a form control, media or
+ * frame.
+ */
+const holdsState = (node: Node): boolean => {
+  if (node.nodeType !== 1) return false;
+  const element = node as Element;
+  return (
+    isCustomElement(element) ||
+    element.matches(STATEFUL_ELEMENTS) ||
+    element.querySelector(STATEFUL_ELEMENTS) !== null
+  );
+};
+
 /** How many source siblings the positional matcher looks ahead. */
 const LOOKAHEAD = 16;
 
@@ -240,23 +263,32 @@ export const morphChildren = (
   const used = new Set<Node>();
   let reference = nextManaged(target.firstChild);
 
-  /** A keyed live node that a later source node will claim. */
-  const isPendingKeyed = (node: Node): boolean => {
-    const key = keyOf(node);
-    return key !== null && nextKeys.has(key) && !used.has(node);
-  };
+  /**
+   * A keyed live node that a later source node will claim. Only the first
+   * live node per key can be claimed: a duplicate is never pending, or it
+   * would hold the insertion point (and every sibling after it) forever.
+   */
+  const isPendingKeyed = (node: Node, key = keyOf(node)): boolean =>
+    key !== null && nextKeys.has(key) && liveByKey.get(key) === node && !used.has(node);
 
   const findPositionalMatch = (next: Node): ChildNode | null => {
+    // Unkeyed and stale candidates that do not fit count against a budget, so
+    // a source run that matches nothing (`<li>` rows becoming `<div>` rows)
+    // costs O(n · LOOKAHEAD) instead of scanning every remaining live node.
+    let budget = LOOKAHEAD;
     for (let candidate = reference; candidate; candidate = nextManaged(candidate.nextSibling)) {
       if (used.has(candidate)) continue;
-      const candidateKey = keyOf(candidate);
-      // A keyed node waits for the source node carrying its key.
-      if (candidateKey !== null && nextKeys.has(candidateKey)) continue;
-      if (candidateKey === null && isCompatible(candidate, next)) return candidate;
       // Text and comments never jump over an element: matching one ahead
       // would skip the insertion point past an element a later source node
-      // (e.g. the `<input>` after an inserted message) still needs.
+      // (e.g. the `<input>` after an inserted message) still needs. Checked
+      // before the keyed skip so whitespace between keyed rows does not scan
+      // over every pending row.
       if (next.nodeType !== 1 && candidate.nodeType === 1) return null;
+      // A keyed node waits for the source node carrying its key.
+      const candidateKey = keyOf(candidate);
+      if (isPendingKeyed(candidate, candidateKey)) continue;
+      if (candidateKey === null && isCompatible(candidate, next)) return candidate;
+      if (--budget === 0) return null;
     }
     return null;
   };
@@ -280,19 +312,56 @@ export const morphChildren = (
    * `match`, for `nextChildren[index]`, lies ahead of `reference`. Taking it
    * skips the live nodes in between, which can then only be removed. Keep
    * `reference` instead (insert or move in front of it) when it lines up with
-   * a later source node over a longer run than `match` does — e.g. an element
-   * inserted before an `<input>`: the input and what follows it stay put.
+   * a later source node over a longer run than `match` does here — e.g. an
+   * element inserted before an `<input>`: the input and what follows it stay
+   * put.
+   *
+   * On a tie one node is recreated either way, so keep the one that holds
+   * state (see `holdsState`): a hint below an `<input>` turning into an error
+   * above it recreates the message, not the input — in both directions. A
+   * stateful node still gives way when it belongs elsewhere: an `anchor` that
+   * a live node further ahead lines up with better (it is being removed), or a
+   * `match` that lines up with a later source node at least as well.
    */
   const keepsReference = (index: number, match: ChildNode): boolean => {
     const anchor = reference as ChildNode;
     if (keyOf(anchor) !== null) return false;
     const limit = Math.min(nextChildren.length, index + 1 + LOOKAHEAD);
-    for (let later = index + 1; later < limit; later++) {
-      if (keyOf(nextChildren[later]) === null && isCompatible(anchor, nextChildren[later])) {
-        return runLength(later, anchor) > 1 + runLength(index + 1, nextManaged(match.nextSibling));
+    /** The later unkeyed source node `node` lines up with longest: [run, index]. */
+    const bestLater = (node: ChildNode): [number, number] => {
+      let best = 0;
+      let at = -1;
+      for (let later = index + 1; later < limit; later++) {
+        const source = nextChildren[later];
+        if (keyOf(source) !== null || !isCompatible(node, source)) continue;
+        const run = runLength(later, node);
+        if (run > best) {
+          best = run;
+          at = later;
+        }
       }
+      return [best, at];
+    };
+
+    const [anchorRun, anchorAt] = bestLater(anchor);
+    if (anchorRun === 0) return false;
+    const matchRun = 1 + runLength(index + 1, nextManaged(match.nextSibling));
+    if (anchorRun !== matchRun) return anchorRun > matchRun;
+
+    if (!holdsState(anchor) && holdsState(match)) return bestLater(match)[0] >= matchRun;
+    const target = nextChildren[anchorAt];
+    let live = nextManaged(match.nextSibling);
+    for (let steps = 0; live && steps < LOOKAHEAD; steps++) {
+      if (
+        keyOf(live) === null &&
+        isCompatible(live, target) &&
+        runLength(anchorAt, live) > anchorRun
+      ) {
+        return false;
+      }
+      live = nextManaged(live.nextSibling);
     }
-    return false;
+    return true;
   };
 
   const isAhead = (match: ChildNode): boolean =>

@@ -83,8 +83,8 @@ export const BUNDLE_BUDGETS = [
   },
   {
     subpath: './ssr',
-    gzip: 40000,
-    note: 'Pulls in the view renderer and the HTML parser. The Node adapter streams request bodies on demand with backpressure and abort handling instead of buffering them (+0.5 kB, #255). Keeping the doctype of full-page templates and `;`-separated bq-on statements (via the view evaluator) add 0.4 kB. Escaping textarea content in `sanitizeHtmlForSSR()` (stored XSS) and treating requests without framing headers as bodiless add 0.1 kB.',
+    gzip: 40100,
+    note: "Pulls in the view renderer and the HTML parser. The Node adapter streams request bodies on demand with backpressure and abort handling instead of buffering them (+0.5 kB, #255). Keeping the doctype of full-page templates and `;`-separated bq-on statements (via the view evaluator) add 0.4 kB. Escaping textarea content in `sanitizeHtmlForSSR()` (stored XSS) and treating requests without framing headers as bodiless add 0.1 kB. The view evaluator's constructor/prototype guard reading comments as whitespace (`a./**/constructor`) adds a few bytes (1.18.0 release review).",
   },
   {
     subpath: './server',

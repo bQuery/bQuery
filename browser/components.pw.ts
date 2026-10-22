@@ -204,3 +204,125 @@ test('keyed reorder keeps child components and their handlers working', async ({
   // With moveBefore() the moved row stays mounted; without it, one reconnect.
   expect(result.connects).toBe(result.hasMoveBefore ? 3 : 4);
 });
+
+test('keeps a typed, focused input when its hint turns into an error above it and back', async ({
+  page,
+}) => {
+  await page.evaluate(async (url) => {
+    const { component, html, signal } = await import(url);
+    const error = signal(false);
+    (window as unknown as { error: typeof error }).error = error;
+    component('x-password', {
+      signals: { error },
+      render: ({ signals }: { signals: { error: { value: boolean } } }) => html`
+        <label>Password</label>
+        ${signals.error.value ? '<small class="err">Too short</small>' : ''}
+        <input class="pw" />
+        ${signals.error.value ? '' : '<small class="hint">8+ characters</small>'}
+        <button>Save</button>
+      `,
+    });
+    document.getElementById('app')!.innerHTML = '<x-password></x-password>';
+  }, FULL);
+
+  const input = page.locator('x-password').locator('input');
+  await input.click();
+  await input.pressSequentially('abc');
+
+  const state = await page.evaluate(() => {
+    const root = document.querySelector('x-password')!.shadowRoot!;
+    const error = (window as unknown as { error: { value: boolean } }).error;
+    const before = root.querySelector('input');
+    const snapshot = () => {
+      const field = root.querySelector('input') as HTMLInputElement;
+      return {
+        same: field === before,
+        value: field.value,
+        focused: root.activeElement === field,
+        message: root.querySelector('small')?.className,
+      };
+    };
+    error.value = true;
+    const withError = snapshot();
+    error.value = false;
+    return { withError, withHint: snapshot() };
+  });
+
+  expect(state).toEqual({
+    withError: { same: true, value: 'abc', focused: true, message: 'err' },
+    withHint: { same: true, value: 'abc', focused: true, message: 'hint' },
+  });
+});
+
+test('a template that drops value= leaves options and checkboxes their defaults', async ({
+  page,
+}) => {
+  const result = await page.evaluate(async (url) => {
+    const { component, html, signal } = await import(url);
+    const explicit = signal(true);
+    component('x-values', {
+      signals: { explicit },
+      render: ({ signals }: { signals: { explicit: { value: boolean } } }) =>
+        signals.explicit.value
+          ? html`<select>
+                <option value="a">A</option>
+                <option value="b">B</option>
+              </select>
+              <input type="checkbox" value="yes" />`
+          : html`<select>
+                <option>A</option>
+                <option>B</option>
+              </select>
+              <input type="checkbox" />`,
+    });
+    const host = document.createElement('x-values');
+    document.getElementById('app')!.append(host);
+    explicit.value = false;
+    const root = host.shadowRoot!;
+    const select = root.querySelector('select')!;
+    const checkbox = root.querySelector('input')!;
+    return {
+      option: select.options[0].value,
+      select: select.value,
+      checkbox: checkbox.value,
+      attributes: select.options[0].hasAttribute('value') || checkbox.hasAttribute('value'),
+    };
+  }, FULL);
+
+  expect(result).toEqual({ option: 'A', select: 'A', checkbox: 'on', attributes: false });
+});
+
+test('nested shadow:false components run an on() handler once', async ({ page }) => {
+  const clicks = await page.evaluate(async (url) => {
+    const { bindDelegatedEvents, component, html, onClick, signal } = await import(url);
+    const log: string[] = [];
+    const n = signal(0);
+    component('x-inner-light', {
+      shadow: false,
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: () => html`<button class="ib" ${onClick(() => log.push('inner'))}>i</button>`,
+    });
+    component('x-outer-light', {
+      shadow: false,
+      signals: { n },
+      sanitize: { allowTags: ['x-inner-light'] },
+      connected() {
+        bindDelegatedEvents(this);
+      },
+      render: ({ signals }: { signals: { n: { value: number } } }) =>
+        html`<p ${onClick(() => log.push('outer'))}>${signals.n.value}</p>
+          <x-inner-light>placeholder</x-inner-light>`,
+    });
+    const host = document.createElement('x-outer-light');
+    document.getElementById('app')!.append(host);
+    host.querySelector<HTMLElement>('.ib')!.click();
+    n.value = 1;
+    host.querySelector<HTMLElement>('.ib')!.click();
+    host.querySelector<HTMLElement>('p')!.click();
+    return log;
+  }, FULL);
+
+  expect(clicks).toEqual(['inner', 'inner', 'outer']);
+});
