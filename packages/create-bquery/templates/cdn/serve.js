@@ -17,7 +17,14 @@ const types = {
 
 createServer((request, response) => {
   const { pathname } = new URL(request.url ?? '/', 'http://localhost');
-  let file = normalize(join(root, decodeURIComponent(pathname)));
+  let decoded;
+  try {
+    decoded = decodeURIComponent(pathname);
+  } catch {
+    response.writeHead(400).end('Bad request');
+    return;
+  }
+  let file = normalize(join(root, decoded));
   if (file !== root && !file.startsWith(root + sep)) {
     response.writeHead(403).end('Forbidden');
     return;

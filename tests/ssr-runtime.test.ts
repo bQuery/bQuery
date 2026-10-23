@@ -1812,7 +1812,7 @@ describe('runtime adapters', () => {
     const req: NodeIncomingMessage = {
       url: '/upload',
       method: 'POST',
-      headers: { host: 'example.com' },
+      headers: { host: 'example.com', 'transfer-encoding': 'chunked' },
       destroy(error?: Error) {
         destroyedWith = error;
       },

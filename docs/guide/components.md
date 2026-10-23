@@ -258,6 +258,26 @@ component('my-element', {
 });
 ```
 
+**Moves.** Moving a mounted bQuery component with `moveBefore()` is not a
+disconnect. That covers a keyed reorder in a parent's re-render in browsers that
+have `Element.prototype.moveBefore()`, and your own `parent.moveBefore(el, ref)`,
+even into a different parent. `beforeUnmount`, `disconnected` and `connected` do
+not run; the component keeps its scope, effects, `on()` handlers and signal
+subscriptions; and values it got from `inject()` stay bound to the provider it
+found when it mounted, even if the move put it under a different one. Move it
+with `appendChild()` / `insertBefore()` (or remove and re-insert it) when the
+hooks should run again.
+
+A plain DOM move — `appendChild()`, a drag-and-drop sortable drop, a keyed
+reorder in a browser without `moveBefore()` — disconnects and reconnects the
+element, so those hooks run. On reconnect a component with `signals` re-renders
+through its re-subscription; one without `signals` re-renders only when its last
+render bound `on()` handlers (disconnecting disposed them, the re-render gives
+the markup live ones). That restoring render does not run `beforeUpdate` or
+`updated`, and is skipped when `connected()` already rendered (e.g. via
+`setState()`). With `renderStrategy: 'replace'` it recreates the component's
+DOM, so internal DOM state such as a typed value does not survive the move.
+
 ### Observing extra attributes
 
 If you need lifecycle reactions for attributes that are not part of `props`, declare them via `observeAttributes`.
@@ -327,20 +347,47 @@ so enabling it for untrusted input can reintroduce security risks.
 
 A re-render does not replace the component's `innerHTML`. The new sanitized
 markup is parsed into an inert `<template>` and the live tree is **morphed**
-into it: nodes are matched by tag and `data-bq-key` / `id`, then by position,
-and only what changed is written. Because the nodes survive:
+into it: nodes are matched by tag and `data-bq-key` / `id`, then by position
+(with a short lookahead, so an element inserted or removed in front of a sibling
+— a validation message before an `<input>` — leaves that sibling in place; when
+either of two nodes could be kept, the one holding state, such as a form
+control, is), and only what changed is written. Because the nodes survive:
 
 - text typed into an `<input>` or `<textarea>`, the focused element and the
   caret/selection are kept when an unrelated signal or prop changes;
 - scroll positions, media playback and running CSS transitions are not reset;
-- nested custom elements are not disconnected and reconnected, so their own
-  state and lifecycles are untouched.
+- nested custom elements that stay in place are not disconnected and
+  reconnected, so their own state and lifecycles are untouched.
+
+A keyed reorder has to move nodes. Where the browser supports the
+state-preserving `Element.prototype.moveBefore()`, the move keeps focus and
+media state, and bQuery components stay mounted (they define
+`connectedMoveCallback`). Elsewhere a moved node is detached and re-attached: a
+moved input loses focus, and a moved custom element runs its `disconnected` and
+`connected` hooks. A moved bQuery component that bound `on()` handlers
+re-renders on reconnect so they keep working, but state kept outside its
+signals, state and props is reset by its own hooks as usual. See
+[Lifecycle hooks](#lifecycle-hooks) for what a move does and does not run.
 
 Attributes are diffed against the markup the component rendered **last time**,
 not against the live DOM. The template owns only what it writes: an attribute
 added at runtime — `<details open>` toggled by the user, a class set by an
-animation — survives a re-render, and a form control's `value` / `checked` /
-`selected` property is updated only when the template changes that attribute.
+animation — survives a re-render, an attribute the template keeps unchanged is
+not re-asserted (a user-collapsed `<details open>` stays collapsed), and a form
+control's `value` / `checked` / `selected` property is updated only when the
+template changes that attribute. When the template drops `value`, an `<option>`
+or a checkbox / radio falls back to its text / `on` as in freshly parsed markup.
+
+Selectedness follows the same rule and can go stale: a `<select>` changes its
+selection only when the template changes `selected` on an option. A `<select>`
+that gains `multiple`, or a default-selected `<option>` that a keyed reorder
+moves, keeps the browser's current selection rather than what freshly parsed
+markup would select. Bind `selected` on each option, set `select.value` in
+`updated()`, or change the `<select>`'s key so it is recreated.
+
+A nested bQuery component with
+`shadow: false` owns its light DOM: a parent re-render never patches it back to
+placeholder children written in the parent's template.
 An update whose sanitized markup is identical to the previous render skips the
 DOM write entirely.
 
@@ -604,7 +651,6 @@ component('todo-list', {
 
 ## Version history
 
-- **Unreleased (1.18)** — re-renders morph the existing DOM instead of replacing `innerHTML`, preserving input values, focus, scroll position and nested custom-element state; unchanged markup skips the DOM write. `renderStrategy: 'replace'` restores full replacement.
-
+- **1.18.0** — re-renders morph the existing DOM instead of replacing `innerHTML`, preserving input values, focus, scroll position and nested custom-element state; unchanged markup skips the DOM write. `renderStrategy: 'replace'` restores full replacement (`renderStrategy` option).
 - **1.17.1** — component render output passes through the `bquery-sanitizer` Trusted Types policy, so components render under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws). See the [security model](/concepts/security-model).
 - **1.13.0** — slot helpers, refs, `useAsync` / `whenIdle`, DI, `errorBoundary`, `setProp` / `getProp`, delegated event helpers, `css` tagged template, `keyedList` / `reconcileKeyed`.

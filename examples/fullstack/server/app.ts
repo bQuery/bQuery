@@ -32,7 +32,11 @@ import { documentShell, loginTemplate, noteTemplate, notesTemplate } from '../sh
 import { LoginSchema, NoteSchema } from '../shared/schema';
 import { createNotesRepo, type Note, type NotesRepo } from './notes-repo';
 
-/** Demo users. Store password hashes (e.g. Argon2id) in a real app. */
+/**
+ * Demo users. A real app stores password hashes (e.g. Argon2id) and verifies
+ * against a dummy hash for unknown emails, so response timing does not reveal
+ * which accounts exist.
+ */
 const USERS = new Map([['ada@example.com', { id: 'u1', password: 'lovelace' }]]);
 
 export interface AppOptions {
@@ -45,6 +49,8 @@ export interface AppOptions {
   /** CSS served as `/styles.css`. */
   stylesheet?: string;
   notes?: NotesRepo;
+  /** Sign-in attempts per email address and minute. Defaults to 5. */
+  loginAttemptsPerMinute?: number;
 }
 
 /** Per-request services the route loaders read, keyed by the request. */
@@ -171,12 +177,19 @@ export const createApp = (options: AppOptions): { app: ServerApp; notes: NotesRe
   app.get('/login', (ctx) => (userId(ctx) ? ctx.redirect('/', 303) : renderLogin(ctx)));
 
   // Five attempts per minute per email address, before the password check.
+  // The key is normalised exactly like the address that signs in, so
+  // ` ada@example.com` cannot open a fresh bucket for the same account.
+  // A per-account key also lets anyone lock an account out for a minute, and
+  // does not slow down guessing one password across many accounts; add a
+  // per-client limit (`trustProxy` or your own `keyBy`) in production.
+  const normalizeEmail = (value: unknown): string =>
+    typeof value === 'string' ? value.trim().toLowerCase() : '';
   const loginLimit = rateLimit({
     window: 60_000,
-    max: 5,
+    max: options.loginAttemptsPerMinute ?? 5,
     keyBy: async (ctx) => {
-      const body = (await ctx.body()) as { email?: string } | null;
-      return typeof body?.email === 'string' ? body.email.toLowerCase() : 'anonymous';
+      const body = (await ctx.body()) as { email?: unknown } | null;
+      return normalizeEmail(body?.email) || 'anonymous';
     },
   });
 
@@ -184,9 +197,7 @@ export const createApp = (options: AppOptions): { app: ServerApp; notes: NotesRe
     '/login',
     async (ctx) => {
       const body = (await ctx.body()) as { email?: string; password?: string };
-      const email = String(body?.email ?? '')
-        .trim()
-        .toLowerCase();
+      const email = normalizeEmail(body?.email);
       const result = await LoginSchema['~standard'].validate(body);
       const user = USERS.get(email);
       if (result.issues || !user || user.password !== body?.password) {

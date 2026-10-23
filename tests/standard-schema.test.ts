@@ -248,6 +248,50 @@ describe('createSchemaForm() and createForm({ schema }) (#221)', () => {
     expect(runs).toBe(2);
     form.destroy();
   });
+
+  it('runs the schema once per pass when a format builds a new value each call', async () => {
+    let runs = 0;
+    const schema = objectSchema<Record<string, unknown>>(() => {
+      runs += 1;
+      return [];
+    });
+    const form = createForm({
+      fields: {
+        tags: { initialValue: 'a,b', format: (value: unknown) => String(value).split(',') },
+        b: { initialValue: 1 },
+        c: { initialValue: 2 },
+      },
+      schema,
+    });
+    await form.validate();
+    expect(runs).toBe(1);
+    form.destroy();
+  });
+
+  it('does not write back an error from a validation that reset() overtook', async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const schema: StandardSchemaV1<{ email: string }> = {
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: async (value) => {
+          await gate;
+          return (value as { email: string }).email
+            ? { value: value as { email: string } }
+            : { issues: [{ message: 'Required', path: ['email'] }] };
+        },
+      },
+    };
+    const form = createSchemaForm({ schema, initialValues: { email: '' } });
+    const pending = form.validate();
+    form.reset();
+    release();
+    await pending;
+    expect(form.fields.email.error.value).toBe('');
+    expect(form.isValid.value).toBe(true);
+    form.destroy();
+  });
 });
 
 describe('validate() server middleware (#221)', () => {
@@ -345,5 +389,29 @@ describe('validate() server middleware (#221)', () => {
 
     const response = await app.handle(post('/signup', '{}'));
     expect(response.status).toBe(500);
+  });
+
+  it("gives a second body validator the request body, not the first one's output", async () => {
+    // Each schema strips keys it does not know, as Zod objects do by default.
+    const picks = (key: string): StandardSchemaV1<Record<string, unknown>> => ({
+      '~standard': {
+        version: 1,
+        vendor: 'test',
+        validate: (value) => {
+          const input = value as Record<string, unknown>;
+          return key in input
+            ? { value: { [key]: input[key] } }
+            : { issues: [{ message: `${key} required`, path: [key] }] };
+        },
+      },
+    });
+    const title = validate(picks('title'));
+    const tags = validate(picks('tags'));
+    const app = createServer();
+    app.post('/notes', (ctx) => ctx.json({ ...title.data(ctx), ...tags.data(ctx) }), [title, tags]);
+
+    const response = await app.handle(post('/notes', JSON.stringify({ title: 't', tags: ['x'] })));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ title: 't', tags: ['x'] });
   });
 });

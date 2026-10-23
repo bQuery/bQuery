@@ -518,6 +518,59 @@ const getEventConstructorName = (name: string): EventConstructorName | undefined
             ? 'FocusEvent'
             : undefined;
 
+/** `[bubbles, cancelable, composed]` for one event type. */
+type EventFlags = readonly [bubbles: boolean, cancelable: boolean, composed: boolean];
+
+/** Default flags for event types not listed in {@link EVENT_FLAGS} (and custom events). */
+const DEFAULT_EVENT_FLAGS: EventFlags = [true, true, true];
+
+/**
+ * The `bubbles` / `cancelable` / `composed` flags a browser dispatches these
+ * events with (UI Events, Pointer Events and HTML specs) where they differ
+ * from the all-`true` default used for every other event name.
+ */
+const EVENT_FLAGS = new Map<string, EventFlags>([
+  // Focus: `focus` / `blur` don't bubble; `focusin` / `focusout` do. None cancel.
+  ['focus', [false, false, true]],
+  ['blur', [false, false, true]],
+  ['focusin', [true, false, true]],
+  ['focusout', [true, false, true]],
+  // Boundary events are sent to each element entered / left and stay in their tree.
+  ['mouseenter', [false, false, false]],
+  ['mouseleave', [false, false, false]],
+  ['pointerenter', [false, false, false]],
+  ['pointerleave', [false, false, false]],
+  ['pointercancel', [true, false, true]],
+  ['gotpointercapture', [true, false, true]],
+  ['lostpointercapture', [true, false, true]],
+  ['touchcancel', [true, false, true]],
+  // Editing and forms.
+  ['input', [true, false, true]],
+  ['compositionupdate', [true, false, true]],
+  ['compositionend', [true, false, true]],
+  ['change', [true, false, false]],
+  ['select', [true, false, false]],
+  ['submit', [true, true, false]],
+  ['reset', [true, true, false]],
+  ['invalid', [false, true, false]],
+  ['toggle', [false, false, false]],
+  // Resource and scroll events fired at elements.
+  ['load', [false, false, false]],
+  ['error', [false, false, false]],
+  ['abort', [false, false, false]],
+  ['scroll', [false, false, false]],
+  ['scrollend', [false, false, false]],
+  // CSS animations and transitions.
+  ['animationstart', [true, false, false]],
+  ['animationend', [true, false, false]],
+  ['animationiteration', [true, false, false]],
+  ['animationcancel', [true, false, false]],
+  ['transitionrun', [true, false, false]],
+  ['transitionstart', [true, false, false]],
+  ['transitionend', [true, false, false]],
+  ['transitioncancel', [true, false, false]],
+]);
+
 /**
  * Per-event defaults that mirror what a browser sends for a primary-button
  * mouse / pointer interaction (`button: 0`, a click count in `detail`, ...).
@@ -575,9 +628,17 @@ const assertFireEventElement = (el: Element): void => {
 /**
  * Dispatches a synthetic event on an element and flushes pending effects.
  *
- * By default the event bubbles, is cancelable, and is composed (crosses
- * shadow DOM boundaries). Well-known event names are dispatched with the
- * matching `Event` subclass, the way a browser sends them:
+ * The event gets the `bubbles` / `cancelable` / `composed` flags a browser
+ * uses for that event type: `focus`, `blur`, `mouseenter`, `mouseleave`,
+ * `pointerenter`, `pointerleave`, `load` and `scroll` don't bubble; `input`,
+ * `change`, `focus*` and `blur` aren't cancelable; `change`, `submit`,
+ * `reset`, `mouseenter` / `mouseleave` and `pointerenter` / `pointerleave`
+ * aren't composed (don't leave a shadow root). Every other event — including
+ * custom event names — bubbles, is cancelable and is composed. `bubbles`,
+ * `cancelable` and `composed` in `options` override these defaults.
+ *
+ * Well-known event names are dispatched with the matching `Event` subclass,
+ * the way a browser sends them:
  *
  * - `click`, `dblclick`, `mousedown`, `mouseup`, `mouseover`, `contextmenu`, ...
  *   → `MouseEvent` (`button: 0` for the primary button, `detail` = click count)
@@ -614,7 +675,14 @@ const baseFireEvent = (el: Element, eventName: string, options: FireEventOptions
     throw new Error('bQuery testing: fireEvent requires an event name');
   }
 
-  const { bubbles = true, cancelable = true, composed = true, detail, ...init } = options;
+  const flags = EVENT_FLAGS.get(eventName) ?? DEFAULT_EVENT_FLAGS;
+  const {
+    bubbles = flags[0],
+    cancelable = flags[1],
+    composed = flags[2],
+    detail,
+    ...init
+  } = options;
   const ctor = getEventConstructorName(eventName);
 
   let event: Event;
@@ -737,12 +805,14 @@ export async function waitFor(
       // Predicate threw — treat as not-yet-met and keep polling
     }
 
-    if (Date.now() - start >= timeout) {
+    const remaining = timeout - (Date.now() - start);
+    if (remaining <= 0) {
       throw new Error(
         `bQuery testing: waitFor timed out after ${timeout}ms — predicate never returned true`
       );
     }
 
-    await new Promise((resolve) => setTimeout(resolve, interval));
+    // Never sleep past the deadline: the last check runs when the timeout is due.
+    await new Promise((resolve) => setTimeout(resolve, Math.min(interval, remaining)));
   }
 }

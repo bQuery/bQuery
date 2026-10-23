@@ -13,7 +13,7 @@
  */
 
 /** The bQuery release the templates are written against (exact, for CDN URLs). */
-export const BQUERY_VERSION = '1.17.2';
+export const BQUERY_VERSION = '1.18.0';
 
 /** The dependency range written into scaffolded `package.json` / `deno.json` files. */
 export const BQUERY_RANGE = `^${BQUERY_VERSION}`;

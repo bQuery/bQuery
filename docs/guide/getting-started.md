@@ -28,7 +28,7 @@ You do not need to adopt the whole framework at once. Start with the layer that 
 ## Installation
 
 ::: tip Start a new project
-`npm create bquery@latest` (or `bun create bquery`) scaffolds a ready-to-run project — a zero-build CDN page, a Vite SPA, an SSR app for Node, Bun or Deno, or a full-stack app — with tests already wired to `@bquery/bquery/testing`. See [Create a project](/guide/create-bquery).
+`npx --package @bquery/bquery create-bquery my-app` scaffolds a ready-to-run project — a zero-build CDN page, a Vite SPA, an SSR app for Node, Bun or Deno, or a full-stack app — with tests already wired to `@bquery/bquery/testing`. See [Create a project](/guide/create-bquery).
 :::
 
 ### Zero-build via CDN

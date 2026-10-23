@@ -138,3 +138,39 @@ describe('property-based: random tag and attribute soup (#230)', () => {
     }
   }
 });
+
+describe('output re-parsed by a non-browser DOM', () => {
+  // The DOM SSR renderer writes sanitized `bq-html` output into a happy-dom
+  // element and serializes it again. happy-dom builds elements inside a
+  // `<textarea>`, so textarea content kept as raw text came back out as
+  // live markup (an `<iframe srcdoc>` running script in the page's origin).
+  const PAYLOADS = [
+    '<span><textarea></span><iframe srcdoc="<script>alert(1)</script>"></iframe>',
+    '<div><textarea></div><img src=x onerror=alert(1)></textarea>',
+  ];
+
+  for (const [name, sanitize] of SANITIZERS) {
+    it(`${name}: stays inert after a happy-dom round trip`, () => {
+      for (const payload of PAYLOADS) {
+        const host = document.createElement('div');
+        host.innerHTML = sanitize(payload);
+        const unsafe = findExecutableMarkup(host.innerHTML);
+        if (unsafe.length > 0) {
+          throw new Error(`unsafe round trip for ${JSON.stringify(payload)}: ${unsafe.join(', ')}`);
+        }
+        expect(host.querySelector('iframe, [onerror]')).toBeNull();
+      }
+    });
+  }
+
+  it('keeps the visible textarea text', () => {
+    expect(sanitizeHtmlForSSR('<textarea>a &amp; b &lt;i&gt;</textarea>')).toBe(
+      '<textarea>a &amp; b &lt;i&gt;</textarea>'
+    );
+    expect(sanitizeHtmlForSSR('<textarea>a < b</textarea>')).toBe('<textarea>a &lt; b</textarea>');
+    // Character references stay as written, so a browser shows the same text.
+    expect(sanitizeHtmlForSSR('<textarea>&copy; &hellip; &lt</textarea>')).toBe(
+      '<textarea>&copy; &hellip; &lt</textarea>'
+    );
+  });
+});

@@ -115,6 +115,10 @@ describe('full-stack example (#226)', () => {
       );
     }
     expect(statuses).toEqual([401, 401, 401, 401, 401, 429]);
+    // Whitespace and case do not open a new bucket for the same account.
+    for (const email of [' ada@example.com', 'ADA@example.com\t ']) {
+      expect((await client.form('/login', { email, password: 'lovelace' })).status).toBe(429);
+    }
   });
 
   it('server-renders notes from the route loader after sign-in', async () => {

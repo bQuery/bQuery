@@ -326,7 +326,14 @@ const buildRequestFromNode = async (
       bodyState.ended = false;
       throw new NodeRequestLimitError(`Request body exceeds ${maxBodyBytes} bytes.`);
     }
-    if (declaredLength !== 0) {
+    // Without Content-Length and Transfer-Encoding the body is empty
+    // (RFC 9112 §6.3), as for a bodiless DELETE or a CORS preflight. A stream
+    // there would never end unread and cost the connection its keep-alive.
+    const hasBody =
+      declaredLength !== null
+        ? declaredLength > 0
+        : getSingleHeader(req.headers, 'transfer-encoding') !== undefined;
+    if (hasBody) {
       bodyState.ended = false;
       init.body = createNodeBodyStream(req, bodyState, maxBodyBytes);
       // Required by undici (Node's fetch) for a streamed request body.

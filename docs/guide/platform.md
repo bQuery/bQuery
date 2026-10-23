@@ -45,8 +45,10 @@ it:
 ```
 
 ```ts
+import type { BqueryConfig } from '@bquery/bquery/platform';
 import config from './bquery.config.json' with { type: 'json' };
-defineBqueryConfig(config);
+// JSON imports widen string literals ("Strict" → string), so assert the type.
+defineBqueryConfig(config as BqueryConfig);
 ```
 
 Function-valued options such as `pageMeta.titleTemplate` cannot be expressed

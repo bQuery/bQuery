@@ -8,9 +8,12 @@
  */
 
 import { readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { createApp } from './server/app';
 
-const here = (path: string): string => new URL(path, import.meta.url).pathname;
+// fileURLToPath, not URL#pathname: the pathname stays percent-encoded (a space
+// in the project path becomes %20) and has a leading slash on Windows.
+const here = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
 /** Bundle client.ts for the browser once, on first request. */
 let clientBundle: Promise<string> | undefined;
@@ -31,6 +34,9 @@ const { app } = createApp({
   secureCookies: process.env.NODE_ENV === 'production',
   clientScript: buildClient,
   stylesheet: await readFile(here('./styles.css'), 'utf8'),
+  loginAttemptsPerMinute: process.env.LOGIN_ATTEMPTS
+    ? Number(process.env.LOGIN_ATTEMPTS)
+    : undefined,
 });
 
 const port = Number(process.env.PORT ?? 3000);

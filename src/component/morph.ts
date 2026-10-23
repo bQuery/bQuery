@@ -11,10 +11,12 @@
  * rather than against the live DOM, like a virtual-DOM patch: the template only
  * owns what it wrote. An attribute added at runtime (`<details open>` toggled
  * by the user, a class set by an animation) is left alone, and an attribute the
- * template keeps unchanged is not re-asserted.
+ * template keeps unchanged is not re-asserted — not even when it was removed
+ * at runtime (a user-collapsed `<details open>` stays collapsed).
  *
  * Children are matched by tag and key — `data-bq-key` (see `keyedList()`)
- * or `id` — and otherwise by position.
+ * or `id` — and otherwise by position, with a bounded lookahead so a node
+ * inserted or removed in front of a sibling does not shift every later match.
  *
  * @module bquery/component
  * @internal
@@ -46,6 +48,16 @@ const snapshotAttributes = (element: Element): Map<string, string> => {
  * (`shadow: false`), and that DOM is not the parent template's to remove.
  */
 const templateOwnsChildren = new WeakSet<Element>();
+
+/**
+ * Hosts that render into their own light DOM (bQuery `shadow: false`
+ * components, registered by the component on render). Their children are their
+ * own render output, never the parent template's, so a parent re-render leaves
+ * them alone even when the parent template supplied placeholder children.
+ *
+ * @internal
+ */
+export const selfRenderedHosts = new WeakSet<Element>();
 
 const isCustomElement = (element: Element): boolean => element.localName.includes('-');
 
@@ -87,6 +99,11 @@ const isCompatible = (live: Node, next: Node): boolean => {
 const syncFormProperty = (element: Element, name: string, value: string | null): void => {
   if (name === 'value' && (element.localName === 'input' || element.localName === 'option')) {
     (element as HTMLInputElement).value = value ?? '';
+    // For an `<option>` and a checkbox, radio or hidden input the `value`
+    // property reflects the content attribute, so the write above put back a
+    // `value=""` the template dropped. Without it they fall back to their
+    // text / `on`, as freshly parsed markup does.
+    if (value === null && element.hasAttribute('value')) element.removeAttribute('value');
   } else if (name === 'checked' && element.localName === 'input') {
     (element as HTMLInputElement).checked = value !== null;
   } else if (name === 'selected' && element.localName === 'option') {
@@ -100,7 +117,9 @@ const morphAttributes = (live: Element, next: Element): void => {
 
   for (const [name, value] of current) {
     if (name === TEXTAREA_TEXT) continue;
-    if (previous.get(name) === value && live.hasAttribute(name)) continue;
+    // Unchanged since the last render: leave the live value alone, including
+    // a runtime removal (e.g. a collapsed `<details open>`).
+    if (previous.get(name) === value) continue;
     if (live.getAttribute(name) !== value) {
       live.setAttribute(name, value);
     }
@@ -146,7 +165,9 @@ const morphNode = (live: Node, next: Node): void => {
 
   // A custom element's own rendering (light DOM of a `shadow: false`
   // component) is left alone unless the template supplies — or used to
-  // supply — the children, e.g. content for its slots.
+  // supply — the children, e.g. content for its slots. A bQuery `shadow: false`
+  // component always owns its light DOM, even over placeholder children.
+  if (selfRenderedHosts.has(liveElement)) return;
   if (
     isCustomElement(liveElement) &&
     !nextElement.hasChildNodes() &&
@@ -156,6 +177,48 @@ const morphNode = (live: Node, next: Node): void => {
   }
   recordChildOwnership(liveElement, nextElement);
   morphChildren(liveElement, nextElement);
+};
+
+/** Elements whose own state (value, playback, a loaded frame) a recreation loses. */
+const STATEFUL_ELEMENTS = 'input,textarea,select,video,audio,iframe';
+
+/**
+ * Whether recreating `node` would lose state: a form control, media element,
+ * frame or custom element, or an element holding a form control, media or
+ * frame.
+ */
+const holdsState = (node: Node): boolean => {
+  if (node.nodeType !== 1) return false;
+  const element = node as Element;
+  return (
+    isCustomElement(element) ||
+    element.matches(STATEFUL_ELEMENTS) ||
+    element.querySelector(STATEFUL_ELEMENTS) !== null
+  );
+};
+
+/** How many source siblings the positional matcher looks ahead. */
+const LOOKAHEAD = 16;
+
+type MovableParent = ParentNode &
+  Node & { moveBefore?: (node: ChildNode, child: ChildNode | null) => void };
+
+/**
+ * Move `node` before `child`. Uses the state-preserving `moveBefore()` where
+ * the browser has it (a moved custom element gets `connectedMoveCallback`
+ * instead of being disconnected and reconnected; focus, media and iframes
+ * survive); `insertBefore()` detaches and re-attaches the node otherwise.
+ */
+const moveNode = (parent: MovableParent, node: ChildNode, child: ChildNode | null): void => {
+  if (typeof parent.moveBefore === 'function' && parent.isConnected) {
+    try {
+      parent.moveBefore(node, child);
+      return;
+    } catch {
+      // e.g. a node from another document — fall back to a plain insert.
+    }
+  }
+  parent.insertBefore(node, child);
 };
 
 /** Options for {@link morphChildren}. */
@@ -200,44 +263,132 @@ export const morphChildren = (
   const used = new Set<Node>();
   let reference = nextManaged(target.firstChild);
 
+  /**
+   * A keyed live node that a later source node will claim. Only the first
+   * live node per key can be claimed: a duplicate is never pending, or it
+   * would hold the insertion point (and every sibling after it) forever.
+   */
+  const isPendingKeyed = (node: Node, key = keyOf(node)): boolean =>
+    key !== null && nextKeys.has(key) && liveByKey.get(key) === node && !used.has(node);
+
   const findPositionalMatch = (next: Node): ChildNode | null => {
+    // Unkeyed and stale candidates that do not fit count against a budget, so
+    // a source run that matches nothing (`<li>` rows becoming `<div>` rows)
+    // costs O(n · LOOKAHEAD) instead of scanning every remaining live node.
+    let budget = LOOKAHEAD;
     for (let candidate = reference; candidate; candidate = nextManaged(candidate.nextSibling)) {
       if (used.has(candidate)) continue;
-      const candidateKey = keyOf(candidate);
+      // Text and comments never jump over an element: matching one ahead
+      // would skip the insertion point past an element a later source node
+      // (e.g. the `<input>` after an inserted message) still needs. Checked
+      // before the keyed skip so whitespace between keyed rows does not scan
+      // over every pending row.
+      if (next.nodeType !== 1 && candidate.nodeType === 1) return null;
       // A keyed node waits for the source node carrying its key.
-      if (candidateKey !== null && nextKeys.has(candidateKey)) continue;
+      const candidateKey = keyOf(candidate);
+      if (isPendingKeyed(candidate, candidateKey)) continue;
       if (candidateKey === null && isCompatible(candidate, next)) return candidate;
+      if (--budget === 0) return null;
     }
     return null;
   };
 
-  /** A keyed live node that a later source node will claim. */
-  const isPendingKeyed = (node: Node): boolean => {
-    const key = keyOf(node);
-    return key !== null && nextKeys.has(key) && !used.has(node);
+  /** Length (capped) of the run of compatible pairs from `source[index]` / `live`. */
+  const runLength = (index: number, live: ChildNode | null): number => {
+    let length = 0;
+    while (
+      length < LOOKAHEAD &&
+      live &&
+      index + length < nextChildren.length &&
+      isCompatible(live, nextChildren[index + length])
+    ) {
+      length++;
+      live = nextManaged(live.nextSibling);
+    }
+    return length;
   };
+
+  /**
+   * `match`, for `nextChildren[index]`, lies ahead of `reference`. Taking it
+   * skips the live nodes in between, which can then only be removed. Keep
+   * `reference` instead (insert or move in front of it) when it lines up with
+   * a later source node over a longer run than `match` does here — e.g. an
+   * element inserted before an `<input>`: the input and what follows it stay
+   * put.
+   *
+   * On a tie one node is recreated either way, so keep the one that holds
+   * state (see `holdsState`): a hint below an `<input>` turning into an error
+   * above it recreates the message, not the input — in both directions. A
+   * stateful node still gives way when it belongs elsewhere: an `anchor` that
+   * a live node further ahead lines up with better (it is being removed), or a
+   * `match` that lines up with a later source node at least as well.
+   */
+  const keepsReference = (index: number, match: ChildNode): boolean => {
+    const anchor = reference as ChildNode;
+    if (keyOf(anchor) !== null) return false;
+    const limit = Math.min(nextChildren.length, index + 1 + LOOKAHEAD);
+    /** The later unkeyed source node `node` lines up with longest: [run, index]. */
+    const bestLater = (node: ChildNode): [number, number] => {
+      let best = 0;
+      let at = -1;
+      for (let later = index + 1; later < limit; later++) {
+        const source = nextChildren[later];
+        if (keyOf(source) !== null || !isCompatible(node, source)) continue;
+        const run = runLength(later, node);
+        if (run > best) {
+          best = run;
+          at = later;
+        }
+      }
+      return [best, at];
+    };
+
+    const [anchorRun, anchorAt] = bestLater(anchor);
+    if (anchorRun === 0) return false;
+    const matchRun = 1 + runLength(index + 1, nextManaged(match.nextSibling));
+    if (anchorRun !== matchRun) return anchorRun > matchRun;
+
+    if (!holdsState(anchor) && holdsState(match)) return bestLater(match)[0] >= matchRun;
+    const target = nextChildren[anchorAt];
+    let live = nextManaged(match.nextSibling);
+    for (let steps = 0; live && steps < LOOKAHEAD; steps++) {
+      if (
+        keyOf(live) === null &&
+        isCompatible(live, target) &&
+        runLength(anchorAt, live) > anchorRun
+      ) {
+        return false;
+      }
+      live = nextManaged(live.nextSibling);
+    }
+    return true;
+  };
+
+  const isAhead = (match: ChildNode): boolean =>
+    reference !== null &&
+    match !== reference &&
+    (reference.compareDocumentPosition(match) & 4) /* DOCUMENT_POSITION_FOLLOWING */ !== 0;
 
   // Moving a node detaches it, which blurs a focused control and restarts
   // media and transitions, so prefer leaving a match where it is: when it lies
   // ahead, skip the insertion point past it (the nodes in between are either
-  // claimed later or removed at the end). Only move it back when the node at
-  // the insertion point is itself waiting for a later key.
-  const placeMatch = (match: ChildNode): void => {
+  // claimed later or removed at the end). Move it back only when the node at
+  // the insertion point is itself waiting for a later key, or lines up better
+  // with later source nodes (see `keepsReference`).
+  const placeMatch = (match: ChildNode, moveBack: boolean): void => {
     if (match === reference) {
       reference = nextManaged(match.nextSibling);
       return;
     }
-    const ahead =
-      reference !== null &&
-      (reference.compareDocumentPosition(match) & 4) /* DOCUMENT_POSITION_FOLLOWING */ !== 0;
-    if (ahead && !isPendingKeyed(reference as ChildNode)) {
+    if (isAhead(match) && !moveBack && !isPendingKeyed(reference as ChildNode)) {
       reference = nextManaged(match.nextSibling);
       return;
     }
-    target.insertBefore(match, reference);
+    moveNode(target, match, reference);
   };
 
-  for (const next of nextChildren) {
+  for (let index = 0; index < nextChildren.length; index++) {
+    const next = nextChildren[index];
     const key = keyOf(next);
     let match: ChildNode | null = null;
     if (key !== null) {
@@ -247,10 +398,23 @@ export const morphChildren = (
       match = findPositionalMatch(next);
     }
 
+    let moveBack = false;
+    if (
+      match &&
+      isAhead(match) &&
+      !isPendingKeyed(reference as ChildNode) &&
+      keepsReference(index, match)
+    ) {
+      // A keyed node is moved back (keys promise identity); an unkeyed source
+      // node is created fresh instead of stealing a node further ahead.
+      if (key === null) match = null;
+      else moveBack = true;
+    }
+
     if (match) {
       used.add(match);
       morphNode(match, next);
-      placeMatch(match);
+      placeMatch(match, moveBack);
       continue;
     }
 

@@ -1,8 +1,13 @@
 # Bundler Plugin
 
-> **Status:** new, `0.1.0`. Ships as a separate, optional package,
-> `@bquery/unplugin`, developed in its own repository,
-> [bQuery/unplugin](https://github.com/bQuery/unplugin). bQuery itself stays
+::: warning In development — not published yet
+`@bquery/unplugin` is still in development and **not yet published on npm**,
+so the install commands below do not work yet. It is developed in its own
+repository, [bQuery/unplugin](https://github.com/bQuery/unplugin): follow it
+for releases, progress and issues. This page describes the planned `0.1.0`.
+:::
+
+> `@bquery/unplugin` is a separate, optional package. bQuery itself stays
 > zero-build: nothing on this page is needed to use the library from a CDN or
 > without a bundler.
 
@@ -25,6 +30,8 @@ The plugin is a thin layer over APIs that bQuery already ships and tests:
 [`security`](./security), and the [SSR](./ssr) context.
 
 ## Install
+
+Once the first release is on npm (see the note at the top of this page):
 
 ::: code-group
 

@@ -2,15 +2,20 @@
 
 Scaffold a new [bQuery.js](https://bquery.js.org) project.
 
+> **In development — not yet published on npm.** `npm create bquery@latest`
+> needs this package on npm, which has not happened yet. Until then, run the
+> same scaffolder through `@bquery/bquery`, which ships it as its
+> `create-bquery` command:
+
 ```bash
-npm create bquery@latest my-app
+npx --package @bquery/bquery create-bquery my-app
 ```
 
 Pick a template interactively, or pass everything on the command line:
 
 ```bash
-npm create bquery@latest my-app -- --template ssr --runtime bun --yes
-bun create bquery my-app --template fullstack
+npx --package @bquery/bquery create-bquery my-app --template ssr --runtime bun --yes
+bunx --package @bquery/bquery create-bquery my-app --template fullstack
 ```
 
 ## Templates

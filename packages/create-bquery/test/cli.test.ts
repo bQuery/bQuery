@@ -3,6 +3,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 import { run } from '../src/cli.js';
+import { BQUERY_VERSION } from '../src/versions.js';
 import { CLI, makeTempDir, removeTempDirs, runCommand } from './helpers';
 
 afterAll(removeTempDirs);
@@ -109,9 +110,11 @@ describe('create-bquery CLI', () => {
     const cwd = makeTempDir();
     const help = cli(['--help'], cwd);
     expect(help.exitCode).toBe(0);
-    expect(help.output).toContain('Usage: npm create bquery@latest [dir] [options]');
+    expect(help.output).toContain('Usage: create-bquery [dir] [options]');
     const version = cli(['--version'], cwd);
-    expect(version.output.trim()).toBe(readJson(join(import.meta.dir, '../package.json')).version);
+    expect(version.output.trim()).toBe(
+      `${readJson(join(import.meta.dir, '../package.json')).version} (templates for @bquery/bquery ${BQUERY_VERSION})`
+    );
   });
 });
 

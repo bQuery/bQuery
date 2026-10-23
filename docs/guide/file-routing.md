@@ -60,7 +60,7 @@ const { routes } = createFileRoutes({
 });
 ```
 
-With [`@bquery/unplugin`](/guide/bundler-plugin#file-routes), the manifest is
+With [`@bquery/unplugin`](/guide/bundler-plugin#file-routes) (in development, not yet on npm), the manifest is
 generated for you — `import { routes } from 'virtual:bquery/routes'` replaces the
 `import.meta.glob` wiring, and Vite picks up added or removed route files without
 a restart.

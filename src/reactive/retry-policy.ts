@@ -86,8 +86,17 @@ export const resolveRetryAfterDelay = (
 ): number | undefined => {
   const requested = parseRetryAfter(headers?.get('retry-after'));
   if (requested === undefined) return undefined;
-  return Math.min(requested, Math.max(0, maxRetryAfter));
+  // NaN would turn the cap into NaN; Infinity is fine, as the final delay is
+  // clamped to what setTimeout accepts.
+  const cap = Number.isNaN(maxRetryAfter) ? DEFAULT_MAX_RETRY_AFTER : Math.max(0, maxRetryAfter);
+  return Math.min(requested, cap);
 };
+
+/**
+ * Longest delay `setTimeout` honours. A larger (or NaN) delay fires after
+ * about 1 ms, which would turn "wait a long time" into an immediate retry.
+ */
+const MAX_TIMER_DELAY = 2_147_483_647;
 
 /** @internal Exponential backoff used when no explicit delay is configured. */
 export const resolveBackoffDelay = (
@@ -122,7 +131,7 @@ export const resolveRetryDelay = (
       headers,
       retry.maxRetryAfter ?? DEFAULT_MAX_RETRY_AFTER
     );
-    if (retryAfter !== undefined) return retryAfter;
+    if (retryAfter !== undefined) return Math.min(retryAfter, MAX_TIMER_DELAY);
   }
   return resolveBackoffDelay(retry.delay, attempt);
 };

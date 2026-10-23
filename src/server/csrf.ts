@@ -129,7 +129,10 @@ const extractFieldFromBody = async (
   let body: unknown;
   try {
     body = await ctx.body();
-  } catch {
+  } catch (error) {
+    // An oversized body stays a 413; reporting it as a missing token (403)
+    // would send users looking for a CSRF problem.
+    if (error instanceof ServerHttpError && error.status === 413) throw error;
     return null;
   }
 

@@ -50,7 +50,12 @@ export default defineConfig({
       cwd: '..',
       url: `http://127.0.0.1:${examplePort}/login`,
       reuseExistingServer: !process.env.CI,
-      env: { PORT: String(examplePort), SESSION_SECRET: 'browser-lane-secret-0123456789abcdef' },
+      env: {
+        PORT: String(examplePort),
+        SESSION_SECRET: 'browser-lane-secret-0123456789abcdef',
+        // All three browsers sign in to one server within a minute.
+        LOGIN_ATTEMPTS: '50',
+      },
     },
   ],
 });
