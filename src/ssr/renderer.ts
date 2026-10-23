@@ -348,6 +348,21 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
       }
     }
 
+    if (node.raw) {
+      // `textarea` / `title` content is kept as raw text by the parser and
+      // serialized verbatim. That is only safe if whatever parses the output
+      // also treats it as text; DOM implementations such as happy-dom build
+      // elements inside a textarea, so `<span><textarea></span><iframe …>`
+      // came back out as live markup. Escaping `<` and `>` leaves no markup
+      // to build, and leaving `&` alone keeps every character reference — so
+      // the text a browser shows is unchanged.
+      for (const child of node.children) {
+        if (child.type === 'text')
+          child.value = child.value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      return node;
+    }
+
     node.children = node.children.flatMap((child) => {
       const sanitized = sanitizeNode(child);
       return sanitized ? [sanitized] : [];

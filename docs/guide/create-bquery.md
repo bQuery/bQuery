@@ -6,33 +6,33 @@ Deno, or a full-stack app. Every template ships with tests wired to
 [`@bquery/bquery/testing`](./testing.md), so the first `npm test` already runs.
 
 ```bash
-npm create bquery@latest my-app
+npx --package @bquery/bquery create-bquery my-app
 ```
+
+::: warning The standalone `create-bquery` package is in development
+`npm create bquery@latest` and `bun create bquery` need the standalone
+[`create-bquery`](https://github.com/bQuery/bQuery/tree/main/packages/create-bquery)
+package, which is still in development and **not published on npm yet**. Until
+it is, use the copy that `@bquery/bquery` ships as its `create-bquery`
+command, as shown on this page. It is the same scaffolder, written for that
+bQuery release.
+:::
 
 The scaffolder has no dependencies of its own; it only copies files. Nothing
 is installed until you run your package manager in the new project.
-
-`@bquery/bquery` ships the same scaffolder as its `create-bquery` command, so
-once bQuery is installed — globally or in an existing project — you can run
-it without fetching anything:
-
-```bash
-npx create-bquery my-app --template spa
-```
-
-The bundled copy is always the one written for the installed bQuery release.
 
 ## Usage
 
 Run it with the package manager you use — the printed next steps follow it:
 
 ```bash
-npm create bquery@latest my-app
-bun create bquery my-app
-pnpm create bquery my-app
-yarn create bquery my-app
-deno run -A npm:create-bquery@latest my-app
+npx --package @bquery/bquery create-bquery my-app
+bunx --package @bquery/bquery create-bquery my-app
+pnpm --package=@bquery/bquery dlx create-bquery my-app
 ```
+
+In a project that already depends on `@bquery/bquery`, `npx create-bquery my-app`
+is enough. The bundled copy always matches the installed bQuery release.
 
 Without options it asks for the directory, the template and (for `ssr`) the
 runtime. With `--yes`, or when stdin is not a terminal (CI, scripts), it asks
@@ -40,13 +40,8 @@ nothing and uses the defaults for whatever the command line leaves out.
 
 ```bash
 # An SSR app for Deno, no prompts
-npm create bquery@latest api -- --template ssr --runtime deno --yes
+npx --package @bquery/bquery create-bquery api --template ssr --runtime deno --yes
 ```
-
-::: tip npm needs `--`
-`npm create` passes options to the scaffolder only after `--`. Bun, pnpm and
-Yarn pass them through directly: `pnpm create bquery api --template ssr`.
-:::
 
 ### Options
 
@@ -60,13 +55,15 @@ Yarn pass them through directly: `pnpm create bquery api --template ssr`.
 | `-y, --yes`             | —                  | Do not prompt.                                                                               |
 | `-f, --force`           | —                  | Write into a non-empty directory. Files with the same name are overwritten; others are kept. |
 | `-h, --help`            | —                  | Show the help.                                                                               |
-| `-v, --version`         | —                  | Print the scaffolder's version.                                                              |
+| `-v, --version`         | —                  | Print the scaffolder's version and the bQuery release its templates target.                  |
 
 The scaffolder refuses to write into a directory that has files in it (a lone
 `.git` folder is fine) unless you pass `--force` or confirm the prompt. Package
 names follow npm's rules: lowercase, URL-safe, no leading `.` or `_`, not a
 Node.js core module name. An invalid directory name is rejected with a
-suggestion, e.g. `My App` → `--name my-app`.
+suggestion, e.g. `My App` → `--name my-app`. With `--force`, it refuses to
+write through a symbolic link inside the directory, so it never changes files
+outside it.
 
 ## Templates
 
@@ -203,7 +200,9 @@ contacts the registry.
 
 ## Programmatic API
 
-The CLI is a thin wrapper around `scaffold()`, which you can call yourself:
+The CLI is a thin wrapper around `scaffold()`. It is exported by the
+standalone `create-bquery` package, so it becomes importable once that package
+is published (see the note at the top of this page):
 
 ```ts
 import { scaffold } from 'create-bquery';
@@ -219,7 +218,7 @@ const { targetDir, files } = await scaffold({
 
 It throws a `ScaffoldError` with a `code` (`INVALID_TEMPLATE`,
 `INVALID_RUNTIME`, `INVALID_NAME`, `DIR_NOT_EMPTY`, `NOT_A_DIRECTORY`,
-`MISSING_TARGET`). `validateProjectName()`, `detectPackageManager()` and
+`MISSING_TARGET`, `SYMLINK_IN_TARGET`). `validateProjectName()`, `detectPackageManager()` and
 `projectCommands()` are exported too.
 
 ## Related

@@ -133,7 +133,7 @@ console.log(cartStore.subtotal); // number
 console.log(cartStore.itemCount); // number
 ```
 
-A getter can read other getters through its second argument. TypeScript cannot infer a getter's type from the getters themselves, so declare the state and getter types explicitly in that case (add the actions type as the third generic if the store has actions):
+A getter can read other getters through its second argument. TypeScript cannot infer a getter's type from the getters themselves, so declare the state and getter types explicitly in that case (add the actions type as the third generic if the store has actions). Without them, every getter drops out of the store's type, and the error names `EmptyStoreRecord` (for example `Property 'total' does not exist on type 'EmptyStoreRecord'`):
 
 ```ts
 type CartState = { items: { price: number; qty: number }[]; discount: number };
@@ -603,6 +603,7 @@ const mapped = mapGetters(store, ['getterKey']);
 
 ## Version history
 
+- **1.18.0** — `createStore()`, `defineStore()` and `createPersistedStore()` infer state, getter and action types from the definition (actions get a typed `this`); explicit generics still work.
 - **1.17.1** — the store's `isEqual` / `deepEqual` no longer treat values of different kinds (`{}`, `[]`, `Date`, `Map`, `Set`, `RegExp`) as equal.
 - **1.16.0** — `deepClone` (used by `$patchDeep`) special-cases only the genuinely dangerous `__proto__` key; own properties merely named `constructor`/`prototype` are cloned normally again instead of being silently dropped.
 - **1.15.1** — `deepClone` skips prototype-pollution keys, so an own enumerable `__proto__` no longer reassigns the clone's prototype; `$subscribe` notifications iterate a snapshot, so unsubscribing during notification no longer skips the next subscriber.

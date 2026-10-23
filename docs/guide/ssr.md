@@ -400,7 +400,7 @@ const view = hydrateMount(
 ## Full SSR Workflow
 
 ::: tip Dev server
-With Vite, [`@bquery/unplugin`](/guide/bundler-plugin#ssr-dev-middleware) serves your server entry's `render(request, ctx)` from the dev server, with HMR and source-mapped errors. To start from a working setup, `npm create bquery@latest -- --template ssr` scaffolds an SSR app for Node, Bun or Deno.
+With Vite, [`@bquery/unplugin`](/guide/bundler-plugin#ssr-dev-middleware) (in development, not yet on npm) serves your server entry's `render(request, ctx)` from the dev server, with HMR and source-mapped errors. To start from a working setup, `npx --package @bquery/bquery create-bquery my-app --template ssr` scaffolds an SSR app for Node, Bun or Deno.
 :::
 
 ### 1. Server: Render and serialize
@@ -963,6 +963,7 @@ export default createEdgeHandler(async (request) => {
 
 ## Version history
 
+- **1.18.0** — `sanitizeHtmlForSSR()` drops HTML comments and checks every URL attribute, including each `srcset` candidate; full-page templates keep `<!DOCTYPE html>` and always use the DOM-free renderer; `renderToStream()` streams a full page with `flushBoundary()` markers as one document; the Node adapter streams request bodies on demand.
 - **1.17.1** — `createNodeHandler()` answers a throwing handler with `500` instead of an unhandled rejection that terminated Node, aborts `request.signal` and cancels the response stream when the client disconnects.
 - **1.17.0** — attribute and tag names are validated before serialization.
 - **1.15.0 (graduated to Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.

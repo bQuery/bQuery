@@ -1,5 +1,13 @@
 # ESLint Plugin
 
+::: warning In development — not published yet
+`@bquery/eslint-plugin` is still in development and **not yet published on
+npm**, so the install commands below do not work yet. It is developed in its
+own repository, [bQuery/eslint-plugin](https://github.com/bQuery/eslint-plugin):
+follow it for releases, progress and issues. This page describes the planned
+`0.1.0`.
+:::
+
 `@bquery/eslint-plugin` turns several of bQuery's documented invariants into lint rules, so mistakes such as a `$()` call that throws during SSR or a `trusted()` call on user input are caught in the editor instead of in production.
 
 | Rule                                                    | Recommended | Fix        | Catches                                                           |
@@ -16,7 +24,9 @@ All rules follow imports: they only fire for functions imported from `@bquery/bq
 
 ## Installation
 
-The plugin requires ESLint 9 or later and a flat config (`eslint.config.js`).
+Once the first release is on npm (see the note at the top of this page), install
+it next to ESLint. The plugin requires ESLint 9 or later and a flat config
+(`eslint.config.js`).
 
 ::: code-group
 

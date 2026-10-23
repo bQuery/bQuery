@@ -1657,9 +1657,30 @@ describe('splitTopLevel', () => {
       'z',
     ]);
   });
+
+  it('skips // and /* */ comments and leaves them out of the parts', () => {
+    expect(splitTopLevel("a(); // note; with a quote's", ';')).toEqual(['a()']);
+    expect(splitTopLevel("a() /* it's; ( */; b()", ';')).toEqual(['a()', 'b()']);
+    expect(splitTopLevel('a(); // first\nb() // second', ';')).toEqual(['a()', 'b()']);
+    expect(splitTopLevel('/* only a comment */', ';')).toEqual([]);
+    // Division and an escaped slash in a regex literal are not comments.
+    expect(splitTopLevel('x = a / b; /^https?:\\/\\//.test(u)', ';')).toEqual([
+      'x = a / b',
+      '/^https?:\\/\\//.test(u)',
+    ]);
+  });
 });
 
 describe('evaluateStatements', () => {
+  it('runs statement lists with trailing and inline comments', () => {
+    const calls: string[] = [];
+    const ctx = { a: () => calls.push('a'), b: () => calls.push('b') };
+    expect(evaluateStatements('a(); // then nothing', ctx)).toBe(1);
+    expect(evaluateStatements('a() // just one', ctx)).toBe(2);
+    expect(evaluateStatements("a(); /* don't */ b()", ctx)).toBe(4);
+    expect(calls).toEqual(['a', 'a', 'a', 'b']);
+  });
+
   it('returns the last statement value and caches per source', () => {
     const ctx = { a: 2, b: 3 };
     expect(evaluateStatements('a; b; a * b', ctx)).toBe(6);
@@ -1798,6 +1819,18 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
     expect(evaluate("items?.constructor?.constructor('x')()", { items: [] })).toBeUndefined();
     expect(evaluate("items['constructor']['constructor']('x')()", { items: [] })).toBeUndefined();
     expect(evaluate('items.__proto__', { items: [] })).toBeUndefined();
+  });
+
+  it('blocks member escapes hidden behind comments', () => {
+    console.error = () => {};
+    const ctx = { name: 'x', run: () => 1, items: [] };
+    expect(evaluate('name./**/constructor', ctx)).toBeUndefined();
+    expect(evaluate("run./* c */constructor('return 42')()", ctx)).toBeUndefined();
+    expect(evaluate("items[/**/'constructor']", ctx)).toBeUndefined();
+    expect(evaluate('items.//\n__proto__', ctx)).toBeUndefined();
+    expect(evaluateStatements("run(); run./**/constructor('return 42')()", ctx)).toBeUndefined();
+    // A comment marker inside a string is not a comment.
+    expect(evaluate<string>("'a./**/b' + name", ctx)).toBe('a./**/bx');
   });
 
   it('still allows non-dangerous member chains on context values (#202)', () => {

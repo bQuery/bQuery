@@ -689,6 +689,7 @@ export {
 export type {
   ActionContext,
   Actions,
+  EmptyStoreRecord,
   Getters,
   OnActionCallback,
   PersistedStoreOptions,

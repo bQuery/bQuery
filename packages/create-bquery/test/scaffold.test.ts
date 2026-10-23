@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, it } from 'bun:test';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
   BQUERY_RANGE,
@@ -202,6 +202,27 @@ describe('scaffold()', () => {
     await scaffold({ targetDir: dir, template: 'cdn', projectName: 'app', force: true });
     expect(read(dir, 'notes.txt')).toBe('keep me');
     expect(read(dir, 'README.md')).toStartWith('# app\n');
+  });
+
+  it('refuses to write through a symlink, even with force', async () => {
+    const outside = makeTempDir();
+    writeFileSync(join(outside, 'victim.txt'), 'untouched');
+    const fileLink = makeTempDir();
+    symlinkSync(join(outside, 'victim.txt'), join(fileLink, 'README.md'));
+    const dirLink = makeTempDir();
+    symlinkSync(outside, join(dirLink, 'src'), 'dir');
+
+    for (const [dir, template] of [
+      [fileLink, 'cdn'],
+      [dirLink, 'spa'],
+    ] as const) {
+      const attempt = scaffold({ targetDir: dir, template, projectName: 'app', force: true });
+      await expect(attempt).rejects.toMatchObject({ code: 'SYMLINK_IN_TARGET' });
+      // Nothing is written before the check fails.
+      expect(existsSync(join(dir, 'package.json'))).toBe(false);
+    }
+    expect(read(outside, 'victim.txt')).toBe('untouched');
+    expect(existsSync(join(outside, 'main.ts'))).toBe(false);
   });
 
   it('treats a directory with only .git as empty', async () => {

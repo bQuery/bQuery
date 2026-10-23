@@ -213,7 +213,9 @@ describe('Node adapter body streaming (#255)', () => {
     return res;
   };
 
-  const createReq = (headers: Record<string, string> = {}) => {
+  // A Node request with a body always carries Content-Length or
+  // Transfer-Encoding; chunked is the default here.
+  const createReq = (headers: Record<string, string> = { 'transfer-encoding': 'chunked' }) => {
     const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
     const req: NodeIncomingMessage & {
       emit(event: string, arg?: unknown): void;
@@ -253,6 +255,24 @@ describe('Node adapter body streaming (#255)', () => {
 
     expect(res.statusCode).toBe(200);
     expect(listeners.data).toBeUndefined();
+  });
+
+  it('treats a request without Content-Length or Transfer-Encoding as bodiless', async () => {
+    // A bodiless DELETE or CORS preflight: a body stream there never ends
+    // unread, which used to close the keep-alive connection after every one.
+    const { req, listeners } = createReq({});
+    (req as { method: string }).method = 'DELETE';
+    const res = createRes();
+    let text: string | undefined;
+    await createNodeHandler(async (request) => {
+      text = await request.text();
+      return new Response(null, { status: 204 });
+    })(req, res);
+
+    expect(res.statusCode).toBe(204);
+    expect(text).toBe('');
+    expect(listeners.data).toBeUndefined();
+    expect(res.headers.connection).toBeUndefined();
   });
 
   it('streams the body on demand and applies backpressure', async () => {
@@ -352,7 +372,10 @@ describe('Node adapter body streaming (#255)', () => {
   it('stops reading after a route-level 413 instead of draining the rest', async () => {
     const app = createServer({ limits: { text: 4 } });
     app.post('/upload', async (ctx) => ctx.text(String(await ctx.body())));
-    const { req, listeners } = createReq({ 'content-type': 'text/plain' });
+    const { req, listeners } = createReq({
+      'content-type': 'text/plain',
+      'transfer-encoding': 'chunked',
+    });
     const res = createRes();
     const pending = createNodeHandler((request) => app.handle(request), { maxBodyBytes: 1024 })(
       req,

@@ -56,8 +56,8 @@ const moduleItems = [
 
 const toolingItems = [
   { text: 'Create a project', link: '/guide/create-bquery' },
-  { text: 'Bundler Plugin', link: '/guide/bundler-plugin' },
-  { text: 'ESLint Plugin', link: '/guide/eslint-plugin' },
+  { text: 'Bundler Plugin (in development)', link: '/guide/bundler-plugin' },
+  { text: 'ESLint Plugin (in development)', link: '/guide/eslint-plugin' },
 ];
 
 const workflowsItems = [
@@ -151,6 +151,7 @@ const cookbookItems = [
 
 const releaseNotesItems = [
   { text: 'Overview', link: '/release-notes/' },
+  { text: '1.18.0', link: '/release-notes/1.18' },
   { text: '1.17.2', link: '/release-notes/1.17.2' },
   { text: '1.17.1', link: '/release-notes/1.17.1' },
   { text: '1.17.0', link: '/release-notes/1.17' },

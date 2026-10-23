@@ -22,7 +22,7 @@ import { createForm, required, email, minLength } from '@bquery/bquery/forms';
 
 The frozen public surface of `@bquery/bquery/forms`:
 
-- **Entry points:** `createForm`, `useFormField`, `createFieldArray`, `useForm`, `useField`, `useFieldArray`; `createSchemaForm` and `useSchemaForm` for Standard Schema forms (Unreleased, 1.18).
+- **Entry points:** `createForm`, `useFormField`, `createFieldArray`, `useForm`, `useField`, `useFieldArray`; `createSchemaForm` and `useSchemaForm` for Standard Schema forms (since 1.18.0).
 - **Validators:** `required`, `minLength`, `maxLength`, `pattern`, `email`, `url`, `min`, `max`, `integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `validDate`, `dateAfter`, `dateBefore`, `fileSize`, `fileType`, `custom`, `customAsync`, `matchField`.
 - **Combinators:** `compose`, `all`, `not`, `withMessage`.
 - **Schema builder:** `field`, `schema`.
@@ -667,8 +667,7 @@ only support `GET`/`POST`, so `PUT`/`PATCH`/`DELETE` degrade to a native `POST`
 
 ## Version history
 
-- **Unreleased (1.18)** — `createSchemaForm({ schema, initialValues })` (and the component-scoped `useSchemaForm()`) builds a form from any Standard Schema (Zod, Valibot, ArkType, …) and infers the value type from it; new `isStandardSchema`, `validateWithSchema`, `normalizeSchemaIssues`, `schemaIssuesToFieldErrors` and the `StandardSchemaV1` type.
-
+- **1.18.0** — `createSchemaForm({ schema, initialValues })` (and the component-scoped `useSchemaForm()`) builds a form from any Standard Schema (Zod, Valibot, ArkType, …) and infers the value type from it; new `isStandardSchema`, `validateWithSchema`, `normalizeSchemaIssues`, `schemaIssuesToFieldErrors` and the `StandardSchemaV1` type. `createForm({ fields, schema })` accepts a schema next to explicit fields.
 - **1.17.1** — `email()` runs in linear time (the old pattern backtracked quadratically) and rejects empty domain labels (`a@b..c`) and addresses longer than 254 characters.
 - **1.15.0** — **graduated to Stable**: surface frozen for one minor cycle ([#139](https://github.com/bQuery/bQuery/issues/139)); `validationStrategy` default and SSR serialization boundary documented as guaranteed contracts; `createFieldArray()` `getKey` stable-key contract validated with clear errors (plus `keys()` / `keyAt()`). New progressive-enhancement actions ([#140](https://github.com/bQuery/bQuery/issues/140)): `formAction`, `useFormStatus`, `optimistic`.
 - **1.13.0** — new validators (`integer`, `numeric`, `between`, `length`, `oneOf`, `notOneOf`, `arrayOf`, `requiredIf`, `requiredUnless`, `dateAfter`, `dateBefore`, `validDate`, `fileSize`, `fileType`), combinators (`compose`, `all`, `not`, `withMessage`), field arrays, schema-style config, `bindField` / `bindForm`, scope-aware composables, SSR helpers.

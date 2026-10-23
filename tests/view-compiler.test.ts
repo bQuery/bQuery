@@ -177,6 +177,7 @@ describe('compileExpression — bq-on statement lists', () => {
     expect(
       compileExpression("a(); x.constructor.constructor('1')()", { statements: true }).ok
     ).toBe(false);
+    expect(compileExpression("a(); x./**/constructor('1')()", { statements: true }).ok).toBe(false);
   });
 
   it('compiles bq-on statement lists in templates and runs them without the runtime path', () => {

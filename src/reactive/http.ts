@@ -687,6 +687,37 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
     let lastError: HttpError | undefined;
 
     const maxAttempts = (retryConfig?.count ?? 0) + 1;
+    /** Run the response error interceptors, then throw (or recover with their response). */
+    const finishWithError = async (httpError: HttpError): Promise<HttpResponse<T>> => {
+      const responseChain: Array<InterceptorEntry<HttpResponse>> = [];
+      responseInterceptors.forEach((entry) => responseChain.push(entry));
+
+      let finalError: unknown = httpError;
+      for (const { rejected } of responseChain) {
+        if (rejected) {
+          try {
+            const result = await rejected(finalError);
+            if (result && typeof result === 'object' && 'data' in result) {
+              return result as HttpResponse<T>;
+            }
+            if (result != null) {
+              finalError = result;
+            }
+          } catch (innerErr) {
+            if (innerErr != null) {
+              finalError = innerErr;
+            }
+          }
+        }
+      }
+
+      if (!(finalError instanceof Error)) {
+        finalError = httpError;
+      }
+
+      throw finalError;
+    };
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         let response = await executeRequest<T>(resolvedConfig);
@@ -734,41 +765,29 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
           : false;
 
         if (!shouldRetry || attempt >= maxAttempts - 1) {
-          // Run response error interceptors before throwing
-          const responseChain: Array<InterceptorEntry<HttpResponse>> = [];
-          responseInterceptors.forEach((entry) => responseChain.push(entry));
-
-          let finalError: unknown = httpError;
-          for (const { rejected } of responseChain) {
-            if (rejected) {
-              try {
-                const result = await rejected(finalError);
-                if (result && typeof result === 'object' && 'data' in result) {
-                  return result as HttpResponse<T>;
-                }
-                if (result != null) {
-                  finalError = result;
-                }
-              } catch (innerErr) {
-                if (innerErr != null) {
-                  finalError = innerErr;
-                }
-              }
-            }
-          }
-
-          if (!(finalError instanceof Error)) {
-            finalError = httpError;
-          }
-
-          throw finalError;
+          return finishWithError(httpError);
         }
 
         const retryDelay = retryConfig
           ? resolveRetryDelay(retryConfig, httpError.response?.headers, attempt)
           : 0;
         retryConfig?.onRetry?.(httpError, attempt + 1);
-        await sleep(retryDelay, resolvedConfig.signal);
+        try {
+          await sleep(retryDelay, resolvedConfig.signal);
+        } catch {
+          // Aborted while waiting for the next attempt: report it like an
+          // abort (or a signal timeout) during the request, through the same
+          // error interceptors, not as the signal's raw reason.
+          const reason: unknown = resolvedConfig.signal?.reason;
+          const isTimeout = reason instanceof DOMException && reason.name === 'TimeoutError';
+          return finishWithError(
+            new HttpError(
+              isTimeout ? 'Request timeout exceeded' : 'Request aborted',
+              resolvedConfig,
+              isTimeout ? 'TIMEOUT' : 'ABORT'
+            )
+          );
+        }
       }
     }
 

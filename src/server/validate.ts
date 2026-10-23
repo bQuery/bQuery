@@ -43,6 +43,14 @@ export interface ValidateMiddleware<S extends StandardSchemaV1> extends ServerMi
 
 const validatedValues = new WeakMap<ServerContext, Map<object, unknown>>();
 
+/**
+ * The request's own body reader, kept before a body validator replaces
+ * `ctx.body` with its output: a second body validator must see the request,
+ * not what an earlier schema stripped or transformed. (`csrf()` reads
+ * `ctx.body()`, so register it before body validators, as `app.use()` does.)
+ */
+const requestBodyReaders = new WeakMap<ServerContext, ServerContext['body']>();
+
 /** Turn a multipart `Map` into a plain object; leave other bodies as they are. */
 const toPlainBody = (body: unknown): unknown => {
   if (!(body instanceof Map)) return body;
@@ -54,7 +62,8 @@ const toPlainBody = (body: unknown): unknown => {
 const readSource = async (ctx: ServerContext, source: ValidateSource): Promise<unknown> => {
   if (source === 'query') return ctx.query;
   if (source === 'params') return ctx.params;
-  return toPlainBody(await ctx.body());
+  const readBody = requestBodyReaders.get(ctx) ?? ctx.body;
+  return toPlainBody(await readBody());
 };
 
 /**
@@ -101,6 +110,7 @@ export const validate = <S extends StandardSchemaV1>(
     }
     values.set(middleware, result.value);
     if (source === 'body') {
+      if (!requestBodyReaders.has(ctx)) requestBodyReaders.set(ctx, ctx.body);
       const parsed = Promise.resolve(result.value);
       ctx.body = () => parsed;
     }

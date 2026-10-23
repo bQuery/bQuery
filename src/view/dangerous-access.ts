@@ -18,9 +18,15 @@
  * expressions as author-trusted — this is defense-in-depth, not a full sandbox.
  * The CSP-safe, `Function`-free path is the ahead-of-time compiler.
  *
+ * Comments are read as whitespace (`foo./**\/constructor` is `foo.constructor`),
+ * with the same scanner as `bq-on` statement lists, so strings and template
+ * literals are not mistaken for comments.
+ *
  * @module bquery/view
  * @internal
  */
+
+import { splitTopLevel } from './split';
 
 const DANGEROUS_MEMBERS = 'constructor|prototype|__proto__';
 
@@ -38,5 +44,11 @@ const DANGEROUS_BRACKET_ACCESS = new RegExp(
  * bracket). See the module doc for the covered forms and the residual limit.
  * @internal
  */
-export const hasDangerousMemberAccess = (expression: string): boolean =>
-  DANGEROUS_DOT_ACCESS.test(expression) || DANGEROUS_BRACKET_ACCESS.test(expression);
+export const hasDangerousMemberAccess = (expression: string): boolean => {
+  const test = (text: string): boolean =>
+    DANGEROUS_DOT_ACCESS.test(text) || DANGEROUS_BRACKET_ACCESS.test(text);
+  if (test(expression)) return true;
+  // `splitTopLevel()` replaces each comment with a space; NUL never occurs in
+  // a real expression, so it only serves as a separator that does not split.
+  return expression.includes('/') && test(splitTopLevel(expression, '\u0000').join(' '));
+};

@@ -1,9 +1,9 @@
 name: Benchmarks
 
 # Performance regression gate (#217). On a pull request the suite runs against
-# the base commit and the head on the same runner, alternating three times, so
+# the base commit and the head on the same runner, alternating five times, so
 # the comparison is not skewed by runner-to-runner variance or load drift; the
-# job fails when the best median regresses by more than 20 %. The nightly run records the
+# job fails when the middle run's median regresses by more than 20 %. The nightly run records the
 # current numbers of `dev` as an artifact.
 
 permissions:
@@ -69,19 +69,22 @@ jobs:
       - name: Benchmark base and head
         if: github.event_name == 'pull_request'
         run: |
-          # Alternate the two sides three times and compare each benchmark's
+          # Alternate the two sides five times and compare each benchmark's
           # middle run: a shared runner's load drifts over a few seconds, so a
-          # single sequential pair can differ by more than the gate, and one
-          # outlier run on either side must not decide it.
+          # single sequential pair can differ by more than the gate, and the
+          # DOM-heavy benchmarks swing by 30 % between runs, so with three
+          # rounds identical code still tripped the 20 % gate.
           # Swap which side goes first each round, so a drift in one
           # direction does not favour the same side every time.
           run_base() {
             (cd ../bench-base && bun bench/index.ts --json "$GITHUB_WORKSPACE/bench-base-$1.json" > /dev/null) || true
           }
           run_head() {
-            bun run bench --json "bench-head-$1.json" > /dev/null
+            # A benchmark that errors exits non-zero; compare-bench reports
+            # it (and fails on a missing JSON), so the comparison still runs.
+            bun run bench --json "bench-head-$1.json" > /dev/null || true
           }
-          for i in 1 2 3; do
+          for i in 1 2 3 4 5; do
             if [ $((i % 2)) -eq 1 ]; then
               run_base "$i"
               run_head "$i"
@@ -98,8 +101,8 @@ jobs:
           # even when the gate fails.
           status=0
           bun scripts/compare-bench.mjs \
-            bench-base-1.json,bench-base-2.json,bench-base-3.json \
-            bench-head-1.json,bench-head-2.json,bench-head-3.json \
+            bench-base-1.json,bench-base-2.json,bench-base-3.json,bench-base-4.json,bench-base-5.json \
+            bench-head-1.json,bench-head-2.json,bench-head-3.json,bench-head-4.json,bench-head-5.json \
             --threshold 0.2 --markdown bench-report.md || status=$?
           if [ -f bench-report.md ]; then
             cat bench-report.md >> "$GITHUB_STEP_SUMMARY"

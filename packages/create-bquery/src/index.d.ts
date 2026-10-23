@@ -43,7 +43,8 @@ export type ScaffoldErrorCode =
   | 'INVALID_NAME'
   | 'DIR_NOT_EMPTY'
   | 'NOT_A_DIRECTORY'
-  | 'MISSING_TARGET';
+  | 'MISSING_TARGET'
+  | 'SYMLINK_IN_TARGET';
 
 /** Error thrown by `scaffold()` for invalid input. */
 export declare class ScaffoldError extends Error {
