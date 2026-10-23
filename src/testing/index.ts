@@ -59,6 +59,8 @@ export {
 
 // Types
 export type {
+  ByRoleOptions,
+  FireEventInit,
   FireEventOptions,
   MockRouter,
   MockRouterOptions,

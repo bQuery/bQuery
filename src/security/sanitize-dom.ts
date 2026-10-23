@@ -142,6 +142,32 @@ const TEXT_NODE = 3;
 const ELEMENT_NODE = 1;
 
 /**
+ * Elements whose content a browser parses as text (RCDATA or raw text), so
+ * they can never have element children there. A DOM that builds element
+ * children for them anyway (happy-dom does for `<textarea>` and `<title>`)
+ * serializes those children as markup, and a browser that re-parses the
+ * output ends the element at the first `</textarea>` inside an attribute
+ * value — mutation XSS that the double parse below cannot see, because the
+ * same DOM produces both parses. Every child of theirs that is not text is
+ * dropped — element children and comments alike, since
+ * `<textarea><!--</textarea><img onerror=…>--></textarea>` breaks out the
+ * same way through a comment.
+ * @internal
+ */
+const TEXT_ONLY_ELEMENTS = new Set([
+  'textarea',
+  'title',
+  'xmp',
+  'iframe',
+  'noembed',
+  'noframes',
+  'noscript',
+  'plaintext',
+  'script',
+  'style',
+]);
+
+/**
  * The text of a subtree, minus the elements whose content is not prose.
  *
  * `Node.textContent` would do this in one property read, but it includes the
@@ -195,15 +221,26 @@ export const sanitizeHtmlDom = (html: string, options: SanitizeOptions = {}): st
   }
 
   // Walk the DOM tree
-  const walker = document.createTreeWalker(fragment, NodeFilter.SHOW_ELEMENT);
+  // Comments are visited too: they are dropped, as the string backend and the
+  // SSR sanitizer drop them. A browser ends a comment early at `<!-->`,
+  // `<!--->` and `--!>`, so a DOM that parses a comment differently from the
+  // browser that later renders the output turns its body into live markup.
+  const walker = document.createTreeWalker(
+    fragment,
+    NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_COMMENT
+  );
 
-  const toRemove: Element[] = [];
+  const toRemove: ChildNode[] = [];
   // Track ids already emitted so duplicate ids within the fragment are dropped:
   // two elements sharing an id turn `document.getElementById`/named access into
   // a clobberable HTMLCollection (the classic `<a id=x><a id=x name=y>` vector).
   const seenIds = new Set<string>();
 
   while (walker.nextNode()) {
+    if (walker.currentNode.nodeType !== ELEMENT_NODE) {
+      toRemove.push(walker.currentNode as ChildNode);
+      continue;
+    }
     const el = walker.currentNode as Element;
     const tagName = el.tagName.toLowerCase();
 
@@ -217,6 +254,12 @@ export const sanitizeHtmlDom = (html: string, options: SanitizeOptions = {}): st
     if (!policy.allowedTags.has(tagName)) {
       toRemove.push(el);
       continue;
+    }
+
+    if (TEXT_ONLY_ELEMENTS.has(tagName)) {
+      for (const child of Array.from(el.childNodes)) {
+        if (child.nodeType !== TEXT_NODE) toRemove.push(child);
+      }
     }
 
     // Process attributes against the shared policy
@@ -244,8 +287,8 @@ export const sanitizeHtmlDom = (html: string, options: SanitizeOptions = {}): st
   }
 
   // Remove disallowed elements
-  for (const el of toRemove) {
-    el.remove();
+  for (const node of toRemove) {
+    node.remove();
   }
 
   // Serialize the sanitized fragment to HTML string.

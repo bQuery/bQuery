@@ -217,6 +217,70 @@ const parseAttributes = (
   return { attributes, order, selfClose };
 };
 
+/** Whether `src` continues at `pos` with `word` (lowercase), ignoring case. */
+const startsWithWord = (src: string, pos: number, word: string): boolean =>
+  src.slice(pos, pos + word.length).toLowerCase() === word;
+
+/**
+ * Reads the prologue of a template: a BOM, whitespace and comments are
+ * skipped, and an HTML doctype among them (`<!doctype html>`, or a legacy one
+ * with `PUBLIC`/`SYSTEM` identifiers) is cut out of `rest` and returned
+ * rebuilt as `<!doctype html>` in the source's keyword case. Nothing else of
+ * the token reaches the output, so its identifiers are never echoed.
+ *
+ * `document` tells whether the template is a whole page: it has such a
+ * doctype, or the first thing after the prologue is an `<html>`, `<head>` or
+ * `<body>` start tag. A linear scanner rather than one regex over the whole
+ * template, so a hostile template cannot make it backtrack.
+ *
+ * @internal
+ */
+export const splitDocumentPrologue = (
+  template: string
+): { doctype: string; rest: string; document: boolean } => {
+  const length = template.length;
+  let doctype = '';
+  let rest = template;
+  let pos = 0;
+  for (;;) {
+    while (pos < length && (isWs(template[pos]) || template[pos] === '\uFEFF')) pos++;
+    if (template.startsWith('<!--', pos)) {
+      const end = template.indexOf('-->', pos + 4);
+      if (end === -1) break;
+      pos = end + 3;
+      continue;
+    }
+    if (doctype || !startsWithWord(template, pos, '<!doctype') || !isWs(template[pos + 9] ?? '')) {
+      break;
+    }
+    let next = pos + 9;
+    while (next < length && isWs(template[next])) next++;
+    if (!startsWithWord(template, next, 'html')) break;
+    const afterName = (next += 4);
+    while (next < length && isWs(template[next])) next++;
+    // The name must end at `html` and be followed by `>` or the identifiers.
+    if (
+      template[next] !== '>' &&
+      (next === afterName ||
+        !(startsWithWord(template, next, 'public') || startsWithWord(template, next, 'system')))
+    ) {
+      break;
+    }
+    // As in the HTML tokenizer, the token ends at the first `>`, even inside
+    // a quoted identifier.
+    const end = template.indexOf('>', next);
+    if (end === -1) break;
+    doctype = `<!${template.slice(pos + 2, pos + 9)} html>`;
+    rest = template.slice(0, pos) + template.slice(end + 1);
+    pos = end + 1;
+  }
+  return {
+    doctype,
+    rest,
+    document: !!doctype || /^<(?:html|head|body)[\s/>]/i.test(template.slice(pos, pos + 6)),
+  };
+};
+
 /**
  * Parses an HTML template string into a virtual node tree without depending
  * on a DOM implementation. The parser is intentionally permissive: it does

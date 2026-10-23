@@ -26,6 +26,7 @@ For end-to-end tutorials, see [Workflows](/workflows/). For the long-form snippe
 ## Forms
 
 - [Login form with validation](./login-form)
+- [One schema for client and server validation](./shared-schema-validation)
 
 ## Routing & state
 

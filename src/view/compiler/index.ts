@@ -47,4 +47,4 @@ export type {
  * Re-exported runtime hook so callers can register a precompiled map directly
  * (the emitted module imports the same function from `@bquery/bquery/view`).
  */
-export { registerCompiledExpressions, clearCompiledExpressions } from '../evaluate';
+export { registerCompiledExpressions, clearCompiledExpressions } from '../compiled-registry';

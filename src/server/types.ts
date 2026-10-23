@@ -84,14 +84,18 @@ export interface ServerSseOptions extends ServerResponseInit {
 
 /** Maximum accepted request-body size, in bytes, per parsed content type. */
 export interface ServerLimits {
+  /** Cap for `application/x-www-form-urlencoded` bodies. Defaults to 1 MiB. */
   form?: number;
+  /** Cap for `application/json` and `*+json` bodies. Defaults to 1 MiB. */
   json?: number;
+  /** Cap for `multipart/form-data` bodies. Defaults to 10 MiB. */
   multipart?: number;
+  /** Cap for `text/*` bodies. Defaults to 1 MiB. */
   text?: number;
   /**
    * Cap for any other (unrecognized) content type read as a raw `ArrayBuffer`
-   * via `ctx.body()`. Unset means unbounded, so set this when accepting
-   * arbitrary binary uploads to avoid buffering an unbounded body in memory.
+   * via `ctx.body()`. Defaults to 1 MiB; pass `Infinity` to lift it when
+   * accepting large binary uploads.
    */
   raw?: number;
 }
@@ -560,7 +564,11 @@ export interface CreateServerOptions {
    * Global middleware applied to every request.
    */
   middlewares?: ServerMiddleware[];
-  /** Body parsing limits by content type. */
+  /**
+   * Body size limits by content type, merged with the defaults (1 MiB for
+   * `json`, `form`, `text` and `raw`; 10 MiB for `multipart`). `Infinity`
+   * lifts a limit. An oversized body is answered with `413`.
+   */
   limits?: ServerLimits;
 
   /**

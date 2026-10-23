@@ -18,10 +18,19 @@ export type Getters<S, G> = {
 /**
  * Action definition - methods that can modify state.
  * The `this` context includes state, getters, and other actions.
+ *
+ * `A` is used directly (rather than through a mapped type) so TypeScript can
+ * infer it from the `actions` object literal while `ThisType` types `this`.
  */
-export type Actions<S, G, A> = {
-  [K in keyof A]: A[K];
-} & ThisType<S & G & A>;
+export type Actions<S, G, A> = A & ThisType<S & G & A>;
+
+/**
+ * Empty record used as the default getters/actions type when a store
+ * declares none. Unlike `Record<string, never>` it has no index signature,
+ * so it does not block inference of getters and actions from a definition
+ * and unknown keys on the resulting store remain type errors.
+ */
+export type EmptyStoreRecord = Record<never, never>;
 
 /**
  * Store definition for createStore.

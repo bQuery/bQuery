@@ -76,12 +76,20 @@ export const BUNDLE_BUDGETS = [
   { subpath: './media', gzip: 7400 },
   { subpath: './plugin', gzip: 2700 },
   { subpath: './devtools', gzip: 3600 },
-  { subpath: './testing', gzip: 7800 },
-  { subpath: './ssr', gzip: 38600, note: 'Pulls in the view renderer and the HTML parser.' },
+  {
+    subpath: './testing',
+    gzip: 9600,
+    note: 'Queries compute accessible names for `*ByRole({ name })` and `fireEvent` dispatches typed MouseEvent / PointerEvent / KeyboardEvent / InputEvent / FocusEvent (+1.4 kB).',
+  },
+  {
+    subpath: './ssr',
+    gzip: 40100,
+    note: "Pulls in the view renderer and the HTML parser. The Node adapter streams request bodies on demand with backpressure and abort handling instead of buffering them (+0.5 kB, #255). Keeping the doctype of full-page templates and `;`-separated bq-on statements (via the view evaluator) add 0.4 kB. Escaping textarea content in `sanitizeHtmlForSSR()` (stored XSS) and treating requests without framing headers as bodiless add 0.1 kB. The view evaluator's constructor/prototype guard reading comments as whitespace (`a./**/constructor`) adds a few bytes (1.18.0 release review).",
+  },
   {
     subpath: './server',
-    gzip: 41300,
-    note: 'Pulls in the router, SSR and the sanitizer, so it grew with #229 too.',
+    gzip: 42500,
+    note: 'Pulls in the router, SSR and the sanitizer, so it grew with #229 too. Default body limits with single-read bodies (#255) and the Standard Schema validate() middleware (#221) add 1.3 kB; it also grows with the SSR doctype fix and bq-on statement lists (+0.4 kB), and with the textarea escaping and the validate()/csrf() fixes from the 1.18.0 release review (+0.1 kB).',
   },
 ];
 

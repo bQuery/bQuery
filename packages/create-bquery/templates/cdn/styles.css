@@ -1,0 +1,16 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+main {
+  width: min(36rem, calc(100% - 2rem));
+  margin: 2rem auto;
+  display: grid;
+  gap: 0.5rem;
+}
+
+input,
+click-counter {
+  font: inherit;
+}

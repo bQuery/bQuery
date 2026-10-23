@@ -7,18 +7,43 @@
 
 import { merge, isPlainObject } from '../core/utils/object';
 import { getBqueryConfig, type BqueryFetchParseAs } from '../platform/config';
+import { isRetryableMethod, isRetryableStatus, resolveRetryDelay } from './retry-policy';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-/** Configuration for automatic request retries. */
+/**
+ * Configuration for automatic request retries.
+ *
+ * By default only idempotent methods (`GET`, `HEAD`, `OPTIONS`, `PUT`,
+ * `DELETE`) are retried, and only on `TIMEOUT` / `NETWORK` errors or the
+ * statuses `408`, `429`, `502`, `503` and `504`. A `Retry-After` response
+ * header (seconds or HTTP date) replaces the backoff delay, capped by
+ * `maxRetryAfter`.
+ */
 export interface RetryConfig {
   /** Maximum number of retry attempts (default: 3). */
   count: number;
   /** Delay in ms between retries, or a function receiving the attempt index. */
   delay?: number | ((attempt: number) => number);
-  /** Predicate deciding whether to retry a given error. Defaults to network / 5xx errors. */
+  /**
+   * HTTP methods that may be retried by the default policy.
+   * Default: `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']`. Add `'POST'` /
+   * `'PATCH'` (or pass `['*']`) only when the endpoint is safe to repeat,
+   * e.g. because it honours an idempotency key.
+   */
+  methods?: readonly string[];
+  /** Response statuses retried by the default policy. Default: `[408, 429, 502, 503, 504]`. */
+  statuses?: readonly number[];
+  /** Upper bound in ms for a server-sent `Retry-After` delay (default: 60 000). */
+  maxRetryAfter?: number;
+  /** Honour the `Retry-After` response header (default: `true`). */
+  respectRetryAfter?: boolean;
+  /**
+   * Predicate deciding whether to retry a given error. Replaces the default
+   * method/status policy entirely, so it can opt `POST` / `PATCH` into retries.
+   */
   retryOn?: (error: HttpError, attempt: number) => boolean;
   /** Called before each retry attempt with the error and 1-indexed attempt number. */
   onRetry?: (error: HttpError, attempt: number) => void;
@@ -58,7 +83,7 @@ export interface HttpRequestConfig extends Omit<RequestInit, 'body' | 'headers' 
   signal?: AbortSignal;
   /** Retry configuration. Pass a number for simple retry count, or a `RetryConfig` object. */
   retry?: number | RetryConfig;
-  /** Called repeatedly as response body chunks arrive. */
+  /** Called repeatedly as the body chunks of a successful response arrive. */
   onDownloadProgress?: (event: HttpProgressEvent) => void;
 }
 
@@ -78,11 +103,18 @@ export interface HttpResponse<T = unknown> {
 
 /** Error subclass thrown on failed HTTP requests with rich metadata. */
 export class HttpError extends Error {
-  /** HTTP response (available when the server replied). */
+  /**
+   * HTTP response (available when the server replied). For a status rejected
+   * by `validateStatus` (`code: 'ERR_BAD_RESPONSE'`), `response.data` holds the
+   * error body parsed like a successful one — JSON when it parses, otherwise
+   * the raw text, `undefined` when empty. At most 1 MiB is read, within the
+   * remaining `timeout` (5 s without one) and until `signal` aborts; a larger,
+   * slower or aborted body is cancelled and leaves `data` `undefined`.
+   */
   response?: HttpResponse;
   /** Resolved request configuration. */
   config: HttpRequestConfig;
-  /** Original error code string (e.g. `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`). */
+  /** Error code: `'ERR_BAD_RESPONSE'`, `'TIMEOUT'`, `'ABORT'`, `'NETWORK'` or `'PARSE'`. */
   code: string;
 
   constructor(message: string, config: HttpRequestConfig, code: string, response?: HttpResponse) {
@@ -198,11 +230,17 @@ export interface HttpClient {
 
 const DEFAULT_VALIDATE_STATUS = (status: number): boolean => status >= 200 && status < 300;
 
-const DEFAULT_RETRY_ON = (error: HttpError): boolean => {
-  if (error.code === 'PARSE') return false;
+/** @internal Default retry policy: idempotent methods, transient failures only. */
+const shouldRetryByDefault = (
+  error: HttpError,
+  method: string | undefined,
+  retry: RetryConfig
+): boolean => {
+  if (!isRetryableMethod(method, retry.methods)) return false;
   if (error.code === 'TIMEOUT' || error.code === 'NETWORK') return true;
+  if (error.code === 'PARSE') return false;
   const status = error.response?.status;
-  return status !== undefined && status >= 500;
+  return status !== undefined && isRetryableStatus(status, retry.statuses);
 };
 
 /** @internal */
@@ -210,13 +248,6 @@ const normalizeRetry = (retry: HttpRequestConfig['retry']): RetryConfig | undefi
   if (retry == null) return undefined;
   if (typeof retry === 'number') return { count: retry };
   return retry;
-};
-
-/** @internal */
-const resolveRetryDelay = (delay: RetryConfig['delay'], attempt: number): number => {
-  if (delay == null) return Math.min(1000 * 2 ** attempt, 30_000);
-  if (typeof delay === 'number') return delay;
-  return delay(attempt);
 };
 
 /** @internal */
@@ -335,6 +366,79 @@ const parseResponseBody = async <T>(
   }
 };
 
+/**
+ * @internal Limits for reading a rejected response's body: at most `maxBytes`
+ * bytes (1 MiB), within `timeout` ms when the request has no `timeout` of its
+ * own (5 s — room for a large error page on a slow link, short enough that a
+ * stalled body barely delays the rejection). Mutable for tests only.
+ */
+export const errorBodyLimits = { maxBytes: 1 << 20, timeout: 5000 };
+
+/**
+ * @internal Best-effort parse of a rejected response's body for
+ * `HttpError.response.data`. Uses the same `parseAs` strategy as a successful
+ * response; with `'json'` a body that is not valid JSON (an HTML error page,
+ * plain text) is returned as text, and an empty body yields `undefined`.
+ *
+ * The body is read with a cap of `errorBodyLimits.maxBytes` and stops when
+ * `signal` aborts (the caller's signal or the request `timeout`) or, without
+ * a request timeout, after `errorBodyLimits.timeout` ms. A body that is too
+ * large, too slow, aborted or unreadable yields `undefined` and the stream is
+ * cancelled. Never throws, so a broken error body cannot mask the status error.
+ */
+const parseErrorBody = async (
+  response: Response,
+  parseAs: BqueryFetchParseAs,
+  config: HttpRequestConfig,
+  signal?: AbortSignal
+): Promise<unknown> => {
+  if (parseAs === 'response') return response;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stop!: () => void;
+  const stopped = new Promise<undefined>((resolve) => {
+    stop = () => resolve(undefined);
+  });
+  if (!(config.timeout! > 0)) timer = setTimeout(stop, errorBodyLimits.timeout);
+  if (signal?.aborted) stop();
+  signal?.addEventListener('abort', stop);
+
+  const read = async (): Promise<unknown> => {
+    let body = response;
+    reader = response.body?.getReader?.();
+    if (reader) {
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if ((size += value.byteLength) > errorBodyLimits.maxBytes) return undefined;
+        chunks.push(value);
+      }
+      reader = undefined;
+      body = new Response(new Blob(chunks as BlobPart[]), { headers: response.headers });
+    }
+    if (parseAs !== 'json') return await parseResponseBody(body, parseAs, config);
+    const text = await body.text();
+    if (!text) return undefined;
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  };
+
+  try {
+    return await Promise.race([read(), stopped]);
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', stop);
+    reader?.cancel().catch(() => undefined);
+  }
+};
+
 /** @internal – wrap a response body stream to report download progress. */
 const wrapDownloadStream = (
   response: Response,
@@ -441,23 +545,23 @@ const executeRequest = async <T>(config: HttpRequestConfig): Promise<HttpRespons
   try {
     let response = await fetcher(url.toString(), requestInit);
 
-    if (config.onDownloadProgress) {
-      response = wrapDownloadStream(response, config.onDownloadProgress);
-    }
-
     if (!validateStatus(response.status)) {
       throw new HttpError(
         `Request failed with status ${response.status}`,
         config,
         'ERR_BAD_RESPONSE',
         {
-          data: undefined,
+          data: await parseErrorBody(response, parseAs, config, mergedSignal),
           status: response.status,
           statusText: response.statusText,
           headers: response.headers,
           config,
         }
       );
+    }
+
+    if (config.onDownloadProgress) {
+      response = wrapDownloadStream(response, config.onDownloadProgress);
     }
 
     const data = await parseResponseBody<T>(response, parseAs, config);
@@ -583,6 +687,37 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
     let lastError: HttpError | undefined;
 
     const maxAttempts = (retryConfig?.count ?? 0) + 1;
+    /** Run the response error interceptors, then throw (or recover with their response). */
+    const finishWithError = async (httpError: HttpError): Promise<HttpResponse<T>> => {
+      const responseChain: Array<InterceptorEntry<HttpResponse>> = [];
+      responseInterceptors.forEach((entry) => responseChain.push(entry));
+
+      let finalError: unknown = httpError;
+      for (const { rejected } of responseChain) {
+        if (rejected) {
+          try {
+            const result = await rejected(finalError);
+            if (result && typeof result === 'object' && 'data' in result) {
+              return result as HttpResponse<T>;
+            }
+            if (result != null) {
+              finalError = result;
+            }
+          } catch (innerErr) {
+            if (innerErr != null) {
+              finalError = innerErr;
+            }
+          }
+        }
+      }
+
+      if (!(finalError instanceof Error)) {
+        finalError = httpError;
+      }
+
+      throw finalError;
+    };
+
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
         let response = await executeRequest<T>(resolvedConfig);
@@ -624,43 +759,35 @@ export function createHttp(defaults: HttpRequestConfig = {}): HttpClient {
         lastError = httpError;
 
         const shouldRetry = retryConfig
-          ? (retryConfig.retryOn ?? DEFAULT_RETRY_ON)(httpError, attempt)
+          ? retryConfig.retryOn
+            ? retryConfig.retryOn(httpError, attempt)
+            : shouldRetryByDefault(httpError, resolvedConfig.method, retryConfig)
           : false;
 
         if (!shouldRetry || attempt >= maxAttempts - 1) {
-          // Run response error interceptors before throwing
-          const responseChain: Array<InterceptorEntry<HttpResponse>> = [];
-          responseInterceptors.forEach((entry) => responseChain.push(entry));
-
-          let finalError: unknown = httpError;
-          for (const { rejected } of responseChain) {
-            if (rejected) {
-              try {
-                const result = await rejected(finalError);
-                if (result && typeof result === 'object' && 'data' in result) {
-                  return result as HttpResponse<T>;
-                }
-                if (result != null) {
-                  finalError = result;
-                }
-              } catch (innerErr) {
-                if (innerErr != null) {
-                  finalError = innerErr;
-                }
-              }
-            }
-          }
-
-          if (!(finalError instanceof Error)) {
-            finalError = httpError;
-          }
-
-          throw finalError;
+          return finishWithError(httpError);
         }
 
-        const retryDelay = retryConfig ? resolveRetryDelay(retryConfig.delay, attempt) : 0;
+        const retryDelay = retryConfig
+          ? resolveRetryDelay(retryConfig, httpError.response?.headers, attempt)
+          : 0;
         retryConfig?.onRetry?.(httpError, attempt + 1);
-        await sleep(retryDelay, resolvedConfig.signal);
+        try {
+          await sleep(retryDelay, resolvedConfig.signal);
+        } catch {
+          // Aborted while waiting for the next attempt: report it like an
+          // abort (or a signal timeout) during the request, through the same
+          // error interceptors, not as the signal's raw reason.
+          const reason: unknown = resolvedConfig.signal?.reason;
+          const isTimeout = reason instanceof DOMException && reason.name === 'TimeoutError';
+          return finishWithError(
+            new HttpError(
+              isTimeout ? 'Request timeout exceeded' : 'Request aborted',
+              resolvedConfig,
+              isTimeout ? 'TIMEOUT' : 'ABORT'
+            )
+          );
+        }
       }
     }
 

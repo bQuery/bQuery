@@ -300,13 +300,56 @@ const resilient = useFetch('/api/important', {
   retry: {
     count: 3,
     delay: (attempt) => 1000 * 2 ** attempt,
-    retryOn: (error) => error.message.includes('500'),
+    statuses: [500, 502, 503, 504],
   },
 });
 
 // Abort an in-flight request
 data.abort();
 ```
+
+### Retry policy
+
+Retries are safe by default — the same policy applies to `useFetch()` and the
+[`http` client](#retry-and-timeout):
+
+- **Only idempotent methods** are retried: `GET`, `HEAD`, `OPTIONS`, `PUT`,
+  `DELETE`. A `POST` or `PATCH` that timed out may already have been processed
+  by the server, so repeating it could, for example, create a duplicate order.
+- **Only transient failures** are retried: network errors, timeouts (`http`
+  client only — in `useFetch()` the timeout spans all attempts) and the
+  statuses `408`, `429`, `502`, `503`, `504`.
+- **`Retry-After` wins.** When the error response carries a `Retry-After`
+  header (seconds or an HTTP date), that delay replaces `delay`, capped by
+  `maxRetryAfter` (default 60 000 ms). Set `respectRetryAfter: false` to
+  ignore it.
+
+| Option              | Default                                       | Description                                                  |
+| ------------------- | --------------------------------------------- | ------------------------------------------------------------ |
+| `count`             | —                                             | Maximum number of retries                                    |
+| `delay`             | exponential, max 30 s                         | Fixed delay in ms or `(attempt) => ms`                       |
+| `methods`           | `['GET', 'HEAD', 'OPTIONS', 'PUT', 'DELETE']` | Methods the default policy retries; `['*']` allows all       |
+| `statuses`          | `[408, 429, 502, 503, 504]`                   | Statuses the default policy retries                          |
+| `maxRetryAfter`     | `60_000`                                      | Upper bound for a server-requested delay                     |
+| `respectRetryAfter` | `true`                                        | Use the `Retry-After` header when present                    |
+| `retryOn`           | —                                             | Custom predicate; replaces the method/status policy entirely |
+
+Opt a non-idempotent request in only when the endpoint is safe to repeat, for
+example because it honours an idempotency key:
+
+```ts
+const order = useFetch('/api/orders', {
+  method: 'POST',
+  body: { sku: 'A-1' },
+  headers: { 'Idempotency-Key': crypto.randomUUID() },
+  retry: { count: 3, methods: ['POST'] },
+});
+```
+
+::: warning Changed in 1.18
+Before 1.18 every method was retried on any 5xx, timeout or network error, and
+`429` was not retried. Pass `methods` / `statuses` to restore the old scope.
+:::
 
 External `AbortSignal` support:
 
@@ -325,6 +368,11 @@ const data = useFetch('/api/resource', {
   validateStatus: (status) => status < 500,
 });
 ```
+
+A rejected status sets `error` to an `Error` carrying `status`, `statusText`
+and the unread `response` (a `Response`), so the body can still be read with
+`await error.response.json()`. The imperative client below parses it for you
+into `HttpError.response.data`.
 
 ## Imperative HTTP client
 
@@ -401,7 +449,18 @@ const api = createHttp({
     retryOn: (error, attempt) => error.code === 'TIMEOUT' || error.code === 'NETWORK',
   },
 });
+
+// Default policy: GET/HEAD/OPTIONS/PUT/DELETE on network errors, timeouts,
+// 408/429/502/503/504; Retry-After is honoured. POST is not retried:
+await createHttp({ retry: 3 }).post('/orders', order); // runs once on 503
+
+// Opt in for an idempotent endpoint
+await createHttp({ retry: { count: 3, methods: ['POST'] } }).post('/orders', order, {
+  headers: { 'Idempotency-Key': key },
+});
 ```
+
+See [Retry policy](#retry-policy) for every option.
 
 ### HttpResponse
 
@@ -419,12 +478,45 @@ Every imperative method returns a structured `HttpResponse<T>`:
 
 Failed requests throw `HttpError` with rich metadata:
 
-| Field      | Type                | Description                                               |
-| ---------- | ------------------- | --------------------------------------------------------- |
-| `message`  | `string`            | Human-readable error message                              |
-| `code`     | `string`            | `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`, `'ERR_BAD_RESPONSE'` |
-| `config`   | `HttpRequestConfig` | Resolved request config                                   |
-| `response` | `HttpResponse?`     | Response if server replied                                |
+| Field      | Type                | Description                                                          |
+| ---------- | ------------------- | -------------------------------------------------------------------- |
+| `message`  | `string`            | Human-readable error message                                         |
+| `code`     | `string`            | `'ERR_BAD_RESPONSE'`, `'TIMEOUT'`, `'ABORT'`, `'NETWORK'`, `'PARSE'` |
+| `config`   | `HttpRequestConfig` | Resolved request config                                              |
+| `response` | `HttpResponse?`     | Response if server replied                                           |
+
+When `validateStatus` rejects a status (`code: 'ERR_BAD_RESPONSE'`), the error
+body is parsed with the same `parseAs` strategy as a successful response and
+exposed as `error.response.data`: with the default `'json'` it is the parsed
+JSON, or the raw text when the body is not valid JSON (an HTML error page, for
+example), and `undefined` when the body is empty. A body that cannot be read
+or parsed never replaces the `HttpError`. Response error interceptors and
+`retry.retryOn` see the same `data`.
+
+Reading the error body is bounded so a broken endpoint cannot stall the
+rejection or the retries: at most 1 MiB is read, within the remaining
+`timeout` of the request — or 5 seconds when no `timeout` is set — and the
+read stops as soon as the request's `signal` aborts. A body that is larger,
+slower or aborted is cancelled and leaves `data` as `undefined`; the
+`HttpError` keeps its `ERR_BAD_RESPONSE` code and status either way.
+`onDownloadProgress` reports successful bodies only, and with
+`parseAs: 'response'` the unread `Response` is passed through as `data`.
+
+```ts
+try {
+  await api.post('/notes', note);
+} catch (error) {
+  if (error instanceof HttpError && error.response?.status === 422) {
+    const { errors } = error.response.data as { errors: Record<string, string> };
+    form.setErrors(errors);
+  } else {
+    throw error;
+  }
+}
+```
+
+A successful response whose body is not valid JSON under `parseAs: 'json'`
+throws `HttpError` with `code: 'PARSE'` and the raw text in `response.data`.
 
 ## Polling
 
@@ -1261,6 +1353,7 @@ const api = createHttp({
 
 ## Version history
 
+- **1.18.0** — retries default to idempotent methods and the statuses `408`, `429`, `502`, `503`, `504`; `RetryConfig` gains `methods`, `statuses`, `maxRetryAfter` and `respectRetryAfter`, and a `Retry-After` header replaces the backoff delay. A response rejected by `validateStatus` exposes its parsed body as `HttpError.response.data` (bounded read).
 - **1.17.1** — `http` honours an already-aborted `signal` when `timeout` is set, and classifies any rejection on an aborted signal as `ABORT` or `TIMEOUT` instead of `NETWORK`.
 - **1.17.0** — opt-in glitch-free scheduler via `configureReactive({ scheduler: 'batched' })`, plus `getReactiveConfig()` and `flushSync()`; a flush settles every derived value before running any effect (also under the default scheduler, e.g. in `batch()`).
 - **1.16.0** — performance pass on the core: `batch()` coalesces transitive updates, computeds notify subscribers only when their value actually changes, hot-path allocation cuts on signal writes and dependency tracking; `watchThrottle` gains the opt-in `trailing` option (`WatchThrottleOptions`).

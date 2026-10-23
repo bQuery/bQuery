@@ -616,10 +616,11 @@ describe('versioned store snapshots', () => {
       {},
       { context, includeStoreState: true }
     );
-    expect(html).not.toContain('__BQUERY_STORE_STATE__');
     expect(storeScriptTag).toContain(
       '<script nonce="ASYNC_&quot;&lt;&amp;" id="__BQUERY_STORE_STATE__">'
     );
+    // A full document keeps its `</body>`, so the tag is injected before it.
+    expect(html).toContain(`${storeScriptTag}</body>`);
   });
 
   it('renderToStringAsync reuses one serialized store snapshot for storeState and HTML', async () => {
@@ -638,8 +639,8 @@ describe('versioned store snapshots', () => {
       {},
       { includeStoreState: ['counter'] }
     );
-    expect(html).not.toContain('window["__BQUERY_INITIAL_STATE__"]');
     expect(storeState).toBe('{"counter":{"count":1}}');
+    expect(html).toContain(`${storeScriptTag}</body>`);
     expect(storeScriptTag).toContain('window["__BQUERY_INITIAL_STATE__"]={"counter":{"count":1}}');
   });
 

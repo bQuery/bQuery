@@ -399,6 +399,10 @@ const view = hydrateMount(
 
 ## Full SSR Workflow
 
+::: tip Dev server
+With Vite, [`@bquery/unplugin`](/guide/bundler-plugin#ssr-dev-middleware) (in development, not yet on npm) serves your server entry's `render(request, ctx)` from the dev server, with HMR and source-mapped errors. To start from a working setup, `npx --package @bquery/bquery create-bquery my-app --template ssr` scaffolds an SSR app for Node, Bun or Deno.
+:::
+
 ### 1. Server: Render and serialize
 
 ```ts
@@ -456,6 +460,7 @@ hydrateMount('#app', { title: 'Welcome' }, { hydrate: true });
 - `globalKey` can be customized when integrating with existing server frameworks (e.g., Express, Hono, Elysia).
 - Hydration reuses existing markup and attaches view bindings instead of replacing the DOM wholesale.
 - `renderToString()` automatically falls back to the DOM-free renderer when no `DOMParser` is available; only explicitly forcing the DOM backend requires a custom DOM implementation such as `happy-dom` or `linkedom`.
+- Full-page templates keep their `<!DOCTYPE html>` and their `<html>`, `<head>` and `<body>` elements. The doctype counts when only whitespace, a BOM or comments come before it, and is then emitted first. It is rebuilt as `<!DOCTYPE html>` (keyword case kept), never copied verbatim: a legacy `html` doctype with `PUBLIC`/`SYSTEM` identifiers becomes `<!DOCTYPE html>` too, without its identifiers. Other doctypes and processing instructions are dropped.
 - Prototype-pollution keys (`__proto__`, `constructor`, `prototype`) are filtered during serialization.
 
 ---
@@ -478,6 +483,8 @@ configureSSR({ backend: 'dom', documentImpl: { DOMParser } });
 
 // Default ('auto') uses DOM if available, otherwise the pure renderer.
 ```
+
+Templates that are whole documents — a leading doctype, or a template that starts with `<html>`, `<head>` or `<body>` (leading whitespace and comments aside) — always use the pure renderer, whatever the backend: `DOMParser` files a document's wrappers away where a fragment render cannot keep them. A page therefore renders the same with or without a DOM installed (for example under happy-dom in tests).
 
 The pure renderer is CSP-safe: it never calls `eval` or `new Function()` and parses expressions through a tightly-scoped Pratt parser supporting property access (`a.b`, `a?.b`, `a[0]`), comparisons, ternary, `&&`/`||`/`??`, unary `!`/`+`/`-`/`typeof`, function calls on context-bound functions and basic arithmetic.
 
@@ -564,6 +571,8 @@ const stream = renderToStream(
   }
 );
 ```
+
+In a full-page template (a doctype, or an `<html>`/`<head>`/`<body>` root) the boundaries necessarily sit inside `<body>`. Such a page is rendered once and its output split at the boundaries, so a boundary may sit inside any element (just not inside a tag or attribute) and the chunks join up to the `renderToStringAsync()` output less the markers: `</body></html>` closes once, in the last chunk, and the head output and store-state script are injected once. A boundary inside a `bq-for` or `bq-if` element is repeated or dropped with it.
 
 ### `createSSRMetrics()`
 
@@ -686,7 +695,7 @@ export default { fetch: createWebHandler(handler) };
 const wrapped = createSSRHandler(handler);
 ```
 
-`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes. When needed, pass `{ maxBodyBytes }` to reject oversized buffered request bodies with HTTP 413; malformed `Host` headers fall back to `localhost` instead of crashing URL construction. An error thrown by the handler is logged and answered with `500` (or the connection is closed if the response had already started) instead of surfacing as an unhandled rejection. When the client disconnects, `request.signal` aborts and the response body stream is cancelled, so streaming renders and SSE sources stop producing output.
+`createNodeHandler()` translates `node:http` `IncomingMessage` / `ServerResponse` into Web `Request` / `Response` automatically — `fetch`-style handlers stay portable across all four runtimes. The request body is streamed to the handler on demand, so a handler that never reads it never buffers it. When needed, pass `{ maxBodyBytes }` to reject oversized request bodies with HTTP 413 (a larger `Content-Length` before the handler runs, a chunked body as soon as it grows past the limit); the socket is not destroyed, so the `413` reaches the client, and a response sent while the body is unfinished carries `Connection: close` instead of draining the rest; malformed `Host` headers fall back to `localhost` instead of crashing URL construction. An error thrown by the handler is logged and answered with `500` (or the connection is closed if the response had already started) instead of surfacing as an unhandled rejection. When the client disconnects, `request.signal` aborts and the response body stream is cancelled, so streaming renders and SSE sources stop producing output.
 
 ### CSP & security defaults
 
@@ -772,7 +781,7 @@ Recovery is boundary-scoped (per directive-bearing element), never whole-documen
 
 ## Suspense out-of-order streaming
 
-`renderToStreamSuspense()` flushes the synchronous shell first (with each `defer(...)` value's fallback), then streams `<template id="bq-r-N">…</template>` + a tiny CSP-nonce-aware patch script per resolved promise. Add `bq-defer="key"` on the wrapping element to mark where each placeholder should be installed; without a marker the patches append at the end of `<body>`.
+`renderToStreamSuspense()` flushes the synchronous shell first (with each `defer(...)` value's fallback), then streams `<template id="bq-r-N">…</template>` + a tiny CSP-nonce-aware patch script per resolved promise. Add `bq-defer="key"` on the wrapping element to mark where each placeholder should be installed; without a marker the patches append at the end of `<body>`. In a full page the closing `</body></html>` is held back and streamed last, so every patch lands inside `<body>`.
 
 ```ts
 import { defer, renderToStreamSuspense } from '@bquery/bquery/ssr';
@@ -954,6 +963,7 @@ export default createEdgeHandler(async (request) => {
 
 ## Version history
 
+- **1.18.0** — `sanitizeHtmlForSSR()` drops HTML comments and checks every URL attribute, including each `srcset` candidate; full-page templates keep `<!DOCTYPE html>` and always use the DOM-free renderer; `renderToStream()` streams a full page with `flushBoundary()` markers as one document; the Node adapter streams request bodies on demand.
 - **1.17.1** — `createNodeHandler()` answers a throwing handler with `500` instead of an unhandled rejection that terminated Node, aborts `request.signal` and cancels the response stream when the client disconnects.
 - **1.17.0** — attribute and tag names are validated before serialization.
 - **1.15.0 (graduated to Stable)** — interactive directive parity (`bq-model`/`bq-on` via `directives: 'full'`, `onUnsupportedDirective`), production hydration (`hydrate`, `detectHydrationMismatches`), resumable boundaries (`createResumableBoundary`, `createResumableGraph`, `resume`). See the Stability section at the top of this guide.

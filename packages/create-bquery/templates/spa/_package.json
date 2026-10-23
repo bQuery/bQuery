@@ -1,0 +1,22 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test": "bun test",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@bquery/bquery": "{{bqueryRange}}"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "happy-dom": "{{happyDomRange}}",
+    "typescript": "{{typescriptRange}}",
+    "vite": "{{viteRange}}"
+  }
+}

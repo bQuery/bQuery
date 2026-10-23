@@ -24,6 +24,7 @@ import {
   fireEvent,
   flushEffects,
 } from './testing';
+import type { ByRoleOptions, WaitForOptions } from './types';
 
 // ---------------------------------------------------------------------------
 // Auto cleanup
@@ -113,44 +114,103 @@ const getSelectElement = (el: Element): HTMLSelectElement => {
 };
 
 /**
+ * `el` and its ancestors in the flattened tree (slotted nodes go through their
+ * slot, shadow roots through their host), outermost first.
+ */
+/**
+ * The slot `el` is assigned to. Falls back to searching the parent's shadow
+ * root where `assignedSlot` is not implemented (happy-dom).
+ */
+const findAssignedSlot = (el: Element): HTMLSlotElement | null => {
+  const native = (el as { assignedSlot?: HTMLSlotElement | null }).assignedSlot;
+  if (native !== undefined) return native;
+  const root = (el.parentNode as Element | null)?.shadowRoot;
+  if (!root) return null;
+  for (const slot of Array.from(root.querySelectorAll('slot'))) {
+    if (slot.assignedNodes({ flatten: false }).includes(el)) return slot;
+  }
+  return null;
+};
+
+const getAncestry = (el: Element): Element[] => {
+  const chain: Element[] = [];
+  let node: Node | null = el;
+  while (node) {
+    if (node.nodeType === 1) {
+      chain.unshift(node as Element);
+      node = findAssignedSlot(node as Element) ?? node.parentNode;
+    } else {
+      node = node.nodeType === 11 ? ((node as ShadowRoot).host ?? null) : node.parentNode;
+    }
+  }
+  return chain;
+};
+
+/**
  * Higher-level interactions composed from {@link fireEvent}. Every action
  * flushes effects + microtasks before returning so consumers can `await` it.
  */
+const pressAndClick = (el: Element, detail: number): void => {
+  fireEvent(el, 'mousedown', { detail });
+  fireEvent(el, 'mouseup', { detail });
+  fireEvent(el, 'click', { detail });
+};
+
 export const userEvent = {
   async click(el: Element): Promise<void> {
-    fireEvent(el, 'mousedown');
-    fireEvent(el, 'mouseup');
-    fireEvent(el, 'click');
+    pressAndClick(el, 1);
     await tick();
   },
   async dblClick(el: Element): Promise<void> {
-    await this.click(el);
-    await this.click(el);
+    pressAndClick(el, 1);
+    await tick();
+    pressAndClick(el, 2);
+    await tick();
     fireEvent(el, 'dblclick');
     await tick();
   },
+  /**
+   * Moves the mouse onto `el` from outside the document: a bubbling
+   * `mouseover` on `el`, then a non-bubbling `mouseenter` on every element
+   * entered — the outermost ancestor first, `el` last.
+   */
   async hover(el: Element): Promise<void> {
     fireEvent(el, 'mouseover');
-    fireEvent(el, 'mouseenter');
+    for (const entered of getAncestry(el)) fireEvent(entered, 'mouseenter');
     await tick();
   },
+  /**
+   * Moves the mouse off `el` and out of the document: a bubbling `mouseout`
+   * on `el`, then a non-bubbling `mouseleave` on `el` and each ancestor.
+   */
   async unhover(el: Element): Promise<void> {
     fireEvent(el, 'mouseout');
-    fireEvent(el, 'mouseleave');
+    for (const left of getAncestry(el).reverse()) fireEvent(left, 'mouseleave');
     await tick();
   },
+  /**
+   * Types `text` one character at a time: `keydown`, `keypress`,
+   * `beforeinput`, `input` (with the character appended), then `keyup`. As in
+   * a browser, cancelling `keydown`, `keypress` or `beforeinput` keeps the
+   * character out of the value and skips the events after it (except `keyup`).
+   */
   async type(el: Element, text: string, opts?: { delay?: number }): Promise<void> {
     const input = __getTextInputElement(el);
     for (const ch of text) {
-      fireEvent.keyDown(el, { key: ch });
-      fireEvent.input(el, `${input.value ?? ''}${ch}`);
+      const insert =
+        fireEvent.keyDown(el, { key: ch }) &&
+        fireEvent(el, 'keypress', { key: ch }) &&
+        fireEvent(el, 'beforeinput', { inputType: 'insertText', data: ch });
+      if (insert) {
+        fireEvent.input(el, `${input.value ?? ''}${ch}`, { inputType: 'insertText', data: ch });
+      }
       fireEvent.keyUp(el, { key: ch });
       if (opts?.delay) await sleep(opts.delay);
     }
     await tick();
   },
   async clear(el: Element): Promise<void> {
-    fireEvent.input(el, '');
+    fireEvent.input(el, '', { inputType: 'deleteContentBackward' });
     fireEvent.change(el, '');
     await tick();
   },
@@ -170,7 +230,10 @@ export const userEvent = {
   },
   async paste(el: Element, text: string): Promise<void> {
     const input = __getTextInputElement(el);
-    fireEvent.input(el, `${input.value ?? ''}${text}`);
+    fireEvent.input(el, `${input.value ?? ''}${text}`, {
+      inputType: 'insertFromPaste',
+      data: text,
+    });
     fireEvent(el, 'paste');
     await tick();
   },
@@ -256,13 +319,219 @@ const matchesText = (el: Element, target: string | RegExp): boolean => {
   return target.test(direct);
 };
 
+const normalizeWhitespace = (value: string): string => value.replace(/\s+/g, ' ').trim();
+
+/**
+ * How CSS hides `el`: `'removed'` for `display: none` (the whole subtree is
+ * hidden), `'invisible'` for `visibility: hidden | collapse` (the element's own
+ * content is hidden, but a descendant may set `visibility: visible` again).
+ * Reads the computed style — so stylesheet rules count — falling back to the
+ * inline style where there is no computed value (e.g. a detached element).
+ */
+const getCssHiding = (el: Element): 'removed' | 'invisible' | null => {
+  let display = '';
+  let visibility = '';
+  try {
+    const computed = el.ownerDocument?.defaultView?.getComputedStyle?.(el);
+    display = computed?.display ?? '';
+    visibility = computed?.visibility ?? '';
+  } catch {
+    // No style engine — fall back to the inline style below.
+  }
+  const inline = (el as Partial<HTMLElement>).style;
+  display ||= inline?.display ?? '';
+  visibility ||= inline?.visibility ?? '';
+  if (display === 'none') return 'removed';
+  return visibility === 'hidden' || visibility === 'collapse' ? 'invisible' : null;
+};
+
+/** Whether `el` itself is hidden by `hidden`, `aria-hidden="true"` or CSS. */
+const isHiddenElement = (el: Element): boolean =>
+  el.hasAttribute('hidden') || el.getAttribute('aria-hidden') === 'true' || !!getCssHiding(el);
+
+/**
+ * Text one node contributes to an accessible name: a text node's data, or for
+ * an element its `aria-label`, an image's `alt`, a slot's assigned nodes, or
+ * its own content. `exclude`, form controls, non-rendered elements and — unless
+ * `includeHidden` — elements hidden by `hidden`, `aria-hidden="true"`,
+ * `display: none` or `visibility: hidden` contribute nothing. `textHidden`
+ * marks text whose parent is `visibility: hidden`.
+ */
+const getNodeNameText = (
+  child: Node,
+  exclude: Element | undefined,
+  includeHidden: boolean,
+  textHidden: boolean
+): string => {
+  if (child.nodeType === 3) return textHidden ? '' : (child as Text).data;
+  if (child.nodeType !== 1) return '';
+  const el = child as Element;
+  if (el === exclude) return '';
+  const tag = el.tagName.toLowerCase();
+  if (/^(input|select|textarea|script|style|template)$/.test(tag)) return '';
+  let invisible = false;
+  if (!includeHidden) {
+    if (el.hasAttribute('hidden') || el.getAttribute('aria-hidden') === 'true') return '';
+    const hiding = getCssHiding(el);
+    if (hiding === 'removed') return '';
+    invisible = hiding === 'invisible';
+  }
+  const ariaLabel = normalizeWhitespace(el.getAttribute('aria-label') ?? '');
+  if (ariaLabel) return invisible ? '' : ` ${ariaLabel} `;
+  if (tag === 'img') return invisible ? '' : ` ${el.getAttribute('alt') ?? ''} `;
+  if (tag === 'slot') {
+    const assigned = (el as HTMLSlotElement).assignedNodes?.({ flatten: true }) ?? [];
+    if (assigned.length > 0) {
+      // Slotted elements count like children: their own `hidden`, `alt`, `aria-label` apply.
+      return assigned
+        .map((node) => getNodeNameText(node, exclude, includeHidden, invisible))
+        .join('');
+    }
+  }
+  return collectNameText(el, exclude, includeHidden, invisible);
+};
+
+/**
+ * Text a subtree contributes to an accessible name: text nodes, `alt` of
+ * images and `aria-label` of nested elements, skipping `exclude`, nested form
+ * controls, non-rendered elements, and subtrees hidden by `hidden`,
+ * `aria-hidden="true"`, `display: none` or `visibility: hidden` (unless
+ * `includeHidden`, used for a hidden element named by `aria-labelledby`).
+ * Slots contribute their assigned (slotted) nodes.
+ */
+const collectNameText = (
+  node: Node,
+  exclude?: Element,
+  includeHidden = false,
+  textHidden = false
+): string =>
+  Array.from(node.childNodes)
+    .map((child) => getNodeNameText(child, exclude, includeHidden, textHidden))
+    .join('');
+
+/** `<label>` elements associated with a control: `for`/`id` first, then a wrapping label. */
+const getLabelElements = (el: Element): Element[] => {
+  const labels: Element[] = [];
+  const id = el.getAttribute('id');
+  if (id) {
+    const root = getQueryableRoot(el) as (ParentNode & { querySelectorAll?: unknown }) | null;
+    if (root && typeof root.querySelectorAll === 'function') {
+      labels.push(...Array.from(root.querySelectorAll(`label[for="${escapeAttributeValue(id)}"]`)));
+    }
+  }
+  const wrapping = el.closest?.('label');
+  if (wrapping && !labels.includes(wrapping)) {
+    const htmlFor = wrapping.getAttribute('for');
+    if (!htmlFor || htmlFor === id) labels.push(wrapping);
+  }
+  return labels;
+};
+
+/** A label's full, normalised text — nested elements included, the control's own content not. */
+const getLabelText = (labelEl: Element, control: Element): string =>
+  normalizeWhitespace(collectNameText(labelEl, control));
+
+const LABELABLE_TAGS = /^(input|select|textarea|button|meter|output|progress)$/;
+const NAME_FROM_CONTENT_ROLES =
+  /^(button|cell|checkbox|columnheader|gridcell|heading|link|menuitem(checkbox|radio)?|option|radio|row|rowheader|switch|tab|tooltip|treeitem)$/;
+
+/**
+ * A pragmatic subset of the accessible-name computation: `aria-labelledby`,
+ * `aria-label`, button-type input values, associated labels, `alt`, content
+ * for roles named from content, `placeholder`, then `title`.
+ */
+const getAccessibleName = (el: Element, role: string): string => {
+  const labelledBy = el.getAttribute('aria-labelledby');
+  if (labelledBy) {
+    const root = getQueryableRoot(el);
+    const text = normalizeWhitespace(
+      labelledBy
+        .trim()
+        .split(/\s+/)
+        .map((id) => {
+          const ref = root ? findById(root, id) : null;
+          if (!ref) return '';
+          // A hidden element named by `aria-labelledby` still counts, hidden content and all.
+          return (
+            normalizeWhitespace(ref.getAttribute('aria-label') ?? '') ||
+            collectNameText(ref, undefined, isHiddenElement(ref))
+          );
+        })
+        .join(' ')
+    );
+    if (text) return text;
+  }
+
+  const ariaLabel = normalizeWhitespace(el.getAttribute('aria-label') ?? '');
+  if (ariaLabel) return ariaLabel;
+
+  const tag = el.tagName.toLowerCase();
+  const type = (el.getAttribute('type') ?? '').toLowerCase();
+  if (tag === 'input' && type === 'image') {
+    // HTML-AAM: alt, value, title, then the browser's default label.
+    for (const attr of ['alt', 'value', 'title']) {
+      const text = normalizeWhitespace(el.getAttribute(attr) ?? '');
+      if (text) return text;
+    }
+    return 'Submit Query';
+  }
+  if (tag === 'input' && /^(button|submit|reset)$/.test(type)) {
+    const value = el.getAttribute('value');
+    if (value !== null) return normalizeWhitespace(value);
+    if (type === 'submit') return 'Submit';
+    if (type === 'reset') return 'Reset';
+  }
+
+  if (LABELABLE_TAGS.test(tag)) {
+    const text = normalizeWhitespace(
+      getLabelElements(el)
+        .map((labelEl) => getLabelText(labelEl, el))
+        .join(' ')
+    );
+    if (text) return text;
+  }
+
+  if (tag === 'img' || tag === 'area') {
+    const alt = normalizeWhitespace(el.getAttribute('alt') ?? '');
+    if (alt) return alt;
+  }
+
+  if (NAME_FROM_CONTENT_ROLES.test(role)) {
+    const text = normalizeWhitespace(collectNameText(el));
+    if (text) return text;
+  }
+
+  if (tag === 'input' || tag === 'textarea') {
+    const placeholder = normalizeWhitespace(el.getAttribute('placeholder') ?? '');
+    if (placeholder) return placeholder;
+  }
+
+  return normalizeWhitespace(el.getAttribute('title') ?? '');
+};
+
+const matchesName = (name: string, target: string | RegExp): boolean => {
+  if (typeof target === 'string') return name === normalizeWhitespace(target);
+  target.lastIndex = 0;
+  return target.test(name);
+};
+
+const describeRole = (role: string, options?: ByRoleOptions): string =>
+  options?.name === undefined
+    ? `role "${role}"`
+    : `role "${role}" with name ${
+        typeof options.name === 'string' ? JSON.stringify(options.name) : String(options.name)
+      }`;
+
 const matchesRole = (el: Element, role: string): boolean => {
   if (el.getAttribute('role') === role) return true;
   // Implicit ARIA roles for a small but useful subset.
   const tag = el.tagName.toLowerCase();
   switch (role) {
     case 'button':
-      return tag === 'button' || (tag === 'input' && (el as HTMLInputElement).type === 'button');
+      return (
+        tag === 'button' ||
+        (tag === 'input' && /^(button|submit|reset|image)$/i.test(el.getAttribute('type') ?? ''))
+      );
     case 'link':
       return tag === 'a' && el.hasAttribute('href');
     case 'textbox':
@@ -320,16 +589,10 @@ const matchesLabel = (el: Element, label: string | RegExp): boolean => {
       .trim();
     if (combined && matchesString(combined, label)) return true;
   }
-  const id = el.getAttribute('id');
-  if (id) {
-    const root = getQueryableRoot(el);
-    const labelEl = root?.querySelector(`label[for="${escapeAttributeValue(id)}"]`);
-    if (labelEl && matchesText(labelEl, label)) return true;
-  }
-  // Implicit label wrap
-  const parentLabel = el.closest?.('label');
-  if (parentLabel && matchesText(parentLabel, label)) return true;
-  return false;
+  return getLabelElements(el).some((labelEl) => {
+    const text = getLabelText(labelEl, el);
+    return !!text && matchesString(text, label);
+  });
 };
 
 const matchesString = (value: string, target: string | RegExp): boolean =>
@@ -347,39 +610,70 @@ const single = <T>(items: T[], desc: string): T => {
 
 const optional = <T>(items: T[]): T | null => (items.length === 0 ? null : items[0]);
 
-const findAsync = async <T>(fn: () => T[], desc: string, timeoutMs = 1000): Promise<T> => {
+/** Timeout for the `findBy*` queries: milliseconds, or `{ timeout, interval }`. */
+type FindTimeout = number | WaitForOptions;
+
+const DEFAULT_FIND_TIMEOUT = 1000;
+
+const findAsync = async <T>(
+  fn: () => T[],
+  desc: string | (() => string),
+  wait?: FindTimeout
+): Promise<T> => {
+  const opts = typeof wait === 'number' ? { timeout: wait } : (wait ?? {});
+  const timeout =
+    typeof opts.timeout === 'number' && opts.timeout >= 0 ? opts.timeout : DEFAULT_FIND_TIMEOUT;
+  const interval = typeof opts.interval === 'number' && opts.interval > 0 ? opts.interval : 10;
   const start = Date.now();
-  while (Date.now() - start < timeoutMs) {
+  while (true) {
     const result = fn();
     if (result.length > 0) return result[0];
-    await sleep(10);
+    const remaining = timeout - (Date.now() - start);
+    if (remaining <= 0) break;
+    // Never sleep past the deadline: the last check runs when the timeout is due.
+    await sleep(Math.min(interval, remaining));
   }
-  throw new Error(`bQuery testing: timed out waiting for ${desc}`);
+  throw new Error(
+    `bQuery testing: timed out after ${timeout}ms waiting for ${typeof desc === 'function' ? desc() : desc}`
+  );
 };
 
 /**
  * Bound query helpers returned by {@link within} and {@link screen}.
+ *
+ * `findBy*` queries take a timeout in milliseconds or a
+ * `{ timeout, interval }` object (defaults: 1000 ms / 10 ms). `findByRole`
+ * also reads `timeout` / `interval` from its role options
+ * (`{ name: 'Save', timeout: 2000 }`); a separate third argument wins.
  */
 export interface Queries {
-  getByRole(role: string): Element;
-  queryByRole(role: string): Element | null;
-  findByRole(role: string, timeoutMs?: number): Promise<Element>;
+  getByRole(role: string, options?: ByRoleOptions): Element;
+  queryByRole(role: string, options?: ByRoleOptions): Element | null;
+  findByRole(role: string, timeoutMs?: number | WaitForOptions): Promise<Element>;
+  findByRole(
+    role: string,
+    options?: ByRoleOptions & WaitForOptions,
+    timeoutMs?: number | WaitForOptions
+  ): Promise<Element>;
 
   getByText(text: string | RegExp): Element;
   queryByText(text: string | RegExp): Element | null;
-  findByText(text: string | RegExp, timeoutMs?: number): Promise<Element>;
+  findByText(text: string | RegExp, timeoutMs?: number | WaitForOptions): Promise<Element>;
 
   getByLabelText(label: string | RegExp): Element;
   queryByLabelText(label: string | RegExp): Element | null;
-  findByLabelText(label: string | RegExp, timeoutMs?: number): Promise<Element>;
+  findByLabelText(label: string | RegExp, timeoutMs?: number | WaitForOptions): Promise<Element>;
 
   getByPlaceholderText(text: string | RegExp): Element;
   queryByPlaceholderText(text: string | RegExp): Element | null;
-  findByPlaceholderText(text: string | RegExp, timeoutMs?: number): Promise<Element>;
+  findByPlaceholderText(
+    text: string | RegExp,
+    timeoutMs?: number | WaitForOptions
+  ): Promise<Element>;
 
   getByTestId(id: string): Element;
   queryByTestId(id: string): Element | null;
-  findByTestId(id: string, timeoutMs?: number): Promise<Element>;
+  findByTestId(id: string, timeoutMs?: number | WaitForOptions): Promise<Element>;
 }
 
 /**
@@ -388,7 +682,28 @@ export interface Queries {
  */
 export const within = (root: ParentNode): Queries => {
   const elements = (): Element[] => allElements(root);
-  const byRole = (role: string): Element[] => elements().filter((el) => matchesRole(el, role));
+  const byRole = (role: string, options?: ByRoleOptions): Element[] => {
+    const matches = elements().filter((el) => matchesRole(el, role));
+    const name = options?.name;
+    return name === undefined
+      ? matches
+      : matches.filter((el) => matchesName(getAccessibleName(el, role), name));
+  };
+  // With a name filter, list the names that *are* there to make misses debuggable.
+  const describeByRole = (role: string, options?: ByRoleOptions) => (): string => {
+    const desc = describeRole(role, options);
+    if (options?.name === undefined) return desc;
+    const names = elements()
+      .filter((el) => matchesRole(el, role))
+      .map((el) => JSON.stringify(getAccessibleName(el, role)));
+    return names.length === 0
+      ? `${desc} (no element has role "${role}")`
+      : `${desc} (accessible names of role "${role}": ${names.slice(0, 10).join(', ')}${
+          names.length > 10 ? ', ...' : ''
+        })`;
+  };
+  const roleOptions = (options: unknown): ByRoleOptions | undefined =>
+    options !== null && typeof options === 'object' ? (options as ByRoleOptions) : undefined;
   const byText = (text: string | RegExp): Element[] =>
     elements().filter((el) => matchesText(el, text));
   const byLabel = (label: string | RegExp): Element[] =>
@@ -402,9 +717,31 @@ export const within = (root: ParentNode): Queries => {
     elements().filter((el) => el.getAttribute('data-testid') === id);
 
   return {
-    getByRole: (role) => single(byRole(role), `role "${role}"`),
-    queryByRole: (role) => optional(byRole(role)),
-    findByRole: (role, timeoutMs) => findAsync(() => byRole(role), `role "${role}"`, timeoutMs),
+    getByRole: (role, options) => {
+      const opts = roleOptions(options);
+      const items = byRole(role, opts);
+      return single(
+        items,
+        items.length === 0 ? describeByRole(role, opts)() : describeRole(role, opts)
+      );
+    },
+    queryByRole: (role, options) => optional(byRole(role, roleOptions(options))),
+    findByRole: (
+      role: string,
+      optionsOrTimeout?: (ByRoleOptions & WaitForOptions) | number,
+      timeoutMs?: number | WaitForOptions
+    ) => {
+      // `findByRole(role, timeoutMs)` (1.14 signature), `findByRole(role, options, timeoutMs)`,
+      // or one combined `{ name, timeout, interval }` object.
+      if (typeof optionsOrTimeout === 'number') {
+        return findAsync(() => byRole(role), describeRole(role), optionsOrTimeout);
+      }
+      const opts = roleOptions(optionsOrTimeout);
+      const wait =
+        timeoutMs ??
+        (opts && ('timeout' in opts || 'interval' in opts) ? (opts as WaitForOptions) : undefined);
+      return findAsync(() => byRole(role, opts), describeByRole(role, opts), wait);
+    },
 
     getByText: (text) => single(byText(text), `text ${String(text)}`),
     queryByText: (text) => optional(byText(text)),

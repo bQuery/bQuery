@@ -30,6 +30,31 @@ function defineBqueryConfig(config: BqueryConfig): BqueryConfig;
 
 Returns the resolved configuration after merging.
 
+::: tip JSON Schema
+`@bquery/bquery/editor/bquery-config.schema.json` describes the object
+`defineBqueryConfig()` accepts, generated from the `BqueryConfig` interface.
+Keep the configuration in a JSON file and the editor validates and completes
+it:
+
+```json
+{
+  "$schema": "./node_modules/@bquery/bquery/editor/bquery-config.schema.json",
+  "fetch": { "baseUrl": "/api", "parseAs": "json" },
+  "cookies": { "sameSite": "Strict", "secure": true }
+}
+```
+
+```ts
+import type { BqueryConfig } from '@bquery/bquery/platform';
+import config from './bquery.config.json' with { type: 'json' };
+// JSON imports widen string literals ("Strict" → string), so assert the type.
+defineBqueryConfig(config as BqueryConfig);
+```
+
+Function-valued options such as `pageMeta.titleTemplate` cannot be expressed
+in JSON; set them in code.
+:::
+
 #### `BqueryConfig`
 
 ```ts

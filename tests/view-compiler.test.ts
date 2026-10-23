@@ -6,13 +6,19 @@
  * registration hook, and the CLI.
  */
 
-import { afterEach, describe, expect, it } from 'bun:test';
+import { afterEach, describe, expect, it, spyOn } from 'bun:test';
+import { build } from 'esbuild';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { signal } from '../src/reactive/index';
-import { clearCompiledExpressions, mount, registerCompiledExpressions } from '../src/view/index';
+import {
+  clearCompiledExpressions,
+  clearExpressionCache,
+  mount,
+  registerCompiledExpressions,
+} from '../src/view/index';
 import {
   compileExpression,
   compileFiles,
@@ -135,6 +141,208 @@ describe('compileExpression — conservative bail-outs (#138)', () => {
   });
 });
 
+describe('compileExpression — bq-on statement lists', () => {
+  it('joins `;`-separated statements with the comma operator', () => {
+    const r = compileExpression('$event.preventDefault(); add();', { statements: true });
+    if (!r.ok) throw new Error(r.reason);
+    expect(r.code).toBe('(__bq_ctx) => ((__bq_ctx.$event.preventDefault()), (__bq_ctx.add()))');
+
+    const calls: string[] = [];
+    let prevented = false;
+    const result = instantiate(r.code)({
+      $event: { preventDefault: () => (prevented = true) },
+      add: () => (calls.push('add'), 'last'),
+    });
+    expect(prevented).toBe(true);
+    expect(calls).toEqual(['add']);
+    expect(result).toBe('last');
+  });
+
+  it('does not split inside strings or calls', () => {
+    const r = compileExpression("log('a;b'); log(join(xs, ';'))", { statements: true });
+    if (!r.ok) throw new Error(r.reason);
+    const calls: string[] = [];
+    instantiate(r.code)({
+      log: (s: string) => calls.push(s),
+      join: (xs: string[], sep: string) => xs.join(sep),
+      xs: ['c', 'd'],
+    });
+    expect(calls).toEqual(['a;b', 'c;d']);
+  });
+
+  it('stays expression-only without the option and bails on unsupported statements', () => {
+    expect(compileExpression('a(); b()').ok).toBe(false);
+    expect(compileExpression('if (a) b(); c()', { statements: true }).ok).toBe(false);
+    expect(compileExpression(';;', { statements: true }).ok).toBe(false);
+    expect(
+      compileExpression("a(); x.constructor.constructor('1')()", { statements: true }).ok
+    ).toBe(false);
+    expect(compileExpression("a(); x./**/constructor('1')()", { statements: true }).ok).toBe(false);
+  });
+
+  it('compiles bq-on statement lists in templates and runs them without the runtime path', () => {
+    const template =
+      '<form bq-on:submit="$event.preventDefault(); add()"><p bq-text="a; b"></p></form>';
+    const { expressions, statements, stats } = compileViews(template);
+    expect(statements['$event.preventDefault(); add()']).toBeDefined();
+    expect(expressions['$event.preventDefault(); add()']).toBeUndefined();
+    // Other directives stay expression-only.
+    expect(stats.skipped.some((s) => s.expression === 'a; b')).toBe(true);
+
+    const source = '$event.preventDefault(); add()';
+    let compiledRan = false;
+    const fn = instantiate(statements[source]);
+    registerCompiledExpressions(
+      {},
+      {
+        [source]: (ctx) => {
+          compiledRan = true;
+          return fn(ctx);
+        },
+      }
+    );
+    const root = document.createElement('div');
+    root.innerHTML = '<form bq-on:submit="$event.preventDefault(); add()"></form>';
+    document.body.appendChild(root);
+    let added = 0;
+    const view = mount(root, { add: () => added++ });
+    const event = new Event('submit', { cancelable: true });
+    root.querySelector('form')!.dispatchEvent(event);
+    expect(compiledRan).toBe(true);
+    expect(event.defaultPrevented).toBe(true);
+    expect(added).toBe(1);
+    view.destroy();
+    root.remove();
+  });
+});
+
+describe('compileViews — compile mode is part of the dedup key', () => {
+  const SOURCE = 'a(); b()';
+  const ON_FIRST = `<button bq-on:click="${SOURCE}"></button><p bq-show="${SOURCE}"></p>`;
+  const SHOW_FIRST = `<p bq-show="${SOURCE}"></p><button bq-on:click="${SOURCE}"></button>`;
+
+  type Entries = Record<string, (ctx: Record<string, unknown>) => unknown>;
+
+  /**
+   * Runs an emitted module against the real registration hook, wrapping each
+   * registered function so the test can see which compiled entries ran.
+   */
+  const loadEmitted = (code: string, ran: string[]): void => {
+    const wrap = (mode: string, entries: Entries = {}): Entries =>
+      Object.fromEntries(
+        Object.entries(entries).map(([source, fn]) => [
+          source,
+          (ctx: Record<string, unknown>) => (ran.push(`${mode}:${source}`), fn(ctx)),
+        ])
+      );
+    const body = code.replace(/^import .*$/m, '');
+    new Function('registerCompiledExpressions', body)(
+      (expressions: Entries, statements?: Entries) =>
+        registerCompiledExpressions(wrap('expression', expressions), wrap('statements', statements))
+    );
+  };
+
+  for (const [order, template] of [
+    ['bq-on first', ON_FIRST],
+    ['bq-show first', SHOW_FIRST],
+  ] as const) {
+    it(`compiles bq-on as statements and bq-show as an expression (${order})`, () => {
+      const { expressions, statements, stats } = compileViews(template);
+      expect(statements[SOURCE]).toBe('(__bq_ctx) => ((__bq_ctx.a()), (__bq_ctx.b()))');
+      expect(expressions[SOURCE]).toBeUndefined();
+      expect(stats.total).toBe(2);
+      expect(stats.compiled).toBe(1);
+      expect(stats.skipped.map((s) => s.expression)).toEqual([SOURCE]);
+    });
+
+    it(`runs bq-on compiled and bq-show like the runtime (${order})`, () => {
+      const { code } = compileToModule(template);
+      expect(code).toContain('registerCompiledExpressions({\n\n}, {\n');
+      const ran: string[] = [];
+      loadEmitted(code, ran);
+      clearExpressionCache();
+      const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+
+      const root = document.createElement('div');
+      root.innerHTML = template;
+      document.body.appendChild(root);
+      const calls: string[] = [];
+      try {
+        const view = mount(root, {
+          a: () => calls.push('a'),
+          b: () => (calls.push('b'), true),
+        });
+
+        // bq-show is expression-only, as at runtime: it takes the runtime
+        // path, where the statement list is an error (pointing at bq-on),
+        // evaluates to undefined and never runs a() or b().
+        expect(ran).toEqual([]);
+        expect(calls).toEqual([]);
+        expect(root.querySelector('p')!.style.display).toBe('none');
+        expect(String(errorSpy.mock.calls[0]?.[0])).toContain('only supported in bq-on');
+
+        // bq-on runs the precompiled statement list instead of `new Function()`.
+        root.querySelector('button')!.dispatchEvent(new Event('click'));
+        expect(ran).toEqual([`statements:${SOURCE}`]);
+        expect(calls).toEqual(['a', 'b']);
+        view.destroy();
+      } finally {
+        errorSpy.mockRestore();
+        root.remove();
+      }
+    });
+  }
+
+  it('keeps single-expression handlers from older modules working', () => {
+    // Modules emitted before statement lists registered bq-on handlers as
+    // plain expressions; a single-expression handler still uses that entry.
+    let compiledRan = false;
+    registerCompiledExpressions({
+      'save()': (ctx) => {
+        compiledRan = true;
+        return (ctx.save as () => void)();
+      },
+      // An expression entry is never served for a statement list.
+      [SOURCE]: () => {
+        throw new Error('expression entry used for a statement list');
+      },
+    });
+    const root = document.createElement('div');
+    root.innerHTML = `<i bq-on:click="save()"></i><b bq-on:click="${SOURCE}"></b>`;
+    document.body.appendChild(root);
+    const calls: string[] = [];
+    const view = mount(root, {
+      save: () => calls.push('save'),
+      a: () => calls.push('a'),
+      b: () => calls.push('b'),
+    });
+    root.querySelector('i')!.dispatchEvent(new Event('click'));
+    root.querySelector('b')!.dispatchEvent(new Event('click'));
+    expect(compiledRan).toBe(true);
+    expect(calls).toEqual(['save', 'a', 'b']);
+    view.destroy();
+    root.remove();
+  });
+});
+
+describe('view/compiler module graph', () => {
+  it('does not bundle the runtime evaluator', async () => {
+    const result = await build({
+      entryPoints: [new URL('../src/view/compiler/index.ts', import.meta.url).pathname],
+      bundle: true,
+      format: 'esm',
+      platform: 'node',
+      write: false,
+      metafile: true,
+      logLevel: 'silent',
+    });
+    const inputs = Object.keys(result.metafile.inputs);
+    expect(inputs).toContain('src/view/compiler/expression.ts');
+    expect(inputs).not.toContain('src/view/evaluate.ts');
+    expect(inputs.filter((input) => input.startsWith('src/reactive/'))).toEqual([]);
+  });
+});
+
 describe('compileViews — template walking (#138)', () => {
   it('collects expressions, mirrors directive eval strategies, and reports skips', () => {
     const template = `
@@ -144,7 +352,7 @@ describe('compileViews — template walking (#138)', () => {
         <button bq-on:click="count = count + 1">+</button>
         <ul><li bq-for="item in items" bq-key="item.id" bq-text="item.name"></li></ul>
       </div>`;
-    const { expressions, stats } = compileViews(template);
+    const { expressions, statements, stats } = compileViews(template);
 
     // Whole-value, object-split, and for list/key sub-expressions all present.
     expect(expressions['count + 1']).toBeDefined();
@@ -156,7 +364,7 @@ describe('compileViews — template walking (#138)', () => {
 
     // The assignment in bq-on falls back to runtime.
     expect(stats.skipped.some((s) => s.expression === 'count = count + 1')).toBe(true);
-    expect(stats.compiled).toBe(Object.keys(expressions).length);
+    expect(stats.compiled).toBe(Object.keys(expressions).length + Object.keys(statements).length);
     expect(stats.total).toBe(stats.compiled + stats.skipped.length);
   });
 

@@ -17,7 +17,13 @@ import { isComputed, isSignal, type Signal } from '../reactive/index';
 import type { BindingContext } from '../view/types';
 import { createSSRContext, type SSRContext } from './context';
 import { DEFER_BRAND } from './defer-brand';
-import { parseTemplate, serializeTree, type SSRElement, type SSRNode } from './html-parser';
+import {
+  parseTemplate,
+  serializeTree,
+  splitDocumentPrologue,
+  type SSRElement,
+  type SSRNode,
+} from './html-parser';
 import { renderToString } from './render';
 import type { AsyncRenderOptions } from './render-async';
 
@@ -254,7 +260,7 @@ const replaceSlotsInShell = (
   context: BindingContext,
   slots: SuspenseSlot[],
   options: SuspenseStreamOptions
-): string => {
+): [shell: string, tail: string] => {
   // Wrap the original placeholder text within a `<slotTag>` element so we can
   // patch it on the client. Only the parts that *come from* a deferred value
   // need wrapping; the synchronous renderer already produced them as text
@@ -265,7 +271,9 @@ const replaceSlotsInShell = (
   // Without such a marker, the slot fallback is already inlined and we
   // append the resolved templates at the end of <body>.
   const slotTag = sanitizeSlotTag(options.slotTag, 'bq-slot');
-  const root = parseTemplate(html);
+  // The parser skips doctypes, so carry the shell's one past the re-parse.
+  const { doctype, rest } = splitDocumentPrologue(html);
+  const root = parseTemplate(rest);
   const slotsByKey = new Map(slots.map((slot) => [slot.key, slot]));
   const placed = new Set<string>();
 
@@ -291,7 +299,11 @@ const replaceSlotsInShell = (
   // `context` reference suppressed to keep the function side-effect free
   // for the static analysis; the render uses syncContext where needed.
   void context;
-  return serializeTree(root);
+  // In a page, the closing `</body></html>` is held back until every patch
+  // has streamed, so the patches land inside `<body>` and not after `</html>`.
+  const out = doctype + serializeTree(root);
+  const tailAt = body && slots.length ? out.lastIndexOf('</body>') : -1;
+  return tailAt === -1 ? [out, ''] : [out.slice(0, tailAt), out.slice(tailAt)];
 };
 
 /** Returns true for characters that can appear immediately before an attribute name. */
@@ -447,7 +459,7 @@ export const renderToStreamSuspense = (
           onUnsupportedDirective: options.onUnsupportedDirective,
         }).html;
 
-        const wrapped = replaceSlotsInShell(shell, syncContext, slots, options);
+        const [wrapped, tail] = replaceSlotsInShell(shell, syncContext, slots, options);
         controller.enqueue(encoder.encode(wrapped));
 
         // Resolve slots in arrival order so the network can flush as soon as
@@ -508,6 +520,7 @@ export const renderToStreamSuspense = (
           const patch = buildPatchScript(slot.id, resolvedId, ctx.nonce);
           controller.enqueue(encoder.encode(tpl + patch));
         }
+        if (tail) controller.enqueue(encoder.encode(tail));
         controller.close();
       } catch (error) {
         try {

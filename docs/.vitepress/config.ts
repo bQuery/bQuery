@@ -54,6 +54,12 @@ const moduleItems = [
   { text: 'Agents', link: '/guide/agents' },
 ];
 
+const toolingItems = [
+  { text: 'Create a project', link: '/guide/create-bquery' },
+  { text: 'Bundler Plugin (in development)', link: '/guide/bundler-plugin' },
+  { text: 'ESLint Plugin (in development)', link: '/guide/eslint-plugin' },
+];
+
 const workflowsItems = [
   { text: 'Overview', link: '/workflows/' },
   { text: 'Todo SPA', link: '/workflows/todo-spa' },
@@ -99,7 +105,10 @@ const cookbookItems = [
   {
     text: 'Forms',
     collapsed: true,
-    items: [{ text: 'Login form', link: '/cookbook/login-form' }],
+    items: [
+      { text: 'Login form', link: '/cookbook/login-form' },
+      { text: 'One schema for client and server', link: '/cookbook/shared-schema-validation' },
+    ],
   },
   {
     text: 'Routing & state',
@@ -142,6 +151,7 @@ const cookbookItems = [
 
 const releaseNotesItems = [
   { text: 'Overview', link: '/release-notes/' },
+  { text: '1.18.0', link: '/release-notes/1.18' },
   { text: '1.17.2', link: '/release-notes/1.17.2' },
   { text: '1.17.1', link: '/release-notes/1.17.1' },
   { text: '1.17.0', link: '/release-notes/1.17' },
@@ -167,6 +177,7 @@ const fullSidebar = [
   { text: 'Introduction', collapsed: false, items: introductionItems },
   { text: 'Core Concepts', collapsed: false, items: conceptsItems },
   { text: 'Modules', collapsed: false, items: moduleItems },
+  { text: 'Tooling', collapsed: false, items: toolingItems },
   { text: 'Full-Stack Workflows', collapsed: true, items: workflowsItems },
   { text: 'Cookbook', collapsed: true, items: cookbookItems },
   { text: 'Release Notes', collapsed: true, items: releaseNotesItems },

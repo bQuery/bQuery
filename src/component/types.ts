@@ -285,6 +285,21 @@ export type ComponentDefinition<
      */
     shadow?: ShadowMode;
     /**
+     * How a re-render updates the DOM.
+     *
+     * - `'morph'` (default) — patch the existing tree in place. Nodes are
+     *   matched by tag and `data-bq-key` / `id`, then by position, so input
+     *   values, focus, caret, scroll position and nested custom-element state
+     *   survive an update. Attributes are diffed against the previous render,
+     *   so attributes added at runtime (e.g. `<details open>`) are kept. An
+     *   update whose sanitized markup is unchanged skips the DOM write.
+     * - `'replace'` — replace `innerHTML` on every render (the behaviour before
+     *   1.18), for components that rely on fresh nodes each time.
+     *
+     * @default 'morph'
+     */
+    renderStrategy?: 'morph' | 'replace';
+    /**
      * Extra sanitizer options merged with the framework base allowlist during render.
      * Only opt in attributes/tags whose values you control or validate. Sensitive
      * attributes such as `style` are not value-sanitized and can reintroduce XSS

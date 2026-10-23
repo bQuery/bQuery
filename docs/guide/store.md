@@ -35,7 +35,7 @@ const counterStore = createStore({
   },
 });
 
-// Use the store
+// Use the store — state, getter and action types are all inferred
 counterStore.increment();
 console.log(counterStore.count); // 1
 console.log(counterStore.doubled); // 2
@@ -114,7 +114,7 @@ userStore.$patch((state) => {
 
 ## Getters
 
-Getters derive computed values from state:
+Getters derive computed values from state. Each getter receives the typed state, and its return type becomes the type of the getter on the store:
 
 ```ts
 const cartStore = createStore({
@@ -125,18 +125,33 @@ const cartStore = createStore({
   }),
   getters: {
     subtotal: (state) => state.items.reduce((sum, item) => sum + item.price * item.qty, 0),
-    total: (state, getters) => getters.subtotal * (1 - state.discount),
     itemCount: (state) => state.items.reduce((sum, item) => sum + item.qty, 0),
   },
 });
 
-console.log(cartStore.subtotal);
-console.log(cartStore.total);
+console.log(cartStore.subtotal); // number
+console.log(cartStore.itemCount); // number
+```
+
+A getter can read other getters through its second argument. TypeScript cannot infer a getter's type from the getters themselves, so declare the state and getter types explicitly in that case (add the actions type as the third generic if the store has actions). Without them, every getter drops out of the store's type, and the error names `EmptyStoreRecord` (for example `Property 'total' does not exist on type 'EmptyStoreRecord'`):
+
+```ts
+type CartState = { items: { price: number; qty: number }[]; discount: number };
+type CartGetters = { subtotal: number; total: number };
+
+const checkoutStore = createStore<CartState, CartGetters>({
+  id: 'checkout',
+  state: () => ({ items: [], discount: 0 }),
+  getters: {
+    subtotal: (state) => state.items.reduce((sum, item) => sum + item.price * item.qty, 0),
+    total: (state, getters) => getters.subtotal * (1 - state.discount),
+  },
+});
 ```
 
 ## Actions
 
-Actions are methods that can modify state. They support async operations:
+Actions are methods that can modify state. Inside an action, `this` is typed as the store's state, getters and other actions, and each action keeps its parameter and return types on the store. Annotate action parameters — they cannot be inferred from usage. Actions support async operations:
 
 ```ts
 const authStore = createStore({
@@ -528,11 +543,13 @@ window.__BQUERY_DEVTOOLS__ = {
 ## Type Reference
 
 ```ts
+// S, G and A are inferred from the definition (state factory return type,
+// getter return types, action methods); pass them explicitly only when needed.
 type StoreDefinition<S, G, A> = {
   id: string;
   state: () => S;
-  getters?: Record<string, (state: S, getters: G) => unknown>;
-  actions?: A;
+  getters?: { [K in keyof G]: (state: S, getters: G) => G[K] };
+  actions?: A & ThisType<S & G & A>;
 };
 
 type Store<S, G, A> = S &
@@ -562,6 +579,7 @@ const mapped = mapGetters(store, ['getterKey']);
 ## Pitfalls and gotchas
 
 - Define actions as regular methods (`actions: { increment() { this.count++ } }`) — arrow functions break `this` binding.
+- Store types are inferred from the definition; annotate action parameters (`add(title: string) { … }`). Explicit generics (`createStore<State, Getters, Actions>(…)`) are only needed when a getter reads other getters via its second argument — use type aliases rather than interfaces for them.
 - Mutations go through `this` inside actions, not via a separate state parameter.
 - Persistence plugins run on every action commit; filter persisted fields with `createPersistedStore(..., { serializer })` or a custom `StorePlugin`.
 - `unregisterPlugin()` / `clearPlugins()` (1.12.0) are essential for test isolation when multiple suites register the same plugin.
@@ -585,6 +603,7 @@ const mapped = mapGetters(store, ['getterKey']);
 
 ## Version history
 
+- **1.18.0** — `createStore()`, `defineStore()` and `createPersistedStore()` infer state, getter and action types from the definition (actions get a typed `this`); explicit generics still work.
 - **1.17.1** — the store's `isEqual` / `deepEqual` no longer treat values of different kinds (`{}`, `[]`, `Date`, `Map`, `Set`, `RegExp`) as equal.
 - **1.16.0** — `deepClone` (used by `$patchDeep`) special-cases only the genuinely dangerous `__proto__` key; own properties merely named `constructor`/`prototype` are cloned normally again instead of being silently dropped.
 - **1.15.1** — `deepClone` skips prototype-pollution keys, so an own enumerable `__proto__` no longer reassigns the clone's prototype; `$subscribe` notifications iterate a snapshot, so unsubscribing during notification no longer skips the next subscriber.

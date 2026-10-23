@@ -689,6 +689,7 @@ export {
 export type {
   ActionContext,
   Actions,
+  EmptyStoreRecord,
   Getters,
   OnActionCallback,
   PersistedStoreOptions,
@@ -726,6 +727,11 @@ export {
   bindForm,
   createFieldArray,
   createForm,
+  createSchemaForm,
+  isStandardSchema,
+  normalizeSchemaIssues,
+  schemaIssuesToFieldErrors,
+  validateWithSchema,
   custom,
   customAsync,
   dateAfter,
@@ -762,6 +768,7 @@ export {
   useForm,
   useFormField,
   useFormStatus,
+  useSchemaForm,
   validDate,
   withMessage,
 } from './forms/index';
@@ -791,6 +798,11 @@ export type {
   FormStatus,
   FormValidationMode,
   FormValidationStrategy,
+  SchemaFormConfig,
+  SchemaFormValues,
+  SchemaIssue,
+  SchemaValidationResult,
+  StandardSchemaV1,
   OptimisticController,
   OptimisticHandle,
   OptimisticReducer,
@@ -1137,6 +1149,8 @@ export {
 } from './testing/index';
 export type {
   AccessibilityResult,
+  ByRoleOptions,
+  FireEventInit,
   FireEventOptions,
   MockFetchRoute,
   MockForm,
@@ -1316,6 +1330,7 @@ export {
   timingSafeEqual,
   unauthorized,
   unsignValue,
+  validate,
 } from './server/index';
 export type {
   BasicAuthCredentials,
@@ -1329,6 +1344,9 @@ export type {
   RateLimitOptions,
   RateLimitState,
   ServeStaticOptions,
+  ValidateMiddleware,
+  ValidateOptions,
+  ValidateSource,
   ServerApp,
   ServerCookieOptions,
   ServerContext,

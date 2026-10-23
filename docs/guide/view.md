@@ -33,7 +33,7 @@ import { mount, signal, computed, effect, batch } from '@bquery/bquery/view';
 
 ### Frozen directive reference (1.15.0)
 
-The frozen directive set: `bq-text`, `bq-html`, `bq-html-safe`, `bq-if`, `bq-show`, `bq-for`, `bq-class`, `bq-style`, `bq-bind:*`, `bq-model`, `bq-on` (+ modifiers), `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-memo`, `bq-error`, `bq-aria`, `bq-ref`. The declarative transition companions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate`) and the `bq-key` / `:key` companion are part of the frozen surface. The expression grammar is standard JavaScript expressions evaluated against the binding context.
+The frozen directive set: `bq-text`, `bq-html`, `bq-html-safe`, `bq-if`, `bq-show`, `bq-for`, `bq-class`, `bq-style`, `bq-bind:*`, `bq-model`, `bq-on` (+ modifiers), `bq-once`, `bq-init`, `bq-pre`, `bq-cloak`, `bq-memo`, `bq-error`, `bq-aria`, `bq-ref`. The declarative transition companions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate`) and the `bq-key` / `:key` companion are part of the frozen surface. The expression grammar is standard JavaScript expressions evaluated against the binding context; `bq-on` handlers additionally accept a `;`-separated statement list.
 
 ### Per-directive SSR support
 
@@ -243,9 +243,38 @@ Access the element with `$el`:
 <input bq-on:focus="onFocus($el)" />
 ```
 
+A handler can run several statements separated by `;` (like Vue's inline
+handlers). They run in order, and a trailing `;` is fine. A `;` inside a string,
+template literal, brackets or a `//` / `/* */` comment doesn't split the
+handler, and the same constructor/prototype guards as for single expressions
+apply to every statement (view expressions are still author-trusted code, not a
+sandbox):
+
+```html
+<form bq-on:submit="$event.preventDefault(); add()">...</form>
+<button bq-on:click="count.value++; save()">Save</button>
+```
+
+Only `bq-on` handlers take statement lists. Every other directive takes a
+single expression, and a `;` there logs an error that points at `bq-on`. If the
+last statement evaluates to a function, it is called with the event, the same
+as a bare `bq-on:click="handleClick"`. If one statement throws, the statements
+after it don't run.
+
+Regular-expression literals are not recognised when the handler is split: a
+`;`, quote or bracket inside one is read as code (`/;/.test(s); next()` splits
+inside the regex), and a `//` or `/*` inside one starts a comment unless its
+first `/` is escaped. Move such a regex into a method on the context, or build
+it with `new RegExp('…')`.
+
 Event listeners also support common modifiers such as `.stop`, `.prevent`,
 `.self`, `.capture`, `.passive`, and `.once`. When `.prevent` is present,
 passive mode is disabled automatically so `event.preventDefault()` still works.
+`.prevent` is the shorter way to write the first example above:
+
+```html
+<form bq-on:submit.prevent="add()">...</form>
+```
 
 ### bq-cloak
 
@@ -453,6 +482,15 @@ registerCompiledExpressions({ 'count + 1': ($ctx) => $ctx.count + 1 });
 clearCompiledExpressions();
 ```
 
+`bq-on` handlers are compiled as statement lists, so `compileViews()` returns
+them in a separate `statements` map and the emitted module passes them as a
+second argument: `registerCompiledExpressions(expressions, statements)`. The
+runtime uses a `statements` entry only for `bq-on`, so `bq-show="a(); b()"`
+stays an error even when the same source is a compiled `bq-on` handler. An
+`expressions` entry serves every directive, including a `bq-on` handler that is
+a single expression (modules emitted before statement lists keep working), but
+never a `bq-on` statement list.
+
 ### CLI
 
 A dependency-free CLI compiles template files to sibling modules (pass explicit paths; let your shell expand globs):
@@ -463,9 +501,11 @@ bquery-view-compile --out-dir src/views/.compiled src/views/*.html
 
 Or drive it from a build script with `compileFiles()` / `runCompileCli()`. The compiler is intentionally **not** a build tool of its own — `compileViews()` and `compileToModule()` are small transforms usable from any bundler (Vite/esbuild/Rollup).
 
+With a bundler, [`@bquery/unplugin`](/guide/bundler-plugin#view-precompilation) (in development, not yet on npm) runs the compiler for you: `*.view.html` imports are compiled on the fly, with HMR in Vite and skipped expressions reported as build warnings.
+
 ### What compiles
 
-The transform is conservative: identifiers, member access, calls, arithmetic/logical/comparison operators, ternaries, array and object literals (including shorthand), and string literals compile. It bails — and the expression falls back to runtime — on assignments (except `++`/`--`, which compile), arrow/`function` bodies, `new`, spread, regex and template literals. Those skipped expressions are listed in `stats.skipped` with a reason, so nothing is silently dropped.
+The transform is conservative: identifiers, member access, calls, arithmetic/logical/comparison operators, ternaries, array and object literals (including shorthand), and string literals compile. It bails — and the expression falls back to runtime — on assignments (except `++`/`--`, which compile), arrow/`function` bodies, `new`, spread, regex and template literals, and statement keywords (`if`, `for`, …). A `bq-on` statement list such as `$event.preventDefault(); add()` compiles when every statement does. Those skipped expressions are listed in `stats.skipped` with a reason, so nothing is silently dropped.
 
 ## Mounting
 
@@ -590,6 +630,29 @@ Use a custom directive prefix:
 ```ts
 mount('#app', context, { prefix: 'x' });
 ```
+
+## Editor support
+
+The package ships a VS Code [HTML custom data](https://code.visualstudio.com/api/extension-guides/custom-data-extension)
+file for the built-in directives, so `bq-if`, `bq-for`, `bq-model` and the
+rest get completion and hover documentation, and no longer show up as unknown
+attributes. Point the HTML language service at it in `.vscode/settings.json`:
+
+```json
+{
+  "html.customData": ["./node_modules/@bquery/bquery/editor/html-custom-data.json"]
+}
+```
+
+`bq-on:` and `bq-bind:` are offered for common events (`click`, `input`,
+`submit`, …) and attributes (`href`, `disabled`, `value`, …); any other name
+works at runtime. The file describes the default `bq` prefix — a [custom
+prefix](#custom-prefix) gets no completion. Other editors that read the same
+format (for example WebStorm via `web-types`-compatible plugins) can use it too.
+
+The file is generated from the directive registry in the source, and the test
+suite fails when a directive is added without regenerating it
+(`bun run generate:editor-data`), so it cannot drift from the implementation.
 
 ## Expressions
 
@@ -828,6 +891,7 @@ The current approach matches industry standards (Vue, Alpine, Angular) while kee
 
 ## Version history
 
+- **1.18.0** — `bq-on` handlers accept `;`-separated statements (runtime evaluator and `view/compiler`); the compiler emits them in a separate `statements` map, passed to `registerCompiledExpressions(expressions, statements?)`, and `view/compiler` no longer pulls in the runtime evaluator. Editor IntelliSense: `editor/html-custom-data.json` (VS Code custom data for every built-in directive, generated from the directive registry).
 - **1.17.1** — `createTemplate()` templates pass through the `bquery-sanitizer` Trusted Types policy and work under an enforced `require-trusted-types-for 'script'` CSP, provided the page's CSP allows the `bquery-sanitizer` policy name (a `trusted-types` directive that omits it makes policy creation fail, and the raw string then throws).
 - **1.16.0** — per-update work moved to bind time (object-expression parsing, transition resolution, directive parsing memoized, sandbox proxies cached per context); unchanged DOM writes skipped in `bq-text`/`bq-bind`/`bq-model`/`bq-html` (fixes the `bq-model` caret reset); `bq-for` dispatched before other directives on the same element; `bq-once`/`bq-memo`/`bq-init` evaluate untracked; `bq-html` children are no longer directive-bound.
 - **1.15.0** — **graduated to Stable**: directive set + grammar frozen; `bq-for` duplicate-key and object-expression (`{ active }` shorthand) edge cases resolved; declarative enter/leave/move transitions (`bq-transition`, `bq-in`, `bq-out`, `bq-transition-duration`, `bq-transition-easing`, `bq-animate="flip"`); optional `@bquery/bquery/view/compiler` build step with `registerCompiledExpressions` / `clearCompiledExpressions` runtime hooks.

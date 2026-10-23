@@ -48,9 +48,12 @@ export type DirectiveExpression = {
 
 /** Aggregate statistics about a compiled template. */
 export type CompileStats = {
-  /** Total distinct expressions discovered. */
+  /**
+   * Total distinct expressions discovered, counted per compile mode (a source
+   * used both in `bq-on` and in another directive counts twice).
+   */
   total: number;
-  /** How many compiled to ahead-of-time functions. */
+  /** How many compiled to ahead-of-time functions (`expressions` + `statements`). */
   compiled: number;
   /** How many fell back to the runtime evaluator, with reasons. */
   skipped: Array<{ expression: string; reason: string }>;
@@ -58,8 +61,18 @@ export type CompileStats = {
 
 /** Result of compiling a whole template. */
 export type CompiledView = {
-  /** Map of expression → emitted function source for the compiled subset. */
+  /**
+   * Map of expression → emitted function source for the compiled subset of
+   * single-expression directives (everything except `bq-on`).
+   */
   expressions: Record<string, string>;
+  /**
+   * Map of `bq-on` handler source → emitted function source, compiled as a
+   * `;`-separated statement list. Kept apart from `expressions` because the
+   * same source compiles differently (or not at all) as an expression, and the
+   * runtime looks each mode up separately.
+   */
+  statements: Record<string, string>;
   /** Coverage statistics, including the runtime-fallback list. */
   stats: CompileStats;
 };

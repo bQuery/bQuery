@@ -25,6 +25,9 @@ export { rateLimit } from './rate-limit';
 export type { RateLimitOptions, RateLimitState } from './rate-limit';
 export { serveStatic } from './static';
 export type { ServeStaticOptions } from './static';
+export { validate } from './validate';
+export type { ValidateMiddleware, ValidateOptions, ValidateSource } from './validate';
+export type { SchemaIssue, StandardSchemaV1 } from '../forms/index';
 export {
   base64UrlDecode,
   base64UrlEncode,

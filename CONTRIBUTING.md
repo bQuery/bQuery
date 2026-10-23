@@ -34,6 +34,39 @@ By participating in this project, you agree to follow the repository's [Code of 
 ## Tests
 
 - Run all tests: `bun test`
+- Run the real-browser lane: `bun run build && bun run test:browser`
+  (add `--project=chromium` to run one engine). Install the engines once with
+  `bunx playwright install chromium firefox webkit`.
+
+`bun test` runs every DOM test under happy-dom, which cannot observe real
+shadow-DOM slotting, `adoptedStyleSheets`, Trusted Types enforcement, Web
+Animations timing or pointer events. The Playwright suite in `browser/` covers
+those in Chromium, Firefox and WebKit: component lifecycle and slots, rendering
+under an enforced `require-trusted-types-for 'script'` CSP, view transitions
+and FLIP, pointer and keyboard drag and drop, and hydration mismatches. Its
+fixture server (`browser/server.ts`) is built on bQuery's own
+`createServer()` + `serveStatic()`. Add a `*.pw.ts` spec there when a behaviour depends
+on a real engine.
+
+## Benchmarks
+
+The `bench/` suite ([mitata](https://github.com/evanwashere/mitata)) measures
+signal-graph throughput (fan-out, deep chains, diamonds, batching), `bq-for`
+mount and update cost, and `renderToString()` throughput.
+
+- Run it: `bun run bench` (`--filter "deep chain"` runs the benchmarks whose name contains the text)
+- Write a JSON summary: `bun run bench --json bench.json`
+- Compare two summaries: `bun run bench:compare base.json head.json` — exits
+  non-zero when a median is more than 20 % slower (`--threshold 0.1` to tighten).
+  Pass comma-separated lists (`a.json,b.json`) to compare the fastest median of
+  repeated runs.
+
+Every pull request runs the suite against its base and its head on the same CI
+runner, alternating three times, and fails when the best median regresses by
+more than 20 %; the report lands in the job
+summary. A nightly run on `dev` keeps the numbers as an artifact. When a change
+is meant to trade speed for something else, say so in the PR. Changes to the
+reactive core or the view should come with before/after numbers.
 
 ## Code Style & Quality
 

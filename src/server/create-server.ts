@@ -9,6 +9,7 @@ import {
   renderToString,
   serializeStoreState,
 } from '../ssr/index';
+import { isNodeRequestLimitError } from '../ssr/adapters';
 import { serializeCookie } from './cookies';
 import { ServerHttpError } from './errors';
 import type {
@@ -17,6 +18,7 @@ import type {
   ServerContext,
   ServerHandler,
   ServerHtmlResponseInit,
+  ServerLimits,
   ServerListenHandle,
   ServerListenOptions,
   ServerMiddleware,
@@ -404,6 +406,58 @@ const formatSseChunk = (event: ServerSseEvent | string, defaultRetry?: number): 
   return `${chunk}\n`;
 };
 
+const MiB = 1024 * 1024;
+
+/**
+ * Body limits applied when `createServer({ limits })` leaves a content type
+ * unset. Pass `Infinity` for a content type to lift its limit.
+ *
+ * @internal
+ */
+export const DEFAULT_SERVER_LIMITS: Readonly<Required<ServerLimits>> = Object.freeze({
+  form: MiB,
+  json: MiB,
+  multipart: 10 * MiB,
+  raw: MiB,
+  text: MiB,
+});
+
+/** @internal Merge user limits over {@link DEFAULT_SERVER_LIMITS}. */
+const resolveServerLimits = (limits: ServerLimits | undefined): Required<ServerLimits> => {
+  const resolved: Required<ServerLimits> = { ...DEFAULT_SERVER_LIMITS };
+  if (!limits) return resolved;
+  for (const key of Object.keys(resolved) as Array<keyof ServerLimits>) {
+    const value = limits[key];
+    if (typeof value === 'number' && !Number.isNaN(value)) resolved[key] = value;
+  }
+  return resolved;
+};
+
+/** Whether `limit` caps the body: a finite, non-negative number. */
+const isFiniteLimit = (limit: number | undefined): limit is number =>
+  typeof limit === 'number' && Number.isFinite(limit) && limit >= 0;
+
+/**
+ * Largest finite limit, used as the transport-level cap for the Node adapter;
+ * `undefined` when any content type is unbounded.
+ *
+ * @internal
+ */
+const resolveTransportLimit = (limits: Required<ServerLimits>): number | undefined => {
+  let max = 0;
+  for (const value of Object.values(limits)) {
+    // Same rule as the route-level check: a negative limit means unbounded.
+    if (!isFiniteLimit(value)) return undefined;
+    max = Math.max(max, value);
+  }
+  return max;
+};
+
+/**
+ * Read the request body exactly once, enforcing `limit` while streaming so an
+ * oversized body is rejected without being buffered. Reads `request.body`
+ * directly rather than a `clone()`, whose tee would keep a second full copy.
+ */
 const readRequestBodyBuffer = async (
   request: Request,
   limit: number | undefined,
@@ -411,9 +465,7 @@ const readRequestBodyBuffer = async (
 ): Promise<Uint8Array> => {
   const contentLength = Number.parseInt(request.headers.get('content-length') ?? '', 10);
   if (
-    typeof limit === 'number' &&
-    Number.isFinite(limit) &&
-    limit >= 0 &&
+    isFiniteLimit(limit) &&
     Number.isFinite(contentLength) &&
     contentLength >= 0 &&
     contentLength > limit
@@ -421,8 +473,7 @@ const readRequestBodyBuffer = async (
     throw new ServerHttpError(413, errorMessage);
   }
 
-  const clone = request.clone();
-  const body = clone.body;
+  const body = request.body;
   if (!body) {
     return new Uint8Array(0);
   }
@@ -442,15 +493,22 @@ const readRequestBodyBuffer = async (
       }
 
       total += value.byteLength;
-      if (typeof limit === 'number' && Number.isFinite(limit) && limit >= 0 && total > limit) {
+      if (isFiniteLimit(limit) && total > limit) {
         throw new ServerHttpError(413, errorMessage);
       }
       chunks.push(value);
     }
+  } catch (error) {
+    // The Node adapter's transport cap fired before the route-level limit.
+    if (isNodeRequestLimitError(error)) throw new ServerHttpError(413, errorMessage);
+    throw error;
   } finally {
     await reader.cancel().catch(() => undefined);
   }
 
+  if (chunks.length === 1) {
+    return chunks[0];
+  }
   const output = new Uint8Array(total);
   let offset = 0;
   for (const chunk of chunks) {
@@ -862,13 +920,26 @@ const compileRoute = (route: ServerRoute): CompiledRoute => {
   };
 };
 
-const createBodyReader = (
-  request: Request,
-  limits: CreateServerOptions['limits']
-): (() => Promise<unknown>) => {
-  let cached: Promise<unknown> | null = null;
+interface BodyReader {
+  /** Parse the body by content type; cached after the first call. */
+  read: () => Promise<unknown>;
+  /** Bytes read by {@link BodyReader.read}, or `null` before it consumed the body. */
+  bytes: () => Uint8Array | null;
+  /** Read from a clone from now on, so the original request stays readable. */
+  keepOriginalReadable: () => void;
+}
 
-  return async (): Promise<unknown> => {
+const createBodyReader = (request: Request, limits: Required<ServerLimits>): BodyReader => {
+  let cached: Promise<unknown> | null = null;
+  let consumed: Uint8Array | null = null;
+  let readFromClone = false;
+  const readBuffer = async (limit: number, errorMessage: string): Promise<Uint8Array> => {
+    const source = readFromClone && !request.bodyUsed ? request.clone() : request;
+    consumed = await readRequestBodyBuffer(source, limit, errorMessage);
+    return consumed;
+  };
+
+  const read = async (): Promise<unknown> => {
     cached ??= (async () => {
       const contentType = request.headers.get('content-type') ?? '';
       const mediaType = getMediaType(contentType);
@@ -879,11 +950,7 @@ const createBodyReader = (
 
       if (isJsonMediaType(mediaType)) {
         const textBody = new TextDecoder().decode(
-          await readRequestBodyBuffer(
-            request,
-            limits?.json,
-            'Request JSON body exceeds the configured limit.'
-          )
+          await readBuffer(limits.json, 'Request JSON body exceeds the configured limit.')
         );
         try {
           return textBody ? JSON.parse(textBody) : null;
@@ -894,11 +961,7 @@ const createBodyReader = (
 
       if (mediaType === 'application/x-www-form-urlencoded') {
         const textBody = new TextDecoder().decode(
-          await readRequestBodyBuffer(
-            request,
-            limits?.form,
-            'Form body exceeds the configured limit.'
-          )
+          await readBuffer(limits.form, 'Form body exceeds the configured limit.')
         );
         return decodeFormUrlEncoded(textBody);
       }
@@ -907,14 +970,12 @@ const createBodyReader = (
         if (typeof request.formData !== 'function') {
           throw new ServerHttpError(415, 'multipart/form-data is not supported in this runtime.');
         }
-        const bodyBuffer = await readRequestBodyBuffer(
-          request,
-          limits?.multipart,
+        const bodyBuffer = await readBuffer(
+          limits.multipart,
           'Multipart form body exceeds the configured limit.'
         );
-        const requestBody = bodyBuffer.byteLength > 0 ? bodyBuffer.slice().buffer : undefined;
         const formData = await new Request(request.url, {
-          body: requestBody,
+          body: bodyBuffer.byteLength > 0 ? (bodyBuffer as Uint8Array<ArrayBuffer>) : undefined,
           headers: request.headers,
           method: request.method,
         }).formData();
@@ -937,25 +998,44 @@ const createBodyReader = (
 
       if (mediaType.startsWith('text/')) {
         const textBody = new TextDecoder().decode(
-          await readRequestBodyBuffer(
-            request,
-            limits?.text,
-            'Text body exceeds the configured limit.'
-          )
+          await readBuffer(limits.text, 'Text body exceeds the configured limit.')
         );
         return textBody;
       }
 
-      const rawBody = await readRequestBodyBuffer(
-        request,
-        limits?.raw,
-        'Request body exceeds the configured limit.'
-      );
+      const rawBody = await readBuffer(limits.raw, 'Request body exceeds the configured limit.');
       return rawBody.buffer.slice(rawBody.byteOffset, rawBody.byteOffset + rawBody.byteLength);
     })();
 
     return cached;
   };
+
+  return {
+    read,
+    bytes: () => consumed,
+    keepOriginalReadable: () => {
+      readFromClone = true;
+    },
+  };
+};
+
+/** Body readers by context, for {@link keepRequestBodyReadable}. */
+const bodyReaders = new WeakMap<ServerContext, BodyReader>();
+
+/**
+ * Keep `ctx.request` — the object as it is now — readable after `ctx.body()`.
+ *
+ * `ctx.body()` normally consumes the request body itself instead of a clone
+ * (a clone's tee keeps a second copy of the body in memory), and later reads
+ * of `ctx.request` get a replay. Code that hands the current `ctx.request` to
+ * someone who may read it after `ctx.body()` — file-route `load`/`action`
+ * arguments — calls this first, and `ctx.body()` then reads a clone.
+ *
+ * @internal
+ */
+export const keepRequestBodyReadable = (ctx: ServerContext): Request => {
+  bodyReaders.get(ctx)?.keepOriginalReadable();
+  return ctx.request;
 };
 
 /**
@@ -1010,19 +1090,37 @@ const mergeResponseHeaders = (
 const createServerContext = (
   request: Request,
   baseUrl: string,
-  limits: CreateServerOptions['limits']
+  limits: Required<ServerLimits>
 ): ServerContext => {
   const url = new URL(request.url, baseUrl);
   const method = request.method.toUpperCase();
   const path = normalizePath(url.pathname || '/');
   const query = parseQuery(url);
   const cookies = parseCookies(request.headers.get('cookie'));
-  const readBody = createBodyReader(request, limits);
+  const bodyReader = createBodyReader(request, limits);
   const responseHeaders = createHeaders();
   const responseSetCookies: string[] = [];
+  let currentRequest = request;
 
-  return {
-    request,
+  const context: ServerContext = {
+    // `ctx.body()` consumes the original body instead of a clone. Hand out a
+    // replay built from the cached bytes so `ctx.request.text()` and friends
+    // keep working afterwards; it is only built when someone asks for it.
+    get request(): Request {
+      const bytes = currentRequest === request ? bodyReader.bytes() : null;
+      if (bytes && request.bodyUsed) {
+        currentRequest = new Request(request.url, {
+          body: bytes.byteLength > 0 ? (bytes as Uint8Array<ArrayBuffer>) : undefined,
+          headers: request.headers,
+          method: request.method,
+          signal: request.signal,
+        });
+      }
+      return currentRequest;
+    },
+    set request(value: Request) {
+      currentRequest = value;
+    },
     url,
     method,
     path,
@@ -1030,7 +1128,7 @@ const createServerContext = (
     query,
     cookies,
     state: {},
-    body: readBody,
+    body: bodyReader.read,
     response: (body, init = {}) => {
       const headers = createHeaders(init.headers);
       mergeResponseHeaders(responseHeaders, headers, responseSetCookies);
@@ -1091,6 +1189,8 @@ const createServerContext = (
     callWorker: callWorkerMethod,
     isWebSocketRequest: isWebSocketRequest(request),
   };
+  bodyReaders.set(context, bodyReader);
+  return context;
 };
 
 /**
@@ -1109,7 +1209,7 @@ const createServerContext = (
  */
 export const createServer = (options: CreateServerOptions = {}): ServerApp => {
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
-  const limits = options.limits;
+  const limits = resolveServerLimits(options.limits);
   const middlewares = [...(options.middlewares ?? [])];
   const routes: CompiledRoute[] = [];
   const webSocketRoutes: CompiledWebSocketRoute[] = [];
@@ -1231,6 +1331,13 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
         });
         return result;
       } catch (error) {
+        // A route that read `ctx.request` directly hit the Node transport cap.
+        if (isNodeRequestLimitError(error)) {
+          return await onError(
+            new ServerHttpError(413, 'Request body exceeds the configured limit.'),
+            context
+          );
+        }
         return await onError(error, context);
       }
     },
@@ -1306,7 +1413,11 @@ export const createServer = (options: CreateServerOptions = {}): ServerApp => {
 
       if (resolvedRuntime === 'node') {
         const nodeHttp = (await import('node:http')) as typeof import('node:http');
-        const handler = createNodeHandler((request) => app.handle(request));
+        // Cap the transport at the largest route-level limit; the per-type
+        // limits then apply while `ctx.body()` streams the request.
+        const handler = createNodeHandler((request) => app.handle(request), {
+          maxBodyBytes: resolveTransportLimit(limits),
+        });
         const server = nodeHttp.createServer(handler);
         await new Promise<void>((resolve, reject) => {
           const onError = (err: Error) => reject(err);

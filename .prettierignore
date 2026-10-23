@@ -3,3 +3,5 @@ node_modules/
 docs/.vitepress/
 storybook-static/
 *.min.*
+browser/test-results/
+browser/playwright-report/

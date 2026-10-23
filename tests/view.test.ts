@@ -5,7 +5,15 @@
 import { afterEach, beforeEach, describe, expect, it, spyOn, type Mock } from 'bun:test';
 import { createForm, required } from '../src/forms/index';
 import { computed, signal } from '../src/reactive/index';
-import { evaluate, evaluateRaw, parseObjectExpression } from '../src/view/evaluate';
+import {
+  clearCompiledExpressions,
+  evaluate,
+  evaluateRaw,
+  evaluateStatements,
+  parseObjectExpression,
+  registerCompiledExpressions,
+  splitTopLevel,
+} from '../src/view/evaluate';
 import { clearExpressionCache, createTemplate, mount, type View } from '../src/view/index';
 import { getCustomDirective, registerCustomDirectiveResolver } from '../src/view/custom-directives';
 
@@ -817,6 +825,167 @@ describe('View', () => {
       container.querySelector('button')!.click();
       expect(receivedType).toBe('click');
     });
+
+    describe('statement lists', () => {
+      it('runs `$event.preventDefault(); add()` on submit', () => {
+        container.innerHTML = `
+          <form bq-on:submit="$event.preventDefault(); add()">
+            <button type="submit">Add</button>
+          </form>`;
+        const items = signal<string[]>([]);
+        let event: Event | null = null;
+        const form = container.querySelector('form')!;
+        form.addEventListener('submit', (e) => {
+          event = e;
+        });
+
+        view = mount(container, { add: () => (items.value = [...items.value, 'x']) });
+        form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+
+        expect(event!.defaultPrevented).toBe(true);
+        expect(items.value).toEqual(['x']);
+      });
+
+      it('runs statements in order and passes values between them', () => {
+        container.innerHTML =
+          "<button bq-on:click=\"count.value++; log('a' + count.value); log('b')\">Go</button>";
+        const count = signal(0);
+        const calls: string[] = [];
+        view = mount(container, { count, log: (s: string) => calls.push(s) });
+
+        container.querySelector('button')!.click();
+        container.querySelector('button')!.click();
+
+        expect(count.value).toBe(2);
+        expect(calls).toEqual(['a1', 'b', 'a2', 'b']);
+      });
+
+      it('does not split on a semicolon inside strings, template literals or calls', () => {
+        container.innerHTML =
+          "<button bq-on:click=\"log('a;b'); log(`c;${'d;e'}`); log(join(['f', 'g'], ';'))\">Go</button>";
+        const calls: string[] = [];
+        view = mount(container, {
+          log: (s: string) => calls.push(s),
+          join: (parts: string[], sep: string) => parts.join(sep),
+        });
+
+        container.querySelector('button')!.click();
+
+        expect(calls).toEqual(['a;b', 'c;d;e', 'f;g']);
+      });
+
+      it('accepts a trailing semicolon and ignores empty statements', () => {
+        container.innerHTML = '<button bq-on:click="one();; two();">Go</button>';
+        const calls: string[] = [];
+        view = mount(container, { one: () => calls.push('1'), two: () => calls.push('2') });
+
+        container.querySelector('button')!.click();
+
+        expect(calls).toEqual(['1', '2']);
+      });
+
+      it('accepts a single expression with a trailing semicolon', () => {
+        container.innerHTML = '<button bq-on:click="handle($event);">Go</button>';
+        let type = '';
+        view = mount(container, { handle: (e: Event) => (type = e.type) });
+
+        container.querySelector('button')!.click();
+
+        expect(type).toBe('click');
+      });
+
+      it('invokes a function value of the last statement with the event', () => {
+        container.innerHTML = '<button bq-on:click="count.value++; handler">Go</button>';
+        const count = signal(0);
+        let type = '';
+        view = mount(container, { count, handler: (e: Event) => (type = e.type) });
+
+        container.querySelector('button')!.click();
+
+        expect(count.value).toBe(1);
+        expect(type).toBe('click');
+      });
+
+      it('supports statement keywords such as if/else', () => {
+        container.innerHTML =
+          '<button bq-on:click="if (count.value > 0) count.value--; else count.value = 10">Go</button>';
+        const count = signal(1);
+        view = mount(container, { count });
+        const button = container.querySelector('button')!;
+
+        button.click();
+        expect(count.value).toBe(0);
+        button.click();
+        expect(count.value).toBe(10);
+      });
+
+      it('blocks dangerous member access in a later statement', () => {
+        const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+        try {
+          container.innerHTML =
+            '<button bq-on:click="first(); items.constructor.constructor(\'globalThis.__bqPwned = 1\')()">Go</button>';
+          let firstRan = false;
+          view = mount(container, { first: () => (firstRan = true), items: [] });
+
+          container.querySelector('button')!.click();
+
+          expect((globalThis as Record<string, unknown>).__bqPwned).toBeUndefined();
+          // The whole handler is refused, not just the offending statement.
+          expect(firstRan).toBe(false);
+          expect(String(errorSpy.mock.calls[0]?.[0])).toContain('refusing to evaluate');
+        } finally {
+          errorSpy.mockRestore();
+        }
+      });
+
+      it('stops at the first statement that throws', () => {
+        const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+        try {
+          container.innerHTML = '<button bq-on:click="boom(); after()">Go</button>';
+          let afterRan = false;
+          view = mount(container, {
+            boom: () => {
+              throw new Error('boom');
+            },
+            after: () => (afterRan = true),
+          });
+
+          container.querySelector('button')!.click();
+
+          expect(afterRan).toBe(false);
+          expect(errorSpy).toHaveBeenCalled();
+        } finally {
+          errorSpy.mockRestore();
+        }
+      });
+
+      it('works with event modifiers', () => {
+        container.innerHTML = '<button bq-on:click.once="one(); two()">Go</button>';
+        const calls: string[] = [];
+        view = mount(container, { one: () => calls.push('1'), two: () => calls.push('2') });
+        const button = container.querySelector('button')!;
+
+        button.click();
+        button.click();
+
+        expect(calls).toEqual(['1', '2']);
+      });
+
+      it('keeps other directives expression-only, with a hint pointing at bq-on', () => {
+        const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+        try {
+          container.innerHTML = '<p bq-text="a; b"></p>';
+          view = mount(container, { a: 'A', b: 'B' });
+
+          expect(container.querySelector('p')!.textContent).toBe('');
+          expect(String(errorSpy.mock.calls[0]?.[0])).toContain(
+            'only supported in bq-on event handlers'
+          );
+        } finally {
+          errorSpy.mockRestore();
+        }
+      });
+    });
   });
 
   describe('bq-for', () => {
@@ -1471,7 +1640,97 @@ describe('View', () => {
   });
 });
 
+describe('splitTopLevel', () => {
+  it('splits on top-level separators only and drops empty parts', () => {
+    expect(splitTopLevel("a(';'); b[';']; { c: ';' };; d;", ';')).toEqual([
+      "a(';')",
+      "b[';']",
+      "{ c: ';' }",
+      'd',
+    ]);
+  });
+
+  it('respects escapes and template literal substitutions', () => {
+    expect(splitTopLevel("'x\\';y'; `a;${ { k: ';' }.k };b`; z", ';')).toEqual([
+      "'x\\';y'",
+      "`a;${ { k: ';' }.k };b`",
+      'z',
+    ]);
+  });
+
+  it('skips // and /* */ comments and leaves them out of the parts', () => {
+    expect(splitTopLevel("a(); // note; with a quote's", ';')).toEqual(['a()']);
+    expect(splitTopLevel("a() /* it's; ( */; b()", ';')).toEqual(['a()', 'b()']);
+    expect(splitTopLevel('a(); // first\nb() // second', ';')).toEqual(['a()', 'b()']);
+    expect(splitTopLevel('/* only a comment */', ';')).toEqual([]);
+    // Division and an escaped slash in a regex literal are not comments.
+    expect(splitTopLevel('x = a / b; /^https?:\\/\\//.test(u)', ';')).toEqual([
+      'x = a / b',
+      '/^https?:\\/\\//.test(u)',
+    ]);
+  });
+});
+
+describe('evaluateStatements', () => {
+  it('runs statement lists with trailing and inline comments', () => {
+    const calls: string[] = [];
+    const ctx = { a: () => calls.push('a'), b: () => calls.push('b') };
+    expect(evaluateStatements('a(); // then nothing', ctx)).toBe(1);
+    expect(evaluateStatements('a() // just one', ctx)).toBe(2);
+    expect(evaluateStatements("a(); /* don't */ b()", ctx)).toBe(4);
+    expect(calls).toEqual(['a', 'a', 'a', 'b']);
+  });
+
+  it('returns the last statement value and caches per source', () => {
+    const ctx = { a: 2, b: 3 };
+    expect(evaluateStatements('a; b; a * b', ctx)).toBe(6);
+    expect(evaluateStatements('a; b; a * b', ctx)).toBe(6);
+    expect(evaluateStatements('a + b', ctx)).toBe(5);
+    expect(evaluateStatements(' ; ', ctx)).toBeUndefined();
+    const log: string[] = [];
+    evaluateStatements("if (a > 1) log.push('big');", { a: 2, log });
+    expect(log).toEqual(['big']);
+  });
+
+  it('prefers a compiled statement function registered under the full source', () => {
+    registerCompiledExpressions({}, { 'x(); y()': () => 'COMPILED' });
+    try {
+      expect(evaluateStatements('x(); y()', {})).toBe('COMPILED');
+    } finally {
+      clearCompiledExpressions();
+    }
+  });
+
+  it('keeps expression and statement registrations apart', () => {
+    const errorSpy = spyOn(console, 'error').mockImplementation(() => {});
+    registerCompiledExpressions(
+      { 'p(); q()': () => 'EXPRESSION' },
+      { 'r(); s()': () => 'STATEMENTS' }
+    );
+    try {
+      const ctx = { p: () => 1, q: () => 2, r: () => 3, s: () => 4 };
+      // A statement list never uses an expression entry, and vice versa.
+      expect(evaluateStatements('p(); q()', ctx)).toBe(2);
+      expect(evaluate('r(); s()', ctx)).toBeUndefined();
+      expect(evaluateRaw('r(); s()', ctx)).toBeUndefined();
+      // A single-expression handler still uses an expression entry.
+      registerCompiledExpressions({ 'p()': () => 'EXPRESSION' });
+      expect(evaluateStatements('p()', ctx)).toBe('EXPRESSION');
+    } finally {
+      clearCompiledExpressions();
+      errorSpy.mockRestore();
+    }
+  });
+});
+
 describe('parseObjectExpression', () => {
+  it('does not split on commas inside template literal substitutions', () => {
+    expect(parseObjectExpression('{ a: `x,${ f(1, 2) }`, b: c }')).toEqual({
+      a: '`x,${ f(1, 2) }`',
+      b: 'c',
+    });
+  });
+
   it('handles escaped backslash before quote correctly', () => {
     // A double backslash before a quote should NOT escape the quote;
     // the string ends at the quote after the two backslashes, yielding the raw token: "value\\\\"
@@ -1560,6 +1819,18 @@ describe('evaluate — prototype-chain hardening (#168)', () => {
     expect(evaluate("items?.constructor?.constructor('x')()", { items: [] })).toBeUndefined();
     expect(evaluate("items['constructor']['constructor']('x')()", { items: [] })).toBeUndefined();
     expect(evaluate('items.__proto__', { items: [] })).toBeUndefined();
+  });
+
+  it('blocks member escapes hidden behind comments', () => {
+    console.error = () => {};
+    const ctx = { name: 'x', run: () => 1, items: [] };
+    expect(evaluate('name./**/constructor', ctx)).toBeUndefined();
+    expect(evaluate("run./* c */constructor('return 42')()", ctx)).toBeUndefined();
+    expect(evaluate("items[/**/'constructor']", ctx)).toBeUndefined();
+    expect(evaluate('items.//\n__proto__', ctx)).toBeUndefined();
+    expect(evaluateStatements("run(); run./**/constructor('return 42')()", ctx)).toBeUndefined();
+    // A comment marker inside a string is not a comment.
+    expect(evaluate<string>("'a./**/b' + name", ctx)).toBe('a./**/bx');
   });
 
   it('still allows non-dangerous member chains on context values (#202)', () => {

@@ -71,6 +71,13 @@ const isUnsafeUrlValue = (value: string): boolean => {
   return DANGEROUS_PROTOCOLS.some((protocol) => normalized.startsWith(protocol));
 };
 
+/** Whether any candidate URL in a `srcset` value ("url [descriptor], …") is unsafe. */
+const isUnsafeSrcsetValue = (value: string): boolean =>
+  value.split(',').some((entry) => {
+    const url = entry.trim().split(/\s+/)[0];
+    return url !== undefined && url !== '' && isUnsafeUrlValue(url);
+  });
+
 const URL_PROTOCOL_PATTERN = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const REL_SPLIT_PATTERN = /\s+/;
 
@@ -290,7 +297,10 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
     }
 
     if (node.type !== 'element') {
-      return node;
+      // Comments are dropped, as both sanitizeHtml() backends do: browsers end
+      // a comment early at `<!-->`, `<!--->` and `--!>`, so a comment kept
+      // verbatim can carry live markup past this parser.
+      return node.type === 'comment' ? null : node;
     }
 
     if (DANGEROUS_TAGS.has(node.tag) || !DEFAULT_ALLOWED_TAGS.has(node.tag)) {
@@ -311,7 +321,12 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
         continue;
       }
 
-      if ((attrName === 'href' || attrName === 'src') && isUnsafeUrlValue(value)) {
+      if (isUnsafeUrlAttribute(attrName) && isUnsafeUrlValue(value)) {
+        removeAttr(node, name);
+        continue;
+      }
+
+      if (attrName === 'srcset' && isUnsafeSrcsetValue(value)) {
         removeAttr(node, name);
         continue;
       }
@@ -331,6 +346,21 @@ export const sanitizeHtmlForSSR = (raw: string): string => {
         relValues.add('noreferrer');
         setAttr(node, 'rel', Array.from(relValues).join(' '));
       }
+    }
+
+    if (node.raw) {
+      // `textarea` / `title` content is kept as raw text by the parser and
+      // serialized verbatim. That is only safe if whatever parses the output
+      // also treats it as text; DOM implementations such as happy-dom build
+      // elements inside a textarea, so `<span><textarea></span><iframe …>`
+      // came back out as live markup. Escaping `<` and `>` leaves no markup
+      // to build, and leaving `&` alone keeps every character reference — so
+      // the text a browser shows is unchanged.
+      for (const child of node.children) {
+        if (child.type === 'text')
+          child.value = child.value.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      return node;
     }
 
     node.children = node.children.flatMap((child) => {

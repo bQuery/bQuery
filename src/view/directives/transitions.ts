@@ -76,6 +76,9 @@ const PRESETS: Record<string, Keyframe[]> = {
 // `slide` is an alias for `slide-up`.
 PRESETS.slide = PRESETS['slide-up'];
 
+/** Names accepted by `bq-transition`, `bq-in` and `bq-out` (editor tooling reads these). */
+export const TRANSITION_PRESET_NAMES: readonly string[] = Object.freeze(Object.keys(PRESETS));
+
 /** Resolved transition configuration for an element. */
 export type ViewTransitionConfig = {
   /** Enter keyframes (hidden → visible), or `null` when no enter transition. */
