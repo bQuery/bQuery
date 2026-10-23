@@ -29,7 +29,7 @@ import {
 
 const DEFAULT_DIR = 'bquery-app';
 
-const USAGE = `Usage: npm create bquery@latest [dir] [options]
+const USAGE = `Usage: create-bquery [dir] [options]
 
 Scaffold a new bQuery.js project in [dir] (default: ${DEFAULT_DIR}).
 
@@ -47,7 +47,7 @@ Options:
 Templates:
 ${TEMPLATES.map((name) => `  ${name.padEnd(10)} ${TEMPLATE_DESCRIPTIONS[name]}`).join('\n')}
 
-With npm, pass options after "--": npm create bquery@latest my-app -- --template ssr`;
+Without bQuery installed: npx --package @bquery/bquery create-bquery my-app --template ssr`;
 
 /** Reads this package's version. */
 const packageVersion = () =>

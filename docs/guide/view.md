@@ -501,7 +501,7 @@ bquery-view-compile --out-dir src/views/.compiled src/views/*.html
 
 Or drive it from a build script with `compileFiles()` / `runCompileCli()`. The compiler is intentionally **not** a build tool of its own — `compileViews()` and `compileToModule()` are small transforms usable from any bundler (Vite/esbuild/Rollup).
 
-With a bundler, [`@bquery/unplugin`](/guide/bundler-plugin#view-precompilation) runs the compiler for you: `*.view.html` imports are compiled on the fly, with HMR in Vite and skipped expressions reported as build warnings.
+With a bundler, [`@bquery/unplugin`](/guide/bundler-plugin#view-precompilation) (in development, not yet on npm) runs the compiler for you: `*.view.html` imports are compiled on the fly, with HMR in Vite and skipped expressions reported as build warnings.
 
 ### What compiles
 

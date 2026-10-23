@@ -56,8 +56,8 @@ const moduleItems = [
 
 const toolingItems = [
   { text: 'Create a project', link: '/guide/create-bquery' },
-  { text: 'Bundler Plugin', link: '/guide/bundler-plugin' },
-  { text: 'ESLint Plugin', link: '/guide/eslint-plugin' },
+  { text: 'Bundler Plugin (in development)', link: '/guide/bundler-plugin' },
+  { text: 'ESLint Plugin (in development)', link: '/guide/eslint-plugin' },
 ];
 
 const workflowsItems = [
